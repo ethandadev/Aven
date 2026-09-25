@@ -13,12 +13,14 @@
 #include "aven/runtime/game.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <thread>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -167,8 +169,12 @@ struct Player {
         float dt = capture ? 1.0f / 60.0f : static_cast<float>(std::min(now - last, 0.1));
         last = now;
         Vec2 fb = window.framebufferSize();
-        if (window.minimized() || fb.x < 1 || fb.y < 1)
+        if (window.minimized() || fb.x < 1 || fb.y < 1) {
+#ifndef __EMSCRIPTEN__
+            std::this_thread::sleep_for(std::chrono::milliseconds(16)); // nothing to draw; don't spin
+#endif
             return true;
+        }
         game->setScreenSize(fb);
         game->update(dt);
         device->beginFrame();
@@ -200,13 +206,25 @@ int main(int argc, char** argv) {
     auto* player = new Player(); // intentionally lives until the program ends (the web never returns from main)
     if (!parseArgs(argc, argv, player->opt))
         return 0;
+    // A double-clicked game has no console, so a failed start is shown in a dialog box.
+    std::string firstError;
+    int sink = Log::addSink([&firstError](const LogMessage& m) {
+        if (m.level == LogLevel::Error && firstError.empty())
+            firstError = m.text;
+    });
+    auto fail = [&](const std::string& title) {
+        if (!player->opt.hidden && player->opt.screenshot.empty())
+            showErrorDialog(title, firstError.empty() ? "The game couldn't start." : firstError);
+        return 1;
+    };
     player->projectDir = findProject(player->opt.project);
     if (player->projectDir.empty() || !ProjectSettings::isProject(player->projectDir)) {
         Log::error("No game found. Put the game folder (with project.aven) next to the player, or pass its path.");
-        return 1;
+        return fail("Aven");
     }
     if (!player->start())
-        return 1;
+        return fail(player->settings.name.empty() ? "Aven" : player->settings.name);
+    Log::removeSink(sink);
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop_arg(
         [](void* p) {

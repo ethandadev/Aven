@@ -23,6 +23,11 @@ struct WindowDesc {
     int samples = 0;
 };
 
+// Shows a message in a native dialog box. For errors that stop a program before it has a
+// window, when it was started by double-clicking and has no console to print to.
+// Does nothing on the web.
+void showErrorDialog(const std::string& title, const std::string& message);
+
 // An OS window with an OpenGL context. Input events are forwarded into an Input.
 class Window {
 public:

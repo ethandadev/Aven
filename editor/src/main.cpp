@@ -90,11 +90,18 @@ int main(int argc, char** argv) {
     wd.maximized = !screenshotMode && !args.width;
     wd.vsync = !screenshotMode;
     Window window;
-    if (!window.create(wd))
+    if (!window.create(wd)) {
+        if (!screenshotMode)
+            showErrorDialog("Aven", "Aven couldn't open its window. It needs OpenGL 3.3: updating the graphics "
+                                    "driver usually fixes this.");
         return 1;
+    }
     auto device = rhi::createDevice(rhi::Backend::OpenGL, Window::glProcLoader());
-    if (!device)
+    if (!device) {
+        if (!screenshotMode)
+            showErrorDialog("Aven", "Aven couldn't start OpenGL 3.3. Updating the graphics driver usually fixes this.");
         return 1;
+    }
     Log::info("Aven Editor ", AVEN_VERSION, " on ", device->description());
     window.setDefaultIcon();
 

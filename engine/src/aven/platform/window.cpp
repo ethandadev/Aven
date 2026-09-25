@@ -10,9 +10,69 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/html5.h>
+#elif defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
+#include <spawn.h>
+#include <sys/wait.h>
+#include <unistd.h>
+extern char** environ;
 #endif
 
 namespace aven {
+
+void showErrorDialog(const std::string& title, const std::string& message) {
+#if defined(__EMSCRIPTEN__)
+    (void)title;
+    (void)message;
+#elif defined(_WIN32)
+    auto wide = [](const std::string& s) {
+        int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
+        std::wstring out(static_cast<size_t>(n > 0 ? n : 1), L'\0');
+        if (n > 0)
+            MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, out.data(), n);
+        return out;
+    };
+    MessageBoxW(nullptr, wide(message).c_str(), wide(title).c_str(), MB_OK | MB_ICONERROR);
+#else
+    // Started from a terminal: the message is already printed there.
+    if (isatty(STDERR_FILENO))
+        return;
+    auto run = [](std::vector<std::string> args) {
+        std::vector<char*> argv;
+        for (auto& a : args)
+            argv.push_back(a.data());
+        argv.push_back(nullptr);
+        pid_t pid = 0;
+        if (posix_spawnp(&pid, argv[0], nullptr, nullptr, argv.data(), environ) != 0)
+            return false;
+        int status = 0;
+        waitpid(pid, &status, 0);
+        return WIFEXITED(status) && WEXITSTATUS(status) != 127;
+    };
+#ifdef __APPLE__
+    auto quoted = [](const std::string& s) {
+        std::string out = "\"";
+        for (char c : s) {
+            if (c == '"' || c == '\\')
+                out += '\\';
+            out += c;
+        }
+        return out + "\"";
+    };
+    run({"osascript", "-e", "display alert " + quoted(title) + " message " + quoted(message) + " as critical"});
+#else
+    if (!run({"zenity", "--error", "--title=" + title, "--no-markup", "--text=" + message}))
+        run({"kdialog", "--title", title, "--error", message});
+#endif
+#endif
+}
 
 namespace {
 
