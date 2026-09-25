@@ -1,0 +1,8 @@
+{
+  "name": "Crystal Forest",
+  "description": "Explore a misty forest at sunset in first person. Find the glowing crystals to open the ancient gate. Shows off lights, fog, shadows and post-processing.",
+  "style": "EasyScript",
+  "difficulty": "Intermediate",
+  "3d": true,
+  "color": "8B5CF6"
+}

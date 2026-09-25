@@ -1,0 +1,8 @@
+{
+  "name": "Platformer",
+  "description": "Run, jump and collect coins! Squash slimes, dodge spikes and reach the flag. The player is made with blocks; everything else uses a few lines of EasyScript.",
+  "style": "Blocks + EasyScript",
+  "difficulty": "Beginner",
+  "3d": false,
+  "color": "22C55E"
+}

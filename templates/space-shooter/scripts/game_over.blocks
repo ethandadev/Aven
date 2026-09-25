@@ -1,0 +1,86 @@
+{
+  "aven": "blocks",
+  "version": 1,
+  "variables": [],
+  "scripts": [
+    {
+      "x": 20,
+      "y": 20,
+      "blocks": [
+        {
+          "type": "when_start"
+        },
+        {
+          "type": "hide"
+        }
+      ]
+    },
+    {
+      "x": 20,
+      "y": 164,
+      "blocks": [
+        {
+          "type": "when_receive",
+          "inputs": {
+            "message": "game_over"
+          }
+        },
+        {
+          "type": "show"
+        },
+        {
+          "type": "play_sound",
+          "inputs": {
+            "sound": "sounds/lose.wav"
+          }
+        },
+        {
+          "type": "if",
+          "inputs": {
+            "condition": {
+              "type": "greater",
+              "inputs": {
+                "a": {
+                  "type": "game_var",
+                  "inputs": {
+                    "name": "score"
+                  }
+                },
+                "b": {
+                  "type": "load",
+                  "inputs": {
+                    "key": "best",
+                    "default": 0
+                  }
+                }
+              }
+            }
+          },
+          "body": [
+            {
+              "type": "save",
+              "inputs": {
+                "value": {
+                  "type": "game_var",
+                  "inputs": {
+                    "name": "score"
+                  }
+                },
+                "key": "best"
+              }
+            }
+          ]
+        },
+        {
+          "type": "wait",
+          "inputs": {
+            "seconds": 2.5
+          }
+        },
+        {
+          "type": "restart"
+        }
+      ]
+    }
+  ]
+}

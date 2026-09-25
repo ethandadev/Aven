@@ -1,0 +1,58 @@
+{
+  "aven": "blocks",
+  "version": 1,
+  "variables": [],
+  "scripts": [
+    {
+      "x": 20,
+      "y": 20,
+      "blocks": [
+        {
+          "type": "when_clicked"
+        },
+        {
+          "type": "change_game",
+          "inputs": {
+            "name": "cookies",
+            "value": {
+              "type": "game_var",
+              "inputs": {
+                "name": "per_click"
+              }
+            }
+          }
+        },
+        {
+          "type": "play_sound",
+          "inputs": {
+            "sound": "sounds/click.wav"
+          }
+        },
+        {
+          "type": "emit",
+          "inputs": {
+            "count": 6
+          }
+        },
+        {
+          "type": "set_size",
+          "inputs": {
+            "size": 1.08
+          }
+        },
+        {
+          "type": "wait",
+          "inputs": {
+            "seconds": 0.06
+          }
+        },
+        {
+          "type": "set_size",
+          "inputs": {
+            "size": 1
+          }
+        }
+      ]
+    }
+  ]
+}

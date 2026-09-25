@@ -1,0 +1,5210 @@
+{
+  "aven": "scene",
+  "version": 1,
+  "name": "Forest",
+  "entities": [
+    {
+      "id": "0000000000000001",
+      "name": "Camera",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.6,
+            8
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Camera": {
+          "projection": "Perspective",
+          "field_of_view": 70
+        },
+        "PostProcessing": {
+          "tonemapper": "ACES",
+          "bloom": true,
+          "bloom_intensity": 0.9,
+          "ssao": true,
+          "fxaa": true,
+          "vignette": true,
+          "vignette_intensity": 0.25
+        },
+        "AudioListener": {}
+      }
+    },
+    {
+      "id": "0000000000000002",
+      "name": "Environment",
+      "components": {
+        "Environment": {
+          "sky": "Procedural",
+          "sky_top": [
+            0.18,
+            0.165,
+            0.42,
+            1.0
+          ],
+          "sky_horizon": [
+            0.961,
+            0.62,
+            0.42,
+            1.0
+          ],
+          "fog": true,
+          "fog_color": [
+            0.427,
+            0.353,
+            0.549,
+            1.0
+          ],
+          "fog_density": 0.03
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000003",
+      "name": "Sun",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            10,
+            0
+          ],
+          "rotation": [
+            -10,
+            60,
+            0
+          ]
+        },
+        "Light": {
+          "type": "Directional",
+          "color": [
+            1.0,
+            0.698,
+            0.478,
+            1.0
+          ],
+          "intensity": 1.4,
+          "cast_shadows": true
+        }
+      }
+    },
+    {
+      "id": "0000000000000004",
+      "name": "Flashlight",
+      "parent": "0000000000000001",
+      "components": {
+        "Transform": {
+          "position": [
+            0.25,
+            -0.2,
+            0
+          ]
+        },
+        "Light": {
+          "type": "Spot",
+          "color": [
+            1.0,
+            0.953,
+            0.839,
+            1.0
+          ],
+          "intensity": 0,
+          "range": 20,
+          "spot_angle": 45,
+          "cast_shadows": true
+        }
+      }
+    },
+    {
+      "id": "0000000000000005",
+      "name": "Ground",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            90,
+            1,
+            90
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Plane",
+          "color": [
+            0.239,
+            0.361,
+            0.204,
+            1.0
+          ],
+          "roughness": 0.95
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            0.02,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000006",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -3.62,
+            0,
+            -0.82
+          ],
+          "rotation": [
+            0,
+            168,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000007",
+      "name": "Trunk",
+      "parent": "0000000000000006",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.6345263504142375,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.6345263504142375,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000008",
+      "name": "Leaves",
+      "parent": "0000000000000006",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.669052700828475,
+            0
+          ],
+          "scale": [
+            3.269052700828475,
+            4.3587369344379665,
+            3.269052700828475
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.227,
+            0.478,
+            0.267,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000009",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            26.98,
+            0,
+            -26.71
+          ],
+          "rotation": [
+            0,
+            171,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000000a",
+      "name": "Trunk",
+      "parent": "0000000000000009",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.562340187632629,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.562340187632629,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000000b",
+      "name": "Leaves",
+      "parent": "0000000000000009",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.524680375265258,
+            0
+          ],
+          "scale": [
+            3.124680375265258,
+            4.166240500353678,
+            3.124680375265258
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.227,
+            0.478,
+            0.267,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000000c",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            22.27,
+            0,
+            -33.41
+          ],
+          "rotation": [
+            0,
+            33,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000000d",
+      "name": "Trunk",
+      "parent": "000000000000000c",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.2620407575747152,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.2620407575747152,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000000e",
+      "name": "Leaves",
+      "parent": "000000000000000c",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            3.9240815151494304,
+            0
+          ],
+          "scale": [
+            2.5240815151494305,
+            3.365442020199241,
+            2.5240815151494305
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.227,
+            0.478,
+            0.267,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000000f",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            10.22,
+            0,
+            1.68
+          ],
+          "rotation": [
+            0,
+            163,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000010",
+      "name": "Trunk",
+      "parent": "000000000000000f",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.3176959858749409,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.3176959858749409,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000011",
+      "name": "Leaves",
+      "parent": "000000000000000f",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.035391971749881,
+            0
+          ],
+          "scale": [
+            2.6353919717498817,
+            3.513855962333176,
+            2.6353919717498817
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.227,
+            0.478,
+            0.267,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000012",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            8.78,
+            0,
+            -28.98
+          ],
+          "rotation": [
+            0,
+            190,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000013",
+      "name": "Trunk",
+      "parent": "0000000000000012",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.0890004421697628,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.0890004421697628,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000014",
+      "name": "Leaves",
+      "parent": "0000000000000012",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            3.5780008843395255,
+            0
+          ],
+          "scale": [
+            2.1780008843395255,
+            2.904001179119368,
+            2.1780008843395255
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.184,
+            0.42,
+            0.227,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000015",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -35.29,
+            0,
+            21.57
+          ],
+          "rotation": [
+            0,
+            280,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000016",
+      "name": "Trunk",
+      "parent": "0000000000000015",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.4397708509717102,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.4397708509717102,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000017",
+      "name": "Leaves",
+      "parent": "0000000000000015",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.279541701943421,
+            0
+          ],
+          "scale": [
+            2.8795417019434204,
+            3.8393889359245605,
+            2.8795417019434204
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000018",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -4.52,
+            0,
+            18.97
+          ],
+          "rotation": [
+            0,
+            231,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000019",
+      "name": "Trunk",
+      "parent": "0000000000000018",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.3914744688584462,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.3914744688584462,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000001a",
+      "name": "Leaves",
+      "parent": "0000000000000018",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.182948937716892,
+            0
+          ],
+          "scale": [
+            2.7829489377168923,
+            3.7105985836225233,
+            2.7829489377168923
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000001b",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -37.65,
+            0,
+            -34.05
+          ],
+          "rotation": [
+            0,
+            146,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000001c",
+      "name": "Trunk",
+      "parent": "000000000000001b",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.472880983404053,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.472880983404053,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000001d",
+      "name": "Leaves",
+      "parent": "000000000000001b",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.345761966808106,
+            0
+          ],
+          "scale": [
+            2.945761966808106,
+            3.9276826224108086,
+            2.945761966808106
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.227,
+            0.478,
+            0.267,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000001e",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            37.67,
+            0,
+            18.82
+          ],
+          "rotation": [
+            0,
+            113,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000001f",
+      "name": "Trunk",
+      "parent": "000000000000001e",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.5046857728987697,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.5046857728987697,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000020",
+      "name": "Leaves",
+      "parent": "000000000000001e",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.409371545797539,
+            0
+          ],
+          "scale": [
+            3.0093715457975394,
+            4.012495394396719,
+            3.0093715457975394
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.184,
+            0.42,
+            0.227,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000021",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -29.81,
+            0,
+            -19.64
+          ],
+          "rotation": [
+            0,
+            6,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000022",
+      "name": "Trunk",
+      "parent": "0000000000000021",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.120095904281925,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.120095904281925,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000023",
+      "name": "Leaves",
+      "parent": "0000000000000021",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            3.64019180856385,
+            0
+          ],
+          "scale": [
+            2.24019180856385,
+            2.9869224114184667,
+            2.24019180856385
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.227,
+            0.478,
+            0.267,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000024",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -37.96,
+            0,
+            -25.32
+          ],
+          "rotation": [
+            0,
+            169,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000025",
+      "name": "Trunk",
+      "parent": "0000000000000024",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.6261631568625086,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.6261631568625086,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000026",
+      "name": "Leaves",
+      "parent": "0000000000000024",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.652326313725017,
+            0
+          ],
+          "scale": [
+            3.252326313725017,
+            4.33643508496669,
+            3.252326313725017
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.227,
+            0.478,
+            0.267,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000027",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -7.8,
+            0,
+            -34.89
+          ],
+          "rotation": [
+            0,
+            280,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000028",
+      "name": "Trunk",
+      "parent": "0000000000000027",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.4576729473404144,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.4576729473404144,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000029",
+      "name": "Leaves",
+      "parent": "0000000000000027",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.315345894680829,
+            0
+          ],
+          "scale": [
+            2.915345894680829,
+            3.8871278595744387,
+            2.915345894680829
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000002a",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -12.4,
+            0,
+            -18.22
+          ],
+          "rotation": [
+            0,
+            148,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000002b",
+      "name": "Trunk",
+      "parent": "000000000000002a",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.089089706677539,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.089089706677539,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000002c",
+      "name": "Leaves",
+      "parent": "000000000000002a",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            3.5781794133550777,
+            0
+          ],
+          "scale": [
+            2.178179413355078,
+            2.904239217806771,
+            2.178179413355078
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.184,
+            0.42,
+            0.227,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000002d",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -27.77,
+            0,
+            9.49
+          ],
+          "rotation": [
+            0,
+            167,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000002e",
+      "name": "Trunk",
+      "parent": "000000000000002d",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.086573008268595,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.086573008268595,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000002f",
+      "name": "Leaves",
+      "parent": "000000000000002d",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            3.5731460165371898,
+            0
+          ],
+          "scale": [
+            2.17314601653719,
+            2.897528022049587,
+            2.17314601653719
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000030",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -24.5,
+            0,
+            -0.85
+          ],
+          "rotation": [
+            0,
+            69,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000031",
+      "name": "Trunk",
+      "parent": "0000000000000030",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.348454926500613,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.348454926500613,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000032",
+      "name": "Leaves",
+      "parent": "0000000000000030",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.096909853001225,
+            0
+          ],
+          "scale": [
+            2.696909853001226,
+            3.595879804001635,
+            2.696909853001226
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.227,
+            0.478,
+            0.267,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000033",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            20.48,
+            0,
+            -10.65
+          ],
+          "rotation": [
+            0,
+            142,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000034",
+      "name": "Trunk",
+      "parent": "0000000000000033",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.3102510728679955,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.3102510728679955,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000035",
+      "name": "Leaves",
+      "parent": "0000000000000033",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.020502145735991,
+            0
+          ],
+          "scale": [
+            2.620502145735991,
+            3.4940028609813214,
+            2.620502145735991
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.184,
+            0.42,
+            0.227,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000036",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -37.96,
+            0,
+            20.5
+          ],
+          "rotation": [
+            0,
+            213,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000037",
+      "name": "Trunk",
+      "parent": "0000000000000036",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.664914236381999,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.664914236381999,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000038",
+      "name": "Leaves",
+      "parent": "0000000000000036",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.729828472763998,
+            0
+          ],
+          "scale": [
+            3.329828472763998,
+            4.439771297018665,
+            3.329828472763998
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.184,
+            0.42,
+            0.227,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000039",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -21.99,
+            0,
+            -12.4
+          ],
+          "rotation": [
+            0,
+            231,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000003a",
+      "name": "Trunk",
+      "parent": "0000000000000039",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.592626141020738,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.592626141020738,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000003b",
+      "name": "Leaves",
+      "parent": "0000000000000039",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.585252282041476,
+            0
+          ],
+          "scale": [
+            3.185252282041476,
+            4.2470030427219685,
+            3.185252282041476
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.184,
+            0.42,
+            0.227,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000003c",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -34.8,
+            0,
+            -29.75
+          ],
+          "rotation": [
+            0,
+            3,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000003d",
+      "name": "Trunk",
+      "parent": "000000000000003c",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.3449250086766966,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.3449250086766966,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000003e",
+      "name": "Leaves",
+      "parent": "000000000000003c",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.089850017353394,
+            0
+          ],
+          "scale": [
+            2.6898500173533932,
+            3.5864666898045243,
+            2.6898500173533932
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.227,
+            0.478,
+            0.267,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000003f",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -13.0,
+            0,
+            -19.26
+          ],
+          "rotation": [
+            0,
+            32,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000040",
+      "name": "Trunk",
+      "parent": "000000000000003f",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.1240391320330545,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.1240391320330545,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000041",
+      "name": "Leaves",
+      "parent": "000000000000003f",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            3.648078264066109,
+            0
+          ],
+          "scale": [
+            2.248078264066109,
+            2.997437685421479,
+            2.248078264066109
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.227,
+            0.478,
+            0.267,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000042",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            10.38,
+            0,
+            -38.91
+          ],
+          "rotation": [
+            0,
+            224,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000043",
+      "name": "Trunk",
+      "parent": "0000000000000042",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.3012051229404091,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.3012051229404091,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000044",
+      "name": "Leaves",
+      "parent": "0000000000000042",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.002410245880818,
+            0
+          ],
+          "scale": [
+            2.6024102458808183,
+            3.4698803278410915,
+            2.6024102458808183
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.184,
+            0.42,
+            0.227,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000045",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            34.89,
+            0,
+            -6.14
+          ],
+          "rotation": [
+            0,
+            312,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000046",
+      "name": "Trunk",
+      "parent": "0000000000000045",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.4247427472579683,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.4247427472579683,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000047",
+      "name": "Leaves",
+      "parent": "0000000000000045",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.249485494515937,
+            0
+          ],
+          "scale": [
+            2.8494854945159367,
+            3.799313992687916,
+            2.8494854945159367
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.184,
+            0.42,
+            0.227,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000048",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            9.67,
+            0,
+            -18.24
+          ],
+          "rotation": [
+            0,
+            220,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000049",
+      "name": "Trunk",
+      "parent": "0000000000000048",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.2170300210318055,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.2170300210318055,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000004a",
+      "name": "Leaves",
+      "parent": "0000000000000048",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            3.834060042063611,
+            0
+          ],
+          "scale": [
+            2.434060042063611,
+            3.2454133894181485,
+            2.434060042063611
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.227,
+            0.478,
+            0.267,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000004b",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -23.58,
+            0,
+            11.76
+          ],
+          "rotation": [
+            0,
+            71,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000004c",
+      "name": "Trunk",
+      "parent": "000000000000004b",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.6442429376569292,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.6442429376569292,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000004d",
+      "name": "Leaves",
+      "parent": "000000000000004b",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.688485875313859,
+            0
+          ],
+          "scale": [
+            3.2884858753138584,
+            4.384647833751812,
+            3.2884858753138584
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000004e",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            29.05,
+            0,
+            2.25
+          ],
+          "rotation": [
+            0,
+            37,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000004f",
+      "name": "Trunk",
+      "parent": "000000000000004e",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.3328743343684144,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.3328743343684144,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000050",
+      "name": "Leaves",
+      "parent": "000000000000004e",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.065748668736829,
+            0
+          ],
+          "scale": [
+            2.665748668736829,
+            3.554331558315772,
+            2.665748668736829
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.184,
+            0.42,
+            0.227,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000051",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            18.23,
+            0,
+            -12.59
+          ],
+          "rotation": [
+            0,
+            326,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000052",
+      "name": "Trunk",
+      "parent": "0000000000000051",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.3324891815649769,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.3324891815649769,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000053",
+      "name": "Leaves",
+      "parent": "0000000000000051",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.064978363129954,
+            0
+          ],
+          "scale": [
+            2.6649783631299537,
+            3.553304484173272,
+            2.6649783631299537
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000054",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -15.7,
+            0,
+            -27.72
+          ],
+          "rotation": [
+            0,
+            25,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000055",
+      "name": "Trunk",
+      "parent": "0000000000000054",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.5122119965129115,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.5122119965129115,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000056",
+      "name": "Leaves",
+      "parent": "0000000000000054",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.4244239930258225,
+            0
+          ],
+          "scale": [
+            3.024423993025823,
+            4.032565324034431,
+            3.024423993025823
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.184,
+            0.42,
+            0.227,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000057",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            8.81,
+            0,
+            -34.81
+          ],
+          "rotation": [
+            0,
+            329,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000058",
+      "name": "Trunk",
+      "parent": "0000000000000057",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.2074401497126825,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.2074401497126825,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000059",
+      "name": "Leaves",
+      "parent": "0000000000000057",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            3.814880299425365,
+            0
+          ],
+          "scale": [
+            2.414880299425365,
+            3.2198403992338203,
+            2.414880299425365
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.227,
+            0.478,
+            0.267,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000005a",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -36.74,
+            0,
+            -21.16
+          ],
+          "rotation": [
+            0,
+            22,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000005b",
+      "name": "Trunk",
+      "parent": "000000000000005a",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.3474233119892955,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.3474233119892955,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000005c",
+      "name": "Leaves",
+      "parent": "000000000000005a",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.094846623978591,
+            0
+          ],
+          "scale": [
+            2.694846623978591,
+            3.593128831971455,
+            2.694846623978591
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.184,
+            0.42,
+            0.227,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000005d",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -16.57,
+            0,
+            -2.83
+          ],
+          "rotation": [
+            0,
+            33,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000005e",
+      "name": "Trunk",
+      "parent": "000000000000005d",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.6638390654247037,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.6638390654247037,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000005f",
+      "name": "Leaves",
+      "parent": "000000000000005d",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.727678130849407,
+            0
+          ],
+          "scale": [
+            3.3276781308494074,
+            4.436904174465877,
+            3.3276781308494074
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.184,
+            0.42,
+            0.227,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000060",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            29.71,
+            0,
+            28.63
+          ],
+          "rotation": [
+            0,
+            249,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000061",
+      "name": "Trunk",
+      "parent": "0000000000000060",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.4741592279057432,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.4741592279057432,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000062",
+      "name": "Leaves",
+      "parent": "0000000000000060",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.348318455811486,
+            0
+          ],
+          "scale": [
+            2.9483184558114863,
+            3.9310912744153153,
+            2.9483184558114863
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.227,
+            0.478,
+            0.267,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000063",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            33.96,
+            0,
+            1.29
+          ],
+          "rotation": [
+            0,
+            171,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000064",
+      "name": "Trunk",
+      "parent": "0000000000000063",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.6341524202431479,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.6341524202431479,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000065",
+      "name": "Leaves",
+      "parent": "0000000000000063",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.668304840486296,
+            0
+          ],
+          "scale": [
+            3.2683048404862958,
+            4.357739787315061,
+            3.2683048404862958
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000066",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            15.27,
+            0,
+            27.39
+          ],
+          "rotation": [
+            0,
+            229,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000067",
+      "name": "Trunk",
+      "parent": "0000000000000066",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.0927555069254609,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.0927555069254609,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000068",
+      "name": "Leaves",
+      "parent": "0000000000000066",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            3.5855110138509216,
+            0
+          ],
+          "scale": [
+            2.1855110138509217,
+            2.9140146851345623,
+            2.1855110138509217
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000069",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -32.89,
+            0,
+            -18.23
+          ],
+          "rotation": [
+            0,
+            26,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000006a",
+      "name": "Trunk",
+      "parent": "0000000000000069",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.161963483986367,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.161963483986367,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000006b",
+      "name": "Leaves",
+      "parent": "0000000000000069",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            3.723926967972734,
+            0
+          ],
+          "scale": [
+            2.323926967972734,
+            3.098569290630312,
+            2.323926967972734
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000006c",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            3.5,
+            0,
+            11.59
+          ],
+          "rotation": [
+            0,
+            265,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000006d",
+      "name": "Trunk",
+      "parent": "000000000000006c",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.6201175287496272,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.6201175287496272,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000006e",
+      "name": "Leaves",
+      "parent": "000000000000006c",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.640235057499254,
+            0
+          ],
+          "scale": [
+            3.2402350574992544,
+            4.320313409999006,
+            3.2402350574992544
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.227,
+            0.478,
+            0.267,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000006f",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -28.15,
+            0,
+            27.44
+          ],
+          "rotation": [
+            0,
+            31,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000070",
+      "name": "Trunk",
+      "parent": "000000000000006f",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.2849684421055052,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.2849684421055052,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000071",
+      "name": "Leaves",
+      "parent": "000000000000006f",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            3.9699368842110103,
+            0
+          ],
+          "scale": [
+            2.5699368842110104,
+            3.426582512281348,
+            2.5699368842110104
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000072",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            30.46,
+            0,
+            20.98
+          ],
+          "rotation": [
+            0,
+            285,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000073",
+      "name": "Trunk",
+      "parent": "0000000000000072",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.3302918851863117,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.3302918851863117,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000074",
+      "name": "Leaves",
+      "parent": "0000000000000072",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.060583770372624,
+            0
+          ],
+          "scale": [
+            2.6605837703726234,
+            3.547445027163498,
+            2.6605837703726234
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000075",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            5.53,
+            0,
+            3.75
+          ],
+          "rotation": [
+            0,
+            210,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000076",
+      "name": "Trunk",
+      "parent": "0000000000000075",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.3094001164101499,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.3094001164101499,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000077",
+      "name": "Leaves",
+      "parent": "0000000000000075",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.0188002328203,
+            0
+          ],
+          "scale": [
+            2.6188002328202997,
+            3.4917336437604,
+            2.6188002328202997
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.227,
+            0.478,
+            0.267,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000078",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -32.51,
+            0,
+            -33.65
+          ],
+          "rotation": [
+            0,
+            93,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000079",
+      "name": "Trunk",
+      "parent": "0000000000000078",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.1493482055961586,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.1493482055961586,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000007a",
+      "name": "Leaves",
+      "parent": "0000000000000078",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            3.698696411192317,
+            0
+          ],
+          "scale": [
+            2.298696411192317,
+            3.0649285482564235,
+            2.298696411192317
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000007b",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            17.34,
+            0,
+            -12.81
+          ],
+          "rotation": [
+            0,
+            209,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000007c",
+      "name": "Trunk",
+      "parent": "000000000000007b",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.521022890929087,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.521022890929087,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000007d",
+      "name": "Leaves",
+      "parent": "000000000000007b",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.442045781858174,
+            0
+          ],
+          "scale": [
+            3.042045781858174,
+            4.056061042477565,
+            3.042045781858174
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000007e",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -2.84,
+            0,
+            -2.11
+          ],
+          "rotation": [
+            0,
+            185,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000007f",
+      "name": "Trunk",
+      "parent": "000000000000007e",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.3912182844439602,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.3912182844439602,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000080",
+      "name": "Leaves",
+      "parent": "000000000000007e",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.182436568887921,
+            0
+          ],
+          "scale": [
+            2.7824365688879205,
+            3.709915425183894,
+            2.7824365688879205
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000081",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            7.7,
+            0,
+            -6.33
+          ],
+          "rotation": [
+            0,
+            251,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000082",
+      "name": "Trunk",
+      "parent": "0000000000000081",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.2181329862358976,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.2181329862358976,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000083",
+      "name": "Leaves",
+      "parent": "0000000000000081",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            3.836265972471795,
+            0
+          ],
+          "scale": [
+            2.436265972471795,
+            3.248354629962394,
+            2.436265972471795
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000084",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            21.28,
+            0,
+            6.21
+          ],
+          "rotation": [
+            0,
+            323,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000085",
+      "name": "Trunk",
+      "parent": "0000000000000084",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.3717783823124925,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.3717783823124925,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000086",
+      "name": "Leaves",
+      "parent": "0000000000000084",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.143556764624985,
+            0
+          ],
+          "scale": [
+            2.743556764624985,
+            3.658075686166647,
+            2.743556764624985
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "0000000000000087",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -15.12,
+            0,
+            7.47
+          ],
+          "rotation": [
+            0,
+            61,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000088",
+      "name": "Trunk",
+      "parent": "0000000000000087",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.2015446480440852,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.2015446480440852,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000089",
+      "name": "Leaves",
+      "parent": "0000000000000087",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            3.8030892960881704,
+            0
+          ],
+          "scale": [
+            2.4030892960881705,
+            3.2041190614508945,
+            2.4030892960881705
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.157,
+            0.369,
+            0.2,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000008a",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            12.16,
+            0,
+            -9.06
+          ],
+          "rotation": [
+            0,
+            118,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000008b",
+      "name": "Trunk",
+      "parent": "000000000000008a",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.615036152190642,
+            0
+          ],
+          "scale": [
+            0.4,
+            1.615036152190642,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.357,
+            0.227,
+            0.129,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000008c",
+      "name": "Leaves",
+      "parent": "000000000000008a",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            4.630072304381284,
+            0
+          ],
+          "scale": [
+            3.230072304381284,
+            4.306763072508379,
+            3.230072304381284
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.227,
+            0.478,
+            0.267,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      }
+    },
+    {
+      "id": "000000000000008d",
+      "name": "Rock",
+      "components": {
+        "Transform": {
+          "position": [
+            -17.46,
+            0.3960212757561118,
+            3.86
+          ],
+          "scale": [
+            2.22,
+            1.27,
+            1.58
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Sphere",
+          "color": [
+            0.42,
+            0.447,
+            0.502,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "SphereCollider": {
+          "radius": 0.5
+        }
+      }
+    },
+    {
+      "id": "000000000000008e",
+      "name": "Rock",
+      "components": {
+        "Transform": {
+          "position": [
+            17.82,
+            0.2339020537638302,
+            -24.78
+          ],
+          "scale": [
+            1.31,
+            0.75,
+            0.94
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Sphere",
+          "color": [
+            0.42,
+            0.447,
+            0.502,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "SphereCollider": {
+          "radius": 0.5
+        }
+      }
+    },
+    {
+      "id": "000000000000008f",
+      "name": "Rock",
+      "components": {
+        "Transform": {
+          "position": [
+            -19.63,
+            0.23272044910079603,
+            22.77
+          ],
+          "scale": [
+            1.3,
+            0.74,
+            0.93
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Sphere",
+          "color": [
+            0.42,
+            0.447,
+            0.502,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "SphereCollider": {
+          "radius": 0.5
+        }
+      }
+    },
+    {
+      "id": "0000000000000090",
+      "name": "Rock",
+      "components": {
+        "Transform": {
+          "position": [
+            -25.58,
+            0.42130455064325095,
+            -14.85
+          ],
+          "scale": [
+            2.36,
+            1.35,
+            1.69
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Sphere",
+          "color": [
+            0.42,
+            0.447,
+            0.502,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "SphereCollider": {
+          "radius": 0.5
+        }
+      }
+    },
+    {
+      "id": "0000000000000091",
+      "name": "Rock",
+      "components": {
+        "Transform": {
+          "position": [
+            -32.16,
+            0.4445990050294913,
+            -33.77
+          ],
+          "scale": [
+            2.49,
+            1.42,
+            1.78
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Sphere",
+          "color": [
+            0.42,
+            0.447,
+            0.502,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "SphereCollider": {
+          "radius": 0.5
+        }
+      }
+    },
+    {
+      "id": "0000000000000092",
+      "name": "Rock",
+      "components": {
+        "Transform": {
+          "position": [
+            22.53,
+            0.30462171342722905,
+            -30.55
+          ],
+          "scale": [
+            1.71,
+            0.97,
+            1.22
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Sphere",
+          "color": [
+            0.42,
+            0.447,
+            0.502,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "SphereCollider": {
+          "radius": 0.5
+        }
+      }
+    },
+    {
+      "id": "0000000000000093",
+      "name": "Rock",
+      "components": {
+        "Transform": {
+          "position": [
+            29.8,
+            0.2802007291248197,
+            16.84
+          ],
+          "scale": [
+            1.57,
+            0.9,
+            1.12
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Sphere",
+          "color": [
+            0.42,
+            0.447,
+            0.502,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "SphereCollider": {
+          "radius": 0.5
+        }
+      }
+    },
+    {
+      "id": "0000000000000094",
+      "name": "Rock",
+      "components": {
+        "Transform": {
+          "position": [
+            15.14,
+            0.3468134947078769,
+            17.57
+          ],
+          "scale": [
+            1.94,
+            1.11,
+            1.39
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Sphere",
+          "color": [
+            0.42,
+            0.447,
+            0.502,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "SphereCollider": {
+          "radius": 0.5
+        }
+      }
+    },
+    {
+      "id": "0000000000000095",
+      "name": "Rock",
+      "components": {
+        "Transform": {
+          "position": [
+            -12.58,
+            0.2514840210976302,
+            16.7
+          ],
+          "scale": [
+            1.41,
+            0.8,
+            1.01
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Sphere",
+          "color": [
+            0.42,
+            0.447,
+            0.502,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "SphereCollider": {
+          "radius": 0.5
+        }
+      }
+    },
+    {
+      "id": "0000000000000096",
+      "name": "Rock",
+      "components": {
+        "Transform": {
+          "position": [
+            7.53,
+            0.25229434581033916,
+            6.76
+          ],
+          "scale": [
+            1.41,
+            0.81,
+            1.01
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Sphere",
+          "color": [
+            0.42,
+            0.447,
+            0.502,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "SphereCollider": {
+          "radius": 0.5
+        }
+      }
+    },
+    {
+      "id": "0000000000000097",
+      "name": "Rock",
+      "components": {
+        "Transform": {
+          "position": [
+            -10.2,
+            0.33011071872157116,
+            4.85
+          ],
+          "scale": [
+            1.85,
+            1.06,
+            1.32
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Sphere",
+          "color": [
+            0.42,
+            0.447,
+            0.502,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "SphereCollider": {
+          "radius": 0.5
+        }
+      }
+    },
+    {
+      "id": "0000000000000098",
+      "name": "Rock",
+      "components": {
+        "Transform": {
+          "position": [
+            9.87,
+            0.2272275843232854,
+            -11.26
+          ],
+          "scale": [
+            1.27,
+            0.73,
+            0.91
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Sphere",
+          "color": [
+            0.42,
+            0.447,
+            0.502,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "SphereCollider": {
+          "radius": 0.5
+        }
+      }
+    },
+    {
+      "id": "0000000000000099",
+      "name": "Rock",
+      "components": {
+        "Transform": {
+          "position": [
+            18.84,
+            0.3892949272970892,
+            -20.42
+          ],
+          "scale": [
+            2.18,
+            1.25,
+            1.56
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Sphere",
+          "color": [
+            0.42,
+            0.447,
+            0.502,
+            1.0
+          ],
+          "roughness": 0.9
+        },
+        "SphereCollider": {
+          "radius": 0.5
+        }
+      }
+    },
+    {
+      "id": "000000000000009a",
+      "name": "Crystal",
+      "tag": "crystal",
+      "components": {
+        "Transform": {
+          "position": [
+            -12,
+            1.3,
+            -6
+          ]
+        },
+        "SphereCollider": {
+          "radius": 1.2,
+          "is_trigger": true
+        },
+        "Script": {
+          "path": "scripts/crystal.es"
+        }
+      }
+    },
+    {
+      "id": "000000000000009b",
+      "name": "Gem",
+      "parent": "000000000000009a",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.5,
+            1.1,
+            0.5
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.404,
+            0.91,
+            0.976,
+            1.0
+          ],
+          "metallic": 0.2,
+          "roughness": 0.15,
+          "emission": [
+            0.133,
+            0.827,
+            0.933,
+            1.0
+          ],
+          "emission_strength": 3
+        }
+      }
+    },
+    {
+      "id": "000000000000009c",
+      "name": "Glow",
+      "parent": "000000000000009a",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0.3,
+            0
+          ]
+        },
+        "Light": {
+          "type": "Point",
+          "color": [
+            0.404,
+            0.91,
+            0.976,
+            1.0
+          ],
+          "intensity": 3,
+          "range": 6,
+          "cast_shadows": false
+        }
+      }
+    },
+    {
+      "id": "000000000000009d",
+      "name": "Crystal",
+      "tag": "crystal",
+      "components": {
+        "Transform": {
+          "position": [
+            14,
+            1.3,
+            -2
+          ]
+        },
+        "SphereCollider": {
+          "radius": 1.2,
+          "is_trigger": true
+        },
+        "Script": {
+          "path": "scripts/crystal.es"
+        }
+      }
+    },
+    {
+      "id": "000000000000009e",
+      "name": "Gem",
+      "parent": "000000000000009d",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.5,
+            1.1,
+            0.5
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.404,
+            0.91,
+            0.976,
+            1.0
+          ],
+          "metallic": 0.2,
+          "roughness": 0.15,
+          "emission": [
+            0.133,
+            0.827,
+            0.933,
+            1.0
+          ],
+          "emission_strength": 3
+        }
+      }
+    },
+    {
+      "id": "000000000000009f",
+      "name": "Glow",
+      "parent": "000000000000009d",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0.3,
+            0
+          ]
+        },
+        "Light": {
+          "type": "Point",
+          "color": [
+            0.404,
+            0.91,
+            0.976,
+            1.0
+          ],
+          "intensity": 3,
+          "range": 6,
+          "cast_shadows": false
+        }
+      }
+    },
+    {
+      "id": "00000000000000a0",
+      "name": "Crystal",
+      "tag": "crystal",
+      "components": {
+        "Transform": {
+          "position": [
+            -20,
+            1.3,
+            -24
+          ]
+        },
+        "SphereCollider": {
+          "radius": 1.2,
+          "is_trigger": true
+        },
+        "Script": {
+          "path": "scripts/crystal.es"
+        }
+      }
+    },
+    {
+      "id": "00000000000000a1",
+      "name": "Gem",
+      "parent": "00000000000000a0",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.5,
+            1.1,
+            0.5
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.404,
+            0.91,
+            0.976,
+            1.0
+          ],
+          "metallic": 0.2,
+          "roughness": 0.15,
+          "emission": [
+            0.133,
+            0.827,
+            0.933,
+            1.0
+          ],
+          "emission_strength": 3
+        }
+      }
+    },
+    {
+      "id": "00000000000000a2",
+      "name": "Glow",
+      "parent": "00000000000000a0",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0.3,
+            0
+          ]
+        },
+        "Light": {
+          "type": "Point",
+          "color": [
+            0.404,
+            0.91,
+            0.976,
+            1.0
+          ],
+          "intensity": 3,
+          "range": 6,
+          "cast_shadows": false
+        }
+      }
+    },
+    {
+      "id": "00000000000000a3",
+      "name": "Crystal",
+      "tag": "crystal",
+      "components": {
+        "Transform": {
+          "position": [
+            22,
+            1.3,
+            -26
+          ]
+        },
+        "SphereCollider": {
+          "radius": 1.2,
+          "is_trigger": true
+        },
+        "Script": {
+          "path": "scripts/crystal.es"
+        }
+      }
+    },
+    {
+      "id": "00000000000000a4",
+      "name": "Gem",
+      "parent": "00000000000000a3",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.5,
+            1.1,
+            0.5
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.404,
+            0.91,
+            0.976,
+            1.0
+          ],
+          "metallic": 0.2,
+          "roughness": 0.15,
+          "emission": [
+            0.133,
+            0.827,
+            0.933,
+            1.0
+          ],
+          "emission_strength": 3
+        }
+      }
+    },
+    {
+      "id": "00000000000000a5",
+      "name": "Glow",
+      "parent": "00000000000000a3",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0.3,
+            0
+          ]
+        },
+        "Light": {
+          "type": "Point",
+          "color": [
+            0.404,
+            0.91,
+            0.976,
+            1.0
+          ],
+          "intensity": 3,
+          "range": 6,
+          "cast_shadows": false
+        }
+      }
+    },
+    {
+      "id": "00000000000000a6",
+      "name": "Crystal",
+      "tag": "crystal",
+      "components": {
+        "Transform": {
+          "position": [
+            4,
+            1.3,
+            -18
+          ]
+        },
+        "SphereCollider": {
+          "radius": 1.2,
+          "is_trigger": true
+        },
+        "Script": {
+          "path": "scripts/crystal.es"
+        }
+      }
+    },
+    {
+      "id": "00000000000000a7",
+      "name": "Gem",
+      "parent": "00000000000000a6",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.5,
+            1.1,
+            0.5
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.404,
+            0.91,
+            0.976,
+            1.0
+          ],
+          "metallic": 0.2,
+          "roughness": 0.15,
+          "emission": [
+            0.133,
+            0.827,
+            0.933,
+            1.0
+          ],
+          "emission_strength": 3
+        }
+      }
+    },
+    {
+      "id": "00000000000000a8",
+      "name": "Glow",
+      "parent": "00000000000000a6",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0.3,
+            0
+          ]
+        },
+        "Light": {
+          "type": "Point",
+          "color": [
+            0.404,
+            0.91,
+            0.976,
+            1.0
+          ],
+          "intensity": 3,
+          "range": 6,
+          "cast_shadows": false
+        }
+      }
+    },
+    {
+      "id": "00000000000000a9",
+      "name": "Crystal",
+      "tag": "crystal",
+      "components": {
+        "Transform": {
+          "position": [
+            -6,
+            1.3,
+            18
+          ]
+        },
+        "SphereCollider": {
+          "radius": 1.2,
+          "is_trigger": true
+        },
+        "Script": {
+          "path": "scripts/crystal.es"
+        }
+      }
+    },
+    {
+      "id": "00000000000000aa",
+      "name": "Gem",
+      "parent": "00000000000000a9",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.5,
+            1.1,
+            0.5
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cone",
+          "color": [
+            0.404,
+            0.91,
+            0.976,
+            1.0
+          ],
+          "metallic": 0.2,
+          "roughness": 0.15,
+          "emission": [
+            0.133,
+            0.827,
+            0.933,
+            1.0
+          ],
+          "emission_strength": 3
+        }
+      }
+    },
+    {
+      "id": "00000000000000ab",
+      "name": "Glow",
+      "parent": "00000000000000a9",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0.3,
+            0
+          ]
+        },
+        "Light": {
+          "type": "Point",
+          "color": [
+            0.404,
+            0.91,
+            0.976,
+            1.0
+          ],
+          "intensity": 3,
+          "range": 6,
+          "cast_shadows": false
+        }
+      }
+    },
+    {
+      "id": "00000000000000ac",
+      "name": "Gate",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0,
+            -32
+          ]
+        }
+      }
+    },
+    {
+      "id": "00000000000000ad",
+      "name": "Pillar",
+      "parent": "00000000000000ac",
+      "components": {
+        "Transform": {
+          "position": [
+            -2.2,
+            2.5,
+            0
+          ],
+          "scale": [
+            1,
+            5,
+            1
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.471,
+            0.443,
+            0.424,
+            1.0
+          ],
+          "roughness": 0.9,
+          "metallic": 0.0
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": false
+        }
+      }
+    },
+    {
+      "id": "00000000000000ae",
+      "name": "Pillar",
+      "parent": "00000000000000ac",
+      "components": {
+        "Transform": {
+          "position": [
+            2.2,
+            2.5,
+            0
+          ],
+          "scale": [
+            1,
+            5,
+            1
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.471,
+            0.443,
+            0.424,
+            1.0
+          ],
+          "roughness": 0.9,
+          "metallic": 0.0
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": false
+        }
+      }
+    },
+    {
+      "id": "00000000000000af",
+      "name": "Lintel",
+      "parent": "00000000000000ac",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            5.4,
+            0
+          ],
+          "scale": [
+            5.6,
+            0.9,
+            1.2
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.471,
+            0.443,
+            0.424,
+            1.0
+          ],
+          "roughness": 0.9,
+          "metallic": 0.0
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": false
+        }
+      }
+    },
+    {
+      "id": "00000000000000b0",
+      "name": "Portal",
+      "parent": "00000000000000ac",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            2.5,
+            0
+          ],
+          "rotation": [
+            90,
+            0,
+            0
+          ],
+          "scale": [
+            3.4,
+            1,
+            5
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Plane",
+          "color": [
+            0.122,
+            0.078,
+            0.2,
+            1.0
+          ],
+          "emission": [
+            0.659,
+            0.333,
+            0.969,
+            1.0
+          ],
+          "emission_strength": 0,
+          "cast_shadows": false
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            0.5,
+            1
+          ],
+          "is_trigger": true
+        },
+        "Script": {
+          "path": "scripts/portal.es"
+        }
+      }
+    },
+    {
+      "id": "00000000000000b1",
+      "name": "Portal Light",
+      "parent": "00000000000000ac",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            2.5,
+            1
+          ]
+        },
+        "Light": {
+          "type": "Point",
+          "color": [
+            0.753,
+            0.518,
+            0.988,
+            1.0
+          ],
+          "intensity": 0,
+          "range": 12
+        }
+      }
+    },
+    {
+      "id": "00000000000000b2",
+      "name": "Fireflies",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.5,
+            -6
+          ]
+        },
+        "ParticleEmitter": {
+          "rate": 10,
+          "lifetime": 5,
+          "speed": 0.3,
+          "spread": 180,
+          "gravity": [
+            0,
+            0.05,
+            0
+          ],
+          "shape_type": "Box",
+          "shape_size": 18,
+          "start_color": [
+            0.851,
+            0.976,
+            0.616,
+            1.0
+          ],
+          "end_color": [
+            0.98,
+            0.8,
+            0.082,
+            0
+          ],
+          "start_size": 0.08,
+          "end_size": 0.04,
+          "additive": true
+        }
+      }
+    },
+    {
+      "id": "00000000000000b3",
+      "name": "Player",
+      "tag": "player",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1,
+            8
+          ]
+        },
+        "CharacterController": {
+          "first_person": true,
+          "speed": 5,
+          "jump_height": 1.2
+        },
+        "Script": {
+          "path": "scripts/player.es"
+        }
+      }
+    },
+    {
+      "id": "00000000000000b4",
+      "name": "Crosshair",
+      "components": {
+        "UIElement": {
+          "anchor": "Center",
+          "size": [
+            10,
+            10
+          ]
+        },
+        "UIImage": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            0.7
+          ]
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "00000000000000b5",
+      "name": "Crystals",
+      "components": {
+        "UIElement": {
+          "anchor": "TopLeft",
+          "offset": [
+            24,
+            -20
+          ],
+          "size": [
+            500,
+            50
+          ]
+        },
+        "UIText": {
+          "text": "Crystals: 0",
+          "font_size": 36,
+          "align": "Left",
+          "color": [
+            0.647,
+            0.953,
+            0.988,
+            1.0
+          ]
+        },
+        "Script": {
+          "path": "scripts/crystal_count.es"
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "00000000000000b6",
+      "name": "Message",
+      "components": {
+        "UIElement": {
+          "anchor": "Center",
+          "offset": [
+            0,
+            140
+          ],
+          "size": [
+            1100,
+            80
+          ]
+        },
+        "UIText": {
+          "text": "",
+          "font_size": 44
+        },
+        "Script": {
+          "path": "scripts/message.es"
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "00000000000000b7",
+      "name": "Help",
+      "components": {
+        "UIElement": {
+          "anchor": "Bottom",
+          "offset": [
+            0,
+            16
+          ],
+          "size": [
+            1200,
+            40
+          ]
+        },
+        "UIText": {
+          "text": "WASD to walk, mouse to look, Space to jump, F for the flashlight, Esc to free the mouse",
+          "font_size": 24,
+          "color": [
+            0.886,
+            0.91,
+            0.941,
+            1.0
+          ]
+        },
+        "Script": {
+          "path": "scripts/fade_out.es"
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    }
+  ]
+}

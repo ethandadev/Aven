@@ -370,7 +370,8 @@ void SceneRenderer::drawUI(Scene& scene, int w, int h) {
     uint32_t seq = 0;
     auto& reg = scene.registry();
     scene.walk([&](Entity e, int) {
-        if (!reg.get<EntityInfo>(e).active)
+        // Hiding a panel also hides everything inside it.
+        if (!reg.get<EntityInfo>(e).active || reg.has<Hidden>(e))
             return false;
         if (const UIElement* ui = reg.tryGet<UIElement>(e))
             items.push_back({ui->order, seq++, e});

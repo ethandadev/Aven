@@ -12,6 +12,7 @@
 #include "aven/render/scene_renderer.h"
 #include "aven/runtime/game.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -30,7 +31,12 @@ struct Options {
     int frames = 60;
     int width = 0, height = 0;
     bool hidden = false;
-    std::vector<std::pair<int, std::string>> keyPresses; // frame, key
+    struct KeyPress {
+        int frame;
+        std::string key;
+        int frames; // how long it's held
+    };
+    std::vector<KeyPress> keyPresses;
 };
 
 stdfs::path findProject(const stdfs::path& hint) {
@@ -59,14 +65,23 @@ bool parseArgs(int argc, char** argv, Options& o) {
             std::string s = next();
             std::sscanf(s.c_str(), "%dx%d", &o.width, &o.height);
         } else if (a == "--press") {
-            // --press 30:space presses a key on frame 30 (for automated tests).
+            // --press 30:space taps a key on frame 30; --press 30:right:60 holds it for 60 frames
+            // (for automated tests).
             std::string s = next();
             size_t colon = s.find(':');
-            if (colon != std::string::npos)
-                o.keyPresses.push_back({std::atoi(s.substr(0, colon).c_str()), s.substr(colon + 1)});
+            if (colon != std::string::npos) {
+                std::string key = s.substr(colon + 1);
+                int frames = 2;
+                size_t second = key.find(':');
+                if (second != std::string::npos) {
+                    frames = std::max(1, std::atoi(key.substr(second + 1).c_str()));
+                    key = key.substr(0, second);
+                }
+                o.keyPresses.push_back({std::atoi(s.substr(0, colon).c_str()), key, frames});
+            }
         } else if (a == "--help" || a == "-h") {
             std::printf("usage: aven-player [project_folder] [--scene path] [--screenshot out.png --frames N]\n"
-                        "                   [--size WxH] [--hidden] [--press FRAME:KEY]\n");
+                        "                   [--size WxH] [--hidden] [--press FRAME:KEY[:FRAMES]]\n");
             return false;
         } else if (!a.empty() && a[0] != '-') {
             o.project = a;
@@ -127,11 +142,11 @@ int main(int argc, char** argv) {
         int frame = 0;
         while (!window.shouldClose() && !game.quitRequested()) {
             window.pollEvents();
-            for (auto& [f, key] : opt.keyPresses) {
-                int code = Input::keyFromName(key);
-                if (f == frame)
+            for (auto& press : opt.keyPresses) {
+                int code = Input::keyFromName(press.key);
+                if (press.frame == frame)
                     window.input().onKey(code, true);
-                if (f + 2 == frame)
+                if (press.frame + press.frames == frame)
                     window.input().onKey(code, false);
             }
             double now = Window::time();

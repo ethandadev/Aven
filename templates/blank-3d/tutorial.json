@@ -1,0 +1,27 @@
+{
+  "title": "Your first 3D game",
+  "steps": [
+    {
+      "title": "Welcome to 3D!",
+      "text": "Hold the right mouse button in the Scene view and use WASD to fly around. Alt + drag orbits, the scroll wheel zooms, and F focuses on the selected object."
+    },
+    {
+      "title": "Add a player",
+      "text": "Open Create > Player 3D. It comes with a CharacterController, so it already walks with WASD and jumps with Space. Press Play to try it."
+    },
+    {
+      "title": "Make the camera follow",
+      "text": "Select the Camera, click '+ Add Component' and add CameraFollow. Drag the Player from the Hierarchy onto its Target field, set Offset to (0, 4, 7) and tick Look At Target."
+    },
+    {
+      "title": "Build a level",
+      "text": "Create > 3D Shape > Cube adds a box. Use the gizmo to move it (W), rotate it (E) and scale it (R). Add a BoxCollider so the player can stand on it."
+    },
+    {
+      "title": "Script it",
+      "text": "The spinning cube uses spin.es. Open it to see how rotation_y changes every frame.",
+      "open": "scripts/spin.es",
+      "select": "Cube"
+    }
+  ]
+}

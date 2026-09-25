@@ -1,0 +1,29 @@
+{
+  "title": "Cookie Clicker",
+  "steps": [
+    {
+      "title": "Play first!",
+      "text": "Press Play and click the cookie. Buy an Auto Baker when you have 15 cookies.",
+      "play": true
+    },
+    {
+      "title": "Clicking",
+      "text": "The cookie's blocks run 'when this object is clicked': add cookies, play a sound, burst some crumbs and squish the cookie for a moment.",
+      "open": "scripts/cookie.blocks",
+      "select": "Cookie"
+    },
+    {
+      "title": "Game variables",
+      "text": "'game cookies' is a game variable: every script can read and change it. The Bank adds 'game per_second' cookies every second.",
+      "open": "scripts/bank.blocks"
+    },
+    {
+      "title": "Saving",
+      "text": "'save ... as cookies' remembers a value even after the game closes, and 'saved cookies or 0' reads it back. That's how your bakery is still there next time."
+    },
+    {
+      "title": "Challenge",
+      "text": "Add a fourth upgrade: select Auto Baker in the Hierarchy, duplicate it with Ctrl+D, move it down, and make a copy of its blocks that gives +100 per second for 1000 cookies."
+    }
+  ]
+}

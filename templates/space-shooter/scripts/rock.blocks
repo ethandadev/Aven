@@ -1,0 +1,118 @@
+{
+  "aven": "blocks",
+  "version": 1,
+  "variables": [],
+  "scripts": [
+    {
+      "x": 20,
+      "y": 20,
+      "blocks": [
+        {
+          "type": "when_start"
+        },
+        {
+          "type": "set_velocity",
+          "inputs": {
+            "vx": {
+              "type": "random",
+              "inputs": {
+                "min": -1,
+                "max": 1
+              }
+            },
+            "vy": {
+              "type": "random",
+              "inputs": {
+                "min": -6,
+                "max": -3
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "x": 20,
+      "y": 164,
+      "blocks": [
+        {
+          "type": "when_update"
+        },
+        {
+          "type": "if",
+          "inputs": {
+            "condition": {
+              "type": "less",
+              "inputs": {
+                "a": {
+                  "type": "my_property",
+                  "inputs": {
+                    "property": "y"
+                  }
+                },
+                "b": -8
+              }
+            }
+          },
+          "body": [
+            {
+              "type": "destroy"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "x": 20,
+      "y": 350,
+      "blocks": [
+        {
+          "type": "when_touch",
+          "inputs": {
+            "tag": "laser"
+          }
+        },
+        {
+          "type": "change_game",
+          "inputs": {
+            "name": "score",
+            "value": 10
+          }
+        },
+        {
+          "type": "play_sound",
+          "inputs": {
+            "sound": "sounds/explosion.wav"
+          }
+        },
+        {
+          "type": "shake",
+          "inputs": {
+            "amount": 0.15
+          }
+        },
+        {
+          "type": "spawn",
+          "inputs": {
+            "prefab": "prefabs/boom.prefab",
+            "x": {
+              "type": "my_property",
+              "inputs": {
+                "property": "x"
+              }
+            },
+            "y": {
+              "type": "my_property",
+              "inputs": {
+                "property": "y"
+              }
+            }
+          }
+        },
+        {
+          "type": "destroy"
+        }
+      ]
+    }
+  ]
+}

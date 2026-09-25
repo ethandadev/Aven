@@ -1,0 +1,127 @@
+{
+  "aven": "blocks",
+  "version": 1,
+  "variables": [],
+  "scripts": [
+    {
+      "x": 20,
+      "y": 20,
+      "blocks": [
+        {
+          "type": "when_start"
+        },
+        {
+          "type": "set_game",
+          "inputs": {
+            "name": "cookies",
+            "value": {
+              "type": "load",
+              "inputs": {
+                "key": "cookies",
+                "default": 0
+              }
+            }
+          }
+        },
+        {
+          "type": "set_game",
+          "inputs": {
+            "name": "per_click",
+            "value": {
+              "type": "load",
+              "inputs": {
+                "key": "per_click",
+                "default": 1
+              }
+            }
+          }
+        },
+        {
+          "type": "set_game",
+          "inputs": {
+            "name": "per_second",
+            "value": {
+              "type": "load",
+              "inputs": {
+                "key": "per_second",
+                "default": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "x": 20,
+      "y": 248,
+      "blocks": [
+        {
+          "type": "when_timer",
+          "inputs": {
+            "seconds": 1
+          }
+        },
+        {
+          "type": "change_game",
+          "inputs": {
+            "name": "cookies",
+            "value": {
+              "type": "game_var",
+              "inputs": {
+                "name": "per_second"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "x": 20,
+      "y": 392,
+      "blocks": [
+        {
+          "type": "when_timer",
+          "inputs": {
+            "seconds": 3
+          }
+        },
+        {
+          "type": "save",
+          "inputs": {
+            "value": {
+              "type": "game_var",
+              "inputs": {
+                "name": "cookies"
+              }
+            },
+            "key": "cookies"
+          }
+        },
+        {
+          "type": "save",
+          "inputs": {
+            "value": {
+              "type": "game_var",
+              "inputs": {
+                "name": "per_click"
+              }
+            },
+            "key": "per_click"
+          }
+        },
+        {
+          "type": "save",
+          "inputs": {
+            "value": {
+              "type": "game_var",
+              "inputs": {
+                "name": "per_second"
+              }
+            },
+            "key": "per_second"
+          }
+        }
+      ]
+    }
+  ]
+}

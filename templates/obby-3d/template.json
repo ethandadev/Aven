@@ -1,0 +1,8 @@
+{
+  "name": "3D Obby",
+  "description": "A classic obstacle course: jump across platforms, avoid the glowing lava, ride moving platforms and reach the trophy. Checkpoints save your progress.",
+  "style": "EasyScript",
+  "difficulty": "Beginner",
+  "3d": true,
+  "color": "EF4444"
+}

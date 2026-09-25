@@ -1,0 +1,47 @@
+{
+  "entities": [
+    {
+      "id": "0000000000000001",
+      "name": "Laser",
+      "tag": "laser",
+      "components": {
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [
+            0.49,
+            0.827,
+            0.988,
+            1.0
+          ],
+          "size": [
+            0.14,
+            0.6
+          ],
+          "order": 3
+        },
+        "RigidBody2D": {
+          "gravity_scale": 0,
+          "fixed_rotation": true,
+          "continuous": true
+        },
+        "BoxCollider2D": {
+          "size": [
+            0.14,
+            0.6
+          ],
+          "is_trigger": true
+        },
+        "Script": {
+          "path": "scripts/laser.blocks"
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    }
+  ]
+}

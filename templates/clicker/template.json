@@ -1,0 +1,8 @@
+{
+  "name": "Cookie Clicker",
+  "description": "Click the cookie, buy upgrades and watch the numbers grow. The simplest template: all blocks, no physics, and your progress is saved between plays.",
+  "style": "Blocks",
+  "difficulty": "Beginner",
+  "3d": false,
+  "color": "D97706"
+}

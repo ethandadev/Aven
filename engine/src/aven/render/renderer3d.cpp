@@ -156,8 +156,12 @@ float g_smith(float nv, float nl, float rough) {
     float k = (rough + 1.0) * (rough + 1.0) / 8.0;
     return (nv / (nv * (1.0 - k) + k)) * (nl / (nl * (1.0 - k) + k));
 }
-vec3 f_schlick(float c, vec3 f0) { return f0 + (1.0 - f0) * pow(1.0 - c, 5.0); }
-vec3 f_schlick_rough(float c, vec3 f0, float r) { return f0 + (max(vec3(1.0 - r), f0) - f0) * pow(1.0 - c, 5.0); }
+// dot products can land a hair above 1.0, and pow() of a negative number is NaN on
+// some drivers, so the base is clamped.
+vec3 f_schlick(float c, vec3 f0) { return f0 + (1.0 - f0) * pow(clamp(1.0 - c, 0.0, 1.0), 5.0); }
+vec3 f_schlick_rough(float c, vec3 f0, float r) {
+    return f0 + (max(vec3(1.0 - r), f0) - f0) * pow(clamp(1.0 - c, 0.0, 1.0), 5.0);
+}
 
 vec3 brdf(vec3 N, vec3 V, vec3 L, vec3 albedo, float metallic, float rough, vec3 F0) {
     vec3 H = normalize(V + L);

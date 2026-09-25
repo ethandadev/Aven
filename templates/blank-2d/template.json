@@ -1,0 +1,8 @@
+{
+  "name": "Blank 2D",
+  "description": "An empty 2D world with a camera. Start from scratch and build anything you can imagine.",
+  "style": "Blocks or EasyScript",
+  "difficulty": "Beginner",
+  "3d": false,
+  "color": "64748B"
+}

@@ -1,0 +1,174 @@
+{
+  "aven": "blocks",
+  "version": 1,
+  "variables": [
+    {
+      "name": "cost",
+      "value": 200
+    }
+  ],
+  "scripts": [
+    {
+      "x": 20,
+      "y": 20,
+      "blocks": [
+        {
+          "type": "when_start"
+        },
+        {
+          "type": "set_var",
+          "inputs": {
+            "var": "cost",
+            "value": {
+              "type": "load",
+              "inputs": {
+                "key": "bakery_cost",
+                "default": 200
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "x": 20,
+      "y": 164,
+      "blocks": [
+        {
+          "type": "when_update"
+        },
+        {
+          "type": "set_text",
+          "inputs": {
+            "text": {
+              "type": "join",
+              "inputs": {
+                "a": "Bakery: ",
+                "b": {
+                  "type": "join",
+                  "inputs": {
+                    "a": {
+                      "type": "var",
+                      "inputs": {
+                        "var": "cost"
+                      }
+                    },
+                    "b": " cookies\n+10 cookies every second"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "x": 20,
+      "y": 308,
+      "blocks": [
+        {
+          "type": "when_clicked"
+        },
+        {
+          "type": "if_else",
+          "inputs": {
+            "condition": {
+              "type": "less",
+              "inputs": {
+                "a": {
+                  "type": "game_var",
+                  "inputs": {
+                    "name": "cookies"
+                  }
+                },
+                "b": {
+                  "type": "var",
+                  "inputs": {
+                    "var": "cost"
+                  }
+                }
+              }
+            }
+          },
+          "body": [
+            {
+              "type": "play_sound",
+              "inputs": {
+                "sound": "sounds/click.wav"
+              }
+            }
+          ],
+          "else": [
+            {
+              "type": "change_game",
+              "inputs": {
+                "name": "cookies",
+                "value": {
+                  "type": "subtract",
+                  "inputs": {
+                    "a": 0,
+                    "b": {
+                      "type": "var",
+                      "inputs": {
+                        "var": "cost"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "change_game",
+              "inputs": {
+                "name": "per_second",
+                "value": 10
+              }
+            },
+            {
+              "type": "set_var",
+              "inputs": {
+                "var": "cost",
+                "value": {
+                  "type": "math",
+                  "inputs": {
+                    "func": "round",
+                    "x": {
+                      "type": "multiply",
+                      "inputs": {
+                        "a": {
+                          "type": "var",
+                          "inputs": {
+                            "var": "cost"
+                          }
+                        },
+                        "b": 1.5
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "save",
+              "inputs": {
+                "value": {
+                  "type": "var",
+                  "inputs": {
+                    "var": "cost"
+                  }
+                },
+                "key": "bakery_cost"
+              }
+            },
+            {
+              "type": "play_sound",
+              "inputs": {
+                "sound": "sounds/buy.wav"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

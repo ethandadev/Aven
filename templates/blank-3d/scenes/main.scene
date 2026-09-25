@@ -1,0 +1,169 @@
+{
+  "aven": "scene",
+  "version": 1,
+  "name": "Main",
+  "entities": [
+    {
+      "id": "0000000000000001",
+      "name": "Camera",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            3,
+            8
+          ],
+          "rotation": [
+            -15,
+            0,
+            0
+          ]
+        },
+        "Camera": {
+          "projection": "Perspective",
+          "field_of_view": 60
+        },
+        "PostProcessing": {
+          "tonemapper": "ACES",
+          "bloom": true,
+          "bloom_intensity": 0.6,
+          "ssao": true,
+          "fxaa": true,
+          "vignette": true,
+          "vignette_intensity": 0.25
+        },
+        "AudioListener": {}
+      }
+    },
+    {
+      "id": "0000000000000002",
+      "name": "Environment",
+      "components": {
+        "Environment": {
+          "sky": "Procedural",
+          "sky_top": [
+            0.227,
+            0.471,
+            0.788,
+            1.0
+          ],
+          "sky_horizon": [
+            0.812,
+            0.89,
+            0.961,
+            1.0
+          ],
+          "fog": false,
+          "fog_color": [
+            0.812,
+            0.89,
+            0.961,
+            1.0
+          ],
+          "fog_density": 0.01
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000003",
+      "name": "Sun",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            10,
+            0
+          ],
+          "rotation": [
+            -50,
+            -30,
+            0
+          ]
+        },
+        "Light": {
+          "type": "Directional",
+          "color": [
+            1.0,
+            0.961,
+            0.878,
+            1.0
+          ],
+          "intensity": 1.2,
+          "cast_shadows": true
+        }
+      }
+    },
+    {
+      "id": "0000000000000004",
+      "name": "Ground",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            30,
+            1,
+            30
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Plane",
+          "color": [
+            0.478,
+            0.604,
+            0.416,
+            1.0
+          ]
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            0.02,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000005",
+      "name": "Cube",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0.5,
+            0
+          ],
+          "rotation": [
+            0,
+            30,
+            0
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.231,
+            0.51,
+            0.965,
+            1.0
+          ],
+          "roughness": 0.4
+        },
+        "Script": {
+          "path": "scripts/spin.es"
+        }
+      }
+    }
+  ]
+}

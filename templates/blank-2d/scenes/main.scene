@@ -1,0 +1,69 @@
+{
+  "aven": "scene",
+  "version": 1,
+  "name": "Main",
+  "entities": [
+    {
+      "id": "0000000000000001",
+      "name": "Camera",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0,
+            10
+          ]
+        },
+        "Camera": {
+          "size": 5,
+          "background": [
+            0.118,
+            0.145,
+            0.2,
+            1.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000002",
+      "name": "Welcome",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0.6,
+            0.0
+          ]
+        },
+        "TextRenderer": {
+          "text": "Your game starts here!",
+          "font_size": 0.7
+        }
+      }
+    },
+    {
+      "id": "0000000000000003",
+      "name": "Hint",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            -0.4,
+            0.0
+          ]
+        },
+        "TextRenderer": {
+          "text": "Click + Add in the Hierarchy to add objects, then press Play.",
+          "font_size": 0.3,
+          "color": [
+            0.58,
+            0.639,
+            0.722,
+            1.0
+          ]
+        }
+      }
+    }
+  ]
+}

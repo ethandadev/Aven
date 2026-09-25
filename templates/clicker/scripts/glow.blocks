@@ -1,0 +1,22 @@
+{
+  "aven": "blocks",
+  "version": 1,
+  "variables": [],
+  "scripts": [
+    {
+      "x": 20,
+      "y": 20,
+      "blocks": [
+        {
+          "type": "when_update"
+        },
+        {
+          "type": "turn",
+          "inputs": {
+            "degrees": 0.3
+          }
+        }
+      ]
+    }
+  ]
+}

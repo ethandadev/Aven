@@ -1,0 +1,317 @@
+{
+  "aven": "scene",
+  "version": 1,
+  "name": "Space",
+  "entities": [
+    {
+      "id": "0000000000000001",
+      "name": "Camera",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0,
+            10
+          ]
+        },
+        "Camera": {
+          "size": 6,
+          "background": [
+            0.024,
+            0.039,
+            0.11,
+            1.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000002",
+      "name": "Stars",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            2,
+            0.0
+          ]
+        },
+        "ParticleEmitter": {
+          "rate": 18,
+          "burst": 70,
+          "lifetime": 5,
+          "speed": 3,
+          "spread": 0,
+          "direction": [
+            0,
+            -1,
+            0
+          ],
+          "gravity": [
+            0,
+            0,
+            0
+          ],
+          "shape_type": "Box",
+          "shape_size": 11,
+          "start_color": [
+            1.0,
+            1.0,
+            1.0,
+            0.9
+          ],
+          "end_color": [
+            0.576,
+            0.773,
+            0.992,
+            0.2
+          ],
+          "start_size": 0.07,
+          "end_size": 0.05,
+          "additive": true
+        }
+      }
+    },
+    {
+      "id": "0000000000000003",
+      "name": "Ship",
+      "tag": "player",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            -4.5,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/ship.png",
+          "size": [
+            1.2,
+            1.2
+          ],
+          "order": 5
+        },
+        "RigidBody2D": {
+          "gravity_scale": 0,
+          "fixed_rotation": true
+        },
+        "BoxCollider2D": {
+          "size": [
+            0.9,
+            0.9
+          ]
+        },
+        "Script": {
+          "path": "scripts/ship.blocks"
+        }
+      }
+    },
+    {
+      "id": "0000000000000004",
+      "name": "Flame",
+      "parent": "0000000000000003",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            -0.55,
+            0.0
+          ]
+        },
+        "ParticleEmitter": {
+          "rate": 45,
+          "lifetime": 0.25,
+          "speed": 3,
+          "spread": 12,
+          "direction": [
+            0,
+            -1,
+            0
+          ],
+          "gravity": [
+            0,
+            0,
+            0
+          ],
+          "start_color": [
+            0.992,
+            0.878,
+            0.278,
+            1.0
+          ],
+          "end_color": [
+            0.937,
+            0.267,
+            0.267,
+            0
+          ],
+          "start_size": 0.3,
+          "end_size": 0.02,
+          "additive": true,
+          "world_space": false
+        }
+      }
+    },
+    {
+      "id": "0000000000000005",
+      "name": "Rock Spawner",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            8,
+            0.0
+          ]
+        },
+        "Script": {
+          "path": "scripts/spawner.blocks"
+        }
+      }
+    },
+    {
+      "id": "0000000000000006",
+      "name": "Score",
+      "components": {
+        "UIElement": {
+          "anchor": "TopLeft",
+          "offset": [
+            24,
+            -20
+          ],
+          "size": [
+            400,
+            56
+          ]
+        },
+        "UIText": {
+          "text": "Score: 0",
+          "font_size": 40,
+          "align": "Left"
+        },
+        "Script": {
+          "path": "scripts/score.blocks"
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000007",
+      "name": "Best",
+      "components": {
+        "UIElement": {
+          "anchor": "TopRight",
+          "offset": [
+            -24,
+            -20
+          ],
+          "size": [
+            400,
+            56
+          ]
+        },
+        "UIText": {
+          "text": "Best: 0",
+          "font_size": 32,
+          "align": "Right",
+          "color": [
+            0.647,
+            0.706,
+            0.988,
+            1.0
+          ]
+        },
+        "Script": {
+          "path": "scripts/best.blocks"
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000008",
+      "name": "Game Over",
+      "components": {
+        "UIElement": {
+          "anchor": "Center",
+          "offset": [
+            0,
+            40
+          ],
+          "size": [
+            900,
+            120
+          ]
+        },
+        "UIText": {
+          "text": "GAME OVER",
+          "font_size": 110,
+          "color": [
+            0.973,
+            0.443,
+            0.443,
+            1.0
+          ]
+        },
+        "Script": {
+          "path": "scripts/game_over.blocks"
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000009",
+      "name": "Help",
+      "components": {
+        "UIElement": {
+          "anchor": "Bottom",
+          "offset": [
+            0,
+            16
+          ],
+          "size": [
+            900,
+            40
+          ]
+        },
+        "UIText": {
+          "text": "Arrow keys to fly, Space to shoot",
+          "font_size": 26,
+          "color": [
+            0.796,
+            0.835,
+            0.882,
+            1.0
+          ]
+        },
+        "Script": {
+          "path": "scripts/help.blocks"
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    }
+  ]
+}

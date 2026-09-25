@@ -1,0 +1,34 @@
+{
+  "title": "How the shooter works",
+  "steps": [
+    {
+      "title": "Play first!",
+      "text": "Press Play. Fly with the arrow keys and shoot with Space. How long can you survive?",
+      "play": true
+    },
+    {
+      "title": "The ship",
+      "text": "Open the ship's blocks. 'every frame' sets its speed from the arrow keys and keeps it on the screen. 'when space key pressed' spawns a laser just above the ship.",
+      "open": "scripts/ship.blocks",
+      "select": "Ship"
+    },
+    {
+      "title": "Prefabs",
+      "text": "Lasers, rocks and explosions are prefabs: saved objects in the prefabs folder that 'spawn' creates while the game runs. Double-click a prefab in the Assets panel to put one in the scene and see it."
+    },
+    {
+      "title": "Messages",
+      "text": "When a rock hits the ship, the ship broadcasts 'game_over'. The Game Over text listens with 'when I receive game_over', shows itself, saves the best score and restarts.",
+      "open": "scripts/game_over.blocks"
+    },
+    {
+      "title": "Make it harder",
+      "text": "Open spawner.blocks and change 'every 0.7 seconds' to 0.4. Or open rock.blocks and make rocks fall faster.",
+      "open": "scripts/spawner.blocks"
+    },
+    {
+      "title": "Challenge",
+      "text": "Add power-ups: make a new prefab with a star shape and a trigger collider, spawn it now and then, and when the ship touches it, change the ship's speed variable."
+    }
+  ]
+}

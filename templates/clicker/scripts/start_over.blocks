@@ -1,0 +1,61 @@
+{
+  "aven": "blocks",
+  "version": 1,
+  "variables": [],
+  "scripts": [
+    {
+      "x": 20,
+      "y": 20,
+      "blocks": [
+        {
+          "type": "when_clicked"
+        },
+        {
+          "type": "save",
+          "inputs": {
+            "value": 0,
+            "key": "cookies"
+          }
+        },
+        {
+          "type": "save",
+          "inputs": {
+            "value": 1,
+            "key": "per_click"
+          }
+        },
+        {
+          "type": "save",
+          "inputs": {
+            "value": 0,
+            "key": "per_second"
+          }
+        },
+        {
+          "type": "save",
+          "inputs": {
+            "value": 15,
+            "key": "auto_baker_cost"
+          }
+        },
+        {
+          "type": "save",
+          "inputs": {
+            "value": 40,
+            "key": "rolling_pin_cost"
+          }
+        },
+        {
+          "type": "save",
+          "inputs": {
+            "value": 200,
+            "key": "bakery_cost"
+          }
+        },
+        {
+          "type": "restart"
+        }
+      ]
+    }
+  ]
+}

@@ -360,12 +360,13 @@ void Editor::newScene(bool is3D) {
 }
 
 std::string Editor::uniqueName(const std::string& folder, const std::string& base, const std::string& ext) const {
+    std::string prefix = folder.empty() ? "" : folder + "/";
     for (int i = 0; i < 1000; ++i) {
-        std::string name = folder + "/" + base + (i ? "_" + std::to_string(i + 1) : "") + ext;
+        std::string name = prefix + base + (i ? "_" + std::to_string(i + 1) : "") + ext;
         if (!fs::exists(projectDir_ / name))
             return name;
     }
-    return folder + "/" + base + ext;
+    return prefix + base + ext;
 }
 
 // ---------------------------------------------------------------- selection and undo

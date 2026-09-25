@@ -1,0 +1,8 @@
+{
+  "name": "Space Shooter",
+  "description": "Fly a spaceship, blast asteroids and beat your high score. Made 100% with blocks: a great way to learn clones, prefabs, messages and saving.",
+  "style": "Blocks",
+  "difficulty": "Beginner",
+  "3d": false,
+  "color": "6366F1"
+}

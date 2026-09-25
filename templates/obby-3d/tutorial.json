@@ -1,0 +1,34 @@
+{
+  "title": "Build your own obby",
+  "steps": [
+    {
+      "title": "Play first!",
+      "text": "Press Play. Move with WASD, jump with Space. The camera follows you. Reach the golden trophy!",
+      "play": true
+    },
+    {
+      "title": "No movement code needed",
+      "text": "Select the Player: its CharacterController component already walks and jumps. Try a higher Jump Height or Speed in the Inspector.",
+      "select": "Player"
+    },
+    {
+      "title": "Lava",
+      "text": "Every object tagged 'lava' is a trigger. player.es checks the tag in on_trigger and respawns you at the last checkpoint.",
+      "open": "scripts/player.es",
+      "code": "def on_trigger(other):\n    if other.tag == \"lava\":\n        respawn()"
+    },
+    {
+      "title": "Moving parts",
+      "text": "Moving platforms use mover.es and the spinning bar uses spinner.es. They are Kinematic rigid bodies: scripts move them, and physics makes things standing on them ride along.",
+      "open": "scripts/mover.es"
+    },
+    {
+      "title": "Add a stage",
+      "text": "Select a Jump platform, press Ctrl+D and drag the copy with the gizmo. Duplicate a Lava brick to make new danger. Move the Finish Platform, Trophy and Finish further away to make room."
+    },
+    {
+      "title": "Challenge",
+      "text": "Make a disappearing platform: a script that waits 1 second after the player touches it, then hides it and removes its BoxCollider with self.remove_component(\"BoxCollider\")."
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "aven": "blocks",
+  "version": 1,
+  "variables": [],
+  "scripts": [
+    {
+      "x": 20,
+      "y": 20,
+      "blocks": [
+        {
+          "type": "when_timer",
+          "inputs": {
+            "seconds": 0.7
+          }
+        },
+        {
+          "type": "spawn",
+          "inputs": {
+            "prefab": "prefabs/rock.prefab",
+            "x": {
+              "type": "random",
+              "inputs": {
+                "min": -9,
+                "max": 9
+              }
+            },
+            "y": {
+              "type": "my_property",
+              "inputs": {
+                "property": "y"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

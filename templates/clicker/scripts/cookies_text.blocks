@@ -1,0 +1,33 @@
+{
+  "aven": "blocks",
+  "version": 1,
+  "variables": [],
+  "scripts": [
+    {
+      "x": 20,
+      "y": 20,
+      "blocks": [
+        {
+          "type": "when_update"
+        },
+        {
+          "type": "set_text",
+          "inputs": {
+            "text": {
+              "type": "join",
+              "inputs": {
+                "a": {
+                  "type": "game_var",
+                  "inputs": {
+                    "name": "cookies"
+                  }
+                },
+                "b": " cookies"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

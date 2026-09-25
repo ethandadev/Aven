@@ -1,0 +1,34 @@
+{
+  "aven": "blocks",
+  "version": 1,
+  "variables": [],
+  "scripts": [
+    {
+      "x": 20,
+      "y": 20,
+      "blocks": [
+        {
+          "type": "when_update"
+        },
+        {
+          "type": "set_text",
+          "inputs": {
+            "text": {
+              "type": "join",
+              "inputs": {
+                "a": "Best: ",
+                "b": {
+                  "type": "load",
+                  "inputs": {
+                    "key": "best",
+                    "default": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

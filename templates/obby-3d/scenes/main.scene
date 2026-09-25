@@ -1,0 +1,1099 @@
+{
+  "aven": "scene",
+  "version": 1,
+  "name": "Obby",
+  "entities": [
+    {
+      "id": "0000000000000002",
+      "name": "Camera",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            5,
+            8
+          ],
+          "rotation": [
+            -20,
+            0,
+            0
+          ]
+        },
+        "Camera": {
+          "projection": "Perspective",
+          "field_of_view": 60
+        },
+        "PostProcessing": {
+          "tonemapper": "ACES",
+          "bloom": true,
+          "bloom_intensity": 0.8,
+          "ssao": true,
+          "fxaa": true,
+          "vignette": true,
+          "vignette_intensity": 0.25
+        },
+        "AudioListener": {},
+        "CameraFollow": {
+          "target": "0000000000000001",
+          "offset": [
+            0,
+            4.5,
+            7.5
+          ],
+          "smoothness": 6,
+          "follow_z": true,
+          "look_at_target": true
+        }
+      }
+    },
+    {
+      "id": "0000000000000003",
+      "name": "Environment",
+      "components": {
+        "Environment": {
+          "sky": "Procedural",
+          "sky_top": [
+            0.184,
+            0.435,
+            0.839,
+            1.0
+          ],
+          "sky_horizon": [
+            0.663,
+            0.824,
+            0.961,
+            1.0
+          ],
+          "fog": true,
+          "fog_color": [
+            0.663,
+            0.824,
+            0.961,
+            1.0
+          ],
+          "fog_density": 0.004
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000004",
+      "name": "Sun",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            10,
+            0
+          ],
+          "rotation": [
+            -50,
+            -30,
+            0
+          ]
+        },
+        "Light": {
+          "type": "Directional",
+          "color": [
+            1.0,
+            0.961,
+            0.878,
+            1.0
+          ],
+          "intensity": 1.2,
+          "cast_shadows": true
+        }
+      }
+    },
+    {
+      "id": "0000000000000005",
+      "name": "Spawn",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            -0.5,
+            0
+          ],
+          "scale": [
+            8,
+            1,
+            8
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.361,
+            0.722,
+            0.361,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": false
+        }
+      }
+    },
+    {
+      "id": "0000000000000006",
+      "name": "Jump",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            -0.25,
+            -7
+          ],
+          "scale": [
+            2.5,
+            0.5,
+            2.5
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.376,
+            0.647,
+            0.98,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": false
+        }
+      }
+    },
+    {
+      "id": "0000000000000007",
+      "name": "Jump",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            -0.25,
+            -11
+          ],
+          "scale": [
+            2.5,
+            0.5,
+            2.5
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.957,
+            0.447,
+            0.714,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": false
+        }
+      }
+    },
+    {
+      "id": "0000000000000008",
+      "name": "Jump",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            -0.25,
+            -15
+          ],
+          "scale": [
+            2.5,
+            0.5,
+            2.5
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.376,
+            0.647,
+            0.98,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": false
+        }
+      }
+    },
+    {
+      "id": "0000000000000009",
+      "name": "Platform",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            -0.25,
+            -21
+          ],
+          "scale": [
+            5,
+            0.5,
+            5
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.796,
+            0.835,
+            0.882,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": false
+        }
+      }
+    },
+    {
+      "id": "000000000000000a",
+      "name": "Lava Run",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            -0.25,
+            -31
+          ],
+          "scale": [
+            4,
+            0.5,
+            14
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.796,
+            0.835,
+            0.882,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": false
+        }
+      }
+    },
+    {
+      "id": "000000000000000b",
+      "name": "Lava",
+      "tag": "lava",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0.1,
+            -27
+          ],
+          "scale": [
+            4,
+            0.3,
+            1
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.863,
+            0.149,
+            0.149,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0,
+          "emission": [
+            1.0,
+            0.231,
+            0.122,
+            1.0
+          ],
+          "emission_strength": 2.5
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": true
+        }
+      }
+    },
+    {
+      "id": "000000000000000c",
+      "name": "Lava",
+      "tag": "lava",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0.1,
+            -31
+          ],
+          "scale": [
+            4,
+            0.3,
+            1
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.863,
+            0.149,
+            0.149,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0,
+          "emission": [
+            1.0,
+            0.231,
+            0.122,
+            1.0
+          ],
+          "emission_strength": 2.5
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": true
+        }
+      }
+    },
+    {
+      "id": "000000000000000d",
+      "name": "Lava",
+      "tag": "lava",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0.1,
+            -35
+          ],
+          "scale": [
+            4,
+            0.3,
+            1
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.863,
+            0.149,
+            0.149,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0,
+          "emission": [
+            1.0,
+            0.231,
+            0.122,
+            1.0
+          ],
+          "emission_strength": 2.5
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": true
+        }
+      }
+    },
+    {
+      "id": "000000000000000e",
+      "name": "Platform",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            -0.25,
+            -42
+          ],
+          "scale": [
+            5,
+            0.5,
+            5
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.796,
+            0.835,
+            0.882,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": false
+        }
+      }
+    },
+    {
+      "id": "000000000000000f",
+      "name": "Moving Platform",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            -0.25,
+            -48.5
+          ],
+          "scale": [
+            2.6,
+            0.5,
+            2.6
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.655,
+            0.545,
+            0.98,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": false
+        },
+        "RigidBody": {
+          "type": "Kinematic"
+        },
+        "Script": {
+          "path": "scripts/mover.es"
+        }
+      }
+    },
+    {
+      "id": "0000000000000010",
+      "name": "Moving Platform",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            -0.25,
+            -54
+          ],
+          "scale": [
+            2.6,
+            0.5,
+            2.6
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.655,
+            0.545,
+            0.98,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": false
+        },
+        "RigidBody": {
+          "type": "Kinematic"
+        },
+        "Script": {
+          "path": "scripts/mover.es"
+        }
+      }
+    },
+    {
+      "id": "0000000000000011",
+      "name": "Spinner Base",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            -0.25,
+            -62
+          ],
+          "scale": [
+            7,
+            0.5,
+            7
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.796,
+            0.835,
+            0.882,
+            1.0
+          ]
+        },
+        "BoxCollider": {
+          "size": [
+            0.9,
+            1,
+            0.9
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000012",
+      "name": "Spinning Lava",
+      "tag": "lava",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0.45,
+            -62
+          ],
+          "scale": [
+            6.5,
+            0.4,
+            0.4
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.863,
+            0.149,
+            0.149,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0,
+          "emission": [
+            1.0,
+            0.231,
+            0.122,
+            1.0
+          ],
+          "emission_strength": 2.5
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": true
+        },
+        "RigidBody": {
+          "type": "Kinematic"
+        },
+        "Script": {
+          "path": "scripts/spinner.es"
+        }
+      }
+    },
+    {
+      "id": "0000000000000013",
+      "name": "Finish Platform",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            -0.25,
+            -71
+          ],
+          "scale": [
+            6,
+            0.5,
+            6
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cube",
+          "color": [
+            0.984,
+            0.749,
+            0.141,
+            1.0
+          ],
+          "roughness": 0.35,
+          "metallic": 0.6
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "is_trigger": false
+        }
+      }
+    },
+    {
+      "id": "0000000000000014",
+      "name": "Trophy",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1.6,
+            -72.5
+          ],
+          "rotation": [
+            90,
+            0,
+            0
+          ],
+          "scale": [
+            1.2,
+            1.2,
+            1.2
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Torus",
+          "color": [
+            0.984,
+            0.749,
+            0.141,
+            1.0
+          ],
+          "metallic": 1,
+          "roughness": 0.25,
+          "emission": [
+            0.961,
+            0.62,
+            0.043,
+            1.0
+          ],
+          "emission_strength": 0.6
+        },
+        "Script": {
+          "path": "scripts/spinner.es"
+        }
+      }
+    },
+    {
+      "id": "0000000000000015",
+      "name": "Finish",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0.6,
+            -71
+          ]
+        },
+        "BoxCollider": {
+          "size": [
+            5,
+            1.2,
+            5
+          ],
+          "is_trigger": true
+        },
+        "ParticleEmitter": {
+          "emitting": false,
+          "rate": 0,
+          "lifetime": 2.5,
+          "speed": 8,
+          "spread": 40,
+          "gravity": [
+            0,
+            -6,
+            0
+          ],
+          "start_color": [
+            0.992,
+            0.878,
+            0.278,
+            1.0
+          ],
+          "end_color": [
+            0.925,
+            0.282,
+            0.6,
+            0
+          ],
+          "start_size": 0.25,
+          "end_size": 0.1,
+          "additive": false
+        },
+        "Script": {
+          "path": "scripts/finish.es"
+        }
+      }
+    },
+    {
+      "id": "0000000000000016",
+      "name": "Checkpoint 1",
+      "tag": "checkpoint",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0.05,
+            -21
+          ],
+          "scale": [
+            1.6,
+            0.1,
+            1.6
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.086,
+            0.396,
+            0.204,
+            1.0
+          ],
+          "emission": [
+            0.133,
+            0.773,
+            0.369,
+            1.0
+          ],
+          "emission_strength": 0.3
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            12,
+            1
+          ],
+          "is_trigger": true
+        },
+        "Script": {
+          "path": "scripts/checkpoint.es"
+        }
+      }
+    },
+    {
+      "id": "0000000000000017",
+      "name": "Checkpoint 2",
+      "tag": "checkpoint",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0.05,
+            -42
+          ],
+          "scale": [
+            1.6,
+            0.1,
+            1.6
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Cylinder",
+          "color": [
+            0.086,
+            0.396,
+            0.204,
+            1.0
+          ],
+          "emission": [
+            0.133,
+            0.773,
+            0.369,
+            1.0
+          ],
+          "emission_strength": 0.3
+        },
+        "BoxCollider": {
+          "size": [
+            1,
+            12,
+            1
+          ],
+          "is_trigger": true
+        },
+        "Script": {
+          "path": "scripts/checkpoint.es"
+        }
+      }
+    },
+    {
+      "id": "0000000000000001",
+      "name": "Player",
+      "tag": "player",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            1,
+            0
+          ],
+          "scale": [
+            0.8,
+            0.9,
+            0.8
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Capsule",
+          "color": [
+            0.231,
+            0.51,
+            0.965,
+            1.0
+          ],
+          "roughness": 0.4
+        },
+        "CharacterController": {
+          "speed": 6,
+          "jump_height": 2.2,
+          "gravity": 22
+        },
+        "Script": {
+          "path": "scripts/player.es"
+        }
+      }
+    },
+    {
+      "id": "0000000000000018",
+      "name": "Eye",
+      "parent": "0000000000000001",
+      "components": {
+        "Transform": {
+          "position": [
+            -0.18,
+            0.45,
+            -0.42
+          ],
+          "scale": [
+            0.14,
+            0.18,
+            0.08
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Sphere",
+          "color": [
+            0.067,
+            0.094,
+            0.153,
+            1.0
+          ],
+          "roughness": 0.2
+        }
+      }
+    },
+    {
+      "id": "0000000000000019",
+      "name": "Eye",
+      "parent": "0000000000000001",
+      "components": {
+        "Transform": {
+          "position": [
+            0.18,
+            0.45,
+            -0.42
+          ],
+          "scale": [
+            0.14,
+            0.18,
+            0.08
+          ]
+        },
+        "MeshRenderer": {
+          "mesh": "Sphere",
+          "color": [
+            0.067,
+            0.094,
+            0.153,
+            1.0
+          ],
+          "roughness": 0.2
+        }
+      }
+    },
+    {
+      "id": "000000000000001a",
+      "name": "HUD",
+      "components": {
+        "UIElement": {
+          "anchor": "TopLeft",
+          "offset": [
+            24,
+            -20
+          ],
+          "size": [
+            700,
+            50
+          ]
+        },
+        "UIText": {
+          "text": "Time: 0.0",
+          "font_size": 36,
+          "align": "Left"
+        },
+        "Script": {
+          "path": "scripts/hud.es"
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000001b",
+      "name": "Win",
+      "components": {
+        "UIElement": {
+          "anchor": "Center",
+          "offset": [
+            0,
+            120
+          ],
+          "size": [
+            1000,
+            110
+          ]
+        },
+        "UIText": {
+          "text": "You win!",
+          "font_size": 84,
+          "color": [
+            0.992,
+            0.878,
+            0.278,
+            1.0
+          ]
+        },
+        "Script": {
+          "path": "scripts/win.es"
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000001c",
+      "name": "Help",
+      "components": {
+        "UIElement": {
+          "anchor": "Bottom",
+          "offset": [
+            0,
+            16
+          ],
+          "size": [
+            1000,
+            40
+          ]
+        },
+        "UIText": {
+          "text": "WASD or arrow keys to move, Space to jump. Don't touch the lava!",
+          "font_size": 26
+        },
+        "Script": {
+          "path": "scripts/fade_out.es"
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "aven": "blocks",
+  "version": 1,
+  "variables": [],
+  "scripts": [
+    {
+      "x": 20,
+      "y": 20,
+      "blocks": [
+        {
+          "type": "when_start"
+        },
+        {
+          "type": "wait",
+          "inputs": {
+            "seconds": 1.2
+          }
+        },
+        {
+          "type": "destroy"
+        }
+      ]
+    }
+  ]
+}

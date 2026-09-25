@@ -1,0 +1,35 @@
+{
+  "entities": [
+    {
+      "id": "0000000000000001",
+      "name": "Rock",
+      "tag": "rock",
+      "components": {
+        "SpriteRenderer": {
+          "texture": "images/asteroid.png",
+          "size": [
+            1.4,
+            1.4
+          ],
+          "order": 2
+        },
+        "RigidBody2D": {
+          "gravity_scale": 0
+        },
+        "CircleCollider2D": {
+          "radius": 0.6
+        },
+        "Script": {
+          "path": "scripts/rock.blocks"
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    }
+  ]
+}

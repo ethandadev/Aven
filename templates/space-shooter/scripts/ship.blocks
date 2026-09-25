@@ -1,0 +1,247 @@
+{
+  "aven": "blocks",
+  "version": 1,
+  "variables": [
+    {
+      "name": "speed",
+      "value": 8
+    }
+  ],
+  "scripts": [
+    {
+      "x": 20,
+      "y": 20,
+      "blocks": [
+        {
+          "type": "when_update"
+        },
+        {
+          "type": "set_velocity",
+          "inputs": {
+            "vx": {
+              "type": "multiply",
+              "inputs": {
+                "a": {
+                  "type": "axis",
+                  "inputs": {
+                    "axis": "horizontal"
+                  }
+                },
+                "b": {
+                  "type": "var",
+                  "inputs": {
+                    "var": "speed"
+                  }
+                }
+              }
+            },
+            "vy": {
+              "type": "multiply",
+              "inputs": {
+                "a": {
+                  "type": "axis",
+                  "inputs": {
+                    "axis": "vertical"
+                  }
+                },
+                "b": {
+                  "type": "var",
+                  "inputs": {
+                    "var": "speed"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "if",
+          "inputs": {
+            "condition": {
+              "type": "less",
+              "inputs": {
+                "a": {
+                  "type": "my_property",
+                  "inputs": {
+                    "property": "x"
+                  }
+                },
+                "b": -9
+              }
+            }
+          },
+          "body": [
+            {
+              "type": "set_x",
+              "inputs": {
+                "x": -9
+              }
+            }
+          ]
+        },
+        {
+          "type": "if",
+          "inputs": {
+            "condition": {
+              "type": "greater",
+              "inputs": {
+                "a": {
+                  "type": "my_property",
+                  "inputs": {
+                    "property": "x"
+                  }
+                },
+                "b": 9
+              }
+            }
+          },
+          "body": [
+            {
+              "type": "set_x",
+              "inputs": {
+                "x": 9
+              }
+            }
+          ]
+        },
+        {
+          "type": "if",
+          "inputs": {
+            "condition": {
+              "type": "less",
+              "inputs": {
+                "a": {
+                  "type": "my_property",
+                  "inputs": {
+                    "property": "y"
+                  }
+                },
+                "b": -5.3
+              }
+            }
+          },
+          "body": [
+            {
+              "type": "set_y",
+              "inputs": {
+                "y": -5.3
+              }
+            }
+          ]
+        },
+        {
+          "type": "if",
+          "inputs": {
+            "condition": {
+              "type": "greater",
+              "inputs": {
+                "a": {
+                  "type": "my_property",
+                  "inputs": {
+                    "property": "y"
+                  }
+                },
+                "b": 3
+              }
+            }
+          },
+          "body": [
+            {
+              "type": "set_y",
+              "inputs": {
+                "y": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "x": 20,
+      "y": 500,
+      "blocks": [
+        {
+          "type": "when_key",
+          "inputs": {
+            "key": "space"
+          }
+        },
+        {
+          "type": "spawn",
+          "inputs": {
+            "prefab": "prefabs/laser.prefab",
+            "x": {
+              "type": "my_property",
+              "inputs": {
+                "property": "x"
+              }
+            },
+            "y": {
+              "type": "add",
+              "inputs": {
+                "a": {
+                  "type": "my_property",
+                  "inputs": {
+                    "property": "y"
+                  }
+                },
+                "b": 0.7
+              }
+            }
+          }
+        },
+        {
+          "type": "play_sound",
+          "inputs": {
+            "sound": "sounds/shoot.wav"
+          }
+        }
+      ]
+    },
+    {
+      "x": 20,
+      "y": 686,
+      "blocks": [
+        {
+          "type": "when_touch",
+          "inputs": {
+            "tag": "rock"
+          }
+        },
+        {
+          "type": "play_sound",
+          "inputs": {
+            "sound": "sounds/explosion.wav"
+          }
+        },
+        {
+          "type": "spawn",
+          "inputs": {
+            "prefab": "prefabs/boom.prefab",
+            "x": {
+              "type": "my_property",
+              "inputs": {
+                "property": "x"
+              }
+            },
+            "y": {
+              "type": "my_property",
+              "inputs": {
+                "property": "y"
+              }
+            }
+          }
+        },
+        {
+          "type": "broadcast",
+          "inputs": {
+            "message": "game_over"
+          }
+        },
+        {
+          "type": "destroy"
+        }
+      ]
+    }
+  ]
+}

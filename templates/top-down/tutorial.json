@@ -1,0 +1,34 @@
+{
+  "title": "Gem Quest",
+  "steps": [
+    {
+      "title": "Play first!",
+      "text": "Press Play. Walk with the arrow keys or WASD, collect the six gems and find the portal. Watch out for slimes!",
+      "play": true
+    },
+    {
+      "title": "The hero's script",
+      "text": "Open player.es. on_update runs every frame: it reads the arrow keys with axis() and sets the velocity. The hurt() function is called by slimes when they bump into the hero.",
+      "open": "scripts/player.es",
+      "select": "Player"
+    },
+    {
+      "title": "Variables you can tweak",
+      "text": "Variables at the top of a script (like speed and max_health) show up in the Inspector, so you can change them without touching the code. Try giving the hero 5 hearts."
+    },
+    {
+      "title": "Enemies",
+      "text": "slime.es wanders in a random direction every 2 seconds, and chases the hero when it's closer than 'sight'. Change sight to 8 for scarier slimes.",
+      "open": "scripts/slime.es"
+    },
+    {
+      "title": "Talking between objects",
+      "text": "Gems broadcast 'all_gems' when the last one is collected. The portal and the message text both have on_message(name, data), so they react to it.",
+      "code": "def on_message(name, data):\n    if name == \"all_gems\":\n        self.show()"
+    },
+    {
+      "title": "Challenge",
+      "text": "Add a heart pickup that gives back health: copy a gem, change its image to a heart shape, and write a script that does game.health += 1 when the player touches it."
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "title": "Make the platformer your own",
+  "steps": [
+    {
+      "title": "Play first!",
+      "text": "Press Play and try the level: run with the arrow keys, jump with Space, collect coins and reach the flag.",
+      "play": true
+    },
+    {
+      "title": "The player is made of blocks",
+      "text": "Open the player's blocks. 'every frame' sets the speed from the arrow keys, and 'when space key pressed' makes it jump, but only when it's on the ground.",
+      "open": "scripts/player.blocks",
+      "select": "Player"
+    },
+    {
+      "title": "Change how it feels",
+      "text": "Select the Player: the Script section in the Inspector shows 'Speed' and 'Jump Power'. Try a speed of 9 and a jump power of 15, then play again. These come from the variables in the blocks."
+    },
+    {
+      "title": "Coins use EasyScript",
+      "text": "Open coin.es. When something touches the coin, it checks whether it's the player, adds 1 to game.coins, plays a sound and deletes itself.",
+      "open": "scripts/coin.es",
+      "code": "def on_trigger(other):\n    if other.tag == \"player\":\n        game.coins += 1\n        self.destroy()"
+    },
+    {
+      "title": "Build more level",
+      "text": "Select a Platform and press Ctrl+D to duplicate it, then drag the copy somewhere new. Duplicate coins and slimes the same way. Everything with the 'hazard' tag hurts the player.",
+      "select": "Platform"
+    },
+    {
+      "title": "Challenge",
+      "text": "Make a second level: right-click main.scene in the Assets panel and choose Duplicate, rename the copy to level2.scene and change it. Then make goal.es load it after a short wait:",
+      "code": "def on_trigger(other):\n    if other.tag == \"player\":\n        wait(2)\n        load_scene(\"scenes/level2.scene\")"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "aven": "project",
+  "name": "Platformer",
+  "version": "1.0",
+  "start_scene": "scenes/main.scene",
+  "window": {
+    "width": 1280,
+    "height": 720,
+    "resizable": true,
+    "fullscreen": false,
+    "vsync": true,
+    "pixel_perfect": false
+  },
+  "advanced_mode": false
+}

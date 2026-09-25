@@ -1,0 +1,217 @@
+{
+  "aven": "blocks",
+  "version": 1,
+  "variables": [
+    {
+      "name": "speed",
+      "value": 6
+    },
+    {
+      "name": "jump_power",
+      "value": 14
+    }
+  ],
+  "scripts": [
+    {
+      "x": 20,
+      "y": 20,
+      "blocks": [
+        {
+          "type": "when_update"
+        },
+        {
+          "type": "set_velocity_x",
+          "inputs": {
+            "vx": {
+              "type": "multiply",
+              "inputs": {
+                "a": {
+                  "type": "axis",
+                  "inputs": {
+                    "axis": "horizontal"
+                  }
+                },
+                "b": {
+                  "type": "var",
+                  "inputs": {
+                    "var": "speed"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "if",
+          "inputs": {
+            "condition": {
+              "type": "less",
+              "inputs": {
+                "a": {
+                  "type": "axis",
+                  "inputs": {
+                    "axis": "horizontal"
+                  }
+                },
+                "b": 0
+              }
+            }
+          },
+          "body": [
+            {
+              "type": "flip",
+              "inputs": {
+                "side": "left"
+              }
+            }
+          ]
+        },
+        {
+          "type": "if",
+          "inputs": {
+            "condition": {
+              "type": "greater",
+              "inputs": {
+                "a": {
+                  "type": "axis",
+                  "inputs": {
+                    "axis": "horizontal"
+                  }
+                },
+                "b": 0
+              }
+            }
+          },
+          "body": [
+            {
+              "type": "flip",
+              "inputs": {
+                "side": "right"
+              }
+            }
+          ]
+        },
+        {
+          "type": "if",
+          "inputs": {
+            "condition": {
+              "type": "less",
+              "inputs": {
+                "a": {
+                  "type": "my_property",
+                  "inputs": {
+                    "property": "y"
+                  }
+                },
+                "b": -10
+              }
+            }
+          },
+          "body": [
+            {
+              "type": "broadcast",
+              "inputs": {
+                "message": "player_hit"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "x": 20,
+      "y": 416,
+      "blocks": [
+        {
+          "type": "when_key",
+          "inputs": {
+            "key": "space"
+          }
+        },
+        {
+          "type": "if",
+          "inputs": {
+            "condition": {
+              "type": "on_ground"
+            }
+          },
+          "body": [
+            {
+              "type": "jump",
+              "inputs": {
+                "power": {
+                  "type": "var",
+                  "inputs": {
+                    "var": "jump_power"
+                  }
+                }
+              }
+            },
+            {
+              "type": "play_sound",
+              "inputs": {
+                "sound": "sounds/jump.wav"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "x": 20,
+      "y": 644,
+      "blocks": [
+        {
+          "type": "when_touch",
+          "inputs": {
+            "tag": "hazard"
+          }
+        },
+        {
+          "type": "broadcast",
+          "inputs": {
+            "message": "player_hit"
+          }
+        }
+      ]
+    },
+    {
+      "x": 20,
+      "y": 788,
+      "blocks": [
+        {
+          "type": "when_receive",
+          "inputs": {
+            "message": "player_hit"
+          }
+        },
+        {
+          "type": "play_sound",
+          "inputs": {
+            "sound": "sounds/hit.wav"
+          }
+        },
+        {
+          "type": "shake",
+          "inputs": {
+            "amount": 0.4
+          }
+        },
+        {
+          "type": "go_to",
+          "inputs": {
+            "x": -8,
+            "y": -1.4
+          }
+        },
+        {
+          "type": "set_velocity",
+          "inputs": {
+            "vx": 0,
+            "vy": 0
+          }
+        }
+      ]
+    }
+  ]
+}

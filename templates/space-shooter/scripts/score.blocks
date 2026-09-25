@@ -1,0 +1,49 @@
+{
+  "aven": "blocks",
+  "version": 1,
+  "variables": [],
+  "scripts": [
+    {
+      "x": 20,
+      "y": 20,
+      "blocks": [
+        {
+          "type": "when_start"
+        },
+        {
+          "type": "set_game",
+          "inputs": {
+            "name": "score",
+            "value": 0
+          }
+        }
+      ]
+    },
+    {
+      "x": 20,
+      "y": 164,
+      "blocks": [
+        {
+          "type": "when_update"
+        },
+        {
+          "type": "set_text",
+          "inputs": {
+            "text": {
+              "type": "join",
+              "inputs": {
+                "a": "Score: ",
+                "b": {
+                  "type": "game_var",
+                  "inputs": {
+                    "name": "score"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

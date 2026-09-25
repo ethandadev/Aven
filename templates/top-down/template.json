@@ -1,0 +1,8 @@
+{
+  "name": "Gem Quest",
+  "description": "A top-down adventure: explore the meadow, collect every gem, dodge the slimes and find the portal. Written in EasyScript, with health, enemies that chase you and a win screen.",
+  "style": "EasyScript",
+  "difficulty": "Beginner",
+  "3d": false,
+  "color": "F59E0B"
+}

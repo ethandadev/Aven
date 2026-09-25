@@ -47,7 +47,7 @@ void GameplaySystems::updateUI() {
     int topOrder = -1000000;
     uint32_t seq = 0, topSeq = 0;
     scene.walk([&](Entity e, int) {
-        if (!scene.info(e).active)
+        if (!scene.info(e).active || scene.registry().has<Hidden>(e))
             return false;
         ++seq;
         auto* btn = scene.registry().tryGet<UIButton>(e);

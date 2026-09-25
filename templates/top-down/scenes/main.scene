@@ -1,0 +1,2871 @@
+{
+  "aven": "scene",
+  "version": 1,
+  "name": "Meadow",
+  "entities": [
+    {
+      "id": "0000000000000002",
+      "name": "Camera",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0,
+            10
+          ]
+        },
+        "Camera": {
+          "size": 6,
+          "background": [
+            0.184,
+            0.42,
+            0.227,
+            1.0
+          ]
+        },
+        "CameraFollow": {
+          "target": "0000000000000001",
+          "smoothness": 5
+        }
+      }
+    },
+    {
+      "id": "0000000000000003",
+      "name": "Grass",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "color": [
+            0.384,
+            0.722,
+            0.38,
+            1.0
+          ],
+          "size": [
+            34,
+            24
+          ],
+          "order": -20
+        }
+      }
+    },
+    {
+      "id": "0000000000000004",
+      "name": "Path",
+      "components": {
+        "Transform": {
+          "position": [
+            -3,
+            -0.5,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [
+            0.788,
+            0.651,
+            0.42,
+            1.0
+          ],
+          "size": [
+            22,
+            1.4
+          ],
+          "order": -18
+        }
+      }
+    },
+    {
+      "id": "0000000000000005",
+      "name": "Path",
+      "components": {
+        "Transform": {
+          "position": [
+            6,
+            -4.5,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [
+            0.788,
+            0.651,
+            0.42,
+            1.0
+          ],
+          "size": [
+            1.4,
+            8
+          ],
+          "order": -18
+        }
+      }
+    },
+    {
+      "id": "0000000000000006",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -8.45,
+            -8.73,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.769,
+            0.71,
+            0.992,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000007",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -0.68,
+            -9.02,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.996,
+            0.941,
+            0.541,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000008",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -3.15,
+            9.2,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.996,
+            0.941,
+            0.541,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000009",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -8.9,
+            0.81,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000000a",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            8.95,
+            7.19,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000000b",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -9.14,
+            9.4,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000000c",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            9.61,
+            -6.74,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000000d",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -6.73,
+            8.08,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000000e",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -13.23,
+            2.33,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.769,
+            0.71,
+            0.992,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000000f",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            0.19,
+            -7.09,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.769,
+            0.71,
+            0.992,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000010",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -7.04,
+            9.78,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000011",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -15.77,
+            -4.58,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000012",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            11.14,
+            0.18,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.769,
+            0.71,
+            0.992,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000013",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -2.44,
+            -4.66,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.769,
+            0.71,
+            0.992,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000014",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -10.84,
+            -4.29,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.996,
+            0.941,
+            0.541,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000015",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -13.41,
+            -0.82,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000016",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            0.6,
+            3.26,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000017",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -11.36,
+            3.82,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.996,
+            0.941,
+            0.541,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000018",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -2.79,
+            -6.54,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.769,
+            0.71,
+            0.992,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000019",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -7.16,
+            -3.17,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000001a",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            4.3,
+            -6.63,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000001b",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -12.77,
+            -9.64,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.976,
+            0.659,
+            0.831,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000001c",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -7.12,
+            1.81,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.976,
+            0.659,
+            0.831,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000001d",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -12.09,
+            9.56,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000001e",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -1.31,
+            -10.06,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.996,
+            0.941,
+            0.541,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000001f",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            12.67,
+            10.0,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000020",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -15.42,
+            -4.64,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.976,
+            0.659,
+            0.831,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000021",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            8.81,
+            -1.97,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.996,
+            0.941,
+            0.541,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000022",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -6.61,
+            -6.79,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.769,
+            0.71,
+            0.992,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000023",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -6.66,
+            -5.5,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.976,
+            0.659,
+            0.831,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000024",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -5.4,
+            -10.79,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.996,
+            0.941,
+            0.541,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000025",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -1.45,
+            -2.97,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000026",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            15.91,
+            1.57,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.769,
+            0.71,
+            0.992,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000027",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            15.42,
+            -1.67,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.976,
+            0.659,
+            0.831,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000028",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -12.36,
+            -9.63,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.976,
+            0.659,
+            0.831,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000029",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            3.06,
+            10.35,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.996,
+            0.941,
+            0.541,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000002a",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            1.48,
+            1.82,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000002b",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            15.92,
+            -8.31,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000002c",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            8.76,
+            -1.99,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.976,
+            0.659,
+            0.831,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000002d",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -0.71,
+            -5.68,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.769,
+            0.71,
+            0.992,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000002e",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -0.26,
+            -6.18,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.769,
+            0.71,
+            0.992,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000002f",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -8.05,
+            8.56,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.976,
+            0.659,
+            0.831,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000030",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -0.05,
+            -10.3,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000031",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -7.89,
+            0.56,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.976,
+            0.659,
+            0.831,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000032",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -2.65,
+            -5.24,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000033",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -14.36,
+            9.42,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.996,
+            0.941,
+            0.541,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000034",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            15.7,
+            -2.13,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.996,
+            0.941,
+            0.541,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000035",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -0.18,
+            -8.96,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.976,
+            0.659,
+            0.831,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000036",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            13.76,
+            1.59,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.976,
+            0.659,
+            0.831,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000037",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -5.23,
+            3.45,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000038",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            10.07,
+            0.62,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000039",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -5.17,
+            -2.37,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.769,
+            0.71,
+            0.992,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000003a",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -13.62,
+            10.36,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.976,
+            0.659,
+            0.831,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000003b",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -14.57,
+            8.78,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.976,
+            0.659,
+            0.831,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000003c",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            8.54,
+            -5.07,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.996,
+            0.941,
+            0.541,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000003d",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            11.84,
+            4.13,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.769,
+            0.71,
+            0.992,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000003e",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            2.21,
+            5.42,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.769,
+            0.71,
+            0.992,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "000000000000003f",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -9.01,
+            -10.93,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.976,
+            0.659,
+            0.831,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000040",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -15.58,
+            8.28,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.996,
+            0.941,
+            0.541,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000041",
+      "name": "Flower",
+      "components": {
+        "Transform": {
+          "position": [
+            -3.33,
+            5.93,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.769,
+            0.71,
+            0.992,
+            1.0
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "order": -17
+        }
+      }
+    },
+    {
+      "id": "0000000000000042",
+      "name": "Hedge",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            12,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [
+            0.122,
+            0.318,
+            0.188,
+            1.0
+          ],
+          "size": [
+            36,
+            1
+          ]
+        },
+        "BoxCollider2D": {
+          "size": [
+            36,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000043",
+      "name": "Hedge",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            -12,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [
+            0.122,
+            0.318,
+            0.188,
+            1.0
+          ],
+          "size": [
+            36,
+            1
+          ]
+        },
+        "BoxCollider2D": {
+          "size": [
+            36,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000044",
+      "name": "Hedge",
+      "components": {
+        "Transform": {
+          "position": [
+            -17.5,
+            0,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [
+            0.122,
+            0.318,
+            0.188,
+            1.0
+          ],
+          "size": [
+            1,
+            24
+          ]
+        },
+        "BoxCollider2D": {
+          "size": [
+            1,
+            24
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000045",
+      "name": "Hedge",
+      "components": {
+        "Transform": {
+          "position": [
+            17.5,
+            0,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [
+            0.122,
+            0.318,
+            0.188,
+            1.0
+          ],
+          "size": [
+            1,
+            24
+          ]
+        },
+        "BoxCollider2D": {
+          "size": [
+            1,
+            24
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000046",
+      "name": "Pond",
+      "components": {
+        "Transform": {
+          "position": [
+            -9,
+            6,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.22,
+            0.741,
+            0.973,
+            1.0
+          ],
+          "size": [
+            6,
+            4
+          ]
+        },
+        "CircleCollider2D": {
+          "radius": 1.9
+        }
+      }
+    },
+    {
+      "id": "0000000000000047",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -12,
+            -6,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/tree.png",
+          "size": [
+            1.6,
+            1.6
+          ],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "offset": [
+            0,
+            -0.35
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000048",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -6,
+            3,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/tree.png",
+          "size": [
+            1.6,
+            1.6
+          ],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "offset": [
+            0,
+            -0.35
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000049",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            2,
+            6,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/tree.png",
+          "size": [
+            1.6,
+            1.6
+          ],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "offset": [
+            0,
+            -0.35
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000004a",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            9,
+            8,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/tree.png",
+          "size": [
+            1.6,
+            1.6
+          ],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "offset": [
+            0,
+            -0.35
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000004b",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            12,
+            2,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/tree.png",
+          "size": [
+            1.6,
+            1.6
+          ],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "offset": [
+            0,
+            -0.35
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000004c",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -2,
+            -7,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/tree.png",
+          "size": [
+            1.6,
+            1.6
+          ],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "offset": [
+            0,
+            -0.35
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000004d",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            11,
+            -8,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/tree.png",
+          "size": [
+            1.6,
+            1.6
+          ],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "offset": [
+            0,
+            -0.35
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000004e",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            -14,
+            9,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/tree.png",
+          "size": [
+            1.6,
+            1.6
+          ],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "offset": [
+            0,
+            -0.35
+          ]
+        }
+      }
+    },
+    {
+      "id": "000000000000004f",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            4,
+            -2.5,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/tree.png",
+          "size": [
+            1.6,
+            1.6
+          ],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "offset": [
+            0,
+            -0.35
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000050",
+      "name": "Tree",
+      "components": {
+        "Transform": {
+          "position": [
+            14,
+            -3,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/tree.png",
+          "size": [
+            1.6,
+            1.6
+          ],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "offset": [
+            0,
+            -0.35
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000051",
+      "name": "Rock",
+      "components": {
+        "Transform": {
+          "position": [
+            -8,
+            -2.5,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.545,
+            0.561,
+            0.596,
+            1.0
+          ],
+          "size": [
+            1.1,
+            0.9
+          ]
+        },
+        "CircleCollider2D": {
+          "radius": 0.45
+        }
+      }
+    },
+    {
+      "id": "0000000000000052",
+      "name": "Rock",
+      "components": {
+        "Transform": {
+          "position": [
+            7,
+            4.5,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.545,
+            0.561,
+            0.596,
+            1.0
+          ],
+          "size": [
+            1.1,
+            0.9
+          ]
+        },
+        "CircleCollider2D": {
+          "radius": 0.45
+        }
+      }
+    },
+    {
+      "id": "0000000000000053",
+      "name": "Rock",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            3,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [
+            0.545,
+            0.561,
+            0.596,
+            1.0
+          ],
+          "size": [
+            1.1,
+            0.9
+          ]
+        },
+        "CircleCollider2D": {
+          "radius": 0.45
+        }
+      }
+    },
+    {
+      "id": "0000000000000054",
+      "name": "Gem",
+      "tag": "gem",
+      "components": {
+        "Transform": {
+          "position": [
+            -13,
+            -9,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/gem.png",
+          "size": [
+            0.8,
+            0.8
+          ],
+          "order": 2
+        },
+        "CircleCollider2D": {
+          "radius": 0.35,
+          "is_trigger": true
+        },
+        "Script": {
+          "path": "scripts/gem.es"
+        }
+      }
+    },
+    {
+      "id": "0000000000000055",
+      "name": "Gem",
+      "tag": "gem",
+      "components": {
+        "Transform": {
+          "position": [
+            -10,
+            2,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/gem.png",
+          "size": [
+            0.8,
+            0.8
+          ],
+          "order": 2
+        },
+        "CircleCollider2D": {
+          "radius": 0.35,
+          "is_trigger": true
+        },
+        "Script": {
+          "path": "scripts/gem.es"
+        }
+      }
+    },
+    {
+      "id": "0000000000000056",
+      "name": "Gem",
+      "tag": "gem",
+      "components": {
+        "Transform": {
+          "position": [
+            -3,
+            8.5,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/gem.png",
+          "size": [
+            0.8,
+            0.8
+          ],
+          "order": 2
+        },
+        "CircleCollider2D": {
+          "radius": 0.35,
+          "is_trigger": true
+        },
+        "Script": {
+          "path": "scripts/gem.es"
+        }
+      }
+    },
+    {
+      "id": "0000000000000057",
+      "name": "Gem",
+      "tag": "gem",
+      "components": {
+        "Transform": {
+          "position": [
+            8,
+            -9.5,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/gem.png",
+          "size": [
+            0.8,
+            0.8
+          ],
+          "order": 2
+        },
+        "CircleCollider2D": {
+          "radius": 0.35,
+          "is_trigger": true
+        },
+        "Script": {
+          "path": "scripts/gem.es"
+        }
+      }
+    },
+    {
+      "id": "0000000000000058",
+      "name": "Gem",
+      "tag": "gem",
+      "components": {
+        "Transform": {
+          "position": [
+            14.5,
+            9.5,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/gem.png",
+          "size": [
+            0.8,
+            0.8
+          ],
+          "order": 2
+        },
+        "CircleCollider2D": {
+          "radius": 0.35,
+          "is_trigger": true
+        },
+        "Script": {
+          "path": "scripts/gem.es"
+        }
+      }
+    },
+    {
+      "id": "0000000000000059",
+      "name": "Gem",
+      "tag": "gem",
+      "components": {
+        "Transform": {
+          "position": [
+            13,
+            -1,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/gem.png",
+          "size": [
+            0.8,
+            0.8
+          ],
+          "order": 2
+        },
+        "CircleCollider2D": {
+          "radius": 0.35,
+          "is_trigger": true
+        },
+        "Script": {
+          "path": "scripts/gem.es"
+        }
+      }
+    },
+    {
+      "id": "000000000000005a",
+      "name": "Slime",
+      "tag": "enemy",
+      "components": {
+        "Transform": {
+          "position": [
+            -6,
+            -8,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/slime.png",
+          "size": [
+            1,
+            1
+          ],
+          "order": 3
+        },
+        "RigidBody2D": {
+          "gravity_scale": 0,
+          "fixed_rotation": true,
+          "linear_damping": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.35,
+          "offset": [
+            0,
+            -0.2
+          ]
+        },
+        "Script": {
+          "path": "scripts/slime.es"
+        }
+      }
+    },
+    {
+      "id": "000000000000005b",
+      "name": "Slime",
+      "tag": "enemy",
+      "components": {
+        "Transform": {
+          "position": [
+            9,
+            1,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/slime.png",
+          "size": [
+            1,
+            1
+          ],
+          "order": 3
+        },
+        "RigidBody2D": {
+          "gravity_scale": 0,
+          "fixed_rotation": true,
+          "linear_damping": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.35,
+          "offset": [
+            0,
+            -0.2
+          ]
+        },
+        "Script": {
+          "path": "scripts/slime.es"
+        }
+      }
+    },
+    {
+      "id": "000000000000005c",
+      "name": "Slime",
+      "tag": "enemy",
+      "components": {
+        "Transform": {
+          "position": [
+            -12,
+            5,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/slime.png",
+          "size": [
+            1,
+            1
+          ],
+          "order": 3
+        },
+        "RigidBody2D": {
+          "gravity_scale": 0,
+          "fixed_rotation": true,
+          "linear_damping": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.35,
+          "offset": [
+            0,
+            -0.2
+          ]
+        },
+        "Script": {
+          "path": "scripts/slime.es"
+        }
+      }
+    },
+    {
+      "id": "000000000000005d",
+      "name": "Slime",
+      "tag": "enemy",
+      "components": {
+        "Transform": {
+          "position": [
+            4,
+            9,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/slime.png",
+          "size": [
+            1,
+            1
+          ],
+          "order": 3
+        },
+        "RigidBody2D": {
+          "gravity_scale": 0,
+          "fixed_rotation": true,
+          "linear_damping": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.35,
+          "offset": [
+            0,
+            -0.2
+          ]
+        },
+        "Script": {
+          "path": "scripts/slime.es"
+        }
+      }
+    },
+    {
+      "id": "000000000000005e",
+      "name": "Portal",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            -9,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/portal.png",
+          "size": [
+            1.8,
+            1.8
+          ],
+          "order": 1
+        },
+        "CircleCollider2D": {
+          "radius": 0.6,
+          "is_trigger": true
+        },
+        "ParticleEmitter": {
+          "rate": 25,
+          "lifetime": 1,
+          "speed": 1.2,
+          "spread": 180,
+          "gravity": [
+            0,
+            0,
+            0
+          ],
+          "start_color": [
+            0.914,
+            0.835,
+            1.0,
+            1.0
+          ],
+          "end_color": [
+            0.576,
+            0.2,
+            0.918,
+            0
+          ],
+          "start_size": 0.2,
+          "end_size": 0,
+          "emitting": false
+        },
+        "Script": {
+          "path": "scripts/portal.es"
+        }
+      }
+    },
+    {
+      "id": "0000000000000001",
+      "name": "Player",
+      "tag": "player",
+      "components": {
+        "Transform": {
+          "position": [
+            0,
+            0,
+            0.0
+          ]
+        },
+        "SpriteRenderer": {
+          "texture": "images/hero.png",
+          "size": [
+            1,
+            1
+          ],
+          "order": 5
+        },
+        "RigidBody2D": {
+          "gravity_scale": 0,
+          "fixed_rotation": true
+        },
+        "BoxCollider2D": {
+          "size": [
+            0.6,
+            0.45
+          ],
+          "offset": [
+            0,
+            -0.25
+          ],
+          "friction": 0
+        },
+        "Script": {
+          "path": "scripts/player.es"
+        }
+      }
+    },
+    {
+      "id": "000000000000005f",
+      "name": "Hearts",
+      "components": {
+        "UIElement": {
+          "anchor": "TopLeft",
+          "offset": [
+            24,
+            -20
+          ],
+          "size": [
+            180,
+            50
+          ]
+        },
+        "Script": {
+          "path": "scripts/hearts.es"
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000060",
+      "name": "Heart1",
+      "parent": "000000000000005f",
+      "components": {
+        "UIElement": {
+          "anchor": "Left",
+          "offset": [
+            0,
+            0
+          ],
+          "size": [
+            48,
+            44
+          ]
+        },
+        "UIImage": {
+          "shape": "Heart",
+          "color": [
+            0.937,
+            0.267,
+            0.267,
+            1.0
+          ]
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000061",
+      "name": "Heart2",
+      "parent": "000000000000005f",
+      "components": {
+        "UIElement": {
+          "anchor": "Left",
+          "offset": [
+            56,
+            0
+          ],
+          "size": [
+            48,
+            44
+          ]
+        },
+        "UIImage": {
+          "shape": "Heart",
+          "color": [
+            0.937,
+            0.267,
+            0.267,
+            1.0
+          ]
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000062",
+      "name": "Heart3",
+      "parent": "000000000000005f",
+      "components": {
+        "UIElement": {
+          "anchor": "Left",
+          "offset": [
+            112,
+            0
+          ],
+          "size": [
+            48,
+            44
+          ]
+        },
+        "UIImage": {
+          "shape": "Heart",
+          "color": [
+            0.937,
+            0.267,
+            0.267,
+            1.0
+          ]
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000063",
+      "name": "Gem Count",
+      "components": {
+        "UIElement": {
+          "anchor": "TopRight",
+          "offset": [
+            -24,
+            -20
+          ],
+          "size": [
+            360,
+            56
+          ]
+        },
+        "UIText": {
+          "text": "Gems: 0",
+          "font_size": 38,
+          "align": "Right",
+          "color": [
+            0.647,
+            0.953,
+            0.988,
+            1.0
+          ]
+        },
+        "Script": {
+          "path": "scripts/gem_count.es"
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000064",
+      "name": "Message",
+      "components": {
+        "UIElement": {
+          "anchor": "Center",
+          "offset": [
+            0,
+            120
+          ],
+          "size": [
+            1000,
+            90
+          ]
+        },
+        "UIText": {
+          "text": "Collect all the gems!",
+          "font_size": 48
+        },
+        "Script": {
+          "path": "scripts/message.es"
+        },
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    }
+  ]
+}

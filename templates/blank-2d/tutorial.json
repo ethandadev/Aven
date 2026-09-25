@@ -1,0 +1,31 @@
+{
+  "title": "Your first game",
+  "steps": [
+    {
+      "title": "Welcome to Aven!",
+      "text": "This is an empty 2D game. The big area in the middle is the Scene view: it shows your game world. On the left is the Hierarchy (every object in the scene) and on the right is the Inspector (the settings of the selected object)."
+    },
+    {
+      "title": "Add a player",
+      "text": "Click '+ Add' at the top of the Hierarchy and choose 'Square'. Rename it to Player in the Inspector. You can drag it around in the Scene view, and change its color and shape in the SpriteRenderer."
+    },
+    {
+      "title": "Make it move with blocks",
+      "text": "Right-click the Player in the Hierarchy and choose 'Add blocks script'. The block editor opens. Drag 'every frame' from Events, then 'move with arrow keys' from Motion and snap it inside."
+    },
+    {
+      "title": "Play it!",
+      "text": "Press the green Play button (or Ctrl+P). Use the arrow keys to move. Press Play again to stop: anything that changed while playing goes back to how it was.",
+      "play": true
+    },
+    {
+      "title": "Or write code",
+      "text": "Every block is really a line of EasyScript. Tick 'Show code' in the block editor to see it, or make a new EasyScript file in the Assets panel and type this:",
+      "code": "speed = 5  # how fast the player moves\n\ndef on_update(dt):\n    self.x += axis(\"horizontal\") * speed * dt\n    self.y += axis(\"vertical\") * speed * dt"
+    },
+    {
+      "title": "Keep going",
+      "text": "Open the Reference (top right) to see everything scripts can do. When you're ready, look at the other templates: they are full little games you can take apart."
+    }
+  ]
+}

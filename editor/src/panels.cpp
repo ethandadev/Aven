@@ -835,6 +835,17 @@ void Editor::drawAssets() {
                 renameTarget_ = rel;
                 std::snprintf(renameBuffer_, sizeof renameBuffer_, "%s", name.c_str());
             }
+            if (!entry.is_directory() && ImGui::MenuItem("Duplicate")) {
+                stdfs::path relPath(rel);
+                std::string copy = uniqueName(relPath.parent_path().generic_string(), relPath.stem().string() + "_copy", ext);
+                std::error_code ec;
+                stdfs::copy_file(projectDir_ / rel, projectDir_ / copy, ec);
+                if (ec)
+                    notify("Couldn't duplicate " + rel + ": " + ec.message(), true);
+                else
+                    notify("Made " + copy);
+                scanAssets();
+            }
             if (ImGui::MenuItem("Delete"))
                 pendingDelete = rel;
             ImGui::EndPopup();

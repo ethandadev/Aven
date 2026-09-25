@@ -26,6 +26,8 @@ uniform sampler2D u_source;
 in vec2 v_uv;
 out vec4 frag_color;
 vec3 prefilter(vec3 c) {
+    // One broken pixel (NaN or infinity) must not spread across the whole screen through bloom.
+    if (any(isnan(c)) || any(isinf(c))) return vec3(0.0);
     float threshold = u_texel_threshold.z;
     if (threshold <= 0.0) return c;
     float brightness = max(c.r, max(c.g, c.b));

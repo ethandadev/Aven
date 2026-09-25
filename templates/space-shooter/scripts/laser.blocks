@@ -1,0 +1,69 @@
+{
+  "aven": "blocks",
+  "version": 1,
+  "variables": [],
+  "scripts": [
+    {
+      "x": 20,
+      "y": 20,
+      "blocks": [
+        {
+          "type": "when_start"
+        },
+        {
+          "type": "set_velocity",
+          "inputs": {
+            "vx": 0,
+            "vy": 16
+          }
+        }
+      ]
+    },
+    {
+      "x": 20,
+      "y": 164,
+      "blocks": [
+        {
+          "type": "when_update"
+        },
+        {
+          "type": "if",
+          "inputs": {
+            "condition": {
+              "type": "greater",
+              "inputs": {
+                "a": {
+                  "type": "my_property",
+                  "inputs": {
+                    "property": "y"
+                  }
+                },
+                "b": 8
+              }
+            }
+          },
+          "body": [
+            {
+              "type": "destroy"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "x": 20,
+      "y": 350,
+      "blocks": [
+        {
+          "type": "when_touch",
+          "inputs": {
+            "tag": "rock"
+          }
+        },
+        {
+          "type": "destroy"
+        }
+      ]
+    }
+  ]
+}

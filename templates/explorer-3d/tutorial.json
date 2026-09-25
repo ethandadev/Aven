@@ -1,0 +1,30 @@
+{
+  "title": "Crystal Forest",
+  "steps": [
+    {
+      "title": "Explore!",
+      "text": "Press Play, then click in the game view to capture the mouse. Walk with WASD, look with the mouse. Find all six crystals. Press Esc to get the mouse back.",
+      "play": true
+    },
+    {
+      "title": "Lighting and mood",
+      "text": "Select Environment and Sun. The low orange sun, purple fog and procedural sky make the sunset. Try moving the sun higher (change its X rotation to -60) for daytime.",
+      "select": "Sun"
+    },
+    {
+      "title": "Post-processing",
+      "text": "The Camera has a PostProcessing component: bloom makes the crystals glow, SSAO adds soft shadows where things meet, and the vignette darkens the edges. Turn on Advanced mode to see all the options.",
+      "select": "Camera"
+    },
+    {
+      "title": "Changing components from code",
+      "text": "portal.es turns on the gate by changing its MeshRenderer and Light components.",
+      "open": "scripts/portal.es",
+      "code": "self.get_component(\"MeshRenderer\").emission_strength = 4\nfind(\"Portal Light\").get_component(\"Light\").intensity = 6"
+    },
+    {
+      "title": "Challenge",
+      "text": "Add a creature that follows the player: a Sphere with a script that calls self.move_toward(find(\"Player\"), 2 * dt) every frame. Then make it glow!"
+    }
+  ]
+}
