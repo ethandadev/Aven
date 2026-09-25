@@ -15,17 +15,18 @@ class Json {
 public:
     enum class Type { Null, Bool, Number, String, Array, Object };
 
-    Json() = default;
-    Json(std::nullptr_t) {}
-    Json(bool b) : value_(b) {}
-    Json(double n) : value_(n) {}
-    Json(float n) : value_(static_cast<double>(n)) {}
-    Json(int n) : value_(static_cast<double>(n)) {}
-    Json(int64_t n) : value_(static_cast<double>(n)) {}
-    Json(uint32_t n) : value_(static_cast<double>(n)) {}
-    Json(const char* s) : value_(std::string(s)) {}
-    Json(std::string s) : value_(std::move(s)) {}
-    Json(std::string_view s) : value_(std::string(s)) {}
+    // Defined below JsonMember: constructing the value needs it to be a complete type.
+    Json();
+    Json(std::nullptr_t);
+    Json(bool b);
+    Json(double n);
+    Json(float n);
+    Json(int n);
+    Json(int64_t n);
+    Json(uint32_t n);
+    Json(const char* s);
+    Json(std::string s);
+    Json(std::string_view s);
 
     static Json array();
     static Json object();
@@ -81,5 +82,17 @@ struct JsonMember {
     Json value;
     bool operator==(const JsonMember& o) const { return key == o.key && value == o.value; }
 };
+
+inline Json::Json() = default;
+inline Json::Json(std::nullptr_t) {}
+inline Json::Json(bool b) : value_(b) {}
+inline Json::Json(double n) : value_(n) {}
+inline Json::Json(float n) : value_(static_cast<double>(n)) {}
+inline Json::Json(int n) : value_(static_cast<double>(n)) {}
+inline Json::Json(int64_t n) : value_(static_cast<double>(n)) {}
+inline Json::Json(uint32_t n) : value_(static_cast<double>(n)) {}
+inline Json::Json(const char* s) : value_(std::string(s)) {}
+inline Json::Json(std::string s) : value_(std::move(s)) {}
+inline Json::Json(std::string_view s) : value_(std::string(s)) {}
 
 } // namespace aven

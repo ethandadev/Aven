@@ -34,6 +34,10 @@ namespace stdfs = std::filesystem;
 
 class CodeEditor;
 class BlockEditor;
+class ShareServer;
+struct ShareServerDeleter {
+    void operator()(ShareServer* s) const;
+};
 
 struct TemplateInfo {
     std::string id;
@@ -196,6 +200,16 @@ public:
     bool rewriteScriptLine(const std::string& file, int line, const std::function<std::string(const std::string&)>& change);
     bool replaceWordInLine(const std::string& file, int line, const std::string& from, const std::string& to);
     void addPhysics2D(Entity e, bool trigger);
+
+    // --- Sharing (share.cpp): web build, game card, itch.io zip, local network server
+    void openShare() { showExport_ = true; exportTab_ = 2; }
+    bool exportWeb(const stdfs::path& folder, std::string& message);
+    bool makeGameCard(const stdfs::path& png, const std::string& shareUrl, std::string& message);
+    bool makeItchZip(std::string& message);
+    bool startSharing(std::string& message);
+    void stopSharing();
+    std::string gameControls();         // "Arrow keys to run · Space to jump", from the start scene
+    std::string gameDescription() const;
 
     // --- Bug replay (bug_replay.cpp)
     void openBugReplay();
@@ -377,6 +391,13 @@ private:
         std::unique_ptr<CodeEditor> view, left;
     };
     LadderState ladder_;
+    std::unique_ptr<ShareServer, ShareServerDeleter> shareServer_;
+    std::string webExportDir_, webResult_, shareResult_, shareUrl_, cardPath_;
+    rhi::TextureHandle cardTexture_;
+    int exportTab_ = 0; // tab to open in Build & Share (-1: leave as is)
+    std::string safeGameName() const;
+    void copyGameFiles(const stdfs::path& to, const stdfs::path& skip, std::vector<std::string>* list);
+    stdfs::path webPlayerDir() const;
     struct Thumb {
         int frame = 0;
         float time = 0;
@@ -483,6 +504,7 @@ private:
     void checkLevelUp();
     void openPanels(const std::string& list);
     std::vector<std::string> extraPanels_; // panel names for tools added later
+    std::vector<std::pair<int, std::string>> deferredPanels_; // "@N:command" automation
     void autosave(float dt);
     void drawMenuBar();
     void drawToolbar();

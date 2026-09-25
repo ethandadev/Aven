@@ -16,6 +16,12 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
+if(EMSCRIPTEN)
+    # A browser build is just the player (the web version of exported games).
+    set(AVEN_BUILD_EDITOR OFF CACHE BOOL "" FORCE)
+    set(AVEN_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(AVEN_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+endif()
 option(AVEN_BUILD_EDITOR "Build the Aven editor" ON)
 option(AVEN_BUILD_PLAYER "Build the standalone game player" ON)
 option(AVEN_BUILD_TESTS "Build unit tests" ON)

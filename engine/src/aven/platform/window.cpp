@@ -8,6 +8,10 @@
 
 #include <GLFW/glfw3.h>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/html5.h>
+#endif
+
 namespace aven {
 
 namespace {
@@ -45,9 +49,16 @@ bool Window::create(const WindowDesc& desc) {
     if (!ensureGlfw())
         return false;
     glfwDefaultWindowHints();
+#ifdef __EMSCRIPTEN__
+    // WebGL 2 (OpenGL ES 3.0) in the page's canvas.
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+#else
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#endif
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 #endif
@@ -132,6 +143,24 @@ void Window::cancelClose() { if (handle_) glfwSetWindowShouldClose(handle_, GLFW
 void Window::pollEvents() {
     input_.beginFrame();
     glfwPollEvents();
+#ifdef __EMSCRIPTEN__
+    // Browsers report gamepads in the "standard" layout.
+    EmscriptenGamepadEvent pad;
+    if (emscripten_sample_gamepad_data() == EMSCRIPTEN_RESULT_SUCCESS && emscripten_get_num_gamepads() > 0 &&
+        emscripten_get_gamepad_status(0, &pad) == EMSCRIPTEN_RESULT_SUCCESS && pad.connected) {
+        static const int kButtons[] = {0, 1, 2, 3, 4, 5, 8, 9, 16, 10, 11, 12, 15, 13, 14};
+        bool buttons[static_cast<int>(PadButton::Count)];
+        float axes[static_cast<int>(PadAxis::Count)];
+        for (int i = 0; i < static_cast<int>(PadButton::Count); ++i)
+            buttons[i] = kButtons[i] < pad.numButtons && pad.digitalButton[kButtons[i]];
+        for (int i = 0; i < 4; ++i)
+            axes[i] = i < pad.numAxes ? static_cast<float>(pad.axis[i]) : 0.0f;
+        axes[4] = pad.numButtons > 6 ? static_cast<float>(pad.analogButton[6]) * 2 - 1 : -1;
+        axes[5] = pad.numButtons > 7 ? static_cast<float>(pad.analogButton[7]) * 2 - 1 : -1;
+        input_.setGamepad(true, buttons, axes);
+        return;
+    }
+#else
     if (glfwJoystickIsGamepad(GLFW_JOYSTICK_1)) {
         GLFWgamepadstate state;
         if (glfwGetGamepadState(GLFW_JOYSTICK_1, &state)) {
@@ -145,6 +174,7 @@ void Window::pollEvents() {
             return;
         }
     }
+#endif
     bool none[static_cast<int>(PadButton::Count)]{};
     float zero[static_cast<int>(PadAxis::Count)]{};
     input_.setGamepad(false, none, zero);
@@ -176,8 +206,13 @@ float Window::contentScale() const {
 void Window::setTitle(const std::string& title) { if (handle_) glfwSetWindowTitle(handle_, title.c_str()); }
 
 void Window::setIcon(const std::vector<std::pair<const unsigned char*, std::size_t>>& pngs) {
+#ifdef __EMSCRIPTEN__
+    (void)pngs;
+    return;
+#else
     if (!handle_ || glfwGetPlatform() == GLFW_PLATFORM_WAYLAND || glfwGetPlatform() == GLFW_PLATFORM_COCOA)
         return;
+#endif
     std::vector<GLFWimage> images;
     std::vector<unsigned char*> decoded;
     for (auto& [data, size] : pngs) {
@@ -188,8 +223,10 @@ void Window::setIcon(const std::vector<std::pair<const unsigned char*, std::size
         decoded.push_back(px);
         images.push_back({w, h, px});
     }
+#ifndef __EMSCRIPTEN__ // browsers use the page's icon
     if (!images.empty())
         glfwSetWindowIcon(handle_, static_cast<int>(images.size()), images.data());
+#endif
     for (unsigned char* px : decoded)
         stbi_image_free(px);
 }
@@ -234,8 +271,10 @@ void Window::setCursorLocked(bool locked) {
     if (!handle_ || locked == cursorLocked_)
         return;
     glfwSetInputMode(handle_, GLFW_CURSOR, locked ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+#ifndef __EMSCRIPTEN__
     if (locked && glfwRawMouseMotionSupported())
         glfwSetInputMode(handle_, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+#endif
     cursorLocked_ = locked;
 }
 
@@ -244,6 +283,10 @@ bool Window::minimized() const { return handle_ && glfwGetWindowAttrib(handle_, 
 
 double Window::time() { return glfwGetTime(); }
 
+#ifdef __EMSCRIPTEN__
+void* Window::glProcLoader() { return nullptr; } // WebGL functions are linked directly
+#else
 void* Window::glProcLoader() { return reinterpret_cast<void*>(&glfwGetProcAddress); }
+#endif
 
 } // namespace aven

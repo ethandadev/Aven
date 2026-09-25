@@ -9,6 +9,7 @@
 #include <Jolt/Jolt.h>
 
 #include <Jolt/Core/Factory.h>
+#include <Jolt/Core/JobSystemSingleThreaded.h>
 #include <Jolt/Core/JobSystemThreadPool.h>
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
@@ -91,7 +92,7 @@ public:
 
 struct JoltGlobals {
     std::unique_ptr<JPH::TempAllocatorImpl> temp;
-    std::unique_ptr<JPH::JobSystemThreadPool> jobs;
+    std::unique_ptr<JPH::JobSystem> jobs;
 };
 
 JoltGlobals& jolt() {
@@ -101,8 +102,12 @@ JoltGlobals& jolt() {
         JPH::RegisterTypes();
         JoltGlobals out;
         out.temp = std::make_unique<JPH::TempAllocatorImpl>(16 * 1024 * 1024);
+#ifdef __EMSCRIPTEN__
+        out.jobs = std::make_unique<JPH::JobSystemSingleThreaded>(JPH::cMaxPhysicsJobs); // browsers: no threads needed
+#else
         int threads = std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 1);
         out.jobs = std::make_unique<JPH::JobSystemThreadPool>(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, threads);
+#endif
         return out;
     }();
     return g;

@@ -1401,6 +1401,8 @@ void Editor::drawSettings() {
     ui::sectionHeader("Game");
     changed |= ImGui::InputText("Name", &settings_.name);
     changed |= ImGui::InputText("Version", &settings_.version);
+    changed |= ImGui::InputTextMultiline("Description", &settings_.description, {0, ImGui::GetTextLineHeight() * 3.5f});
+    ui::helpMarker("One or two sentences about your game, shown on its web page and game card.");
     if (ImGui::BeginCombo("Start scene", settings_.startScene.c_str())) {
         for (auto& s : projectFiles({".scene"}))
             if (ImGui::Selectable(s.c_str(), s == settings_.startScene)) {
@@ -1584,98 +1586,6 @@ void Editor::drawReference() {
     ImGui::PopFont();
     ImGui::EndChild();
     ImGui::End();
-}
-
-void Editor::drawExport() {
-    ImGui::SetNextWindowSize({520, 300}, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_FirstUseEver, {0.5f, 0.5f});
-    if (!ImGui::Begin("Build & Export", &showExport_)) {
-        ImGui::End();
-        return;
-    }
-    if (exportFolder_.empty())
-        exportFolder_ = (projectDir_ / "exports").string();
-    ImGui::TextWrapped("Makes a folder with your game that anyone can run without Aven. Zip it up and share it!");
-    ImGui::Spacing();
-    ImGui::InputText("Output folder", &exportFolder_);
-    ImGui::TextDisabled("Game name: %s  |  Start scene: %s", settings_.name.c_str(), settings_.startScene.c_str());
-    ImGui::Spacing();
-    if (ImGui::Button("Export game", {160, 34})) {
-        saveScene();
-        saveAllScripts();
-        std::string message;
-        exportGame(exportFolder_, message);
-        exportResult_ = message;
-    }
-    if (!exportResult_.empty()) {
-        ImGui::Spacing();
-        ImGui::TextWrapped("%s", exportResult_.c_str());
-    }
-    ImGui::End();
-}
-
-bool Editor::exportGame(const stdfs::path& folder, std::string& message) {
-    std::error_code ec;
-    std::string safeName;
-    for (char c : settings_.name)
-        safeName += (std::isalnum(static_cast<unsigned char>(c)) || c == ' ' || c == '-' || c == '_') ? c : '_';
-    if (safeName.empty())
-        safeName = "Game";
-    stdfs::path out = folder / safeName;
-    // Only ever replace a previous export of a game; never delete an unrelated folder.
-    if (stdfs::exists(out, ec)) {
-        bool previousExport = ProjectSettings::isProject(out / "game") && stdfs::exists(out / "README.txt", ec);
-        bool empty = stdfs::is_directory(out, ec) && stdfs::directory_iterator(out, ec) == stdfs::directory_iterator();
-        if (!previousExport && !empty) {
-            message = "There's already a folder called '" + safeName + "' in " + folder.string() +
-                      " that isn't an Aven export. Pick a different folder so nothing gets overwritten.";
-            return false;
-        }
-        stdfs::remove_all(out / "game", ec);
-    }
-    stdfs::create_directories(out / "game", ec);
-    // Copy the project, skipping editor-only files and previous exports.
-    for (auto it = stdfs::recursive_directory_iterator(projectDir_, ec); it != stdfs::recursive_directory_iterator(); it.increment(ec)) {
-        stdfs::path rel = stdfs::relative(it->path(), projectDir_, ec);
-        std::string first = rel.begin()->string();
-        if (first == "exports" || first == "bug_reports" || first == "recipes" || (!first.empty() && first[0] == '.') ||
-            rel == "tutorial.json") {
-            if (it->is_directory())
-                it.disable_recursion_pending();
-            continue;
-        }
-        if (stdfs::equivalent(it->path(), folder, ec)) {
-            it.disable_recursion_pending();
-            continue;
-        }
-        if (it->is_directory())
-            stdfs::create_directories(out / "game" / rel, ec);
-        else
-            stdfs::copy_file(it->path(), out / "game" / rel, stdfs::copy_options::overwrite_existing, ec);
-    }
-#ifdef _WIN32
-    stdfs::path player = fs::executableDir() / "aven-player.exe";
-    stdfs::path exe = out / (safeName + ".exe");
-#else
-    stdfs::path player = fs::executableDir() / "aven-player";
-    stdfs::path exe = out / safeName;
-#endif
-    if (!stdfs::exists(player)) {
-        message = "Couldn't find aven-player next to the editor, so only the game files were exported to " + out.string();
-        return false;
-    }
-    stdfs::copy_file(player, exe, stdfs::copy_options::overwrite_existing, ec);
-    if (ec) {
-        message = "Export failed: " + ec.message();
-        return false;
-    }
-    stdfs::permissions(exe, stdfs::perms::owner_exec | stdfs::perms::group_exec | stdfs::perms::others_exec,
-                       stdfs::perm_options::add, ec);
-    fs::writeText(out / "README.txt", settings_.name + " " + settings_.version + "\n\nRun " + exe.filename().string() +
-                                          " to play.\nMade with Aven.\n");
-    message = "Done! Your game is in:\n" + out.string() + "\nRun " + exe.filename().string() + " to play it.";
-    Log::info("Exported game to ", out.string());
-    return true;
 }
 
 } // namespace aven::editor

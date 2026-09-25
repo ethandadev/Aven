@@ -195,6 +195,10 @@ void Editor::openPanels(const std::string& list) {
         size_t comma = list.find(',', start);
         std::string p = list.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
         start = comma == std::string::npos ? list.size() : comma + 1;
+        if (p.size() > 1 && p[0] == '@' && p.find(':') != std::string::npos) { // @N:command runs on frame N
+            deferredPanels_.push_back({std::atoi(p.substr(1).c_str()), p.substr(p.find(':') + 1)});
+            continue;
+        }
         if (p == "settings") showSettings_ = true;
         else if (p == "reference") showReference_ = true;
         else if (p == "prefs") showPrefs_ = true;
@@ -209,6 +213,11 @@ void Editor::openPanels(const std::string& list) {
         else if (p == "palette") showPalette_ = true;
         else if (p == "stats") showStats_ = true;
         else if (p == "export") showExport_ = true;
+        else if (p == "share") openShare();
+        else if (p == "itchzip") { std::string m; makeItchZip(m); Log::info(m); }
+        else if (p == "webexport") { std::string m; exportWeb(projectDir_ / "exports", m); Log::info(m); }
+        else if (p == "card") { std::string m; makeGameCard(projectDir_ / "exports" / "card.png", "", m); Log::info(m); openShare(); }
+        else if (p == "sharestart") { std::string m; startSharing(m); Log::info(m); openShare(); }
         else if (p == "learn") showLearn_ = true;
         else if (p == "explain") { showExplain_ = true; focusExplain_ = true; }
         else if (p.rfind("ladder:", 0) == 0) { // ladder:<script path>[@rung] or ladder:<Component>@<object>
@@ -1346,6 +1355,15 @@ void Editor::frame(float dt) {
         g_pendingLines.clear();
         if (console_.size() > 2000)
             console_.erase(console_.begin(), console_.begin() + 500);
+    }
+    for (auto it = deferredPanels_.begin(); it != deferredPanels_.end();) {
+        if (it->first == frameCount_) {
+            std::string command = it->second;
+            it = deferredPanels_.erase(it);
+            openPanels(command);
+        } else {
+            ++it;
+        }
     }
     for (auto it = flashFields_.begin(); it != flashFields_.end();)
         it = (it->second -= dt) <= 0 ? flashFields_.erase(it) : std::next(it);

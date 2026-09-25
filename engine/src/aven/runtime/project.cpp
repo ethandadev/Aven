@@ -9,6 +9,8 @@ Json ProjectSettings::toJson() const {
     j["aven"] = "project";
     j["name"] = name;
     j["version"] = version;
+    if (!description.empty())
+        j["description"] = description;
     j["start_scene"] = startScene;
     Json w = Json::object();
     w["width"] = width;
@@ -29,6 +31,7 @@ Json ProjectSettings::toJson() const {
 void ProjectSettings::fromJson(const Json& j) {
     name = j["name"].asString(name);
     version = j["version"].asString(version);
+    description = j["description"].asString("");
     startScene = j["start_scene"].asString(startScene);
     const Json& w = j["window"];
     width = w["width"].asInt(width);

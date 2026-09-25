@@ -13,6 +13,7 @@ struct ProjectSettings {
 
     std::string name = "My Game";
     std::string version = "1.0";
+    std::string description; // one or two sentences, shown on the game's web page and card
     std::string startScene = "scenes/main.scene";
     int width = 1280;
     int height = 720;

@@ -145,7 +145,7 @@ void Editor::drawMenuBar() {
         if (ImGui::MenuItem("Save Scene", key("save")))
             saveScene();
         ImGui::Separator();
-        if (unlocked(Feature::Export) && ImGui::MenuItem("Build & Export Game..."))
+        if ((unlocked(Feature::Export) || unlocked(Feature::Share)) && ImGui::MenuItem("Build & Share Game..."))
             showExport_ = true;
         if (unlocked(Feature::ProjectSettings) && ImGui::MenuItem("Project Settings..."))
             showSettings_ = true;
@@ -439,14 +439,16 @@ void Editor::drawToolbar() {
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Learn mode: the editor shows more as you learn. Click to choose a level.");
     }
-    if (unlocked(Feature::Export)) {
+    if (unlocked(Feature::Share) || unlocked(Feature::Export)) {
         ImGui::SameLine();
         ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(34, 150, 90, 255));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(44, 175, 105, 255));
         ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 255, 255, 255));
-        if (ImGui::Button("Build & Export"))
-            showExport_ = true;
+        if (ImGui::Button(unlocked(Feature::Export) ? "Build & Share" : "Share"))
+            unlocked(Feature::Export) ? void(showExport_ = true) : openShare();
         ImGui::PopStyleColor(3);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Make a version anyone can play: on a computer, in a web browser, or on your Wi-Fi");
     }
     rightWidth = ImGui::GetItemRectMax().x - rightStart;
     ImGui::EndChild();

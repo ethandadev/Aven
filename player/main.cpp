@@ -17,7 +17,12 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <memory>
 #include <string>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 using namespace aven;
 namespace stdfs = std::filesystem;
@@ -42,6 +47,9 @@ struct Options {
 stdfs::path findProject(const stdfs::path& hint) {
     if (!hint.empty())
         return hint;
+#ifdef __EMSCRIPTEN__
+    return "/game"; // the web page downloads the game's files here before starting
+#endif
     stdfs::path exe = fs::executableDir();
     for (const stdfs::path& p : {exe / "game", exe, stdfs::current_path()})
         if (ProjectSettings::isProject(p))
@@ -90,94 +98,129 @@ bool parseArgs(int argc, char** argv, Options& o) {
     return true;
 }
 
+// Everything the running game needs. On the web the browser calls frame() for every
+// animation frame, so this lives on the heap instead of main()'s stack.
+struct Player {
+    Options opt;
+    stdfs::path projectDir;
+    ProjectSettings settings;
+    Window window;
+    std::unique_ptr<rhi::Device> device;
+    std::unique_ptr<Assets> assets;
+    SceneRenderer renderer;
+    std::unique_ptr<Game> game;
+    double last = 0;
+    int frameIndex = 0;
+    int exitCode = 0;
+    bool capture = false;
+
+    bool start() {
+        settings.load(projectDir);
+        WindowDesc wd;
+        wd.title = settings.name;
+        wd.width = opt.width ? opt.width : settings.width;
+        wd.height = opt.height ? opt.height : settings.height;
+        wd.resizable = settings.resizable;
+        wd.fullscreen = settings.fullscreen && opt.screenshot.empty();
+        wd.vsync = settings.vsync && opt.screenshot.empty();
+        wd.visible = !opt.hidden;
+        if (!window.create(wd))
+            return false;
+        device = rhi::createDevice(rhi::Backend::OpenGL, Window::glProcLoader());
+        if (!device)
+            return false;
+        Log::info("Aven ", AVEN_VERSION, " running on ", device->description());
+        assets = std::make_unique<Assets>(device.get());
+        assets->setRoot(projectDir);
+        if (!renderer.init(device.get(), assets.get()))
+            return false;
+        game = std::make_unique<Game>(*assets, window.input());
+        game->loadProject(projectDir);
+        game->setCursorLocked = [this](bool locked) { window.setCursorLocked(locked); };
+        game->setFullscreen = [this](bool on) { window.setFullscreen(on); };
+        game->isFullscreen = [this]() { return window.isFullscreen(); };
+        if (!game->loadScene(opt.scene.empty() ? settings.startScene : opt.scene))
+            return false;
+        capture = !opt.screenshot.empty();
+        last = Window::time();
+        return true;
+    }
+
+    // One frame of the game; false when it's time to stop.
+    bool frame() {
+        if (window.shouldClose() || game->quitRequested())
+            return false;
+        window.pollEvents();
+        for (auto& press : opt.keyPresses) {
+            bool down = press.frame == frameIndex, up = press.frame + press.frames == frameIndex;
+            if (!down && !up)
+                continue;
+            // mouse_left / mouse_right / mouse_middle hold a mouse button instead of a key.
+            if (press.key.rfind("mouse_", 0) == 0) {
+                int button = press.key == "mouse_right" ? 1 : press.key == "mouse_middle" ? 2 : 0;
+                window.input().onMouseButton(button, down);
+            } else {
+                window.input().onKey(Input::keyFromName(press.key), down);
+            }
+        }
+        double now = Window::time();
+        float dt = capture ? 1.0f / 60.0f : static_cast<float>(std::min(now - last, 0.1));
+        last = now;
+        Vec2 fb = window.framebufferSize();
+        if (window.minimized() || fb.x < 1 || fb.y < 1)
+            return true;
+        game->setScreenSize(fb);
+        game->update(dt);
+        device->beginFrame();
+        game->render(renderer, static_cast<int>(fb.x), static_cast<int>(fb.y));
+        renderer.present(static_cast<int>(fb.x), static_cast<int>(fb.y));
+        device->endFrame();
+        window.swapBuffers();
+        ++frameIndex;
+        if (capture && frameIndex >= opt.frames) {
+            auto pixels = renderer.readOutput();
+            if (Assets::savePng(opt.screenshot, pixels.data(), renderer.width(), renderer.height(), false))
+                Log::info("Saved screenshot to ", opt.screenshot, " (", device->stats().drawCalls, " draw calls)");
+            else
+                exitCode = 1;
+            return false;
+        }
+        return true;
+    }
+
+    void finish() {
+        game.reset();
+        renderer.shutdown();
+    }
+};
+
 } // namespace
 
 int main(int argc, char** argv) {
-    Options opt;
-    if (!parseArgs(argc, argv, opt))
+    auto* player = new Player(); // intentionally lives until the program ends (the web never returns from main)
+    if (!parseArgs(argc, argv, player->opt))
         return 0;
-    stdfs::path projectDir = findProject(opt.project);
-    if (projectDir.empty() || !ProjectSettings::isProject(projectDir)) {
+    player->projectDir = findProject(player->opt.project);
+    if (player->projectDir.empty() || !ProjectSettings::isProject(player->projectDir)) {
         Log::error("No game found. Put the game folder (with project.aven) next to the player, or pass its path.");
         return 1;
     }
-
-    ProjectSettings settings;
-    settings.load(projectDir);
-    WindowDesc wd;
-    wd.title = settings.name;
-    wd.width = opt.width ? opt.width : settings.width;
-    wd.height = opt.height ? opt.height : settings.height;
-    wd.resizable = settings.resizable;
-    wd.fullscreen = settings.fullscreen && opt.screenshot.empty();
-    wd.vsync = settings.vsync && opt.screenshot.empty();
-    wd.visible = !opt.hidden;
-
-    Window window;
-    if (!window.create(wd))
+    if (!player->start())
         return 1;
-    auto device = rhi::createDevice(rhi::Backend::OpenGL, Window::glProcLoader());
-    if (!device)
-        return 1;
-    Log::info("Aven ", AVEN_VERSION, " running on ", device->description());
-
-    Assets assets(device.get());
-    assets.setRoot(projectDir);
-    SceneRenderer renderer;
-    if (!renderer.init(device.get(), &assets))
-        return 1;
-
-    int exitCode = 0;
-    {
-        Game game(assets, window.input());
-        game.loadProject(projectDir);
-        game.setCursorLocked = [&](bool locked) { window.setCursorLocked(locked); };
-        game.setFullscreen = [&](bool on) { window.setFullscreen(on); };
-        game.isFullscreen = [&]() { return window.isFullscreen(); };
-        if (!game.loadScene(opt.scene.empty() ? settings.startScene : opt.scene))
-            return 1;
-
-        bool capture = !opt.screenshot.empty();
-        double last = Window::time();
-        int frame = 0;
-        while (!window.shouldClose() && !game.quitRequested()) {
-            window.pollEvents();
-            for (auto& press : opt.keyPresses) {
-                bool down = press.frame == frame, up = press.frame + press.frames == frame;
-                if (!down && !up)
-                    continue;
-                // mouse_left / mouse_right / mouse_middle hold a mouse button instead of a key.
-                if (press.key.rfind("mouse_", 0) == 0) {
-                    int button = press.key == "mouse_right" ? 1 : press.key == "mouse_middle" ? 2 : 0;
-                    window.input().onMouseButton(button, down);
-                } else {
-                    window.input().onKey(Input::keyFromName(press.key), down);
-                }
-            }
-            double now = Window::time();
-            float dt = capture ? 1.0f / 60.0f : static_cast<float>(std::min(now - last, 0.1));
-            last = now;
-            Vec2 fb = window.framebufferSize();
-            if (window.minimized() || fb.x < 1 || fb.y < 1)
-                continue;
-            game.setScreenSize(fb);
-            game.update(dt);
-            device->beginFrame();
-            game.render(renderer, static_cast<int>(fb.x), static_cast<int>(fb.y));
-            renderer.present(static_cast<int>(fb.x), static_cast<int>(fb.y));
-            device->endFrame();
-            window.swapBuffers();
-            ++frame;
-            if (capture && frame >= opt.frames) {
-                auto pixels = renderer.readOutput();
-                if (Assets::savePng(opt.screenshot, pixels.data(), renderer.width(), renderer.height(), false))
-                    Log::info("Saved screenshot to ", opt.screenshot, " (", device->stats().drawCalls, " draw calls)");
-                else
-                    exitCode = 1;
-                break;
-            }
-        }
+#ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop_arg(
+        [](void* p) {
+            if (!static_cast<Player*>(p)->frame())
+                emscripten_cancel_main_loop();
+        },
+        player, 0, true);
+    return 0;
+#else
+    while (player->frame()) {
     }
-    renderer.shutdown();
-    return exitCode;
+    player->finish();
+    int code = player->exitCode;
+    delete player;
+    return code;
+#endif
 }

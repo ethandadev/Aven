@@ -74,11 +74,15 @@ FetchContent_Declare(jolt
     GIT_SHALLOW TRUE
     SOURCE_SUBDIR Build)
 
-FetchContent_MakeAvailable(glfw stb cgltf miniaudio box2d jolt)
-
-# glad: generated OpenGL 3.3 core loader, vendored in third_party/glad.
-add_library(aven_glad STATIC ${PROJECT_SOURCE_DIR}/third_party/glad/src/gl.c)
-target_include_directories(aven_glad PUBLIC ${PROJECT_SOURCE_DIR}/third_party/glad/include)
+if(EMSCRIPTEN)
+    # The browser build uses Emscripten's own GLFW (-sUSE_GLFW=3) and WebGL 2 headers.
+    FetchContent_MakeAvailable(stb cgltf miniaudio box2d jolt)
+else()
+    FetchContent_MakeAvailable(glfw stb cgltf miniaudio box2d jolt)
+    # glad: generated OpenGL 3.3 core loader, vendored in third_party/glad.
+    add_library(aven_glad STATIC ${PROJECT_SOURCE_DIR}/third_party/glad/src/gl.c)
+    target_include_directories(aven_glad PUBLIC ${PROJECT_SOURCE_DIR}/third_party/glad/include)
+endif()
 
 add_library(aven_stb INTERFACE)
 target_include_directories(aven_stb SYSTEM INTERFACE ${stb_SOURCE_DIR})
@@ -98,7 +102,14 @@ if(AVEN_BUILD_EDITOR)
     FetchContent_Declare(imguizmo
         GIT_REPOSITORY https://github.com/CedricGuillemet/ImGuizmo.git
         GIT_TAG 8ddc3516e3b90a0d1ae94370e597acca5a4e9f64)
-    FetchContent_MakeAvailable(imgui imguizmo)
+    # QR codes on shareable game cards (MIT).
+    FetchContent_Declare(qrcodegen
+        GIT_REPOSITORY https://github.com/nayuki/QR-Code-generator.git
+        GIT_TAG v1.8.0
+        GIT_SHALLOW TRUE)
+    FetchContent_MakeAvailable(imgui imguizmo qrcodegen)
+    add_library(aven_qrcodegen STATIC ${qrcodegen_SOURCE_DIR}/cpp/qrcodegen.cpp)
+    target_include_directories(aven_qrcodegen SYSTEM PUBLIC ${qrcodegen_SOURCE_DIR}/cpp)
 
     add_library(aven_imgui STATIC
         ${imgui_SOURCE_DIR}/imgui.cpp
