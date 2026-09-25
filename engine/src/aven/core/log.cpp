@@ -1,5 +1,6 @@
 #include "aven/core/log.h"
 
+#include <atomic>
 #include <cstdio>
 #include <mutex>
 #include <vector>
@@ -17,7 +18,7 @@ struct LogState {
     std::mutex mutex;
     std::vector<SinkEntry> sinks;
     int nextId = 1;
-    bool echo = true;
+    std::atomic<bool> echo{true};
 };
 
 LogState& state() {

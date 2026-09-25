@@ -650,9 +650,17 @@ private:
             std::string spec;
             // Split off a format spec like {value:.2f} (ignore ':' inside brackets/strings).
             int nesting = 0;
+            char quote = 0;
             for (size_t k = 0; k < inner.size(); ++k) {
                 char ch = inner[k];
-                if (ch == '(' || ch == '[' || ch == '{')
+                if (quote) {
+                    if (ch == '\\')
+                        ++k;
+                    else if (ch == quote)
+                        quote = 0;
+                } else if (ch == '"' || ch == '\'')
+                    quote = ch;
+                else if (ch == '(' || ch == '[' || ch == '{')
                     ++nesting;
                 else if (ch == ')' || ch == ']' || ch == '}')
                     --nesting;

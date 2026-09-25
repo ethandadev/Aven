@@ -85,6 +85,15 @@ AVEN_TEST(json_errors_have_locations) {
     CHECK(err.find("line 3") != std::string::npos);
 }
 
+// Hand-edited files: // comments and trailing commas are forgiven.
+AVEN_TEST(json_is_forgiving_about_hand_edits) {
+    std::string err;
+    Json j = Json::parse("{\n  // the player\n  \"speed\": 5,\n  \"list\": [1, 2,],\n}", &err);
+    CHECK(err.empty());
+    CHECK_NEAR(j["speed"].asNumber(), 5, 1e-9);
+    CHECK_EQ(j["list"].size(), size_t(2));
+}
+
 AVEN_TEST(json_float_formatting) {
     Json j = Json(0.1f);
     CHECK_EQ(j.dump(), std::string("0.1"));

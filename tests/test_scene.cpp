@@ -178,3 +178,16 @@ AVEN_TEST(scene_unknown_component_is_skipped) {
     Entity x = s.findByName("X");
     CHECK_NEAR(s.transform(x).position.x, 5, 1e-6);
 }
+
+// Hand-edited scenes: a camelCase field name is still read, and a bad choice keeps the default.
+AVEN_TEST(scene_forgives_camel_case_fields) {
+    Json data = Json::parse(R"({"entities": [{"id": "0000000000000001", "name": "Box", "components": {
+        "RigidBody2D": {"gravityScale": 0.5, "type": "Sideways"}}}]})");
+    Scene s;
+    CHECK(s.load(data));
+    Entity e = s.findByName("Box");
+    auto* rb = s.registry().tryGet<RigidBody2D>(e);
+    CHECK(rb != nullptr);
+    CHECK_NEAR(rb->gravityScale, 0.5f, 1e-6f);
+    CHECK(rb->type == BodyType::Dynamic);
+}

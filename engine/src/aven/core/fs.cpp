@@ -96,8 +96,11 @@ stdfs::path executableDir() {
 #elif defined(__APPLE__)
     char buf[PATH_MAX];
     uint32_t size = sizeof buf;
-    if (_NSGetExecutablePath(buf, &size) == 0)
-        return stdfs::canonical(buf).parent_path();
+    if (_NSGetExecutablePath(buf, &size) == 0) {
+        std::error_code ec;
+        stdfs::path exe = stdfs::canonical(buf, ec);
+        return (ec ? stdfs::path(buf) : exe).parent_path();
+    }
     return stdfs::current_path();
 #else
     char buf[PATH_MAX];

@@ -3,13 +3,21 @@
 #include "aven/core/uuid.h"
 #include "aven/math/math.h"
 
+#include "aven/core/log.h"
+
 #include <algorithm>
 #include <cctype>
 #include <set>
 
-#include "aven/core/log.h"
-
 namespace aven {
+
+namespace {
+// Each problem in hand-edited files is pointed out once, not every time a scene loads.
+bool firstTime(const std::string& key) {
+    static std::set<std::string> seen;
+    return seen.insert(key).second;
+}
+} // namespace
 
 std::string toSnakeCase(std::string_view s) {
     std::string out;
@@ -131,9 +139,18 @@ void loadField(const FieldInfo& f, void* c, const Json& v) {
     case FieldType::Enum: {
         if (v.isString()) {
             auto& names = f.options.enumNames;
+            bool found = false;
             for (size_t i = 0; i < names.size(); ++i)
-                if (equalsIgnoreCase(names[i], v.asString()))
+                if (equalsIgnoreCase(names[i], v.asString())) {
                     f.ref<int32_t>(c) = static_cast<int32_t>(i);
+                    found = true;
+                }
+            if (!found && firstTime(f.name + "=" + v.asString())) {
+                std::string choices;
+                for (auto& n : names)
+                    choices += (choices.empty() ? "" : ", ") + n;
+                Log::warn("'", v.asString(), "' isn't a choice for ", f.label, ". It can be: ", choices, ".");
+            }
         } else {
             f.ref<int32_t>(c) = v.asInt();
         }
@@ -161,16 +178,18 @@ void loadComponent(const ComponentInfo& info, void* component, const Json& data)
     if (info.loadExtra)
         info.loadExtra(component, data);
     // Point out typos in hand-edited files instead of silently ignoring them.
-    static std::set<std::string> warned;
     for (auto& m : data.members()) {
         if (info.findField(m.key) || std::find(info.extraKeys.begin(), info.extraKeys.end(), m.key) != info.extraKeys.end())
             continue;
-        std::string key = info.name + "." + m.key;
-        if (!warned.insert(key).second)
-            continue;
         std::string suggestion = toSnakeCase(m.key);
-        if (info.findField(suggestion))
-            Log::warn(info.name, " has no field '", m.key, "'. Did you mean '", suggestion, "'?");
+        const FieldInfo* close = info.findField(suggestion);
+        // "className" for "class_name": clearly meant, so use it (and say how it's spelled).
+        if (close && !close->options.runtime && !data.contains(suggestion))
+            loadField(*close, component, m.value);
+        if (!firstTime(info.name + "." + m.key))
+            continue;
+        if (close)
+            Log::warn(info.name, ": '", m.key, "' is spelled '", suggestion, "' in scene files (it was read anyway).");
         else
             Log::warn(info.name, " has no field '", m.key, "'; it was ignored.");
     }

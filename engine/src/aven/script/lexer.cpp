@@ -414,8 +414,21 @@ private:
             break;
         default: break;
         }
-        if (c == '{' || c == '}')
-            return;
+        auto byte = static_cast<unsigned char>(c);
+        if (byte >= 0x80) {
+            // A character from outside plain ASCII, often pasted from a web page or a chat.
+            size_t len = byte >= 0xF0 ? 4 : byte >= 0xE0 ? 3 : byte >= 0xC0 ? 2 : 1;
+            std::string ch(s_.substr(pos_, len));
+            if (ch == "\xE2\x80\x9C" || ch == "\xE2\x80\x9D" || ch == "\xE2\x80\x98" || ch == "\xE2\x80\x99")
+                error("The curly quote " + ch + " isn't understood. Use straight quotes instead: \" or '. "
+                      "(Curly quotes sneak in when code is copied from a web page or a document.)");
+            if (ch == "\xE2\x80\x93" || ch == "\xE2\x80\x94")
+                error("The long dash " + ch + " isn't a minus sign. Type - instead.");
+            if (ch == "\xC3\x97")
+                error("For multiplying, use * instead of " + ch + ".");
+            error("I don't understand the character '" + ch + "' here. Letters with accents and symbols can go inside "
+                  "\"text\", but names and code use plain letters, numbers and _.");
+        }
         error(std::string("I don't understand the character '") + c + "' here.");
     }
 };

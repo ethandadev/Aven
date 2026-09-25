@@ -5,16 +5,16 @@ namespace aven {
 Vec3 Quat::toEuler() const {
     Mat4 r = Mat4::rotation(normalize(*this));
     float r12 = clamp(r.at(1, 2), -1.0f, 1.0f);
-    float x = std::asin(-r12);
-    float y, z;
+    float ax = std::asin(-r12);
+    float ay, az;
     if (std::abs(r12) < 0.99999f) {
-        y = std::atan2(r.at(0, 2), r.at(2, 2));
-        z = std::atan2(r.at(1, 0), r.at(1, 1));
+        ay = std::atan2(r.at(0, 2), r.at(2, 2));
+        az = std::atan2(r.at(1, 0), r.at(1, 1));
     } else {
-        y = std::atan2(-r.at(2, 0), r.at(0, 0));
-        z = 0;
+        ay = std::atan2(-r.at(2, 0), r.at(0, 0));
+        az = 0;
     }
-    return {degrees(x), degrees(y), degrees(z)};
+    return {degrees(ax), degrees(ay), degrees(az)};
 }
 
 Mat4 transpose(const Mat4& m) {

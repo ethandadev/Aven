@@ -175,8 +175,11 @@ private:
                 break;
             }
             obj[key] = parseValue();
-            if (consume(','))
+            if (consume(',')) {
+                if (consume('}')) // a trailing comma, easy to leave when editing by hand
+                    break;
                 continue;
+            }
             if (consume('}'))
                 break;
             fail("expected ',' or '}' in object");
@@ -191,8 +194,11 @@ private:
             return arr;
         while (ok_) {
             arr.push(parseValue());
-            if (consume(','))
+            if (consume(',')) {
+                if (consume(']')) // a trailing comma
+                    break;
                 continue;
+            }
             if (consume(']'))
                 break;
             fail("expected ',' or ']' in array");
@@ -276,7 +282,7 @@ private:
                     s_[pos_ + 1] == 'u') {
                     pos_ += 2;
                     uint32_t lo = parseHex4();
-                    cp = 0x10000 + ((cp - 0xD800) << 10) + (lo - 0xDC00);
+                    cp = lo >= 0xDC00 && lo <= 0xDFFF ? 0x10000 + ((cp - 0xD800) << 10) + (lo - 0xDC00) : 0xFFFD;
                 }
                 appendUtf8(out, cp);
                 break;

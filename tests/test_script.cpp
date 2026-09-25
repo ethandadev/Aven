@@ -160,11 +160,13 @@ t = 3.14159
 msg = f"Score: {score}, time {t:.2f}s, {{braces}}, {score * 2}"
 concat = "Lives: " + 3
 padded = f"{7:03}"
+colon = f"{'time: ' + str(3)}"
 )");
     CHECK(inst != nullptr);
     CHECK_EQ(h.var(inst, "msg").string(), std::string("Score: 42, time 3.14s, {braces}, 84"));
     CHECK_EQ(h.var(inst, "concat").string(), std::string("Lives: 3"));
     CHECK_EQ(h.var(inst, "padded").string(), std::string("007"));
+    CHECK_EQ(h.var(inst, "colon").string(), std::string("time: 3"));
 }
 
 AVEN_TEST(script_c_style_aliases) {
@@ -226,6 +228,8 @@ AVEN_TEST(script_errors_are_friendly) {
         {"if x > 3 {\n", "instead of { }", 1},
         {"while True {\n  x = 1\n}\n", "instead of { }", 1},
         {"  x = 1\n", "indented", 1},
+        {"print(\xE2\x80\x9Chello\xE2\x80\x9D)\n", "Use straight quotes", 1},
+        {"x = 5 \xE2\x80\x93 2\n", "Type - instead", 1},
     };
     for (auto& c : cases) {
         Harness h;
