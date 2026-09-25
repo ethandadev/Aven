@@ -678,6 +678,14 @@ void registerStdlib(VM& vm) {
         std::vector<Value> extra(a.args.begin() + 2, a.args.end());
         return Value(a.vm.addTimer(interval, interval, a[1], std::move(extra)));
     });
+    vm.defineFunction("start_task", "start_task(function, values...)", 1, -1, [](CallArgs& a) {
+        if (!a[0].isCallable())
+            raise("start_task(): give it a function name without parentheses, like: start_task(patrol)");
+        std::vector<Value> extra(a.args.begin() + 1, a.args.end());
+        // Runs side by side with the current code; it may use wait() freely.
+        a.vm.call(a[0], std::move(extra), a.vm.currentInstanceShared());
+        return Value();
+    });
     vm.defineFunction("stop_timer", "stop_timer(timer)", 1, 1,
                       [](CallArgs& a) { return Value(a.vm.stopTimer(static_cast<int>(a.number(0, "timer")))); });
 }

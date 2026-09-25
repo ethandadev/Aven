@@ -443,6 +443,10 @@ Instance* VM::currentInstance() const {
     return current_ && !current_->frames.empty() ? current_->frames.back().instance.get() : nullptr;
 }
 
+std::shared_ptr<Instance> VM::currentInstanceShared() const {
+    return current_ && !current_->frames.empty() ? current_->frames.back().instance : nullptr;
+}
+
 int VM::currentLine() const {
     if (!current_ || current_->frames.empty())
         return 0;

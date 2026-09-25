@@ -336,4 +336,25 @@ struct PrefabInstance {
     std::string path;
 };
 
+// ---------------------------------------------------------------- runtime-only (never saved)
+
+// Hides an entity's renderers without disabling its scripts (self.visible = False).
+struct Hidden {};
+
+struct Particle {
+    Vec3 position;
+    Vec3 velocity;
+    float age = 0;
+    float life = 1;
+    float spin = 0;
+    float rotation = 0;
+};
+
+struct ParticleState {
+    std::vector<Particle> particles;
+    float emitAccumulator = 0;
+    bool wasEmitting = false;
+    uint32_t seed = 1;
+};
+
 } // namespace aven

@@ -1,1 +1,6 @@
-# placeholder
+add_executable(aven_player main.cpp)
+target_link_libraries(aven_player PRIVATE aven_engine)
+set_target_properties(aven_player PROPERTIES OUTPUT_NAME "aven-player")
+if(WIN32)
+    set_target_properties(aven_player PROPERTIES WIN32_EXECUTABLE $<CONFIG:Release>)
+endif()

@@ -106,6 +106,7 @@ public:
     int addTimer(double delay, double interval, Value fn, std::vector<Value> args);
     bool stopTimer(int id);
     Instance* currentInstance() const;
+    std::shared_ptr<Instance> currentInstanceShared() const;
     int currentLine() const;
     std::string currentFile() const;
 
