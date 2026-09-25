@@ -229,6 +229,7 @@ void Editor::openPanels(const std::string& list) {
         else if (p == "spritesheet") openSpriteSheet();
         else if (p == "tiles") openTilePainter();
         else if (p == "savescene") saveScene();
+        else if (p.rfind("reference-md:", 0) == 0) writeApiReference(p.substr(13));
         else if (p == "native") openNativeCode();
         else if (p == "newnative") createNativeModule();
         else if (p == "buildnative") buildNativeModule();
@@ -1316,6 +1317,25 @@ void Editor::onFilesDropped(const std::vector<std::string>& files) {
     }
     scanAssets();
     notify(copied ? "Added " + std::to_string(copied) + " file(s) to the project." : "Couldn't copy those files.", copied == 0);
+}
+
+// docs/easyscript-api.md is made from the same list the Reference panel shows (tools/docs/make_api_reference.sh).
+void Editor::writeApiReference(const std::string& path) {
+    std::string md = "# EasyScript API\n\nEverything scripts can use, generated from the engine itself (the same list as the "
+                     "editor's Scripting Reference). Blocks turn into these calls, and the C API (sdk/include/aven.h) uses "
+                     "`aven_` plus the same names.\n";
+    std::vector<std::string> groups;
+    for (auto& e : api_)
+        if (std::find(groups.begin(), groups.end(), e.group) == groups.end())
+            groups.push_back(e.group);
+    for (auto& g : groups) {
+        md += "\n## " + g + "\n\n";
+        for (auto& e : api_)
+            if (e.group == g)
+                md += "- `" + e.signature + "`\n";
+    }
+    fs::writeText(path, md);
+    Log::info("Wrote ", path, " (", api_.size(), " entries)");
 }
 
 void Editor::buildApiReference() {

@@ -33,7 +33,7 @@ const std::vector<FeatureInfo>& featureList() {
         {Feature::Capture, "Screenshots and GIFs", "Capture your game to share it.", 2},
 
         {Feature::Code, "EasyScript code", "Type code in EasyScript, a friendly Python-like language.", 3},
-        {Feature::CodeLadder, "Code ladder", "See your script as C#, C++, GDScript or Luau for other engines.", 3},
+        {Feature::CodeLadder, "Code ladder", "See your script in C (Aven's native tier) and as C#, GDScript, Luau or C++ for other engines.", 3},
         {Feature::Export, "Build & export", "Make a version of your game that runs without Aven.", 3},
         {Feature::History, "Undo history", "Jump back to any earlier change.", 3},
         {Feature::Find, "Find in project", "Search every script and scene.", 3},

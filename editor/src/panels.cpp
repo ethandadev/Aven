@@ -1381,7 +1381,7 @@ void Editor::drawScriptTabs() {
                     if (ImGui::SmallButton("Code Ladder"))
                         openCodeLadderForScript(tab.path);
                     if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("See this script as C# (Unity), GDScript (Godot), Luau (Roblox) and C++ (Unreal)");
+                        ImGui::SetTooltip("See this script in C (Aven native code), C# (Unity), GDScript (Godot), Luau (Roblox) and C++ (Unreal)");
                 }
                 }
                 ImVec2 avail = ImGui::GetContentRegionAvail();

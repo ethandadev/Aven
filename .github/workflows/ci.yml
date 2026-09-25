@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  desktop:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-24.04
+          - name: Windows
+            os: windows-latest
+          - name: macOS
+            os: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
+            libgl-dev libwayland-dev libxkbcommon-dev wayland-protocols xvfb libgl1-mesa-dri
+
+      - name: Cache downloaded libraries
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: deps-${{ matrix.os }}-${{ hashFiles('cmake/AvenDependencies.cmake') }}
+
+      - name: Configure
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then generator="-G Ninja"; fi
+          cmake -S . -B build $generator -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        shell: bash
+        run: |
+          tests=$(find build -name 'aven_tests' -o -name 'aven_tests.exe' | head -n 1)
+          "$tests"
+
+      - name: Editor smoke test (screenshot)
+        if: runner.os == 'Linux'
+        run: |
+          xvfb-run -a -s "-screen 0 1920x1080x24" build/bin/aven-editor templates/platformer --screenshot editor.png --frames 20
+          xvfb-run -a -s "-screen 0 1920x1080x24" build/bin/aven-player templates/obby-3d --screenshot player.png --frames 30 --hidden
+
+      - name: Upload screenshots
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: |
+            editor.png
+            player.png
+
+  web:
+    name: Web player
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mymindstorm/setup-emsdk@v14
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Build the web player
+        run: tools/web/build_web_player.sh web-player
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-player
+          path: web-player

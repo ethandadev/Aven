@@ -461,6 +461,7 @@ private:
     std::thread nativeThread_;
     std::vector<std::string> nativeOutput_;
     bool focusInspector_ = false;
+    void writeApiReference(const std::string& path);
     bool showNativeCode_ = false, focusNativeCode_ = false, nativeBuildOk_ = false, nativeBuiltOnce_ = false;
     int nativeErrors_ = 0;
     float nativeRefreshTimer_ = 10; // starts high: load straight away
