@@ -18,7 +18,7 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `exp(x)`
 - `float(value)`
 - `floor(x)`
-- `game.anything = value  (shared by all scripts and scenes)`
+- `game.anything = value` (shared by all scripts and scenes)
 - `get_game("score", 0)`
 - `int(value)`
 - `len(list_or_text)`
@@ -202,49 +202,49 @@ Everything scripts can use, generated from the engine itself (the same list as t
 
 ## self actions
 
-- `self.destroy(...)`
-- `self.damage(...)`
-- `self.heal(...)`
-- `self.move(...)`
-- `self.move_forward(...)`
-- `self.turn(...)`
-- `self.look_at(...)`
-- `self.move_toward(...)`
-- `self.distance_to(...)`
-- `self.direction_to(...)`
-- `self.is_touching(...)`
-- `self.apply_force(...)`
-- `self.apply_impulse(...)`
-- `self.play_animation(...)`
-- `self.set_tile(...)`
-- `self.get_tile(...)`
-- `self.set_tile_at(...)`
-- `self.get_tile_at(...)`
-- `self.stop_animation(...)`
-- `self.tween(...)`
-- `self.clone(...)`
-- `self.hide(...)`
-- `self.show(...)`
-- `self.get_component(...)`
-- `self.add_component(...)`
-- `self.has_component(...)`
-- `self.remove_component(...)`
-- `self.find_child(...)`
-- `self.play_sound(...)`
-- `self.send(...)`
-- `self.say(...)`
-- `self.emit(...)`
+- `self.destroy()`
+- `self.damage(amount)`
+- `self.heal(amount)`
+- `self.move(dx, dy) or self.move(dx, dy, dz)`
+- `self.move_forward(distance)`
+- `self.turn(degrees)`
+- `self.look_at(target) or self.look_at(x, y)`
+- `self.move_toward(target, step)`
+- `self.distance_to(target)`
+- `self.direction_to(target)`
+- `self.is_touching(other) or self.is_touching("tag")`
+- `self.apply_force(x, y) or self.apply_force(x, y, z)`
+- `self.apply_impulse(x, y) or self.apply_impulse(x, y, z)`
+- `self.play_animation(first_frame, last_frame, fps=10, loop=True)`
+- `tilemap.set_tile(column, row, tile)` (tile -1 erases)
+- `tilemap.get_tile(column, row)` (-1 if empty)
+- `tilemap.set_tile_at(x, y, tile)` (a world position; tile -1 erases)
+- `tilemap.get_tile_at(x, y)` (a world position; -1 if empty)
+- `self.stop_animation()`
+- `self.tween("property", target, seconds, "ease_out", when_done)`
+- `self.clone()`
+- `self.hide()`
+- `self.show()`
+- `self.get_component("SpriteRenderer")`
+- `self.add_component("RigidBody2D")`
+- `self.has_component("RigidBody2D")`
+- `self.remove_component("RigidBody2D")`
+- `self.find_child("name")`
+- `self.play_sound("sounds/jump.wav", volume=1)`
+- `self.send("function_name", values...)`
+- `self.say("Hello!", seconds=2)`
+- `self.emit(count)`
 
 ## Events you can write
 
-- `def on_start():  runs once when the object starts`
-- `def on_update(dt):  runs every frame`
-- `def on_fixed_update(dt):  runs at a steady 60 times per second (physics)`
-- `def on_collide(other):  bumped into another object`
-- `def on_collide_end(other):  stopped touching`
-- `def on_trigger(other):  something entered this trigger`
-- `def on_trigger_exit(other):  something left this trigger`
-- `def on_click():  the player clicked this object or button`
-- `def on_key_pressed(key):  any key was pressed`
-- `def on_message(message, data):  a broadcast was sent`
-- `def on_destroy():  about to be removed`
+- `def on_start():` runs once when the object starts
+- `def on_update(dt):` runs every frame
+- `def on_fixed_update(dt):` runs at a steady 60 times per second (physics)
+- `def on_collide(other):` bumped into another object
+- `def on_collide_end(other):` stopped touching
+- `def on_trigger(other):` something entered this trigger
+- `def on_trigger_exit(other):` something left this trigger
+- `def on_click():` the player clicked this object or button
+- `def on_key_pressed(key):` any key was pressed
+- `def on_message(message, data):` a broadcast was sent
+- `def on_destroy():` about to be removed

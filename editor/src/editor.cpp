@@ -1346,8 +1346,14 @@ void Editor::writeApiReference(const std::string& path) {
     for (auto& g : groups) {
         md += "\n## " + g + "\n\n";
         for (auto& e : api_)
-            if (e.group == g)
-                md += "- `" + e.signature + "`\n";
+            if (e.group == g) {
+                // "code  (a note)" puts the note outside the code span.
+                size_t gap = e.signature.find("  ");
+                if (gap == std::string::npos)
+                    md += "- `" + e.signature + "`\n";
+                else
+                    md += "- `" + e.signature.substr(0, gap) + "` " + e.signature.substr(e.signature.find_first_not_of(' ', gap)) + "\n";
+            }
     }
     fs::writeText(path, md);
     Log::info("Wrote ", path, " (", api_.size(), " entries)");
@@ -1394,8 +1400,10 @@ void Editor::buildApiReference() {
     }
     for (auto& p : ScriptSystem::propertyNames())
         api_.push_back({"self properties", "self." + p, "self." + p, ""});
-    for (auto& m : ScriptSystem::methodNames())
-        api_.push_back({"self actions", "self." + m, "self." + m + "(...)", ""});
+    auto names = ScriptSystem::methodNames();
+    auto signatures = ScriptSystem::methodSignatures();
+    for (size_t i = 0; i < names.size(); ++i)
+        api_.push_back({"self actions", "self." + names[i], signatures[i], ""});
     const char* callbacks[][2] = {
         {"on_start", "def on_start():  runs once when the object starts"},
         {"on_update", "def on_update(dt):  runs every frame"},

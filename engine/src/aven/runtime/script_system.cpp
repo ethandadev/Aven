@@ -666,7 +666,7 @@ const std::vector<MethodDef>& entityMethods() {
                  anim->playing = false;
              return Value();
          }},
-        {"tween", "self.tween(\"property\", target, seconds, \"ease_out\")", 3, 5,
+        {"tween", "self.tween(\"property\", target, seconds, \"ease_out\", when_done)", 3, 5,
          [](ScriptSystem& s, Entity e, CallArgs& a) {
              Easing easing = Easing::EaseOut;
              if (a.has(3) && !a[3].isNone()) {
@@ -837,6 +837,13 @@ std::vector<std::string> ScriptSystem::methodNames() {
     std::vector<std::string> out;
     for (auto& m : entityMethods())
         out.push_back(m.name);
+    return out;
+}
+
+std::vector<std::string> ScriptSystem::methodSignatures() {
+    std::vector<std::string> out;
+    for (auto& m : entityMethods())
+        out.push_back(m.signature);
     return out;
 }
 

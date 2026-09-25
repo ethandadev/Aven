@@ -57,6 +57,7 @@ public:
     bool setProperty(Entity e, const std::string& name, const script::Value& value);
     static std::vector<std::string> propertyNames();
     static std::vector<std::string> methodNames();
+    static std::vector<std::string> methodSignatures(); // how to call each one, e.g. self.move(dx, dy)
 
     void addTween(Entity e, const std::string& property, float target, float duration, Easing easing,
                   script::Value onDone);
