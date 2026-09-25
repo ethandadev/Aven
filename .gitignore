@@ -1,0 +1,11 @@
+/build*/
+/out/
+/.cache/
+.vscode/
+.idea/
+*.swp
+.DS_Store
+compile_commands.json
+__pycache__/
+/exports/
+imgui.ini

@@ -1,0 +1,5 @@
+file(GLOB AVEN_TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+add_executable(aven_tests ${AVEN_TEST_SOURCES})
+target_link_libraries(aven_tests PRIVATE aven_engine)
+target_compile_definitions(aven_tests PRIVATE AVEN_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+add_test(NAME aven_tests COMMAND aven_tests)
