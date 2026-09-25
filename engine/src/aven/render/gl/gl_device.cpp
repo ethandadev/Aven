@@ -441,7 +441,13 @@ public:
 
     // --- frame and passes
 
-    void beginFrame() override { stats_ = {}; }
+    void beginFrame() override {
+        stats_ = {};
+        // Other code (like the editor's UI) may have changed GL state since last frame.
+        currentProgram_ = 0;
+        glBindVertexArray(vao_);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    }
     void endFrame() override {}
 
     void beginPass(const PassDesc& p) override {

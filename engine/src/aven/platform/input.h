@@ -51,6 +51,11 @@ public:
     void setGamepad(bool connected, const bool buttons[static_cast<int>(PadButton::Count)],
                     const float axes[static_cast<int>(PadAxis::Count)]);
     void releaseAll();
+    // Copies another input's state, shifting the mouse by `mouseOffset` (used by the
+    // editor to feed the game only what happens inside its viewport).
+    void mirror(const Input& src, Vec2 mouseOffset);
+    // Drops all held keys and buttons without generating "pressed" events.
+    void reset();
 
     // --- raw state
     bool keyDown(int key) const;

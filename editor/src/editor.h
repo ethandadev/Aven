@@ -1,0 +1,281 @@
+#pragma once
+
+#include "aven/assets/assets.h"
+#include "aven/core/log.h"
+#include "aven/platform/window.h"
+#include "aven/render/scene_renderer.h"
+#include "aven/runtime/game.h"
+#include "aven/runtime/project.h"
+#include "aven/scene/reflection.h"
+#include "aven/scene/scene.h"
+
+#include "code_editor.h"
+
+#include <filesystem>
+#include <functional>
+#include <unordered_set>
+#include <memory>
+#include <string>
+#include <vector>
+
+struct ImFont;
+
+namespace aven::editor {
+
+namespace stdfs = std::filesystem;
+
+class CodeEditor;
+class BlockEditor;
+
+struct TemplateInfo {
+    std::string id;
+    std::string name;
+    std::string description;
+    std::string style; // "Blocks", "EasyScript", "Blocks + EasyScript"
+    std::string difficulty;
+    bool is3D = false;
+    Color color;
+    stdfs::path folder;
+};
+
+struct ConsoleLine {
+    LogLevel level;
+    std::string text;
+    std::string file;
+    int line = 0;
+    int count = 1;
+};
+
+struct Fonts {
+    ImFont* ui = nullptr;
+    ImFont* bold = nullptr;
+    ImFont* big = nullptr;
+    ImFont* code = nullptr;
+};
+
+struct EditorOptions {
+    stdfs::path project;
+    std::string screenshot;
+    int frames = 30;
+    std::string openPanel; // for automated screenshots: "blocks", "script", "hub"
+    std::string openFile;
+    std::string select;
+    bool play = false;
+    stdfs::path newProject;    // --new: create a project here from --template, then open it
+    std::string templateId;
+    stdfs::path exportTo;      // --export: export the project to this folder and quit
+};
+
+// The Aven editor: project hub, scene editing, scripting, block coding, play mode and export.
+class Editor {
+public:
+    Editor(Window& window, rhi::Device& device);
+    ~Editor();
+
+    bool init(const EditorOptions& options);
+    void frame(float dt);
+    bool wantsQuit() const { return quit_; }
+    void requestQuit();
+    SceneRenderer& renderer() { return renderer_; }
+
+    // --- projects
+    bool openProject(const stdfs::path& dir);
+    bool createProject(const stdfs::path& dir, const std::string& name, const TemplateInfo* tmpl);
+    void closeProject();
+    bool hasProject() const { return !projectDir_.empty(); }
+    const stdfs::path& projectDir() const { return projectDir_; }
+    std::vector<TemplateInfo> templates() const;
+
+    // --- scenes
+    bool openScene(const std::string& path);
+    bool saveScene();
+    void newScene(bool is3D);
+    Scene& scene() { return playing() ? game_->scene() : *scene_; }
+    Scene& editScene() { return *scene_; }
+    bool is3D() const { return view3D_; }
+
+    // --- selection and undo
+    Entity selected();
+    void select(Entity e);
+    void recordUndo(const std::string& label);
+    void undo();
+    void redo();
+    void markDirty() { dirty_ = true; }
+
+    // --- play mode
+    void play();
+    void stop();
+    bool playing() const { return playing_; }
+
+    // --- scripts
+    void openScript(const std::string& path, int line = 0);
+    void openBlocks(const std::string& path);
+    std::string newScriptFile(const std::string& baseName, bool blocks);
+    void attachScript(Entity e, const std::string& path);
+
+    // --- creating things
+    Entity createEntity(const std::string& kind, Entity parent = {});
+    Entity instantiatePrefab(const std::string& path, Vec3 position);
+    void savePrefab(Entity e);
+
+    Fonts fonts;
+    bool advanced() const { return settings_.advancedMode; }
+    void notify(const std::string& message, bool error = false);
+    std::vector<std::string> projectFiles(const std::vector<std::string>& extensions) const;
+    Assets& assets() { return assets_; }
+    ProjectSettings& settings() { return settings_; }
+
+private:
+    Window& window_;
+    rhi::Device& device_;
+    Assets assets_;
+    SceneRenderer renderer_;
+    Input gameInput_;
+    std::unique_ptr<Game> game_;
+    ProjectSettings settings_;
+    stdfs::path projectDir_;
+    std::unique_ptr<Scene> scene_;
+    std::string scenePath_;
+    bool dirty_ = false;
+    bool playing_ = false;
+    bool paused_ = false;
+    bool stepOnce_ = false;
+    bool quit_ = false;
+    bool confirmQuit_ = false;
+    UUID selected_;
+    EditorOptions options_;
+    int frameCount_ = 0;
+
+    struct Snapshot {
+        std::string label;
+        Json scene;
+        UUID selected;
+    };
+    std::vector<Snapshot> undo_, redo_;
+    Json cachedSnapshot_;
+    bool snapshotValid_ = false;
+    bool editInProgress_ = false;
+    bool gizmoWasUsing_ = false;
+    std::vector<CodeEditor::Completion> completions_;
+    std::unordered_set<std::string> apiWords_;
+    struct ApiEntry {
+        std::string group, name, signature, help;
+    };
+    std::vector<ApiEntry> api_;
+    char referenceFilter_[64] = {};
+    std::vector<std::string> assetFiles_;
+    float assetScanTimer_ = 0;
+    std::string selectedAsset_;
+    bool clearOnPlay_ = true;
+    bool errorsOnly_ = false;
+
+    // Editor camera
+    bool view3D_ = false;
+    Vec3 cam2D_{0, 0, 10};
+    float camZoom_ = 6.0f;
+    Vec3 cam3D_{6, 5, 9};
+    float camYaw_ = 35.0f, camPitch_ = -22.0f;
+    int gizmoOp_ = 0; // 0 move, 1 rotate, 2 scale
+    bool snap_ = false;
+    bool showGrid_ = true;
+    Vec2 viewportPos_, viewportSize_{1, 1};
+    bool viewportHovered_ = false, viewportFocused_ = false, hierarchyFocused_ = false;
+    bool focusViewport_ = false;
+    CameraView editorCamera() const;
+    void focusSelected();
+
+    // Panels
+    bool showHub_ = true;
+    bool showSettings_ = false;
+    bool showLearn_ = false;
+    bool showReference_ = false;
+    bool showExport_ = false;
+    bool showAbout_ = false;
+    bool resetLayout_ = true;
+    std::string hierarchyFilter_;
+    std::string assetFolder_;
+    std::vector<ConsoleLine> console_;
+    int logSink_ = 0;
+    bool consoleScrollToBottom_ = false;
+    int errorCount_ = 0;
+    std::string notification_;
+    float notificationTime_ = 0;
+    bool notificationError_ = false;
+    std::string renameTarget_;
+    char renameBuffer_[256] = {};
+    stdfs::path browsePath_;
+    char newProjectName_[128] = "My Game";
+    std::string newProjectTemplate_;
+    std::vector<std::string> recentProjects_;
+    int hubPage_ = 0; // 0 new project, 1 open project
+    std::vector<TemplateInfo> templateCache_;
+    bool templatesScanned_ = false;
+    bool hubPickFolder_ = false;
+    int learnStep_ = 0;
+    Json tutorial_;
+    std::string exportFolder_;
+    std::string exportResult_;
+
+    struct ScriptTab {
+        std::string path;
+        std::unique_ptr<CodeEditor> code;
+        std::unique_ptr<BlockEditor> blocks;
+        bool open = true;
+        bool focus = false;
+        bool modified = false;
+    };
+    std::vector<std::unique_ptr<ScriptTab>> tabs_;
+
+    void loadRecent();
+    void saveRecent();
+    void setupDockspace();
+    void drawMenuBar();
+    void drawToolbar();
+    void drawHub();
+    bool drawFolderBrowser(bool projectsOnly, stdfs::path* picked);
+    void drawHierarchy();
+    void drawInspector();
+    void drawViewport(float dt);
+    void drawAssets();
+    void drawConsole();
+    void drawScriptTabs();
+    void drawSettings();
+    void drawLearn();
+    void drawReference();
+    void drawExport();
+    void drawNotification(float dt);
+    void drawQuitDialog();
+    void drawSceneOverlay(const CameraView& camera);
+    void handleShortcuts();
+    void updateViewportCamera(float dt);
+    void pickInViewport(Vec2 localMouse);
+    void handleViewportDrop();
+    void drawEntityNode(Entity e);
+    bool drawComponent(Entity e, const ComponentInfo& info, void* data);
+    void drawScriptVariables(Entity e);
+    void drawAddComponent(Entity e);
+    void saveAllScripts();
+    bool exportGame(const stdfs::path& folder, std::string& message);
+    void loadTutorial();
+    void onFilesDropped(const std::vector<std::string>& files);
+    std::string uniqueName(const std::string& folder, const std::string& base, const std::string& ext) const;
+    void refreshTitle();
+    // Call after the user changed the scene through the UI. The first change of an
+    // interaction (e.g. the start of a drag) becomes one undo step.
+    void edited(const std::string& label);
+    void buildApiReference();
+    void scanAssets();
+    void checkScript(ScriptTab& tab);
+};
+
+// Small shared UI helpers.
+namespace ui {
+void helpMarker(const char* text);
+bool iconButton(const char* id, int icon, const char* tooltip, bool active = false, float size = 0);
+void sectionHeader(const char* text);
+bool assetField(const char* label, std::string& value, const std::vector<std::string>& options, const char* dragType);
+enum Icon { Play, Pause, Stop, Step, Move, Rotate, Scale, Grid, Magnet, Folder, File, Plus, Blocks, Code, Image, Sound,
+            Model, Scene, Prefab };
+} // namespace ui
+
+} // namespace aven::editor

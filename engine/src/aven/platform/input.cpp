@@ -92,6 +92,33 @@ void Input::releaseAll() {
     std::fill(std::begin(pad_), std::end(pad_), false);
 }
 
+void Input::mirror(const Input& src, Vec2 mouseOffset) {
+    keys_ = src.keys_;
+    prevKeys_ = src.prevKeys_;
+    mouse_ = src.mouse_;
+    prevMouse_ = src.prevMouse_;
+    std::copy(std::begin(src.pad_), std::end(src.pad_), std::begin(pad_));
+    std::copy(std::begin(src.prevPad_), std::end(src.prevPad_), std::begin(prevPad_));
+    std::copy(std::begin(src.padAxes_), std::end(src.padAxes_), std::begin(padAxes_));
+    padConnected_ = src.padConnected_;
+    mousePos_ = src.mousePos_ - mouseOffset;
+    prevMousePos_ = src.prevMousePos_ - mouseOffset;
+    scroll_ = src.scroll_;
+    typed_ = src.typed_;
+}
+
+void Input::reset() {
+    keys_.fill(false);
+    prevKeys_.fill(false);
+    mouse_.fill(false);
+    prevMouse_.fill(false);
+    std::fill(std::begin(pad_), std::end(pad_), false);
+    std::fill(std::begin(prevPad_), std::end(prevPad_), false);
+    scroll_ = {};
+    typed_.clear();
+    prevMousePos_ = mousePos_;
+}
+
 bool Input::keyDown(int key) const { return key >= 0 && key < keys::Count && keys_[static_cast<size_t>(key)]; }
 bool Input::keyPressed(int key) const {
     return key >= 0 && key < keys::Count && keys_[static_cast<size_t>(key)] && !prevKeys_[static_cast<size_t>(key)];
