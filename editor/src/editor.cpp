@@ -1207,20 +1207,20 @@ void Editor::openBlocks(const std::string& path) {
     tab->blocks->onConvertToCode = [this, raw]() {
         std::string code = raw->blocks->code();
         std::string base = stdfs::path(raw->path).stem().string();
-        std::string path = uniqueName("scripts", base, ".es");
-        fs::writeText(projectDir_ / path, "# Converted from " + raw->path + "\n" + code);
+        std::string newPath = uniqueName("scripts", base, ".es");
+        fs::writeText(projectDir_ / newPath, "# Converted from " + raw->path + "\n" + code);
         // Objects using the blocks switch to the new code.
         int switched = 0;
         recordUndo("Switch to code");
         scene_->registry().each<Script>([&](Entity, Script& s) {
             if (s.path == raw->path) {
-                s.path = path;
+                s.path = newPath;
                 ++switched;
             }
         });
         scanAssets();
-        openScript(path);
-        notify("Made " + path + (switched ? " and switched " + std::to_string(switched) + " object(s) to it." : "."));
+        openScript(newPath);
+        notify("Made " + newPath + (switched ? " and switched " + std::to_string(switched) + " object(s) to it." : "."));
     };
     tab->focus = true;
     tabs_.push_back(std::move(tab));

@@ -212,8 +212,8 @@ struct Physics2D::Impl {
             float angle = b2Rot_GetAngle(b2Body_GetRotation(body.id));
             Transform& t = scene.transform(e);
             if (scene.parent(e)) {
-                Vec3 world = scene.worldPosition(e);
-                scene.setWorldPosition(e, {p.x, p.y, world.z});
+                Vec3 worldPos = scene.worldPosition(e);
+                scene.setWorldPosition(e, {p.x, p.y, worldPos.z});
             } else {
                 t.position.x = p.x;
                 t.position.y = p.y;

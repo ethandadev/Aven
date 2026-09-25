@@ -519,7 +519,11 @@ void registerStdlib(VM& vm) {
     math1("atan", [](double x) { return std::atan(x) * 180.0 / 3.14159265358979323846; });
     math1("sign", [](double x) { return x > 0 ? 1.0 : x < 0 ? -1.0 : 0.0; });
     math1("exp", [](double x) { return std::exp(x); });
-    math1("log", [](double x) { return std::log(x); });
+    math1("log", [](double x) {
+        if (x <= 0)
+            raise("log() only works with numbers above 0.");
+        return std::log(x);
+    });
     math1("radians", [](double x) { return x * 3.14159265358979323846 / 180.0; });
     math1("degrees", [](double x) { return x * 180.0 / 3.14159265358979323846; });
 

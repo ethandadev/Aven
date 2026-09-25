@@ -45,7 +45,7 @@ void Editor::PixelDoc::resize(int frameW, int frameH, int frameCount) {
     px.assign(static_cast<size_t>(fw) * frames * fh, 0);
 }
 
-uint32_t& Editor::PixelDoc::at(int frame, int x, int y) { return px[static_cast<size_t>(y) * fw * frames + frame * fw + x]; }
+uint32_t& Editor::PixelDoc::at(int f, int x, int y) { return px[static_cast<size_t>(y) * fw * frames + f * fw + x]; }
 
 void Editor::openPixelEditor(const std::string& imagePath) {
     showPixelEditor_ = focusPixelEditor_ = true;

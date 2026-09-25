@@ -1196,10 +1196,10 @@ void Editor::drawAssets() {
             if (!entry.is_directory() && ImGui::MenuItem("Duplicate")) {
                 stdfs::path relPath(rel);
                 std::string copy = uniqueName(relPath.parent_path().generic_string(), relPath.stem().string() + "_copy", ext);
-                std::error_code ec;
-                stdfs::copy_file(projectDir_ / rel, projectDir_ / copy, ec);
-                if (ec)
-                    notify("Couldn't duplicate " + rel + ": " + ec.message(), true);
+                std::error_code copyError;
+                stdfs::copy_file(projectDir_ / rel, projectDir_ / copy, copyError);
+                if (copyError)
+                    notify("Couldn't duplicate " + rel + ": " + copyError.message(), true);
                 else
                     notify("Made " + copy);
                 scanAssets();

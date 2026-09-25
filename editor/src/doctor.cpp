@@ -314,11 +314,11 @@ std::vector<Editor::Diagnosis> Editor::diagnose(const std::string& message, cons
             d.explanation += " The closest one is '" + near + "'.";
             d.fixes.push_back({"Use " + near + " instead", [f, l, missing, near](Editor& ed) {
                                    ed.rewriteScriptLine(f, l, [&](const std::string& s) {
-                                       std::string out = s;
-                                       size_t p = out.find(missing);
+                                       std::string fixed = s;
+                                       size_t p = fixed.find(missing);
                                        if (p != std::string::npos)
-                                           out.replace(p, missing.size(), near);
-                                       return out;
+                                           fixed.replace(p, missing.size(), near);
+                                       return fixed;
                                    });
                                }});
         }
@@ -337,26 +337,26 @@ std::vector<Editor::Diagnosis> Editor::diagnose(const std::string& message, cons
             int l = line;
             d.fixes.push_back({"Read it with get_game(\"" + var + "\", 0), which gives 0 until it's set", [f, l, var](Editor& ed) {
                                    ed.rewriteScriptLine(f, l, [&](const std::string& s) {
-                                       std::string out = s;
+                                       std::string fixed = s;
                                        std::string from = "game." + var;
                                        std::string to = "get_game(\"" + var + "\", 0)";
                                        // Only replace reads: keep "game.x = ..." assignments.
-                                       size_t eq = out.find('=');
-                                       size_t first = out.find(from);
+                                       size_t eq = fixed.find('=');
+                                       size_t first = fixed.find(from);
                                        bool assignment = eq != std::string::npos && first != std::string::npos && first < eq &&
-                                                         (eq + 1 >= out.size() || out[eq + 1] != '=') &&
-                                                         out.find_first_not_of(" \t") == first;
-                                       if (assignment && out.find("+=") != std::string::npos) {
+                                                         (eq + 1 >= fixed.size() || fixed[eq + 1] != '=') &&
+                                                         fixed.find_first_not_of(" \t") == first;
+                                       if (assignment && fixed.find("+=") != std::string::npos) {
                                            // game.x += 1  ->  game.x = get_game("x", 0) + 1
-                                           size_t op = out.find("+=");
-                                           return out.substr(0, op) + "= " + to + " +" + out.substr(op + 2);
+                                           size_t op = fixed.find("+=");
+                                           return fixed.substr(0, op) + "= " + to + " +" + fixed.substr(op + 2);
                                        }
-                                       size_t pos = assignment ? out.find(from, eq) : 0;
-                                       while ((pos = out.find(from, pos)) != std::string::npos) {
-                                           out.replace(pos, from.size(), to);
+                                       size_t pos = assignment ? fixed.find(from, eq) : 0;
+                                       while ((pos = fixed.find(from, pos)) != std::string::npos) {
+                                           fixed.replace(pos, from.size(), to);
                                            pos += to.size();
                                        }
-                                       return out;
+                                       return fixed;
                                    });
                                }});
         }
@@ -394,11 +394,11 @@ std::vector<Editor::Diagnosis> Editor::diagnose(const std::string& message, cons
             int l = line;
             d.fixes.push_back({"Use \"" + sug + "\"", [f, l, key, sug](Editor& ed) {
                                    ed.rewriteScriptLine(f, l, [&](const std::string& s) {
-                                       std::string out = s;
-                                       size_t p = out.find("\"" + key + "\"");
+                                       std::string fixed = s;
+                                       size_t p = fixed.find("\"" + key + "\"");
                                        if (p != std::string::npos)
-                                           out.replace(p, key.size() + 2, "\"" + sug + "\"");
-                                       return out;
+                                           fixed.replace(p, key.size() + 2, "\"" + sug + "\"");
+                                       return fixed;
                                    });
                                }});
         }

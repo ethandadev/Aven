@@ -108,7 +108,7 @@ void Editor::drawSpriteSheet() {
             dl->AddRectFilled(a, b, ImGui::GetColorU32(ImGuiCol_SliderGrab, 0.25f));
         dl->AddRect(a, b, f == sr->frame ? ImGui::GetColorU32(ImGuiCol_SliderGrab) : IM_COL32(255, 255, 255, 60), 0, 0,
                     f == sr->frame ? 3.0f : 1.0f);
-        char n[8];
+        char n[16];
         std::snprintf(n, sizeof n, "%d", f);
         dl->AddText({a.x + 3, a.y + 2}, IM_COL32(255, 255, 255, 170), n);
     }

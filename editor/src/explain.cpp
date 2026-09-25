@@ -291,9 +291,9 @@ std::vector<Editor::ExplainSection> Editor::explainEntity(Entity e) {
                 native.lines.push_back("Its settings: " + props + ".");
             const AvenBehavior& cb = b->callbacks;
             std::string when;
-            auto add = [&](bool has, const char* what) {
+            auto add = [&](bool has, const char* label) {
                 if (has)
-                    when += (when.empty() ? "" : ", ") + std::string(what);
+                    when += (when.empty() ? "" : ", ") + std::string(label);
             };
             add(cb.on_start, "when the game starts");
             add(cb.on_update || cb.on_fixed_update, "every frame");
@@ -500,10 +500,10 @@ std::vector<Editor::ExplainSection> Editor::explainGame() {
     });
     for (auto& [m, who] : byMessage) {
         auto join = [](const std::set<std::string>& names) {
-            std::string out;
+            std::string list;
             for (auto& n : names)
-                out += (out.empty() ? "" : ", ") + n;
-            return out.empty() ? std::string("nobody") : out;
+                list += (list.empty() ? "" : ", ") + n;
+            return list.empty() ? std::string("nobody") : list;
         };
         messages.lines.push_back("\"" + m + "\": sent by " + join(who.first) + ", heard by " + join(who.second) + ".");
     }

@@ -178,6 +178,16 @@ AVEN_TEST(script_c_style_aliases) {
     CHECK_EQ(h.var(inst, "c").number(), 1.0);
 }
 
+AVEN_TEST(script_bools_compare_like_numbers) {
+    Harness h;
+    auto inst = h.load("eq = 1 == True\nne = 1 != True\nne0 = 0 != False\ncount = True + True\n");
+    CHECK(inst != nullptr);
+    CHECK(h.var(inst, "eq").boolean());
+    CHECK(!h.var(inst, "ne").boolean());
+    CHECK(!h.var(inst, "ne0").boolean());
+    CHECK_EQ(h.var(inst, "count").number(), 2.0);
+}
+
 AVEN_TEST(script_vectors_and_colors) {
     Harness h;
     auto inst = h.load(R"(

@@ -3,6 +3,7 @@
 #include "aven/script/errors.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>

@@ -1,6 +1,7 @@
 #include "aven/script/vm.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 
@@ -734,17 +735,14 @@ VM::Status VM::run(Task& task) {
             st.emplace_back(!a.truthy());
             break;
         }
-        case Op::Eq: {
-            Value b = pop();
-            Value a = pop();
-            st.emplace_back(a == b || (a.isNumber() && b.isBool() && a.number() == (b.boolean() ? 1 : 0)) ||
-                            (a.isBool() && b.isNumber() && b.number() == (a.boolean() ? 1 : 0)));
-            break;
-        }
+        case Op::Eq:
         case Op::NotEq: {
             Value b = pop();
             Value a = pop();
-            st.emplace_back(!(a == b));
+            // True/False equal 1/0, as in arithmetic, so `1 != True` is False.
+            bool same = a == b || (a.isNumber() && b.isBool() && a.number() == (b.boolean() ? 1 : 0)) ||
+                        (a.isBool() && b.isNumber() && b.number() == (a.boolean() ? 1 : 0));
+            st.emplace_back(in.op == Op::Eq ? same : !same);
             break;
         }
         case Op::Lt: {
@@ -962,6 +960,8 @@ Value VM::binary(Op op, const Value& a, const Value& b) {
     if (op == Op::Mul && ((a.isString() && b.isNumber()) || (a.isNumber() && b.isString()))) {
         const std::string& s = a.isString() ? a.string() : b.string();
         double n = a.isNumber() ? a.number() : b.number();
+        if (n * static_cast<double>(s.size()) > 10'000'000)
+            raise("That text would be over 10 million characters long. Is the number right?");
         std::string out;
         for (int i = 0; i < static_cast<int>(n); ++i)
             out += s;
@@ -975,6 +975,8 @@ Value VM::binary(Op op, const Value& a, const Value& b) {
     if (op == Op::Mul && ((a.isList() && b.isNumber()) || (a.isNumber() && b.isList()))) {
         const auto& src = a.isList() ? a.listObj().items : b.listObj().items;
         double n = a.isNumber() ? a.number() : b.number();
+        if (n * static_cast<double>(src.size()) > 10'000'000)
+            raise("That list would have over 10 million items. Is the number right?");
         std::vector<Value> items;
         for (int i = 0; i < static_cast<int>(n); ++i)
             items.insert(items.end(), src.begin(), src.end());
