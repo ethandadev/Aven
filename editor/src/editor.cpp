@@ -97,20 +97,7 @@ bool Editor::init(const EditorOptions& options) {
         }
         if (!options.select.empty())
             select(scene_->findByName(options.select));
-        if (options.openPanel == "settings")
-            showSettings_ = true;
-        if (options.openPanel == "reference")
-            showReference_ = true;
-        if (options.openPanel == "prefs")
-            showPrefs_ = true;
-        if (options.openPanel.rfind("prefs:", 0) == 0) {
-            showPrefs_ = true;
-            prefsSection_ = options.openPanel.substr(6);
-        }
-        if (options.openPanel == "levels")
-            showLevels_ = true;
-        if (options.openPanel == "levelup")
-            levelUpTo_ = std::min(4, prefs.level + 1);
+        openPanels(options.openPanel);
         if (options.play) {
             for (auto& t : tabs_)
                 t->focus = false;
@@ -119,6 +106,8 @@ bool Editor::init(const EditorOptions& options) {
     }
     if (options.openPanel == "hub")
         showHub_ = true;
+    if (!hasProject())
+        openPanels(options.openPanel);
     return true;
 }
 
@@ -196,6 +185,35 @@ void Editor::autosave(float dt) {
         refreshTitle();
     }
     notify("Autosaved.");
+}
+
+// For automated screenshots and quick starts: --panel prefs,profiler,history...
+void Editor::openPanels(const std::string& list) {
+    size_t start = 0;
+    while (start < list.size()) {
+        size_t comma = list.find(',', start);
+        std::string p = list.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+        start = comma == std::string::npos ? list.size() : comma + 1;
+        if (p == "settings") showSettings_ = true;
+        else if (p == "reference") showReference_ = true;
+        else if (p == "prefs") showPrefs_ = true;
+        else if (p.rfind("prefs:", 0) == 0) { showPrefs_ = true; prefsSection_ = p.substr(6); }
+        else if (p == "levels") showLevels_ = true;
+        else if (p == "levelup") levelUpTo_ = std::min(4, prefs.level + 1);
+        else if (p == "history") showHistory_ = true;
+        else if (p == "profiler") showProfiler_ = true;
+        else if (p == "find") showFind_ = true;
+        else if (p.rfind("find:", 0) == 0) { showFind_ = true; findQuery_ = p.substr(5); runFind(); }
+        else if (p == "lighting") showLighting_ = true;
+        else if (p == "palette") showPalette_ = true;
+        else if (p == "stats") showStats_ = true;
+        else if (p == "export") showExport_ = true;
+        else if (p == "learn") showLearn_ = true;
+        else if (p.rfind("prefab:", 0) == 0) openPrefab(p.substr(7));
+        else if (p.rfind("aspect:", 0) == 0) gameAspect_ = std::atoi(p.substr(7).c_str());
+        else if (p.rfind("layout:", 0) == 0) prefs.layout = p.substr(7);
+        else if (!p.empty()) extraPanels_.push_back(p);
+    }
 }
 
 void Editor::refreshTitle() {
@@ -402,6 +420,17 @@ bool Editor::openScene(const std::string& path) {
 bool Editor::saveScene() {
     if (!hasProject())
         return false;
+    if (editingPrefab()) {
+        Json data = scene_->saveEntities(scene_->roots());
+        if (!fs::writeText(projectDir_ / prefabPath_, data.dump(2) + "\n")) {
+            notify("Couldn't save the prefab.", true);
+            return false;
+        }
+        dirty_ = false;
+        refreshTitle();
+        notify("Saved prefab " + prefabPath_);
+        return true;
+    }
     if (scenePath_.empty())
         scenePath_ = uniqueName("scenes", "scene", ".scene");
     if (!fs::writeText(projectDir_ / scenePath_, scene_->save().dump(2) + "\n")) {
@@ -606,6 +635,10 @@ void Editor::play() {
 void Editor::stop() {
     if (!playing_)
         return;
+    if (!liveChanges_.empty()) {
+        pendingKeep_ = collectLiveChanges();
+        liveChanges_.clear();
+    }
     game_->stop();
     game_.reset();
     playing_ = false;
@@ -703,6 +736,189 @@ Entity Editor::instantiatePrefab(const std::string& path, Vec3 position) {
     scene_->setWorldPosition(roots[0], position);
     select(roots[0]);
     return roots[0];
+}
+
+void Editor::copySelection(bool cut) {
+    auto sel = selectedEntities();
+    if (sel.empty())
+        return;
+    clipboard_ = scene_->saveEntities(sel);
+    clipboard_["aven"] = "objects";
+    ImGui::SetClipboardText(clipboard_.dump(2).c_str());
+    if (cut) {
+        recordUndo("Cut");
+        for (Entity e : sel)
+            if (scene_->valid(e))
+                scene_->destroy(e);
+        selection_.clear();
+    }
+    notify(std::to_string(sel.size()) + (sel.size() == 1 ? " object " : " objects ") + (cut ? "cut." : "copied."));
+}
+
+void Editor::pasteClipboard() {
+    // Objects copied in another project (or another Aven window) arrive through the system clipboard.
+    if (const char* text = ImGui::GetClipboardText()) {
+        std::string error;
+        Json j = Json::parse(text, &error);
+        if (error.empty() && j["aven"].asString() == "objects")
+            clipboard_ = j;
+    }
+    if (clipboard_.isNull())
+        return;
+    recordUndo("Paste");
+    Entity parent;
+    auto roots = scene_->instantiate(clipboard_, parent);
+    selection_.clear();
+    for (Entity e : roots) {
+        // Nudge copies so they don't sit exactly on top of the originals.
+        Vec3 p = scene_->worldPosition(e);
+        scene_->setWorldPosition(e, view3D_ ? p + Vec3{0.5f, 0, 0.5f} : p + Vec3{0.5f, -0.5f, 0});
+        addToSelection(e);
+    }
+    notify("Pasted " + std::to_string(roots.size()) + (roots.size() == 1 ? " object." : " objects."));
+}
+
+void Editor::openPrefab(const std::string& path) {
+    if (playing_)
+        stop();
+    if (editingPrefab())
+        closePrefab(true);
+    auto text = fs::readText(projectDir_ / path);
+    if (!text) {
+        notify("Couldn't open " + path, true);
+        return;
+    }
+    prefabReturnScene_ = scene_->save();
+    prefabReturnPath_ = scenePath_;
+    prefabReturnDirty_ = dirty_;
+    auto s = std::make_unique<Scene>();
+    s->name = stdfs::path(path).stem().string();
+    s->instantiate(Json::parse(*text));
+    scene_ = std::move(s);
+    scenePath_ = path;
+    prefabPath_ = path;
+    dirty_ = false;
+    undo_.clear();
+    redo_.clear();
+    snapshotValid_ = false;
+    selection_.clear();
+    view3D_ = scene_->registry().count<MeshRenderer>() > 0;
+    if (!scene_->roots().empty()) {
+        select(scene_->roots().front());
+        focusSelected();
+    }
+    refreshTitle();
+    notify("Editing prefab " + path + ". Changes apply to every copy.");
+}
+
+void Editor::closePrefab(bool save) {
+    if (!editingPrefab())
+        return;
+    if (save && dirty_)
+        saveScene();
+    std::string path = prefabPath_;
+    prefabPath_.clear();
+    auto s = std::make_unique<Scene>();
+    s->load(prefabReturnScene_);
+    scene_ = std::move(s);
+    scenePath_ = prefabReturnPath_;
+    dirty_ = prefabReturnDirty_;
+    undo_.clear();
+    redo_.clear();
+    snapshotValid_ = false;
+    selection_.clear();
+    Entity cam = SceneRenderer::findCamera(*scene_);
+    view3D_ = scene_->registry().count<MeshRenderer>() > 0 ||
+              (cam && scene_->registry().get<Camera>(cam).projection == Projection::Perspective);
+    // Copies of the prefab in this scene pick up the changes.
+    if (save) {
+        std::vector<Entity> instances;
+        scene_->registry().each<PrefabInstance>([&](Entity e, PrefabInstance& pi) {
+            if (pi.path == path)
+                instances.push_back(e);
+        });
+        for (Entity e : instances)
+            revertToPrefab(e);
+        if (!instances.empty()) {
+            dirty_ = true;
+            notify("Updated " + std::to_string(instances.size()) + " copies of " + path + ".");
+        }
+    }
+    selection_.clear();
+    refreshTitle();
+}
+
+void Editor::applyToPrefab(Entity instance) {
+    auto* pi = scene_->registry().tryGet<PrefabInstance>(instance);
+    if (!pi)
+        return;
+    std::string path = pi->path;
+    Json data = scene_->saveEntities({instance});
+    if (data["entities"].size()) {
+        auto& t = data["entities"][0]["components"]["Transform"];
+        t["position"] = Json::parse("[0, 0, 0]");
+        data["entities"][0]["components"].erase("PrefabInstance");
+    }
+    fs::writeText(projectDir_ / path, data.dump(2) + "\n");
+    recordUndo("Apply to prefab");
+    std::vector<Entity> others;
+    UUID self = scene_->info(instance).uuid;
+    scene_->registry().each<PrefabInstance>([&](Entity e, PrefabInstance& p) {
+        if (p.path == path && scene_->info(e).uuid != self)
+            others.push_back(e);
+    });
+    for (Entity e : others)
+        revertToPrefab(e);
+    notify("Saved to " + path + (others.empty() ? "." : " and updated " + std::to_string(others.size()) + " other copies."));
+}
+
+void Editor::revertToPrefab(Entity instance) {
+    auto* pi = scene_->registry().tryGet<PrefabInstance>(instance);
+    if (!pi)
+        return;
+    std::string path = pi->path;
+    auto text = fs::readText(projectDir_ / path);
+    if (!text)
+        return;
+    Transform keep = scene_->transform(instance);
+    std::string name = scene_->info(instance).name;
+    Entity parent = scene_->parent(instance);
+    int index = scene_->siblingIndex(instance);
+    bool wasSelected = isSelected(instance);
+    scene_->destroy(instance);
+    auto roots = scene_->instantiate(Json::parse(*text), parent);
+    if (roots.empty())
+        return;
+    Entity e = roots[0];
+    scene_->setParent(e, parent, false, index);
+    Transform& t = scene_->transform(e);
+    t.position = keep.position;
+    t.rotation = keep.rotation;
+    t.scale = keep.scale;
+    scene_->info(e).name = name;
+    scene_->registry().getOrEmplace<PrefabInstance>(e).path = path;
+    if (wasSelected)
+        addToSelection(e);
+}
+
+void Editor::drawPrefabBar() {
+    if (!editingPrefab())
+        return;
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(40, 110, 90, 255));
+    ImGui::BeginChild("##prefabbar", {0, ImGui::GetFrameHeight() + 10}, ImGuiChildFlags_AlwaysUseWindowPadding,
+                      ImGuiWindowFlags_NoScrollbar);
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextColored({1, 1, 1, 1}, "Editing prefab: %s", prefabPath_.c_str());
+    ImGui::SameLine();
+    ImGui::TextColored({0.8f, 1, 0.9f, 0.8f}, "(every copy changes too)");
+    ImGui::SameLine(ImGui::GetWindowWidth() - 280);
+    if (ImGui::Button("Save", {80, 0}))
+        saveScene();
+    ImGui::SameLine();
+    if (ImGui::Button("Save and go back", {170, 0}))
+        closePrefab(true);
+    ImGui::EndChild();
+    ImGui::PopStyleColor();
 }
 
 void Editor::savePrefab(Entity e) {
@@ -1054,12 +1270,23 @@ void Editor::frame(float dt) {
             drawReference();
         if (showExport_)
             drawExport();
+        if (showHistory_)
+            drawHistory();
+        recordProfile();
+        if (showProfiler_)
+            drawProfiler();
+        if (showFind_)
+            drawFind();
+        if (showLighting_)
+            drawLighting();
+        drawCommandPalette();
         handleShortcuts();
     }
     if (showPrefs_)
         drawPreferences();
     if (showLevels_ || levelUpTo_)
         drawLevels();
+    drawKeepChangesDialog();
     drawNotification(dt);
     drawQuitDialog();
 

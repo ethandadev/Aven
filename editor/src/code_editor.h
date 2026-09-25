@@ -33,6 +33,8 @@ public:
     bool draw(const char* id, ImVec2 size);
     void setError(int line, const std::string& message); // line 0 clears
     void gotoLine(int line);
+    void openFind(bool replace); // Ctrl+F / Ctrl+H
+    void openGoto();             // Ctrl+G
     bool readOnly = false;
     static CodePalette palette; // shared by every code view
     ImFont* font = nullptr;
@@ -67,6 +69,11 @@ private:
     int completionIndex_ = 0;
     std::vector<const Completion*> matches_;
     float charWidth_ = 8, lineHeight_ = 16;
+    bool findOpen_ = false, replaceOpen_ = false, gotoOpen_ = false, findFocus_ = false, findCase_ = false;
+    std::string findText_, replaceText_, gotoText_;
+    bool drawFindBar(); // returns true when the text changed (replace)
+    bool findNext(bool backwards);
+    bool matchesAt(const std::string& line, size_t col) const;
 
     bool hasSelection() const { return cursor_ != anchor_; }
     Pos selStart() const { return cursor_ < anchor_ ? cursor_ : anchor_; }

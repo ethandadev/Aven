@@ -282,7 +282,7 @@ void applyStyle(const Prefs& prefs, float dpiScale) {
     c[ImGuiCol_WindowBg] = panel;
     c[ImGuiCol_ChildBg] = {0, 0, 0, 0};
     c[ImGuiCol_PopupBg] = lerp4(panel, t.light ? white : bg, 0.3f);
-    c[ImGuiCol_PopupBg].w = 0.98f;
+    c[ImGuiCol_PopupBg].w = 1.0f;
     c[ImGuiCol_Border] = border;
     c[ImGuiCol_BorderShadow] = {0, 0, 0, 0};
     c[ImGuiCol_FrameBg] = frame;

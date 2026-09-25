@@ -1,9 +1,12 @@
 #include "code_editor.h"
 
+#include <imgui_stdlib.h>
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 namespace aven::editor {
@@ -386,6 +389,23 @@ void CodeEditor::handleKeys(bool& changed) {
         }
     }
 
+    if (ctrl && pressed(ImGuiKey_F)) {
+        openFind(false);
+        return;
+    }
+    if (ctrl && pressed(ImGuiKey_H)) {
+        openFind(true);
+        return;
+    }
+    if (ctrl && pressed(ImGuiKey_G)) {
+        openGoto();
+        return;
+    }
+    if (pressed(ImGuiKey_F3)) {
+        findNext(shift);
+        return;
+    }
+
     Pos p = cursor_;
     if (pressed(ImGuiKey_LeftArrow)) {
         if (hasSelection() && !shift)
@@ -680,8 +700,169 @@ void CodeEditor::drawLine(ImDrawList* dl, int index, ImVec2 pos, bool& inTriple)
     }
 }
 
+void CodeEditor::openFind(bool replace) {
+    findOpen_ = true;
+    replaceOpen_ = replace;
+    gotoOpen_ = false;
+    findFocus_ = true;
+    if (hasSelection() && selStart().line == selEnd().line)
+        findText_ = selectedText();
+}
+
+void CodeEditor::openGoto() {
+    gotoOpen_ = true;
+    findOpen_ = false;
+    findFocus_ = true;
+    gotoText_.clear();
+}
+
+bool CodeEditor::matchesAt(const std::string& line, size_t col) const {
+    if (findText_.empty() || col + findText_.size() > line.size())
+        return false;
+    for (size_t i = 0; i < findText_.size(); ++i) {
+        char a = line[col + i], b = findText_[i];
+        if (!findCase_) {
+            a = static_cast<char>(std::tolower(static_cast<unsigned char>(a)));
+            b = static_cast<char>(std::tolower(static_cast<unsigned char>(b)));
+        }
+        if (a != b)
+            return false;
+    }
+    return true;
+}
+
+bool CodeEditor::findNext(bool backwards) {
+    if (findText_.empty())
+        return false;
+    int n = static_cast<int>(lines_.size());
+    Pos from = backwards ? selStart() : selEnd();
+    for (int step = 0; step <= n; ++step) {
+        int l = backwards ? ((from.line - step) % n + n) % n : (from.line + step) % n;
+        const std::string& line = lines_[static_cast<size_t>(l)];
+        if (!backwards) {
+            size_t start = step == 0 ? static_cast<size_t>(from.col) : 0;
+            for (size_t c = start; c + findText_.size() <= line.size(); ++c)
+                if (matchesAt(line, c)) {
+                    anchor_ = {l, static_cast<int>(c)};
+                    cursor_ = {l, static_cast<int>(c + findText_.size())};
+                    scrollToCursor_ = true;
+                    return true;
+                }
+        } else {
+            int end = step == 0 ? from.col - 1 : static_cast<int>(line.size());
+            for (int c = std::min(end, static_cast<int>(line.size()) - 1); c >= 0; --c)
+                if (matchesAt(line, static_cast<size_t>(c))) {
+                    anchor_ = {l, c};
+                    cursor_ = {l, c + static_cast<int>(findText_.size())};
+                    scrollToCursor_ = true;
+                    return true;
+                }
+        }
+    }
+    return false;
+}
+
+bool CodeEditor::drawFindBar() {
+    bool changed = false;
+    if (!findOpen_ && !gotoOpen_)
+        return false;
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {6, 3});
+    if (gotoOpen_) {
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("Go to line");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(100);
+        if (findFocus_) {
+            ImGui::SetKeyboardFocusHere();
+            findFocus_ = false;
+        }
+        if (ImGui::InputText("##goto", &gotoText_, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsDecimal)) {
+            gotoLine(std::atoi(gotoText_.c_str()));
+            gotoOpen_ = false;
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("of %d", static_cast<int>(lines_.size()));
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape))
+            gotoOpen_ = false;
+        ImGui::PopStyleVar();
+        return false;
+    }
+    int count = 0;
+    for (auto& line : lines_)
+        for (size_t c = 0; c + findText_.size() <= line.size() && !findText_.empty(); ++c)
+            if (matchesAt(line, c))
+                ++count;
+    ImGui::SetNextItemWidth(220);
+    if (findFocus_) {
+        ImGui::SetKeyboardFocusHere();
+        findFocus_ = false;
+    }
+    if (ImGui::InputTextWithHint("##find", "Find", &findText_, ImGuiInputTextFlags_EnterReturnsTrue))
+        findNext(ImGui::GetIO().KeyShift), findFocus_ = true;
+    ImGui::SameLine();
+    ImGui::TextDisabled("%d found", count);
+    ImGui::SameLine();
+    if (ImGui::SmallButton("<"))
+        findNext(true);
+    ImGui::SameLine();
+    if (ImGui::SmallButton(">"))
+        findNext(false);
+    ImGui::SameLine();
+    ImGui::Checkbox("Aa", &findCase_);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Match upper and lower case");
+    ImGui::SameLine();
+    if (!readOnly && ImGui::SmallButton(replaceOpen_ ? "Hide replace" : "Replace..."))
+        replaceOpen_ = !replaceOpen_;
+    ImGui::SameLine();
+    if (ImGui::SmallButton("x"))
+        findOpen_ = false;
+    if (replaceOpen_ && !readOnly) {
+        ImGui::SetNextItemWidth(220);
+        ImGui::InputTextWithHint("##replace", "Replace with", &replaceText_);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Replace")) {
+            if (hasSelection() && selStart().line == selEnd().line &&
+                matchesAt(lines_[static_cast<size_t>(selStart().line)], static_cast<size_t>(selStart().col))) {
+                pushUndo();
+                deleteSelection();
+                insert(replaceText_);
+                changed = true;
+            }
+            findNext(false);
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Replace all") && !findText_.empty()) {
+            pushUndo();
+            for (auto& line : lines_) {
+                std::string out;
+                for (size_t c = 0; c < line.size();) {
+                    if (matchesAt(line, c)) {
+                        out += replaceText_;
+                        c += findText_.size();
+                    } else {
+                        out += line[c++];
+                    }
+                }
+                line = out;
+            }
+            cursor_ = anchor_ = clamp(cursor_);
+            changed = true;
+        }
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape) && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
+        findOpen_ = false;
+    ImGui::PopStyleVar();
+    return changed;
+}
+
 bool CodeEditor::draw(const char* id, ImVec2 size) {
     bool changed = false;
+    if (findOpen_ || gotoOpen_) {
+        float before = ImGui::GetCursorPosY();
+        changed |= drawFindBar();
+        size.y -= ImGui::GetCursorPosY() - before;
+    }
     ImFont* f = font ? font : ImGui::GetFont();
     ImGui::PushFont(f);
     charWidth_ = f->CalcTextSizeA(f->FontSize, FLT_MAX, 0, "M").x;
@@ -768,6 +949,14 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
         if (l + 1 == errorLine_) {
             dl->AddRectFilled({winPos.x, y}, {winPos.x + winW, y + lineHeight_}, IM_COL32(224, 70, 70, 55));
             dl->AddCircleFilled({origin.x + 6, y + lineHeight_ * 0.5f}, 4, IM_COL32(240, 80, 80, 255));
+        }
+        if (findOpen_ && !findText_.empty()) {
+            const std::string& line = lines_[static_cast<size_t>(l)];
+            for (size_t c = 0; c + findText_.size() <= line.size(); ++c)
+                if (matchesAt(line, c))
+                    dl->AddRect({origin.x + gutter + columnX(l, static_cast<int>(c)), y},
+                                {origin.x + gutter + columnX(l, static_cast<int>(c + findText_.size())), y + lineHeight_},
+                                IM_COL32(250, 200, 60, 200), 2);
         }
         if (hasSelection() && l >= a.line && l <= b.line) {
             float x0 = l == a.line ? columnX(l, a.col) : 0;

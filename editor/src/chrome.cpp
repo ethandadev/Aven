@@ -156,6 +156,12 @@ void Editor::drawMenuBar() {
         if (ImGui::MenuItem("Redo", key("redo"), false, !redo_.empty() && !playing_))
             redo();
         ImGui::Separator();
+        if (ImGui::MenuItem("Cut", key("cut"), false, sel && !playing_))
+            copySelection(true);
+        if (ImGui::MenuItem("Copy", key("copy"), false, sel && !playing_))
+            copySelection(false);
+        if (ImGui::MenuItem("Paste", key("paste"), false, !playing_))
+            pasteClipboard();
         if (ImGui::MenuItem("Duplicate", key("duplicate"), false, sel && !playing_)) {
             recordUndo("Duplicate");
             select(scene_->duplicate(sel));
@@ -174,6 +180,15 @@ void Editor::drawMenuBar() {
         }
         if (ImGui::MenuItem("Select None", nullptr, false, !selection_.empty()))
             selection_.clear();
+        ImGui::Separator();
+        if (unlocked(Feature::History) && ImGui::MenuItem("Undo History"))
+            showHistory_ = true;
+        if (unlocked(Feature::Find) && ImGui::MenuItem("Find in Project...", key("find"))) {
+            showFind_ = true;
+            findFocus_ = true;
+        }
+        if (unlocked(Feature::CommandPalette) && ImGui::MenuItem("Command Palette...", key("command_palette")))
+            showPalette_ = true;
         ImGui::Separator();
         if (ImGui::MenuItem("Preferences...", key("preferences")))
             showPrefs_ = true;
@@ -226,6 +241,12 @@ void Editor::drawMenuBar() {
             ImGui::MenuItem("Console", nullptr, &showConsole_);
         ImGui::MenuItem("Learn (tutorial)", nullptr, &showLearn_, !tutorial_.isNull());
         ImGui::MenuItem("Scripting Reference", nullptr, &showReference_);
+        if (unlocked(Feature::History))
+            ImGui::MenuItem("Undo History", nullptr, &showHistory_);
+        if (unlocked(Feature::Profiler))
+            ImGui::MenuItem("Profiler", nullptr, &showProfiler_);
+        if (unlocked(Feature::Lighting))
+            ImGui::MenuItem("Lighting Presets", nullptr, &showLighting_);
         ImGui::Separator();
         if (ImGui::BeginMenu("Layout")) {
             for (const char* l : kLayouts)
@@ -458,6 +479,12 @@ void Editor::handleShortcuts() {
     }
     if (shortcut("preferences"))
         showPrefs_ = !showPrefs_;
+    if (shortcut("command_palette") && unlocked(Feature::CommandPalette))
+        showPalette_ = true;
+    if (shortcut("find") && unlocked(Feature::Find)) {
+        showFind_ = true;
+        findFocus_ = true;
+    }
     if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Q))
         requestQuit();
     if (ImGui::GetIO().WantTextInput)
@@ -488,6 +515,12 @@ void Editor::handleShortcuts() {
                 scene_->destroy(e);
         selection_.clear();
     }
+    if (sceneFocus && shortcut("copy"))
+        copySelection(false);
+    if (sceneFocus && shortcut("cut"))
+        copySelection(true);
+    if (sceneFocus && shortcut("paste"))
+        pasteClipboard();
     if (sceneFocus && shortcut("select_all")) {
         selection_.clear();
         for (Entity e : scene_->roots())

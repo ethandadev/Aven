@@ -5,6 +5,8 @@
 #include "aven/runtime/script_system.h"
 #include "aven/runtime/systems.h"
 
+#include <chrono>
+
 namespace aven {
 
 Game::Game(Assets& assets, Input& input)
@@ -99,27 +101,53 @@ void Game::update(float dt) {
     float scaled = paused_ ? 0.0f : dt * timeScale;
     time_ += scaled;
 
+    using Clock = std::chrono::steady_clock;
+    auto ms = [](Clock::time_point a, Clock::time_point b) {
+        return std::chrono::duration<float, std::milli>(b - a).count();
+    };
+    GameProfile prof;
+    auto t0 = Clock::now();
     gameplay_->preUpdate(dt);
+    auto t1 = Clock::now();
     scripts_->update(scaled);
+    auto t2 = Clock::now();
     physics3D_->updateCharacters(scaled);
+    auto t3 = Clock::now();
+    prof.gameplay += ms(t0, t1);
+    prof.scripts += ms(t1, t2);
+    prof.physics += ms(t2, t3);
 
     const float fixedStep = 1.0f / 60.0f;
     fixedAccumulator_ += scaled;
     int steps = 0;
     while (fixedAccumulator_ >= fixedStep && steps < 5) {
+        auto a = Clock::now();
         scripts_->fixedUpdate(fixedStep);
+        auto b = Clock::now();
         physics2D_->step(fixedStep);
         physics3D_->step(fixedStep);
+        auto c = Clock::now();
+        prof.scripts += ms(a, b);
+        prof.physics += ms(b, c);
         fixedAccumulator_ -= fixedStep;
         ++steps;
     }
     if (steps == 5)
         fixedAccumulator_ = 0; // the game fell behind; don't try to catch up forever
 
+    auto t4 = Clock::now();
     gameplay_->update(scaled);
+    auto t5 = Clock::now();
     audio_->update(dt);
+    auto t6 = Clock::now();
     scene_->flushDestroyed();
     scene_->updateTransforms();
+    auto t7 = Clock::now();
+    prof.gameplay += ms(t4, t5) + ms(t6, t7);
+    prof.audio = ms(t5, t6);
+    prof.total = ms(t0, t7);
+    prof.fixedSteps = steps;
+    profile_ = prof;
 }
 
 CameraView Game::camera(float aspect) const {

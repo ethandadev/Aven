@@ -17,6 +17,12 @@ class ScriptSystem;
 class Physics2D;
 class Physics3D;
 class AudioSystem;
+// Where the time of the last update went, in milliseconds (shown by the editor's profiler).
+struct GameProfile {
+    float scripts = 0, physics = 0, gameplay = 0, audio = 0, total = 0;
+    int fixedSteps = 0;
+};
+
 class GameplaySystems;
 
 // Runs a game: owns the current scene and every system that makes it move
@@ -55,6 +61,7 @@ public:
 
     ScriptSystem& scripts() { return *scripts_; }
     Physics2D& physics2D() { return *physics2D_; }
+    const GameProfile& profile() const { return profile_; }
     Physics3D& physics3D() { return *physics3D_; }
     AudioSystem& audio() { return *audio_; }
     GameplaySystems& gameplay() { return *gameplay_; }
@@ -77,6 +84,7 @@ public:
     Entity spawnPrefab(const std::string& path, Vec3 position, Entity parent = {});
 
 private:
+    GameProfile profile_;
     Assets& assets_;
     Input& input_;
     ProjectSettings settings_;

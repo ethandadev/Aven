@@ -23,6 +23,14 @@ namespace aven::editor {
 
 namespace ui {
 
+void placeWindow(ImVec2 size, ImVec2 where) {
+    // First time a tool window opens: its size and a spot on screen (fractions of the window).
+    ImGuiViewport* vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowSize(size, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos({vp->Pos.x + vp->Size.x * where.x, vp->Pos.y + vp->Size.y * where.y}, ImGuiCond_FirstUseEver,
+                            {0.5f, 0.5f});
+}
+
 void panelClass() {
     // Docked panels close from their tab; hide the extra close button on the dock node.
     ImGuiWindowClass wc;
@@ -154,6 +162,20 @@ std::vector<std::string> extensionsFor(AssetKind kind) {
     }
 }
 
+// Stripe color for component headers.
+ImU32 categoryColor(const std::string& category) {
+    if (category == "Basics") return IM_COL32(148, 163, 184, 255);
+    if (category == "Rendering" || category == "Rendering 2D" || category == "Rendering 3D") return IM_COL32(96, 165, 250, 255);
+    if (category == "Scripting") return IM_COL32(251, 146, 60, 255);
+    if (category == "Physics 2D" || category == "Physics 3D") return IM_COL32(74, 222, 128, 255);
+    if (category == "Audio") return IM_COL32(232, 121, 249, 255);
+    if (category == "Effects") return IM_COL32(250, 204, 21, 255);
+    if (category == "UI") return IM_COL32(45, 212, 191, 255);
+    if (category == "Behaviors") return IM_COL32(244, 114, 182, 255);
+    if (category == "Gameplay") return IM_COL32(167, 139, 250, 255);
+    return IM_COL32(148, 163, 184, 255);
+}
+
 // Colored dot shown next to objects in the hierarchy.
 ImU32 entityColor(Registry& reg, Entity e) {
     if (reg.has<Camera>(e)) return IM_COL32(120, 190, 255, 255);
@@ -185,10 +207,11 @@ void Editor::drawEntityNode(Entity e) {
         std::transform(b.begin(), b.end(), b.begin(), ::tolower);
         matches = a.find(b) != std::string::npos;
     }
-    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth |
+                               ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_AllowOverlap;
     if (kids.empty())
         flags |= ImGuiTreeNodeFlags_Leaf;
-    if (selected() == e)
+    if (isSelected(e))
         flags |= ImGuiTreeNodeFlags_Selected;
     if (!filter.empty())
         flags |= ImGuiTreeNodeFlags_DefaultOpen;
@@ -197,29 +220,78 @@ void Editor::drawEntityNode(Entity e) {
     if (dim)
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     bool open = true;
-    if (matches || !filter.empty()) {
+    bool shown = matches || !filter.empty();
+    if (shown) {
+        hierarchyOrder_.push_back(info.uuid);
         ImVec2 p = ImGui::GetCursorScreenPos();
-        open = ImGui::TreeNodeEx("##node", flags, "     %s", info.name.c_str());
+        bool renaming = renaming_ == info.uuid;
+        open = ImGui::TreeNodeEx("##node", flags, "     %s", renaming ? "" : info.name.c_str());
+        ImVec2 rowMin = ImGui::GetItemRectMin(), rowMax = ImGui::GetItemRectMax();
         float h = ImGui::GetFrameHeight();
         ImGui::GetWindowDrawList()->AddCircleFilled({p.x + ImGui::GetTreeNodeToLabelSpacing() + 6, p.y + h * 0.5f}, 4.5f,
                                                     entityColor(reg, e));
-        if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
-            select(e);
+        if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
+            ImGuiIO& io = ImGui::GetIO();
+            if (io.KeyCtrl) {
+                toggleSelection(e);
+            } else if (io.KeyShift && hierarchyAnchor_) {
+                // Select every visible row between the anchor and this one.
+                auto a = std::find(lastHierarchyOrder_.begin(), lastHierarchyOrder_.end(), hierarchyAnchor_);
+                auto b = std::find(lastHierarchyOrder_.begin(), lastHierarchyOrder_.end(), info.uuid);
+                if (a != lastHierarchyOrder_.end() && b != lastHierarchyOrder_.end()) {
+                    if (a > b)
+                        std::swap(a, b);
+                    selection_.assign(a, b + 1);
+                    std::erase(selection_, info.uuid);
+                    selection_.push_back(info.uuid);
+                }
+            } else {
+                select(e);
+            }
+            if (!io.KeyShift)
+                hierarchyAnchor_ = info.uuid;
+        }
         if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
             focusSelected();
         if (!playing_) {
             if (ImGui::BeginDragDropSource()) {
                 uint64_t id = info.uuid.value;
                 ImGui::SetDragDropPayload("ENTITY", &id, sizeof id);
-                ImGui::Text("%s", info.name.c_str());
+                auto sel = selectedEntities();
+                if (isSelected(e) && sel.size() > 1)
+                    ImGui::Text("%d objects", static_cast<int>(sel.size()));
+                else
+                    ImGui::Text("%s", info.name.c_str());
                 ImGui::EndDragDropSource();
             }
             if (ImGui::BeginDragDropTarget()) {
-                if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("ENTITY")) {
+                // Top quarter: put before, bottom quarter: put after, middle: make it a child.
+                float my = ImGui::GetMousePos().y, rh = rowMax.y - rowMin.y;
+                int zone = my < rowMin.y + rh * 0.25f ? -1 : my > rowMax.y - rh * 0.25f ? 1 : 0;
+                ImDrawList* fg = ImGui::GetForegroundDrawList();
+                ImU32 accent = ImGui::GetColorU32(ImGuiCol_DragDropTarget);
+                if (zone == -1)
+                    fg->AddLine({rowMin.x, rowMin.y}, {rowMax.x, rowMin.y}, accent, 2.5f);
+                else if (zone == 1)
+                    fg->AddLine({rowMin.x, rowMax.y}, {rowMax.x, rowMax.y}, accent, 2.5f);
+                else
+                    fg->AddRect(rowMin, rowMax, accent, 3, 0, 2);
+                if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("ENTITY", ImGuiDragDropFlags_AcceptNoDrawDefaultRect)) {
                     Entity dragged = s.findByUUID({*static_cast<const uint64_t*>(pl->Data)});
-                    if (dragged && dragged != e && !s.isAncestor(dragged, e)) {
-                        recordUndo("Change parent");
-                        s.setParent(dragged, e);
+                    std::vector<Entity> moving = isSelected(dragged) ? selectedEntities() : std::vector<Entity>{dragged};
+                    recordUndo(zone == 0 ? "Change parent" : "Reorder");
+                    for (Entity m : moving) {
+                        if (!m || m == e || s.isAncestor(m, e))
+                            continue;
+                        if (zone == 0) {
+                            s.setParent(m, e);
+                        } else {
+                            Entity parent = s.parent(e);
+                            int index = s.siblingIndex(e) + (zone == 1 ? 1 : 0);
+                            if (s.parent(m) == parent && s.siblingIndex(m) < index)
+                                --index;
+                            s.setParent(m, parent, true, index);
+                        }
                     }
                 }
                 if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("ASSET_PATH")) {
@@ -230,24 +302,84 @@ void Editor::drawEntityNode(Entity e) {
                 }
                 ImGui::EndDragDropTarget();
             }
-            if (ImGui::BeginPopupContextItem()) {
-                select(e);
-                if (ImGui::MenuItem("Duplicate", "Ctrl+D")) {
-                    recordUndo("Duplicate");
-                    select(s.duplicate(e));
+            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+                if (!isSelected(e))
+                    select(e);
+                ImGui::OpenPopup("##entity_menu");
+            }
+        }
+        // Inline rename.
+        if (renaming) {
+            ImGui::SetCursorScreenPos({rowMin.x + ImGui::GetTreeNodeToLabelSpacing() + 16, rowMin.y});
+            ImGui::SetNextItemWidth(rowMax.x - rowMin.x - ImGui::GetTreeNodeToLabelSpacing() - 50);
+            if (renameFocus_) {
+                ImGui::SetKeyboardFocusHere();
+                renameFocus_ = false;
+            }
+            bool done = ImGui::InputText("##rename", &renameEntityBuffer_,
+                                         ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
+            bool cancel = ImGui::IsKeyPressed(ImGuiKey_Escape);
+            if (done || cancel || ImGui::IsItemDeactivated()) {
+                if (!cancel && !renameEntityBuffer_.empty() && renameEntityBuffer_ != info.name) {
+                    recordUndo("Rename");
+                    info.name = renameEntityBuffer_;
                 }
-                if (ImGui::MenuItem("Delete", "Del")) {
-                    recordUndo("Delete");
-                    s.destroy(e);
-                    selection_.clear();
-                    ImGui::EndPopup();
-                    if (dim)
-                        ImGui::PopStyleColor();
-                    if (open)
-                        ImGui::TreePop();
-                    ImGui::PopID();
-                    return;
-                }
+                renaming_ = {};
+            }
+        }
+        // Eye: turn the object (and its children) on or off.
+        {
+            float size = h - 6;
+            ImVec2 eye{rowMax.x - size - 4, rowMin.y + 3};
+            bool rowHovered = ImGui::IsMouseHoveringRect(rowMin, rowMax);
+            ImGui::SetCursorScreenPos(eye);
+            if (ImGui::InvisibleButton("##eye", {size, size}) && !playing_) {
+                recordUndo(info.active ? "Turn off" : "Turn on");
+                info.active = !info.active;
+            }
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip(info.active ? "Turn off (hides it and pauses its scripts)" : "Turn on");
+            if (rowHovered || !info.active) {
+                ImDrawList* dl = ImGui::GetWindowDrawList();
+                ImVec2 c{eye.x + size * 0.5f, eye.y + size * 0.5f};
+                ImU32 col = ImGui::GetColorU32(info.active ? ImGuiCol_Text : ImGuiCol_TextDisabled);
+                dl->PathArcTo({c.x, c.y + size * 0.35f}, size * 0.5f, 3.14159f * 1.2f, 3.14159f * 1.8f, 10);
+                dl->PathStroke(col, 0, 1.5f);
+                dl->PathArcTo({c.x, c.y - size * 0.35f}, size * 0.5f, 3.14159f * 0.2f, 3.14159f * 0.8f, 10);
+                dl->PathStroke(col, 0, 1.5f);
+                if (info.active)
+                    dl->AddCircleFilled(c, size * 0.14f, col);
+                else
+                    dl->AddLine({c.x - size * 0.4f, c.y + size * 0.35f}, {c.x + size * 0.4f, c.y - size * 0.35f}, col, 1.5f);
+            }
+            ImGui::SetCursorScreenPos({rowMin.x, rowMax.y});
+            ImGui::Dummy({0, 0});
+        }
+        if (ImGui::BeginPopup("##entity_menu")) {
+            if (ImGui::MenuItem("Rename", chordName(prefs.chord("rename")).c_str())) {
+                renaming_ = info.uuid;
+                renameEntityBuffer_ = info.name;
+                renameFocus_ = true;
+            }
+            if (ImGui::MenuItem("Duplicate", chordName(prefs.chord("duplicate")).c_str())) {
+                recordUndo("Duplicate");
+                select(s.duplicate(e));
+            }
+            if (ImGui::MenuItem("Copy", chordName(prefs.chord("copy")).c_str()))
+                copySelection(false);
+            if (ImGui::MenuItem("Paste", chordName(prefs.chord("paste")).c_str(), false, !clipboard_.isNull()))
+                pasteClipboard();
+            bool deleted = false;
+            if (ImGui::MenuItem("Delete", chordName(prefs.chord("delete")).c_str())) {
+                recordUndo("Delete");
+                for (Entity x : selectedEntities())
+                    if (s.valid(x))
+                        s.destroy(x);
+                selection_.clear();
+                deleted = true;
+            }
+            if (!deleted) {
+                ImGui::Separator();
                 if (ImGui::BeginMenu("Add child")) {
                     for (const char* k : {"Entity", "Square", "Circle", "Text", "Cube", "Sphere", "Point Light", "Particles", "UI Text", "UI Button"})
                         if (ImGui::MenuItem(k))
@@ -266,20 +398,31 @@ void Editor::drawEntityNode(Entity e) {
                     recordUndo("Change parent");
                     s.setParent(e, {});
                 }
+                if (!kids.empty() && ImGui::MenuItem("Select children"))
+                    for (Entity c : kids)
+                        addToSelection(c);
                 ImGui::Separator();
-                if (ImGui::MenuItem("Save as Prefab"))
+                if (unlocked(Feature::Prefabs) && ImGui::MenuItem("Save as Prefab"))
                     savePrefab(e);
                 if (ImGui::MenuItem("Add blocks script")) {
                     std::string path = newScriptFile(info.name, true);
                     attachScript(e, path);
                     openBlocks(path);
                 }
-                if (ImGui::MenuItem("Add EasyScript")) {
+                if (unlocked(Feature::Code) && ImGui::MenuItem("Add EasyScript")) {
                     std::string path = newScriptFile(info.name, false);
                     attachScript(e, path);
                     openScript(path);
                 }
-                ImGui::EndPopup();
+            }
+            ImGui::EndPopup();
+            if (deleted) {
+                if (dim)
+                    ImGui::PopStyleColor();
+                if (open)
+                    ImGui::TreePop();
+                ImGui::PopID();
+                return;
             }
         }
     }
@@ -290,7 +433,7 @@ void Editor::drawEntityNode(Entity e) {
         for (Entity c : copy)
             if (s.valid(c))
                 drawEntityNode(c);
-        if (matches || !filter.empty())
+        if (shown)
             ImGui::TreePop();
     }
     ImGui::PopID();
@@ -314,42 +457,73 @@ void Editor::drawHierarchy() {
                 createEntity(k);
         ImGui::Separator();
         ImGui::TextDisabled("3D");
-        for (const char* k : {"Cube", "Sphere", "Plane", "Cylinder", "Capsule", "Player 3D", "Sun", "Point Light", "Spot Light"})
+        for (const char* k : {"Cube", "Sphere", "Plane", "Cylinder", "Capsule", "Player 3D"})
             if (ImGui::MenuItem(k))
                 createEntity(k);
+        if (unlocked(Feature::Lighting))
+            for (const char* k : {"Sun", "Point Light", "Spot Light"})
+                if (ImGui::MenuItem(k))
+                    createEntity(k);
         ImGui::Separator();
         ImGui::TextDisabled("Other");
-        for (const char* k : {"Camera", "Particles", "Sound", "UI Text", "UI Button", "UI Panel", "Entity"})
+        for (const char* k : {"Camera", "Entity"})
             if (ImGui::MenuItem(k))
                 createEntity(k);
+        if (unlocked(Feature::Particles) && ImGui::MenuItem("Particles"))
+            createEntity("Particles");
+        if (unlocked(Feature::Audio) && ImGui::MenuItem("Sound"))
+            createEntity("Sound");
+        if (unlocked(Feature::UI))
+            for (const char* k : {"UI Text", "UI Button", "UI Panel"})
+                if (ImGui::MenuItem(k))
+                    createEntity(k);
         ImGui::EndPopup();
     }
     ImGui::Separator();
     ImGui::BeginChild("##tree");
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {4, 3});
     Scene& s = scene();
+    lastHierarchyOrder_ = std::move(hierarchyOrder_);
+    hierarchyOrder_.clear();
     std::vector<Entity> roots = s.roots();
     for (Entity e : roots)
         if (s.valid(e))
             drawEntityNode(e);
     ImGui::PopStyleVar();
-    // Dropping on empty space moves an object to the top level.
+    // Dropping on empty space moves objects to the top level.
     ImGui::Dummy(ImGui::GetContentRegionAvail());
     if (!playing_ && ImGui::BeginDragDropTarget()) {
         if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("ENTITY")) {
             Entity dragged = s.findByUUID({*static_cast<const uint64_t*>(pl->Data)});
-            if (dragged) {
-                recordUndo("Change parent");
-                s.setParent(dragged, {});
-            }
+            std::vector<Entity> moving = isSelected(dragged) ? selectedEntities() : std::vector<Entity>{dragged};
+            recordUndo("Change parent");
+            for (Entity m : moving)
+                if (m)
+                    s.setParent(m, {});
         }
         ImGui::EndDragDropTarget();
     }
     if (ImGui::IsItemClicked())
         selection_.clear();
+    if (!playing_ && ImGui::BeginPopupContextItem("##empty_menu")) {
+        if (ImGui::MenuItem("Paste", nullptr, false, !clipboard_.isNull()))
+            pasteClipboard();
+        if (ImGui::MenuItem("New empty object"))
+            createEntity("Entity");
+        ImGui::EndPopup();
+    }
     if (s.roots().empty())
         ImGui::TextDisabled("This scene is empty.\nClick '+ Add' to add objects.");
     ImGui::EndChild();
+    // Hierarchy-only shortcuts.
+    if (hierarchyFocused_ && !playing_ && !ImGui::GetIO().WantTextInput) {
+        if (shortcut("rename"))
+            if (Entity e = selected()) {
+                renaming_ = s.info(e).uuid;
+                renameEntityBuffer_ = s.info(e).name;
+                renameFocus_ = true;
+            }
+    }
     ImGui::End();
 }
 
@@ -468,6 +642,19 @@ bool Editor::drawComponent(Entity e, const ComponentInfo& info, void* data) {
             changed = true;
             if (!playing_)
                 edited("Change " + f.label);
+            else
+                noteLiveChange(e, info.name + "/" + f.name);
+            // With several objects selected, the change applies to all of them.
+            Json value = saveField(f, data);
+            for (Entity other : selectedEntities()) {
+                if (other == e)
+                    continue;
+                if (void* od = info.get(scene().registry(), other)) {
+                    loadField(f, od, value);
+                    if (playing_)
+                        noteLiveChange(other, info.name + "/" + f.name);
+                }
+            }
         }
         ImGui::PopID();
     }
@@ -550,6 +737,7 @@ void Editor::drawScriptVariables(Entity e) {
         if (c) {
             if (live) {
                 live->set(script::intern(ex.name), result);
+                noteLiveChange(e, "script/" + ex.name);
             } else {
                 edited("Change " + ex.name);
                 sc->overrides[ex.name] = script::VM::toJson(result);
@@ -646,6 +834,16 @@ void Editor::drawInspector() {
         return;
     }
     EntityInfo& info = s.info(e);
+    auto selection = selectedEntities();
+    if (selection.size() > 1) {
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetStyleColorVec4(ImGuiCol_Header));
+        ImGui::BeginChild("##multi", {0, ImGui::GetFrameHeight() * 1.3f}, ImGuiChildFlags_AlwaysUseWindowPadding);
+        ImGui::Text("%d objects selected", static_cast<int>(selection.size()));
+        ImGui::SameLine();
+        ImGui::TextDisabled("- changes apply to all of them");
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
+    }
     if (ImGui::Checkbox("##active", &info.active))
         edited("Toggle active");
     if (ImGui::IsItemHovered())
@@ -664,8 +862,28 @@ void Editor::drawInspector() {
         edited("Change tag");
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Tags group objects: find_all(\"enemy\"), is_touching(\"coin\")...");
-    if (auto* pi = s.registry().tryGet<PrefabInstance>(e))
-        ImGui::TextDisabled("From prefab: %s", pi->path.c_str());
+    if (auto* pi = s.registry().tryGet<PrefabInstance>(e)) {
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Prefab: %s", pi->path.c_str());
+        if (!playing_) {
+            std::string path = pi->path;
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Open"))
+                openPrefab(path);
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Apply"))
+                applyToPrefab(e);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Save this object's changes into the prefab (all copies update).");
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Revert")) {
+                recordUndo("Revert to prefab");
+                revertToPrefab(e);
+                ImGui::End();
+                return;
+            }
+        }
+    }
     ImGui::Separator();
 
     auto& reg = s.registry();
@@ -675,15 +893,54 @@ void Editor::drawInspector() {
             continue;
         if (ci.advanced && !advanced() && ci.name != "PrefabInstance" && ci.name != "PostProcessing")
             continue;
+        // With several objects selected, only show what they all have.
+        bool shared = true;
+        for (Entity other : selection)
+            if (!ci.get(reg, other))
+                shared = false;
+        if (!shared)
+            continue;
         ImGui::PushID(ci.name.c_str());
         bool keep = true;
+        ImVec2 headerPos = ImGui::GetCursorScreenPos();
         bool open = ImGui::CollapsingHeader(ci.name.c_str(), ci.removable && !playing_ ? &keep : nullptr,
-                                            ImGuiTreeNodeFlags_DefaultOpen);
+                                            ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowOverlap);
+        // A colored stripe tells component families apart.
+        ImGui::GetWindowDrawList()->AddRectFilled(headerPos, {headerPos.x + 3, headerPos.y + ImGui::GetFrameHeight()},
+                                                  categoryColor(ci.category));
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", ci.description.c_str());
+            ImGui::SetTooltip("%s\n(Right-click for more)", ci.description.c_str());
+        if (ImGui::BeginPopupContextItem("##component_menu")) {
+            ImGui::TextDisabled("%s", ci.name.c_str());
+            if (ImGui::MenuItem("Copy values")) {
+                componentClipboard_ = saveComponent(ci, data);
+                componentClipboardType_ = ci.name;
+            }
+            if (ImGui::MenuItem("Paste values", nullptr, false, componentClipboardType_ == ci.name && !playing_)) {
+                recordUndo("Paste " + ci.name);
+                for (Entity target : selection)
+                    if (void* td = ci.get(reg, target))
+                        loadComponent(ci, td, componentClipboard_);
+            }
+            if (ci.removable && ImGui::MenuItem("Reset to defaults", nullptr, false, !playing_)) {
+                recordUndo("Reset " + ci.name);
+                for (Entity target : selection) {
+                    ci.remove(reg, target);
+                    ci.add(reg, target);
+                }
+            }
+            if (ci.removable && ImGui::MenuItem("Remove", nullptr, false, !playing_))
+                keep = false;
+            ImGui::Separator();
+            ImGui::PushTextWrapPos(300);
+            ImGui::TextDisabled("%s", ci.description.c_str());
+            ImGui::PopTextWrapPos();
+            ImGui::EndPopup();
+        }
         if (!keep) {
             recordUndo("Remove " + ci.name);
-            ci.remove(reg, e);
+            for (Entity target : selection)
+                ci.remove(reg, target);
             ImGui::PopID();
             continue;
         }
@@ -753,7 +1010,13 @@ void Editor::drawAssets() {
             break;
         start = slash + 1;
     }
-    ImGui::SameLine(ImGui::GetWindowWidth() - 90);
+    ImGui::SameLine(std::max(ImGui::GetCursorPosX() + 10, ImGui::GetWindowWidth() - 390));
+    ImGui::SetNextItemWidth(170);
+    ImGui::InputTextWithHint("##assetsearch", "Search files", &assetSearch_);
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(90);
+    ImGui::SliderFloat("##cell", &assetCell_, 64, 160, "Size");
+    ImGui::SameLine();
     if (ImGui::SmallButton("+ Create"))
         ImGui::OpenPopup("create_asset");
     if (ImGui::BeginPopup("create_asset")) {
@@ -784,18 +1047,30 @@ void Editor::drawAssets() {
     std::error_code ec;
     stdfs::path dir = projectDir_ / assetFolder_;
     std::vector<stdfs::directory_entry> entries;
-    for (auto& entry : stdfs::directory_iterator(dir, ec)) {
-        std::string name = entry.path().filename().string();
-        if (name.empty() || name[0] == '.' || name == ProjectSettings::kFileName || name == "tutorial.json")
-            continue;
-        entries.push_back(entry);
+    if (!assetSearch_.empty()) {
+        // Searching looks through every folder.
+        std::string needle = assetSearch_;
+        std::transform(needle.begin(), needle.end(), needle.begin(), ::tolower);
+        for (auto& f : assetFiles_) {
+            std::string hay = f;
+            std::transform(hay.begin(), hay.end(), hay.begin(), ::tolower);
+            if (hay.find(needle) != std::string::npos)
+                entries.emplace_back(projectDir_ / f, ec);
+        }
+    } else {
+        for (auto& entry : stdfs::directory_iterator(dir, ec)) {
+            std::string name = entry.path().filename().string();
+            if (name.empty() || name[0] == '.' || name == ProjectSettings::kFileName || name == "tutorial.json")
+                continue;
+            entries.push_back(entry);
+        }
     }
     std::sort(entries.begin(), entries.end(), [](auto& a, auto& b) {
         if (a.is_directory() != b.is_directory())
             return a.is_directory();
         return a.path().filename() < b.path().filename();
     });
-    float cell = 92;
+    float cell = assetCell_;
     int columns = std::max(1, static_cast<int>(ImGui::GetContentRegionAvail().x / (cell + 8)));
     int i = 0;
     std::string pendingDelete;
@@ -839,7 +1114,8 @@ void Editor::drawAssets() {
             ImVec2 ts = ImGui::CalcTextSize(badge);
             dl->AddText({(iconMin.x + iconMax.x - ts.x) * 0.5f, (iconMin.y + iconMax.y - ts.y) * 0.5f}, IM_COL32(20, 20, 30, 255), badge);
         }
-        std::string shown = name.size() > 13 ? name.substr(0, 11) + ".." : name;
+        size_t maxChars = static_cast<size_t>(std::max(6.0f, cell / 7.0f));
+        std::string shown = name.size() > maxChars ? name.substr(0, maxChars - 2) + ".." : name;
         ImVec2 ts = ImGui::CalcTextSize(shown.c_str());
         dl->AddText({p.x + (cell - ts.x) * 0.5f, p.y + cell - 22}, ImGui::GetColorU32(ImGuiCol_Text), shown.c_str());
         if (hovered && name != shown)
@@ -854,7 +1130,7 @@ void Editor::drawAssets() {
             else if (ext == ".es" || ext == ".blocks")
                 openScript(rel);
             else if (ext == ".prefab")
-                instantiatePrefab(rel, view3D_ ? Vec3{0, 0, 0} : Vec3{cam2D_.x, cam2D_.y, 0});
+                openPrefab(rel);
         }
         if (!entry.is_directory() && ImGui::BeginDragDropSource()) {
             ImGui::SetDragDropPayload("ASSET_PATH", rel.data(), rel.size());
@@ -866,6 +1142,10 @@ void Editor::drawAssets() {
                 renameTarget_ = rel;
                 std::snprintf(renameBuffer_, sizeof renameBuffer_, "%s", name.c_str());
             }
+            if (ext == ".prefab" && ImGui::MenuItem("Add to scene"))
+                instantiatePrefab(rel, view3D_ ? Vec3{0, 0, 0} : Vec3{cam2D_.x, cam2D_.y, 0});
+            if (ext == ".prefab" && ImGui::MenuItem("Edit prefab"))
+                openPrefab(rel);
             if (!entry.is_directory() && ImGui::MenuItem("Duplicate")) {
                 stdfs::path relPath(rel);
                 std::string copy = uniqueName(relPath.parent_path().generic_string(), relPath.stem().string() + "_copy", ext);
@@ -939,8 +1219,23 @@ void Editor::drawConsole() {
     ImGui::Begin(title.c_str(), &showConsole_);
     if (ImGui::SmallButton("Clear"))
         console_.clear();
+    int counts[3] = {0, 0, 0};
+    for (auto& l : console_)
+        ++counts[l.level == LogLevel::Error ? 2 : l.level == LogLevel::Warning ? 1 : 0];
+    auto toggle = [](const char* label, bool& on, ImU32 color) {
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Button, on ? color : ImGui::GetColorU32(ImGuiCol_FrameBg));
+        ImGui::PushStyleColor(ImGuiCol_Text, on ? IM_COL32(255, 255, 255, 255) : ImGui::GetColorU32(ImGuiCol_TextDisabled));
+        if (ImGui::SmallButton(label))
+            on = !on;
+        ImGui::PopStyleColor(2);
+    };
+    toggle(("Messages " + std::to_string(counts[0])).c_str(), showInfo_, IM_COL32(80, 90, 110, 255));
+    toggle(("Warnings " + std::to_string(counts[1])).c_str(), showWarnings_, IM_COL32(170, 120, 20, 255));
+    toggle(("Errors " + std::to_string(counts[2])).c_str(), showErrors_, IM_COL32(170, 45, 50, 255));
     ImGui::SameLine();
-    ImGui::Checkbox("Errors only", &errorsOnly_);
+    ImGui::SetNextItemWidth(std::max(80.0f, ImGui::GetContentRegionAvail().x - 130));
+    ImGui::InputTextWithHint("##consolesearch", "Search messages", &consoleFilter_);
     ImGui::SameLine();
     if (ImGui::Checkbox("Clear on play", &prefs.clearConsoleOnPlay))
         prefs.save();
@@ -948,9 +1243,18 @@ void Editor::drawConsole() {
     ImGui::BeginChild("##log", {0, 0}, ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar);
     ImGui::PushFont(fonts.code);
     int index = 0;
+    std::string needle = consoleFilter_;
+    std::transform(needle.begin(), needle.end(), needle.begin(), ::tolower);
     for (auto& l : console_) {
-        if (errorsOnly_ && l.level != LogLevel::Error)
+        bool show = l.level == LogLevel::Error ? showErrors_ : l.level == LogLevel::Warning ? showWarnings_ : showInfo_;
+        if (!show)
             continue;
+        if (!needle.empty()) {
+            std::string hay = l.file + " " + l.text;
+            std::transform(hay.begin(), hay.end(), hay.begin(), ::tolower);
+            if (hay.find(needle) == std::string::npos)
+                continue;
+        }
         ImVec4 color = l.level == LogLevel::Error ? ImVec4(1.0f, 0.45f, 0.45f, 1) : l.level == LogLevel::Warning ? ImVec4(1.0f, 0.8f, 0.35f, 1) : ImVec4(0.85f, 0.87f, 0.9f, 1);
         ImGui::PushID(index++);
         ImGui::PushStyleColor(ImGuiCol_Text, color);

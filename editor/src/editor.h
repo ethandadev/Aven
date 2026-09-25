@@ -15,12 +15,15 @@
 
 #include <filesystem>
 #include <functional>
+#include <map>
+#include <set>
 #include <unordered_set>
 #include <memory>
 #include <string>
 #include <vector>
 
-struct ImFont;
+#include <imgui.h>
+
 
 namespace aven::editor {
 
@@ -128,6 +131,27 @@ public:
     Entity createEntity(const std::string& kind, Entity parent = {});
     Entity instantiatePrefab(const std::string& path, Vec3 position);
     void savePrefab(Entity e);
+    void copySelection(bool cut);
+    // A setting changed while playing, which can be copied back into the edited scene.
+    struct LiveChange {
+        UUID id;
+        std::string component, field;
+        Json value;
+    };
+    void noteLiveChange(Entity e, const std::string& key);
+    std::vector<LiveChange> collectLiveChanges();
+    void applyLiveChanges(const std::vector<LiveChange>& changes);
+    void drawLiveChangesBar(ImVec2 pos, ImVec2 size);
+    // Prefab edit mode: a prefab opens like a small scene of its own.
+    void openPrefab(const std::string& path);
+    void closePrefab(bool save);
+    bool editingPrefab() const { return !prefabPath_.empty(); }
+    void applyToPrefab(Entity instance);
+    void revertToPrefab(Entity instance);
+    // Tools can add entries to the command palette.
+    std::vector<std::pair<std::string, std::function<void()>>> extraCommands_;
+    void drawKeepChangesDialog();
+    void pasteClipboard();
 
     Fonts fonts;
     Prefs prefs;
@@ -182,7 +206,10 @@ private:
     std::vector<std::string> assetFiles_;
     float assetScanTimer_ = 0;
     std::string selectedAsset_;
-    bool errorsOnly_ = false;
+    std::string assetSearch_;
+    float assetCell_ = 92;
+    bool showInfo_ = true, showWarnings_ = true, showErrors_ = true;
+    std::string consoleFilter_;
     float dpiScale_ = 1.0f;
     bool styleDirty_ = true;
     float autosaveTimer_ = 0;
@@ -206,6 +233,10 @@ private:
     bool viewportHovered_ = false, viewportFocused_ = false, hierarchyFocused_ = false;
     bool focusViewport_ = false;
     CameraView editorCamera() const;
+    CameraView viewportCamera() const;
+    Entity pickEntity(Scene& s, const CameraView& cam, Vec2 local);
+    void drawGizmo(const CameraView& cam, ImVec2 pos, ImVec2 size, bool& usingGizmo, bool& overGizmo);
+    void drawStats(ImVec2 pos);
     void focusSelected();
 
     // Panels
@@ -218,6 +249,39 @@ private:
     bool resetLayout_ = true;
     bool showHierarchy_ = true, showInspector_ = true, showAssets_ = true, showConsole_ = true;
     std::string hierarchyFilter_;
+    std::vector<UUID> hierarchyOrder_, lastHierarchyOrder_; // visible rows, for Shift-click ranges
+    UUID hierarchyAnchor_;
+    UUID renaming_;
+    std::string renameEntityBuffer_;
+    bool renameFocus_ = false;
+    Json clipboard_; // copied objects (also placed on the system clipboard as text)
+    Json componentClipboard_;
+    std::string componentClipboardType_;
+    // Play-and-edit: which fields ("Component/field" or "script/variable") changed while playing.
+    std::map<uint64_t, std::set<std::string>> liveChanges_;
+    std::vector<LiveChange> pendingKeep_; // offered when the game stops
+    int gameAspect_ = 0;
+    bool showStats_ = false;
+    bool muteGame_ = false;
+    bool boxSelecting_ = false;
+    Vec2 boxStart_;
+    float renderMs_ = 0;
+    bool showHistory_ = false, showProfiler_ = false, showFind_ = false, showPalette_ = false, showLighting_ = false;
+    std::vector<float> profFrame_, profScripts_, profPhysics_, profGameplay_, profRender_;
+    struct FindResult {
+        std::string file;
+        int line;
+        std::string text;
+    };
+    std::string findQuery_;
+    bool findCase_ = false, findFocus_ = false;
+    std::vector<FindResult> findResults_;
+    std::string paletteQuery_;
+    int paletteIndex_ = 0;
+    std::string prefabPath_;       // prefab being edited ("" = normal scene)
+    Json prefabReturnScene_;       // the scene to go back to
+    std::string prefabReturnPath_;
+    bool prefabReturnDirty_ = false;
     std::string assetFolder_;
     std::vector<ConsoleLine> console_;
     int logSink_ = 0;
@@ -256,9 +320,20 @@ private:
     void setupDockspace();
     void buildLayout(const std::string& name, unsigned int dockId);
     void drawStatusBar();
+    void drawHistory();
+    void recordProfile();
+    void drawProfiler();
+    void runFind();
+    void drawFind();
+    void drawCommandPalette();
+    void applyLighting(int preset);
+    void drawLighting();
+    void drawPrefabBar();
     void drawPreferences();
     void drawLevels();
     void checkLevelUp();
+    void openPanels(const std::string& list);
+    std::vector<std::string> extraPanels_; // panel names for tools added later
     void autosave(float dt);
     void drawMenuBar();
     void drawToolbar();
@@ -303,6 +378,7 @@ private:
 // Small shared UI helpers.
 namespace ui {
 void panelClass();
+void placeWindow(ImVec2 size, ImVec2 where);
 void helpMarker(const char* text);
 bool iconButton(const char* id, int icon, const char* tooltip, bool active = false, float size = 0);
 void sectionHeader(const char* text);
