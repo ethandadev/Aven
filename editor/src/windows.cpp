@@ -419,7 +419,7 @@ const LightingPreset kPresets[] = {
     {"Sunny Day", "Bright blue sky and crisp shadows.", 0x3A78C9, 0xCFE3F5, 0x6B6150, 0xCFE3F5, 0xFFF5E0, -50, -30, 1.3f, 1.0f, 0.004f, 1.0f, 1.05f, 0.5f, false, 2},
     {"Golden Sunset", "Low orange sun, long shadows and warm haze.", 0x2E2A6B, 0xF59E6B, 0x3A2A2A, 0xB9788A, 0xFFB27A, -8, 60, 1.5f, 0.7f, 0.018f, 1.0f, 1.1f, 0.8f, true, 2},
     {"Moonlit Night", "Dark blue night with soft moonlight. Add point lights!", 0x050816, 0x1B2745, 0x0A0C12, 0x101830, 0x8FA8FF, -35, 140, 0.35f, 0.35f, 0.02f, 1.2f, 0.9f, 1.0f, true, 1},
-    {"Overcast", "Grey clouds and soft, even light.", 0x8A949E, 0xC4CAD0, 0x5A5A55, 0xB8BEC4, 0xDDE2E8, -70, 10, 0.6f, 1.3f, 0.012f, 1.1f, 0.85f, 0.3f, true, 1},
+    {"Overcast", "Gray clouds and soft, even light.", 0x8A949E, 0xC4CAD0, 0x5A5A55, 0xB8BEC4, 0xDDE2E8, -70, 10, 0.6f, 1.3f, 0.012f, 1.1f, 0.85f, 0.3f, true, 1},
     {"Foggy Morning", "Pale light and thick fog. Great for mysteries.", 0x9DB2BF, 0xDDE6EA, 0x6F7A72, 0xD0DADF, 0xFFF2D8, -20, -60, 0.8f, 1.1f, 0.06f, 1.0f, 0.9f, 0.4f, true, 1},
     {"Outer Space", "Black sky and one hard light, like the sun in space.", 0x000000, 0x05030F, 0x000000, 0x000000, 0xFFFFFF, -30, 45, 2.0f, 0.12f, 0.0f, 1.0f, 1.1f, 1.2f, false, 1},
     {"Underwater", "Blue-green murk that fades into the deep.", 0x0B3D5C, 0x1E7A8C, 0x0A2A35, 0x125E6E, 0x9BE3F0, -75, 0, 0.8f, 0.9f, 0.07f, 1.1f, 1.0f, 0.6f, true, 1},

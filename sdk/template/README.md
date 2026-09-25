@@ -1,7 +1,7 @@
 # Native code
 
 This folder holds C and C++ code for your game. It is the advanced tier: when an idea is too
-slow in EasyScript, or you want to practise the language most engines are built in.
+slow in EasyScript, or you want to practice the language most engines are built in.
 
 - `src/` - your code. Every `.c` and `.cpp` file here becomes its own library (shared code goes in `src/common/`).
 - `include/aven.h` - everything your code can ask Aven to do. The names match EasyScript.

@@ -11,7 +11,6 @@
 
 namespace aven {
 
-
 namespace {
 
 float polygonDistance(const Vec2* v, int n, Vec2 p) {

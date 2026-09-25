@@ -1,7 +1,7 @@
 # Native code (C and C++)
 
 Native code is Aven's advanced tier. It moves part of your game into C or C++: for speed, or to
-practise the language most engines are written in. It runs next to EasyScript and blocks. An
+practice the language most engines are written in. It runs next to EasyScript and blocks. An
 object with a **NativeScript** component behaves just like one with a Script: same events, same
 properties, same game values.
 

@@ -578,7 +578,7 @@ private:
         if (e->op == Tok::Plus && (ty(a) == CT::Str || ty(b) == CT::Str))
             return sx(e);
         if (ty(a) == CT::Vec || ty(b) == CT::Vec)
-            return "0 " + todo(e->line, "Vector maths is done one axis at a time in C (x, then y).");
+            return "0 " + todo(e->line, "Vector math is done one axis at a time in C (x, then y).");
         int p = prec(e);
         switch (e->op) {
         case Tok::Plus: return ex(a, p) + " + " + ex(b, p + 1);
@@ -1075,7 +1075,7 @@ private:
             if (t == CT::Vec) {
                 auto parts = vecParts(value);
                 if (!parts || aug) {
-                    line(todo(lineNo, "Vector maths is done one axis at a time in C (x, then y)."), lineNo);
+                    line(todo(lineNo, "Vector math is done one axis at a time in C (x, then y)."), lineNo);
                     return;
                 }
                 for (size_t i = 0; i < parts->size() && i < 3; ++i)
@@ -1128,7 +1128,7 @@ private:
                 }
                 auto parts = vecParts(value);
                 if (!parts || aug) {
-                    line(todo(lineNo, "Vector maths is done one axis at a time in C (x, then y)."), lineNo);
+                    line(todo(lineNo, "Vector math is done one axis at a time in C (x, then y)."), lineNo);
                     return;
                 }
                 for (size_t i = 0; i < parts->size() && i < 3; ++i)

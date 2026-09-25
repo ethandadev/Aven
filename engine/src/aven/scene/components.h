@@ -167,7 +167,7 @@ struct TileRect {
     int x0, x1, y0, y1; // inclusive tile coordinates
 };
 // Covers the painted tiles with few rectangles: runs along each row, then runs of the same
-// width stacked in neighbouring rows. Physics uses these, so floors have no seams to snag on.
+// width stacked in neighboring rows. Physics uses these, so floors have no seams to snag on.
 std::vector<TileRect> tileRects(const Tilemap& map);
 
 struct SpriteAnimator {

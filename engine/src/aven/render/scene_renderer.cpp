@@ -331,14 +331,14 @@ void SceneRenderer::drawTilemap(const Tilemap& map, const Mat4& world, const Cam
     const bool colored = map.tileset.empty();
     const TextureAsset& tex = colored ? assets_->white() : assets_->texture(map.tileset, map.pixelArt);
     const int cols = std::max(1, map.columns), rows = std::max(1, map.rows);
-    // A hair inside each tile's edges so neighbours in the tileset never bleed in.
+    // A hair inside each tile's edges so neighbors in the tileset never bleed in.
     const float insetU = 0.001f / cols, insetV = 0.001f / rows;
 
     auto drawTile = [&](int x, int y, int tile) {
         Vec3 corners[4] = {transformPoint(world, {x * ts, y * ts, 0}), transformPoint(world, {(x + 1) * ts, y * ts, 0}),
                            transformPoint(world, {(x + 1) * ts, (y + 1) * ts, 0}), transformPoint(world, {x * ts, (y + 1) * ts, 0})};
         if (colored) {
-            // A faint checker keeps neighbouring blocks of the same color readable.
+            // A faint checker keeps neighboring blocks of the same color readable.
             Color c = tileColor(tile);
             float shade = ((x + y) & 1) ? 0.92f : 1.0f;
             c = {c.r * map.color.r * shade, c.g * map.color.g * shade, c.b * map.color.b * shade, c.a * map.color.a};

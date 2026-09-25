@@ -198,4 +198,4 @@ wrong, on which line, and usually a one-click fix. Common ones:
 ## Where next
 
 - The **Code Ladder** (in any script tab) shows your script in C, C#, GDScript, Luau and C++.
-- [Native code](native-code.md) moves a behavior to C when you want full speed, or to practise C.
+- [Native code](native-code.md) moves a behavior to C when you want full speed, or to practice C.

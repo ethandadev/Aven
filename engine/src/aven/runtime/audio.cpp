@@ -39,13 +39,6 @@ struct AudioSystem::Impl {
             ma_engine_uninit(&engine);
     }
 
-    struct SoundDeleter {
-        void operator()(ma_sound* s) const {
-            ma_sound_uninit(s);
-            delete s;
-        }
-    };
-
     std::unique_ptr<ma_sound> load(const std::string& path, ma_uint32 flags) {
         if (!ok || path.empty())
             return nullptr;
