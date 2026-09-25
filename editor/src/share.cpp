@@ -29,17 +29,28 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <shellapi.h>
 using socket_t = SOCKET;
 #define AVEN_CLOSE_SOCKET closesocket
+#define AVEN_SEND_FLAGS 0
 #else
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <fcntl.h>
 #include <poll.h>
+#include <spawn.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <unistd.h>
+extern char** environ;
 using socket_t = int;
 #define INVALID_SOCKET (-1)
 #define AVEN_CLOSE_SOCKET ::close
+#ifdef MSG_NOSIGNAL
+#define AVEN_SEND_FLAGS MSG_NOSIGNAL // a phone leaving mid-download must not kill the editor (SIGPIPE)
+#else
+#define AVEN_SEND_FLAGS 0
+#endif
 #endif
 
 namespace aven::editor {
@@ -319,14 +330,35 @@ std::string lanAddress() {
 } // namespace
 
 void openExternal(const std::string& target) {
+    // No shell in between, so folder names with quotes or $ can't turn into commands.
 #ifdef _WIN32
-    std::string cmd = "start \"\" \"" + target + "\"";
-#elif defined(__APPLE__)
-    std::string cmd = "open \"" + target + "\"";
+    int n = MultiByteToWideChar(CP_UTF8, 0, target.c_str(), -1, nullptr, 0);
+    std::wstring wide(static_cast<size_t>(n > 0 ? n : 1), L'\0');
+    if (n > 0)
+        MultiByteToWideChar(CP_UTF8, 0, target.c_str(), -1, wide.data(), n);
+    ShellExecuteW(nullptr, L"open", wide.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 #else
-    std::string cmd = "xdg-open \"" + target + "\" >/dev/null 2>&1 &";
+#ifdef __APPLE__
+    std::string opener = "open";
+#else
+    std::string opener = "xdg-open";
 #endif
-    [[maybe_unused]] int r = std::system(cmd.c_str());
+    std::string arg = target;
+    char* argv[] = {opener.data(), arg.data(), nullptr};
+    posix_spawn_file_actions_t quiet;
+    posix_spawn_file_actions_init(&quiet);
+    posix_spawn_file_actions_addopen(&quiet, STDOUT_FILENO, "/dev/null", O_WRONLY, 0);
+    posix_spawn_file_actions_addopen(&quiet, STDERR_FILENO, "/dev/null", O_WRONLY, 0);
+    pid_t pid = 0;
+    if (posix_spawnp(&pid, argv[0], &quiet, nullptr, argv, environ) == 0) {
+        // xdg-open and open return quickly; reap them in the background so they don't linger.
+        std::thread([pid] {
+            int status = 0;
+            waitpid(pid, &status, 0);
+        }).detach();
+    }
+    posix_spawn_file_actions_destroy(&quiet);
+#endif
 }
 
 // ---------------------------------------------------------------- the share server
@@ -342,6 +374,8 @@ public:
 #endif
         root_ = root;
         listen_ = ::socket(AF_INET, SOCK_STREAM, 0);
+        std::error_code ec;
+        rootCanonical_ = stdfs::weakly_canonical(root, ec);
         if (listen_ == INVALID_SOCKET) {
             error = "Couldn't open a network connection.";
             return false;
@@ -401,6 +435,10 @@ private:
             socket_t client = ::accept(listen_, nullptr, nullptr);
             if (client == INVALID_SOCKET)
                 continue;
+#ifdef SO_NOSIGPIPE
+            int on = 1; // macOS: no MSG_NOSIGNAL, so ask the socket instead
+            setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof on);
+#endif
             handle(client);
             AVEN_CLOSE_SOCKET(client);
         }
@@ -409,7 +447,7 @@ private:
     void sendAll(socket_t c, const std::string& data) {
         size_t sent = 0;
         while (sent < data.size()) {
-            auto n = ::send(c, data.data() + sent, static_cast<int>(std::min<size_t>(data.size() - sent, 1 << 16)), 0);
+            auto n = ::send(c, data.data() + sent, static_cast<int>(std::min<size_t>(data.size() - sent, 1 << 16)), AVEN_SEND_FLAGS);
             if (n <= 0)
                 return;
             sent += static_cast<size_t>(n);
@@ -444,11 +482,24 @@ private:
         }
         if (decoded.empty() || decoded.back() == '/')
             decoded += "index.html";
-        if (decoded.find("..") != std::string::npos) {
+        // Only files inside the shared folder: no "..", drive letters ("/C:/..." would replace the
+        // folder when joined on Windows), backslashes or NULs, and nothing that resolves outside it.
+        stdfs::path file = root_ / stdfs::path(decoded.substr(1)).relative_path();
+        std::error_code ec;
+        stdfs::path real = stdfs::weakly_canonical(file, ec);
+        auto inside = [&] {
+            auto r = rootCanonical_.begin(), f = real.begin();
+            for (; r != rootCanonical_.end(); ++r, ++f)
+                if (f == real.end() || *r != *f)
+                    return false;
+            return true;
+        };
+        if (decoded.find("..") != std::string::npos || decoded.find(':') != std::string::npos ||
+            decoded.find('\\') != std::string::npos || decoded.find('\0') != std::string::npos || ec || !inside()) {
             sendAll(c, "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
             return;
         }
-        auto data = fs::readBinary(root_ / decoded.substr(1));
+        auto data = fs::readBinary(real);
         if (!data) {
             std::string body = "Not found";
             sendAll(c, "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: " + std::to_string(body.size()) +
@@ -461,7 +512,7 @@ private:
         sendAll(c, header + std::string(reinterpret_cast<const char*>(data->data()), data->size()));
     }
 
-    stdfs::path root_;
+    stdfs::path root_, rootCanonical_;
     socket_t listen_ = INVALID_SOCKET;
     int port_ = 0;
     std::atomic<bool> running_{false};
