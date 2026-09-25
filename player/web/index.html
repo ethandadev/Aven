@@ -82,6 +82,7 @@
       }],
       onRuntimeInitialized: function () {
         document.getElementById('cover').remove();
+        document.getElementById('made').remove(); // it would sit on top of the game
         document.getElementById('full').style.display = 'block';
         Module.canvas.focus();
       },

@@ -13,6 +13,6 @@ if(EMSCRIPTEN)
     # game's files into /game before starting, so one build of the player runs any game.
     target_link_options(aven_player PRIVATE -sFORCE_FILESYSTEM=1 "-sEXPORTED_RUNTIME_METHODS=['FS']" -sENVIRONMENT=web
                         -sEXIT_RUNTIME=0)
-    add_custom_command(TARGET aven_player POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/web/index.html $<TARGET_FILE_DIR:aven_player>/index.html)
+    # Copied again whenever the page changes, even if the player itself doesn't need relinking.
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/web/index.html ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/index.html COPYONLY)
 endif()

@@ -8,7 +8,6 @@ target_include_directories(aven_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src ${
 target_link_libraries(aven_engine PUBLIC aven_stb aven_cgltf aven_miniaudio box2d Jolt ${CMAKE_DL_LIBS})
 if(EMSCRIPTEN)
     # Browser: Emscripten's GLFW and WebGL 2, no threads (works on any web host).
-    target_compile_options(aven_engine PUBLIC -sUSE_GLFW=3)
     target_link_options(aven_engine PUBLIC -sUSE_GLFW=3 -sMAX_WEBGL_VERSION=2 -sMIN_WEBGL_VERSION=2 -sALLOW_MEMORY_GROWTH=1
                         -sSTACK_SIZE=1048576)
 else()

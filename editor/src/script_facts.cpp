@@ -144,6 +144,9 @@ struct Walker {
             if (b && b->kind == ExprKind::String && a && a->kind == ExprKind::Name &&
                 (symbolName(a->sym) == "name" || symbolName(a->sym) == "message"))
                 facts.receives.insert(b->text);
+            // def on_key_pressed(key): if key == "space" (what "when key pressed" blocks become)
+            if (b && b->kind == ExprKind::String && a && a->kind == ExprKind::Name && symbolName(a->sym) == "key")
+                facts.keys.insert(b->text), facts.readsInput = true;
         }
         expr(e->a.get());
         expr(e->b.get());

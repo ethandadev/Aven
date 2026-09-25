@@ -712,7 +712,7 @@ bool Editor::makeItchZip(std::string& message) {
 
 // ---------------------------------------------------------------- game card
 
-std::vector<uint8_t> Editor::renderStartScene(int w, int h) {
+std::vector<uint8_t> Editor::renderStartScene(int w, int h, bool ui) {
     auto game = makeGame();
     if (!game->loadScene(settings_.startScene))
         return {};
@@ -722,7 +722,9 @@ std::vector<uint8_t> Editor::renderStartScene(int w, int h) {
     device_.beginFrame();
     auto overlay = std::move(renderer_.sceneOverlay); // no editor grid or gizmos in the picture
     renderer_.sceneOverlay = nullptr;
-    game->render(renderer_, w, h);
+    RenderOptions options;
+    options.drawUI = ui;
+    game->render(renderer_, w, h, options);
     renderer_.sceneOverlay = std::move(overlay);
     std::vector<uint8_t> shot = renderer_.readOutput();
     game->stop();
@@ -733,7 +735,8 @@ bool Editor::makeGameCard(const stdfs::path& png, const std::string& shareUrl, s
     constexpr int W = 1200, H = 630;
     Image card(W, H);
     // A picture of the game a moment after it starts.
-    std::vector<uint8_t> shot = renderStartScene(W, H);
+    // The card has its own title, so the game's score and hints would only be cut in half by it.
+    std::vector<uint8_t> shot = renderStartScene(W, H, false);
     if (shot.empty()) {
         message = "Couldn't load the start scene " + settings_.startScene;
         return false;

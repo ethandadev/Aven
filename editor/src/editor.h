@@ -507,7 +507,8 @@ private:
     int questCheck(const Json& check);
     bool packageTemplate(std::string& message);
     void drawQuests();
-    std::vector<uint8_t> renderStartScene(int w, int h); // the start scene a moment after Play, as RGBA
+    // The start scene a moment after Play, as RGBA; without the game's screen UI when `ui` is false.
+    std::vector<uint8_t> renderStartScene(int w, int h, bool ui = true);
     std::unique_ptr<ShareServer, ShareServerDeleter> shareServer_;
     std::string webExportDir_, webResult_, shareResult_, shareUrl_, cardPath_;
     rhi::TextureHandle cardTexture_;
