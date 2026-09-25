@@ -532,7 +532,10 @@ void Editor::drawViewport(float dt) {
     float scale = ImGui::GetIO().DisplayFramebufferScale.x;
     int w = static_cast<int>(viewportSize_.x * scale), h = static_cast<int>(viewportSize_.y * scale);
 
-    if (playing_) {
+    if (playing_ && replaying_) {
+        viewportFocused_ = ImGui::IsWindowFocused();
+        updateReplay(dt); // the recording drives the game, not the keyboard
+    } else if (playing_) {
         viewportFocused_ = ImGui::IsWindowFocused();
         // The game only sees input while its view is focused and running.
         if (viewportFocused_ && !paused_ && !ImGui::GetIO().WantTextInput)
@@ -541,12 +544,14 @@ void Editor::drawViewport(float dt) {
             gameInput_.reset();
         game_->setScreenSize(viewportSize_);
         if (!paused_ || stepOnce_) {
-            game_->update(stepOnce_ ? 1.0f / 60.0f : dt);
+            float step = stepOnce_ ? 1.0f / 60.0f : dt;
+            recordFrame(step);
+            game_->update(step);
             stepOnce_ = false;
         }
-        if (game_->quitRequested())
-            stop();
     }
+    if (playing_ && game_ && game_->quitRequested())
+        stop();
     ImGui::SetCursorScreenPos(pos);
     if (w > 0 && h > 0 && (!playing_ || game_)) {
         device_.beginFrame();
@@ -559,6 +564,8 @@ void Editor::drawViewport(float dt) {
             renderer_.render(*scene_, editorCamera(), w, h, opts);
         }
         renderMs_ = std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - t0).count();
+        if (playing_ && !paused_ && !replaying_)
+            captureThumbnail(w, h);
         ImTextureID tex = static_cast<ImTextureID>(device_.nativeTexture(renderer_.outputTexture()));
         ImGui::Image(tex, size, {0, 1}, {1, 0});
     } else {
@@ -684,6 +691,7 @@ void Editor::drawViewport(float dt) {
         dl->AddText({pos.x + 10, pos.y + size.y - 24}, IM_COL32(255, 255, 255, 140), hint);
         drawLiveChangesBar(pos, size);
         drawErrorBar(pos, size);
+        drawReplayBar(pos, size);
     }
     if (showStats_)
         drawStats(pos);

@@ -263,6 +263,12 @@ void Editor::drawMenuBar() {
             if (showLadder_)
                 openCodeLadderForSelection();
         }
+        if (unlocked(Feature::BugReplay) && ImGui::MenuItem("Bug Replay", nullptr, showReplay_)) {
+            if (showReplay_)
+                showReplay_ = false;
+            else
+                openBugReplay();
+        }
         if (unlocked(Feature::Doctor) && ImGui::MenuItem("Error Doctor", nullptr, showDoctor_)) {
             showDoctor_ = !showDoctor_;
             if (showDoctor_) {

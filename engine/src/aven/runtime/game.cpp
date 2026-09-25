@@ -4,6 +4,7 @@
 #include "aven/core/log.h"
 #include "aven/runtime/script_system.h"
 #include "aven/runtime/systems.h"
+#include "aven/script/stdlib.h"
 
 #include <chrono>
 
@@ -161,6 +162,11 @@ void Game::render(SceneRenderer& renderer, int width, int height, const RenderOp
     CameraView cam = camera(static_cast<float>(width) / std::max(height, 1));
     renderer.render(*scene_, cam, width, height, options);
     renderer.cameraShake = {};
+}
+
+void Game::setRandomSeed(uint32_t seed) {
+    gameplay_->seedRandom(seed);
+    script::seedRandom(seed);
 }
 
 void Game::destroyEntity(Entity e) {

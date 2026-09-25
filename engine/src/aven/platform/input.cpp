@@ -107,6 +107,87 @@ void Input::mirror(const Input& src, Vec2 mouseOffset) {
     typed_ = src.typed_;
 }
 
+namespace {
+
+Json downList(const bool* values, size_t count) {
+    Json list = Json::array();
+    for (size_t i = 0; i < count; ++i)
+        if (values[i])
+            list.push(Json(static_cast<int>(i)));
+    return list;
+}
+
+void readDownList(const Json& list, bool* values, size_t count) {
+    std::fill(values, values + count, false);
+    for (auto& v : list.elements()) {
+        int i = v.asInt(-1);
+        if (i >= 0 && static_cast<size_t>(i) < count)
+            values[i] = true;
+    }
+}
+
+Json vec2(Vec2 v) {
+    Json a = Json::array();
+    a.push(Json(v.x));
+    a.push(Json(v.y));
+    return a;
+}
+
+Vec2 readVec2(const Json& j) { return j.size() >= 2 ? Vec2{j[0].asFloat(), j[1].asFloat()} : Vec2{}; }
+
+} // namespace
+
+Json Input::snapshot() const {
+    Json s = Json::object();
+    // Only what's set is written, so a quiet frame is tiny.
+    if (auto k = downList(keys_.data(), keys_.size()); k.size())
+        s["k"] = k;
+    if (auto k = downList(prevKeys_.data(), prevKeys_.size()); k.size())
+        s["pk"] = k;
+    if (auto m = downList(mouse_.data(), mouse_.size()); m.size())
+        s["m"] = m;
+    if (auto m = downList(prevMouse_.data(), prevMouse_.size()); m.size())
+        s["pm"] = m;
+    s["mp"] = vec2(mousePos_);
+    if (prevMousePos_.x != mousePos_.x || prevMousePos_.y != mousePos_.y)
+        s["pmp"] = vec2(prevMousePos_);
+    if (scroll_.x != 0 || scroll_.y != 0)
+        s["sc"] = vec2(scroll_);
+    if (padConnected_) {
+        s["pad"] = downList(pad_, static_cast<size_t>(PadButton::Count));
+        s["ppad"] = downList(prevPad_, static_cast<size_t>(PadButton::Count));
+        Json axes = Json::array();
+        for (float a : padAxes_)
+            axes.push(Json(a));
+        s["ax"] = axes;
+    }
+    if (!typed_.empty()) {
+        Json t = Json::array();
+        for (char32_t c : typed_)
+            t.push(Json(static_cast<int>(c)));
+        s["t"] = t;
+    }
+    return s;
+}
+
+void Input::restore(const Json& s) {
+    readDownList(s["k"], keys_.data(), keys_.size());
+    readDownList(s["pk"], prevKeys_.data(), prevKeys_.size());
+    readDownList(s["m"], mouse_.data(), mouse_.size());
+    readDownList(s["pm"], prevMouse_.data(), prevMouse_.size());
+    mousePos_ = readVec2(s["mp"]);
+    prevMousePos_ = s.contains("pmp") ? readVec2(s["pmp"]) : mousePos_;
+    scroll_ = readVec2(s["sc"]);
+    padConnected_ = s.contains("pad");
+    readDownList(s["pad"], pad_, static_cast<size_t>(PadButton::Count));
+    readDownList(s["ppad"], prevPad_, static_cast<size_t>(PadButton::Count));
+    for (size_t i = 0; i < static_cast<size_t>(PadAxis::Count); ++i)
+        padAxes_[i] = i < s["ax"].size() ? s["ax"][i].asFloat() : 0.0f;
+    typed_.clear();
+    for (auto& c : s["t"].elements())
+        typed_ += static_cast<char32_t>(c.asInt());
+}
+
 void Input::reset() {
     keys_.fill(false);
     prevKeys_.fill(false);

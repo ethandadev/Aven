@@ -672,7 +672,7 @@ void Editor::drawErrorBar(ImVec2 pos, ImVec2 size) {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(170, 45, 50, 240));
     ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 245, 245, 255));
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 6);
-    ImGui::BeginChild("##errorbar", {std::min(size.x - 20, 620.0f), h}, ImGuiChildFlags_AlwaysUseWindowPadding,
+    ImGui::BeginChild("##errorbar", {std::min(size.x - 20, 780.0f), h}, ImGuiChildFlags_AlwaysUseWindowPadding,
                       ImGuiWindowFlags_NoScrollbar);
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("The game paused because of an error.");
@@ -682,6 +682,11 @@ void Editor::drawErrorBar(ImVec2 pos, ImVec2 size) {
         showDoctor_ = focusDoctor_ = true;
         if (doctorItems_.empty())
             runCheckup();
+    }
+    if (unlocked(Feature::BugReplay) && recorder_.recording()) {
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Replay the last 20 s"))
+            openBugReplay();
     }
     ImGui::SameLine();
     if (ImGui::SmallButton("Keep playing")) {

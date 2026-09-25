@@ -65,6 +65,8 @@ public:
     Physics3D& physics3D() { return *physics3D_; }
     AudioSystem& audio() { return *audio_; }
     GameplaySystems& gameplay() { return *gameplay_; }
+    // Seeds every random number source so the same inputs replay the same game.
+    void setRandomSeed(uint32_t seed);
 
     // Requests from scripts that the host (player or editor) carries out.
     void requestSceneChange(const std::string& path) { pendingScene_ = path; }

@@ -314,6 +314,8 @@ void Editor::drawCommandPalette() {
     add("Find in project", "window", [this] { showFind_ = true; findFocus_ = true; });
     add("Check my game (Error Doctor)", "command", [this] { runCheckup(); showDoctor_ = focusDoctor_ = true; });
     add("Explain my game", "window", [this] { showExplain_ = focusExplain_ = true; });
+    if (unlocked(Feature::BugReplay))
+        add("Bug Replay (play the last 20 seconds again)", "window", [this] { openBugReplay(); });
     if (unlocked(Feature::Recipes))
         add("Game from a Recipe (platformer, shooter, clicker...)", "command", [this] { openRecipes(); });
     if (unlocked(Feature::CodeLadder))

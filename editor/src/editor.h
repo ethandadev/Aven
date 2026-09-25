@@ -6,6 +6,7 @@
 #include "aven/render/scene_renderer.h"
 #include "aven/runtime/game.h"
 #include "aven/runtime/project.h"
+#include "aven/runtime/replay.h"
 #include "aven/scene/reflection.h"
 #include "aven/scene/scene.h"
 
@@ -14,6 +15,7 @@
 #include "prefs.h"
 #include "script_facts.h"
 
+#include <deque>
 #include <filesystem>
 #include <functional>
 #include <map>
@@ -195,6 +197,12 @@ public:
     bool replaceWordInLine(const std::string& file, int line, const std::string& from, const std::string& to);
     void addPhysics2D(Entity e, bool trigger);
 
+    // --- Bug replay (bug_replay.cpp)
+    void openBugReplay();
+    std::string saveBugReport(); // returns the report's folder
+    void startReplay(const Replay& replay, int fromFrame);
+    bool replaying() const { return replaying_; }
+
     // --- Game recipes (recipes.cpp)
     struct RecipeGoal {
         enum { CollectAll, ReachExit, Survive, ReachScore };
@@ -369,6 +377,32 @@ private:
         std::unique_ptr<CodeEditor> view, left;
     };
     LadderState ladder_;
+    struct Thumb {
+        int frame = 0;
+        float time = 0;
+        int w = 0, h = 0;
+        std::vector<uint8_t> rgba;
+        rhi::TextureHandle texture;
+    };
+    ReplayRecorder recorder_;
+    Replay lastReplay_, replayData_;
+    ReplayPlayer replayPlayer_;
+    std::deque<Thumb> thumbs_; // pictures of the last 20 seconds of play
+    float thumbTimer_ = 0, recordTime_ = 0, replayClock_ = 0, replaySpeed_ = 1;
+    int replayShowFrom_ = 0;
+    bool replaying_ = false, replayDone_ = false, showReplay_ = false, focusReplay_ = false, replayEditNoted_ = false;
+    std::string replayReason_;
+    stdfs::path sessionReplayPath() const;
+    void beginRecording(uint32_t seed, const Json& startScene);
+    void recordFrame(float dt);
+    void endRecording();
+    void captureThumbnail(int w, int h);
+    void clearThumbnails();
+    void checkLastSession();
+    void updateReplay(float dt);
+    void drawReplayBar(ImVec2 pos, ImVec2 size);
+    void drawBugReplay();
+    std::unique_ptr<Game> makeGame();
     RecipeChoices recipeChoices_;
     RecipeCard recipeCard_;
     bool showRecipes_ = false, focusRecipes_ = false, showRecipeCard_ = false, focusRecipeCard_ = false;

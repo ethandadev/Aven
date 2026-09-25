@@ -1638,7 +1638,8 @@ bool Editor::exportGame(const stdfs::path& folder, std::string& message) {
     for (auto it = stdfs::recursive_directory_iterator(projectDir_, ec); it != stdfs::recursive_directory_iterator(); it.increment(ec)) {
         stdfs::path rel = stdfs::relative(it->path(), projectDir_, ec);
         std::string first = rel.begin()->string();
-        if (first == "exports" || (!first.empty() && first[0] == '.') || rel == "tutorial.json") {
+        if (first == "exports" || first == "bug_reports" || first == "recipes" || (!first.empty() && first[0] == '.') ||
+            rel == "tutorial.json") {
             if (it->is_directory())
                 it.disable_recursion_pending();
             continue;

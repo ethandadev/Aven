@@ -10,5 +10,7 @@ namespace aven::script {
 bool parseColorName(const std::string& text, double out[4]);
 // Accepts a color value, a color name / hex text, or a list [r, g, b(, a)] in 0..255.
 Value toColor(const Value& v, const char* context);
+// Makes random() and friends repeatable (Bug replay seeds this when a game starts).
+void seedRandom(uint32_t seed);
 
 } // namespace aven::script

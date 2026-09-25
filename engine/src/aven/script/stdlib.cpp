@@ -53,6 +53,8 @@ const NamedColor kColors[] = {
 
 } // namespace
 
+void seedRandom(uint32_t seed) { rng().seed(seed); }
+
 // Parses "red", "#ff8800", "#f80" or "ff8800". Returns false if unknown.
 bool parseColorName(const std::string& text, double out[4]) {
     std::string s;

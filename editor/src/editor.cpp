@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <mutex>
+#include <random>
 
 namespace aven::editor {
 
@@ -234,6 +235,24 @@ void Editor::openPanels(const std::string& list) {
                     behaviorToScript(e, arg.substr(0, at));
         }
         else if (p == "recipes") { openRecipes(); }
+        else if (p == "replay") { openBugReplay(); }
+        else if (p == "bugreport") { endRecording(); openBugReplay(); std::string f = saveBugReport(); Log::info("Bug report: ", f); }
+        else if (p.rfind("replayfile:", 0) == 0) { // replayfile:<path>[#fromFrame]
+            std::string arg = p.substr(11);
+            int from = 0;
+            if (size_t at = arg.find('#'); at != std::string::npos) {
+                from = std::atoi(arg.substr(at + 1).c_str());
+                arg = arg.substr(0, at);
+            }
+            Replay r;
+            std::string error;
+            if (r.load(stdfs::path(arg).is_absolute() ? stdfs::path(arg) : projectDir_ / arg, &error)) {
+                lastReplay_ = r;
+                startReplay(r, from);
+            } else {
+                Log::error(error);
+            }
+        }
         else if (p.rfind("recipe:", 0) == 0) { // recipe:<kind>[:goal[:collect[:dangers[:difficulty]]]] cooks right away
             std::vector<std::string> parts;
             std::string rest = p.substr(7);
@@ -418,6 +437,9 @@ bool Editor::openProject(const stdfs::path& dir) {
     scanAssets();
     loadTutorial();
     showHub_ = false;
+    lastReplay_ = {};
+    clearThumbnails();
+    checkLastSession();
     Log::info("Opened project '", settings_.name, "'");
     return true;
 }
@@ -684,16 +706,18 @@ void Editor::play() {
     if (prefs.clearConsoleOnPlay)
         console_.clear();
     milestone("plays");
-    game_ = std::make_unique<Game>(assets_, gameInput_);
-    game_->loadProject(projectDir_);
-    game_->setCursorLocked = [this](bool locked) { window_.setCursorLocked(locked); };
-    game_->setFullscreen = [this](bool) { notify("Fullscreen works when the game runs on its own (Build & Export)."); };
-    game_->isFullscreen = [] { return false; };
+    game_ = makeGame();
+    Json start = scene_->save();
     auto copy = std::make_unique<Scene>();
-    copy->load(scene_->save());
+    copy->load(start);
     gameInput_.reset();
     game_->setScreenSize(viewportSize_);
+    // A known random seed makes the session replayable (Bug replay).
+    uint32_t seed = std::random_device{}();
+    game_->setRandomSeed(seed);
     game_->start(std::move(copy), scenePath_);
+    beginRecording(seed, start);
+    replayEditNoted_ = false;
     playing_ = true;
     paused_ = false;
     pausedOnError_ = false;
@@ -701,9 +725,20 @@ void Editor::play() {
     focusViewport_ = true;
 }
 
+std::unique_ptr<Game> Editor::makeGame() {
+    auto game = std::make_unique<Game>(assets_, gameInput_);
+    game->loadProject(projectDir_);
+    game->setCursorLocked = [this](bool locked) { window_.setCursorLocked(locked); };
+    game->setFullscreen = [this](bool) { notify("Fullscreen works when the game runs on its own (Build & Export)."); };
+    game->isFullscreen = [] { return false; };
+    return game;
+}
+
 void Editor::stop() {
     if (!playing_)
         return;
+    endRecording();
+    replaying_ = false;
     if (!liveChanges_.empty()) {
         pendingKeep_ = collectLiveChanges();
         liveChanges_.clear();
@@ -1291,10 +1326,13 @@ void Editor::frame(float dt) {
         std::lock_guard lock(g_consoleMutex);
         for (auto& l : g_pendingLines) {
             // Pause on the first error while playing, and let the doctor explain it.
-            if (l.level == LogLevel::Error && playing_ && !paused_ && prefs.pauseOnError &&
+            if (playing_ && l.level != LogLevel::Info && recorder_.recording())
+                recorder_.addEvent(l.level == LogLevel::Error ? "error" : "warning", l.text, l.file, l.line);
+            if (l.level == LogLevel::Error && playing_ && !replaying_ && !paused_ && prefs.pauseOnError &&
                 errorPauses_.insert(l.file + ":" + std::to_string(l.line)).second) {
                 paused_ = true;
                 pausedOnError_ = true;
+                replayReason_ = "The last 20 seconds before: " + l.text;
                 if (unlocked(Feature::Doctor))
                     openDoctorFor(l.text, l.file, l.line);
             }
@@ -1351,6 +1389,8 @@ void Editor::frame(float dt) {
             drawRecipes();
         if (showRecipeCard_)
             drawRecipeCard();
+        if (showReplay_ && unlocked(Feature::BugReplay))
+            drawBugReplay();
         drawScriptTabs();
         if (showSettings_)
             drawSettings();

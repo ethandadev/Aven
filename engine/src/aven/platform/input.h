@@ -56,6 +56,9 @@ public:
     void mirror(const Input& src, Vec2 mouseOffset);
     // Drops all held keys and buttons without generating "pressed" events.
     void reset();
+    // The whole input state for one frame, compact enough to record every frame (Bug replay).
+    Json snapshot() const;
+    void restore(const Json& snapshot);
 
     // --- raw state
     bool keyDown(int key) const;

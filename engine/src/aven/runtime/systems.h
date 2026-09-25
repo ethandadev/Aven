@@ -105,6 +105,7 @@ private:
 
 class GameplaySystems {
 public:
+    void seedRandom(uint32_t seed) { rng_ = seed ? seed : 12345; }
     explicit GameplaySystems(Game& game);
     ~GameplaySystems();
     void start();

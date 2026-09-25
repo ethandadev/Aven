@@ -13,6 +13,10 @@
 namespace aven::editor {
 
 void Editor::noteLiveChange(Entity e, const std::string& key) {
+    if (!replayEditNoted_ && recorder_.recording()) {
+        replayEditNoted_ = true;
+        recorder_.addEvent("edit", "Changed " + key + " while playing");
+    }
     if (!playing_ || !e)
         return;
     liveChanges_[scene().info(e).uuid.value].insert(key);
