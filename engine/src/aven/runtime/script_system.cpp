@@ -881,11 +881,11 @@ Vec3 velocityOf(Game& g, Entity e) {
 
 void setVelocityOf(Game& g, Entity e, Vec3 v) {
     auto& reg = g.scene().registry();
-    if (g.physics3D().hasBody(e))
-        g.physics3D().setVelocity(e, v);
-    else if (auto* cc = reg.tryGet<CharacterController>(e))
+    if (auto* cc = reg.tryGet<CharacterController>(e))
         cc->velocity = v;
-    else if (reg.has<RigidBody2D>(e) || reg.has<BoxCollider2D>(e) || reg.has<CircleCollider2D>(e) || reg.has<RigidBody>(e))
+    else if (g.physics3D().hasBody(e) || reg.has<RigidBody>(e))
+        g.physics3D().setVelocity(e, v); // a body made this frame gets it when physics next runs
+    else if (reg.has<RigidBody2D>(e) || reg.has<BoxCollider2D>(e) || reg.has<CircleCollider2D>(e))
         g.physics2D().setVelocity(e, {v.x, v.y});
     else {
         // A classic mistake: velocity needs physics. Say so once per object instead of doing nothing.

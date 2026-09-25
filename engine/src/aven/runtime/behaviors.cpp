@@ -568,6 +568,9 @@ void GameplaySystems::updateBehaviors(float dt) {
         }
         }
         Vec3 offset{s.offset.x * (facingLeft ? -1.0f : 1.0f), s.offset.y, 0};
+        // Spawning can add components and move this Shooter in memory, so keep copies of what's needed after.
+        float bulletSpeed = s.bulletSpeed;
+        std::string sound = s.sound;
         Entity bullet = game_.spawnPrefab(s.prefab, origin + offset);
         if (!bullet)
             return;
@@ -577,15 +580,15 @@ void GameplaySystems::updateBehaviors(float dt) {
                 rb.gravityScale = 0;
                 rb.fixedRotation = true;
             }
-            p2.setVelocity(bullet, {dir.x * s.bulletSpeed, dir.y * s.bulletSpeed});
+            p2.setVelocity(bullet, {dir.x * bulletSpeed, dir.y * bulletSpeed});
             scene.transform(bullet).rotation.z = degrees(std::atan2(dir.y, dir.x)) - 90.0f;
             if (!reg.has<Lifetime>(bullet))
                 reg.emplace<Lifetime>(bullet).seconds = 4.0f;
         } else {
-            game_.physics3D().setVelocity(bullet, dir * s.bulletSpeed);
+            game_.physics3D().setVelocity(bullet, dir * bulletSpeed);
         }
-        if (!s.sound.empty())
-            game_.audio().playSound(s.sound);
+        if (!sound.empty())
+            game_.audio().playSound(sound);
     });
 
     reg.each<Spawner>([&](Entity e, Spawner& s) {

@@ -22,7 +22,7 @@ struct ScriptRun {
     Game game{assets, input};
     Entity hero;
 
-    ScriptRun(const char* name, const std::string& source, bool threeD = false) {
+    ScriptRun(const char* name, const std::string& source, bool threeD = false, bool body3D = false) {
         namespace stdfs = std::filesystem;
         dir = stdfs::temp_directory_path() / name;
         std::error_code ec;
@@ -34,6 +34,8 @@ struct ScriptRun {
         hero = scene->create("Hero");
         if (threeD)
             scene->registry().emplace<MeshRenderer>(hero);
+        if (body3D)
+            scene->registry().emplace<RigidBody>(hero).gravityScale = 0;
         else
             scene->registry().emplace<SpriteRenderer>(hero);
         scene->registry().emplace<Script>(hero).path = "scripts/test.es";
@@ -93,4 +95,21 @@ AVEN_TEST(a_number_rotation_turns_without_resetting_other_axes) {
     Vec3 r = run.game.scene().transform(run.hero).rotation;
     CHECK_NEAR(r.x, 20.0f, 1e-4f);
     CHECK_NEAR(r.y, 45.0f, 1e-4f);
+}
+
+AVEN_TEST(velocity_set_right_after_spawning_a_3d_body_is_kept) {
+    // The clone's physics body is only made on the next step; its velocity must wait for it.
+    ScriptRun run("aven_velocity3d_test", "copy = None\n\n"
+                                          "def on_start():\n"
+                                          "    if not self.is_clone:\n"
+                                          "        copy = self.clone()\n"
+                                          "        copy.velocity = vec(4, 0, 0)\n",
+                  true, true);
+    run.frames(60);
+    auto inst = run.game.scripts().instanceOf(run.hero);
+    CHECK(inst != nullptr);
+    Entity copy = run.game.scripts().entityFromValue(*inst->find(script::intern("copy")));
+    CHECK(copy);
+    float moved = run.game.scene().worldPosition(copy).x - run.game.scene().worldPosition(run.hero).x;
+    CHECK(moved > 3.0f);
 }

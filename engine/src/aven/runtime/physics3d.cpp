@@ -164,6 +164,7 @@ struct Physics3D::Impl {
     std::unordered_map<uint32_t, Entity> byBodyId;
     std::vector<Entity> dirty;
     std::map<std::pair<uint32_t, uint32_t>, int> pairCounts;
+    std::unordered_map<Entity, Vec3> pendingVelocity; // set before the body existed (e.g. right after spawning)
 
     struct Character {
         JPH::Ref<JPH::CharacterVirtual> character;
@@ -278,6 +279,11 @@ struct Physics3D::Impl {
         }
         bodies[e] = {id, t, r, true, motion};
         byBodyId[id.GetIndexAndSequenceNumber()] = e;
+        auto pv = pendingVelocity.find(e);
+        if (pv != pendingVelocity.end()) {
+            bi.SetLinearVelocity(id, toJ(pv->second));
+            pendingVelocity.erase(pv);
+        }
     }
 
     void destroyBody(Entity e) {
@@ -602,6 +608,7 @@ void Physics3D::start() {
 }
 
 void Physics3D::stop() {
+    impl_->pendingVelocity.clear();
     if (!impl_->running())
         return;
     impl_->characters.clear();
@@ -627,7 +634,9 @@ void Physics3D::step(float dt) {
                 reg.count<CharacterController>() ==
             0)
             return;
+        auto pending = std::move(impl_->pendingVelocity);
         start();
+        impl_->pendingVelocity = std::move(pending);
         if (!impl_->running())
             return;
     }
@@ -682,6 +691,8 @@ Vec3 Physics3D::velocity(Entity e) const {
 void Physics3D::setVelocity(Entity e, Vec3 v) {
     if (hasBody(e))
         impl_->physics->GetBodyInterface().SetLinearVelocity(impl_->bodies.at(e).id, toJ(v));
+    else if (impl_->game.scene().registry().has<RigidBody>(e))
+        impl_->pendingVelocity[e] = v;
 }
 
 void Physics3D::applyForce(Entity e, Vec3 f) {

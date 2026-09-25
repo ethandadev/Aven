@@ -296,6 +296,7 @@ void Physics2D::stop() {
     impl_->world = b2_nullWorldId;
     impl_->bodies.clear();
     impl_->dirty.clear();
+    impl_->pendingVelocity.clear();
 }
 
 void Physics2D::step(float dt) {
