@@ -4,6 +4,9 @@
 #include "aven/math/math.h"
 
 #include <cctype>
+#include <set>
+
+#include "aven/core/log.h"
 
 namespace aven {
 
@@ -156,6 +159,20 @@ void loadComponent(const ComponentInfo& info, void* component, const Json& data)
             loadField(f, component, data[f.name]);
     if (info.loadExtra)
         info.loadExtra(component, data);
+    // Point out typos in hand-edited files instead of silently ignoring them.
+    static std::set<std::string> warned;
+    for (auto& m : data.members()) {
+        if (info.findField(m.key) || m.key == "overrides")
+            continue;
+        std::string key = info.name + "." + m.key;
+        if (!warned.insert(key).second)
+            continue;
+        std::string suggestion = toSnakeCase(m.key);
+        if (info.findField(suggestion))
+            Log::warn(info.name, " has no field '", m.key, "'. Did you mean '", suggestion, "'?");
+        else
+            Log::warn(info.name, " has no field '", m.key, "'; it was ignored.");
+    }
 }
 
 } // namespace aven

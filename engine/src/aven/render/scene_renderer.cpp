@@ -216,6 +216,8 @@ void SceneRenderer::render(Scene& scene, const CameraView& cameraIn, int w, int 
     overlay.clearColor = false;
     overlay.clearDepth = false;
     device_->beginPass(overlay);
+    if (has3D)
+        renderer3D_->drawTransparent(scene, camera);
     draw2D(scene, camera, has3D);
     if (sceneOverlay)
         sceneOverlay(camera);

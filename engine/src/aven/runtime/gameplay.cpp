@@ -218,6 +218,11 @@ void GameplaySystems::update(float dt) {
 
     reg.each<ParticleEmitter>([&](Entity e, ParticleEmitter& emitter) { updateParticles(e, emitter, dt); });
 
+    reg.each<ModelAnimator>([&](Entity e, ModelAnimator& anim) {
+        if (anim.playing && scene.isActive(e))
+            anim.time += dt * anim.speed;
+    });
+
     reg.each<CameraFollow>([&](Entity e, CameraFollow& follow) {
         Entity target = scene.findByUUID(follow.target);
         if (!target || !scene.isActive(e))

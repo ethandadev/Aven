@@ -571,17 +571,29 @@ public:
         glActiveTexture(GL_TEXTURE0);
     }
 
-    void applyUniforms(int slot, const void* data, size_t size) override {
+    void writeUniforms(int slot, const void* data, size_t size) {
         size_t aligned = (size + uboAlign_ - 1) / uboAlign_ * uboAlign_;
-        glBindBuffer(GL_UNIFORM_BUFFER, ubo_);
-        if (uboOffset_ + aligned > kUboSize) {
-            glBufferData(GL_UNIFORM_BUFFER, static_cast<GLsizeiptr>(kUboSize), nullptr, GL_STREAM_DRAW);
-            uboOffset_ = 0;
-        }
         glBufferSubData(GL_UNIFORM_BUFFER, static_cast<GLintptr>(uboOffset_), static_cast<GLsizeiptr>(size), data);
         glBindBufferRange(GL_UNIFORM_BUFFER, static_cast<GLuint>(slot), ubo_, static_cast<GLintptr>(uboOffset_),
                           static_cast<GLsizeiptr>(size));
         uboOffset_ += aligned;
+    }
+
+    void applyUniforms(int slot, const void* data, size_t size) override {
+        size_t aligned = (size + uboAlign_ - 1) / uboAlign_ * uboAlign_;
+        glBindBuffer(GL_UNIFORM_BUFFER, ubo_);
+        if (uboOffset_ + aligned > kUboSize) {
+            // Orphan the buffer; bindings of other slots now point at fresh storage, so
+            // re-upload what they last held to keep them valid.
+            glBufferData(GL_UNIFORM_BUFFER, static_cast<GLsizeiptr>(kUboSize), nullptr, GL_STREAM_DRAW);
+            uboOffset_ = 0;
+            for (int i = 0; i < kMaxUniformSlots; ++i)
+                if (i != slot && !lastUniforms_[i].empty())
+                    writeUniforms(i, lastUniforms_[i].data(), lastUniforms_[i].size());
+        }
+        if (slot >= 0 && slot < kMaxUniformSlots)
+            lastUniforms_[slot].assign(static_cast<const uint8_t*>(data), static_cast<const uint8_t*>(data) + size);
+        writeUniforms(slot, data, size);
     }
 
     static GLenum primitive(Primitive p) {
@@ -668,6 +680,7 @@ private:
     GLuint vao_ = 0;
     GLuint ubo_ = 0;
     size_t uboOffset_ = 0;
+    std::vector<uint8_t> lastUniforms_[kMaxUniformSlots];
     size_t uboAlign_ = 256;
     size_t enabledAttribs_ = 0;
     float maxAniso_ = 1.0f;
