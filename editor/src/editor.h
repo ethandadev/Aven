@@ -1,6 +1,7 @@
 #pragma once
 
 #include "aven/assets/assets.h"
+#include "aven/audio/sfx.h"
 #include "aven/core/log.h"
 #include "aven/platform/window.h"
 #include "aven/render/scene_renderer.h"
@@ -213,6 +214,11 @@ public:
     std::string gameControls();         // "Arrow keys to run · Space to jump", from the start scene
     std::string gameDescription() const;
 
+    // --- Sound Maker (sound_maker.cpp), Pixel Editor (pixel_editor.cpp), Sprite Sheet (sprite_sheet.cpp)
+    void openSoundMaker();
+    void openPixelEditor(const std::string& imagePath); // "" = a new image
+    void openSpriteSheet();
+
     // --- Capture (capture.cpp): screenshots and GIFs of the game view
     void takeScreenshot();
     void toggleGifRecording();
@@ -400,6 +406,42 @@ private:
         std::unique_ptr<CodeEditor> view, left;
     };
     LadderState ladder_;
+    enum class PixelTool { Pencil, Eraser, Fill, Line, Rect, Picker };
+    struct PixelDoc {
+        std::string path, name = "sprite";
+        int fw = 16, fh = 16, frames = 1, frame = 0; // frames sit side by side in one image
+        std::vector<uint32_t> px, before;            // RGBA8 pixels
+        std::vector<std::vector<uint32_t>> undo, redo;
+        bool dirty = false, textureDirty = true, mirror = false, grid = true, onion = true, playing = false, filledRect = false;
+        bool stroke = false;
+        PixelTool tool = PixelTool::Pencil;
+        float color[4] = {0.16f, 0.68f, 1.0f, 1.0f};
+        float zoom = 24, fps = 8, playTime = 0;
+        int brush = 1;
+        ImVec2 pan{0, 0};
+        std::pair<int, int> start, last;
+        rhi::TextureHandle texture;
+        int texW = 0, texH = 0;
+        void resize(int frameW, int frameH, int frameCount);
+        uint32_t& at(int frame, int x, int y);
+    } pixel_;
+    bool showPixelEditor_ = false, focusPixelEditor_ = false, pixelEditorFocused_ = false;
+    void pixelSnapshot();
+    bool savePixelImage();
+    void pixelPlot(int x, int y, uint32_t color);
+    void pixelLine(int x0, int y0, int x1, int y1, uint32_t color);
+    void pixelFill(int x, int y, uint32_t color);
+    void drawPixelEditor();
+    bool showSpriteSheet_ = false, focusSpriteSheet_ = false;
+    int sheetRangeStart_ = -1;
+    float sheetPreviewTime_ = 0;
+    void drawSpriteSheet();
+    SfxParams sfx_;
+    std::vector<float> sfxSamples_;
+    std::unique_ptr<SoundPreview> soundPreview_;
+    std::string sfxName_ = "sound", sfxKind_, sfxLastSaved_;
+    bool sfxAutoPlay_ = true, showSoundMaker_ = false, focusSoundMaker_ = false;
+    void drawSoundMaker();
     struct GifFrame {
         int w = 0, h = 0;
         std::vector<uint8_t> rgba;

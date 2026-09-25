@@ -1168,6 +1168,8 @@ void Editor::drawAssets() {
                 instantiatePrefab(rel, view3D_ ? Vec3{0, 0, 0} : Vec3{cam2D_.x, cam2D_.y, 0});
             if (ext == ".prefab" && ImGui::MenuItem("Edit prefab"))
                 openPrefab(rel);
+            if (ext == ".png" && unlocked(Feature::PixelEditor) && ImGui::MenuItem("Edit in Pixel Editor"))
+                openPixelEditor(rel);
             if (!entry.is_directory() && ImGui::MenuItem("Duplicate")) {
                 stdfs::path relPath(rel);
                 std::string copy = uniqueName(relPath.parent_path().generic_string(), relPath.stem().string() + "_copy", ext);

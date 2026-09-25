@@ -312,6 +312,33 @@ void Editor::drawMenuBar() {
         ImGui::MenuItem("Show Grid", nullptr, &showGrid_);
         ImGui::EndMenu();
     }
+    if (ImGui::BeginMenu("Tools")) {
+        if (unlocked(Feature::Recipes) && ImGui::MenuItem("Game from a Recipe..."))
+            openRecipes();
+        if (unlocked(Feature::SoundMaker) && ImGui::MenuItem("Sound Maker"))
+            openSoundMaker();
+        if (unlocked(Feature::PixelEditor) && ImGui::MenuItem("Pixel Editor"))
+            openPixelEditor("");
+        if (unlocked(Feature::Animation) && ImGui::MenuItem("Sprite Sheet and Animation"))
+            openSpriteSheet();
+        ImGui::Separator();
+        if (unlocked(Feature::Capture)) {
+            if (ImGui::MenuItem("Take a Screenshot", chordName(prefs.chord("screenshot")).c_str()))
+                takeScreenshot();
+            if (ImGui::MenuItem(gifRecording_ ? "Stop Recording GIF" : "Record a GIF", chordName(prefs.chord("record_gif")).c_str()))
+                toggleGifRecording();
+            ImGui::Separator();
+        }
+        if (unlocked(Feature::CodeLadder) && ImGui::MenuItem("Code Ladder"))
+            openCodeLadderForSelection();
+        if (unlocked(Feature::Doctor) && ImGui::MenuItem("Check My Game (Error Doctor)", chordName(prefs.chord("doctor")).c_str())) {
+            runCheckup();
+            showDoctor_ = focusDoctor_ = true;
+        }
+        if (unlocked(Feature::BugReplay) && ImGui::MenuItem("Bug Replay"))
+            openBugReplay();
+        ImGui::EndMenu();
+    }
     if (ImGui::BeginMenu("Help")) {
         if (ImGui::MenuItem("Learn mode levels..."))
             showLevels_ = true;
@@ -512,6 +539,12 @@ void Editor::drawStatusBar() {
 // ---------------------------------------------------------------- shortcuts
 
 void Editor::handleShortcuts() {
+    // The Pixel Editor has its own undo, save and tool keys.
+    if (pixelEditorFocused_) {
+        if (shortcut("play"))
+            playing_ ? stop() : play();
+        return;
+    }
     if (shortcut("save")) {
         bool scriptChanged = false;
         for (auto& t : tabs_)

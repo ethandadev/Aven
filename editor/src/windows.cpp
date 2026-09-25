@@ -315,6 +315,8 @@ void Editor::drawCommandPalette() {
     add("Check my game (Error Doctor)", "command", [this] { runCheckup(); showDoctor_ = focusDoctor_ = true; });
     add("Explain my game", "window", [this] { showExplain_ = focusExplain_ = true; });
     add("Contributor Quests (help build Aven)", "window", [this] { openQuests(); });
+    if (unlocked(Feature::SoundMaker))
+        add("Sound Maker (make sound effects)", "window", [this] { openSoundMaker(); });
     if (unlocked(Feature::BugReplay))
         add("Bug Replay (play the last 20 seconds again)", "window", [this] { openBugReplay(); });
     if (unlocked(Feature::Recipes))

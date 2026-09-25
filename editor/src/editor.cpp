@@ -219,6 +219,10 @@ void Editor::openPanels(const std::string& list) {
         else if (p == "screenshotview") takeScreenshot();
         else if (p == "gif") toggleGifRecording();
         else if (p == "quests") openQuests();
+        else if (p == "soundmaker") openSoundMaker();
+        else if (p == "pixel") openPixelEditor("");
+        else if (p.rfind("pixel:", 0) == 0) openPixelEditor(p.substr(6));
+        else if (p == "spritesheet") openSpriteSheet();
         else if (p.rfind("quest:", 0) == 0) {
             openQuests();
             loadQuests();
@@ -1425,6 +1429,14 @@ void Editor::frame(float dt) {
             drawBugReplay();
         if (showQuests_)
             drawQuests();
+        if (showSoundMaker_ && unlocked(Feature::SoundMaker))
+            drawSoundMaker();
+        if (showPixelEditor_ && unlocked(Feature::PixelEditor))
+            drawPixelEditor();
+        else
+            pixelEditorFocused_ = false;
+        if (showSpriteSheet_ && unlocked(Feature::Animation))
+            drawSpriteSheet();
         drawScriptTabs();
         if (showSettings_)
             drawSettings();

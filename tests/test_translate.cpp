@@ -4,7 +4,9 @@
 #include "aven/core/fs.h"
 #include "aven/script/translate.h"
 
+#include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 
 using namespace aven;
@@ -131,4 +133,31 @@ AVEN_TEST(translate_reports_syntax_errors) {
     CHECK(t.errorLine == 1);
     CHECK(!t.error.empty());
     CHECK_EQ(classNameFor("scripts/slime_enemy.es"), std::string("SlimeEnemy"));
+}
+
+#include "aven/audio/sfx.h"
+
+AVEN_TEST(sfx_presets_make_sound) {
+    for (const char* kind : {"coin", "laser", "explosion", "powerup", "hurt", "jump", "blip", "random"}) {
+        for (uint32_t seed : {1u, 2u, 3u}) {
+            aven::SfxParams p = aven::sfxPreset(kind, seed);
+            std::vector<float> s = aven::sfxSynthesize(p);
+            CHECK(s.size() > 100);
+            CHECK(s.size() <= static_cast<size_t>(aven::kSfxSampleRate) * 6);
+            float peak = 0;
+            for (float v : s) {
+                CHECK(v >= -1.0f && v <= 1.0f);
+                peak = std::max(peak, std::abs(v));
+            }
+            CHECK(peak > 0.001f); // not silent
+            // Settings survive a round trip through the .sfx file format.
+            aven::SfxParams back = aven::SfxParams::fromJson(p.toJson());
+            CHECK_EQ(back.wave, p.wave);
+            CHECK_NEAR(back.baseFreq, p.baseFreq, 0.001f);
+        }
+    }
+    auto path = std::filesystem::temp_directory_path() / "aven_sfx_test.wav";
+    CHECK(aven::writeWav(path, aven::sfxSynthesize(aven::sfxPreset("coin", 7))));
+    auto bytes = fs::readBinary(path);
+    CHECK(bytes && bytes->size() > 44 && std::memcmp(bytes->data(), "RIFF", 4) == 0);
 }
