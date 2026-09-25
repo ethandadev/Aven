@@ -1,5 +1,7 @@
 # Aven
 
+[![CI](https://github.com/ethandadev/Aven/actions/workflows/ci.yml/badge.svg)](https://github.com/ethandadev/Aven/actions/workflows/ci.yml)
+
 A 2D and 3D game engine for beginners who want to make real games, and then keep growing.
 
 You can start the way Roblox and Scratch start: pick a template, press Play, snap blocks together.
@@ -72,13 +74,9 @@ Clicker, 3D Obby and Crystal Forest (3D exploring).
 
 ## Building
 
-You need CMake 3.21+, a C++20 compiler and Git. The other libraries are downloaded on the first
-configure.
-
-- **Linux:** also the X11/Wayland development packages GLFW needs, for example `libx11-dev
-  libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl-dev`.
-- **Windows:** Visual Studio 2022.
-- **macOS:** Xcode.
+You need CMake 3.21+, a C++20 compiler (Visual Studio 2022, Xcode, GCC or Clang) and Git. The
+other libraries are downloaded on the first configure. On Linux, also install the window-system
+packages GLFW needs; [getting started](docs/getting-started.md#1-build-aven) lists them.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -86,6 +84,8 @@ cmake --build build --config Release
 ./build/bin/aven-editor           # the editor (opens the project hub)
 ./build/bin/aven_tests            # the test suite
 ```
+
+With Visual Studio the programs are in `build\bin\Release\` instead.
 
 What gets built:
 

@@ -67,9 +67,9 @@
       "explanation": "An object's NativeScript names a C/C++ behavior that isn't loaded. Open Tools > Native Code and press Build. If it still doesn't appear, check the name you gave aven_behavior() in native/src matches the Inspector exactly (capital letters count)."
     },
     {
-      "match": "didn't load: it has no AVEN_MODULE",
+      "match": "it has no AVEN_MODULE",
       "title": "A native library without AVEN_MODULE",
-      "explanation": "Aven found a library in native/bin but couldn't see what's inside. One of your C files needs AVEN_MODULE(setup) at the end, where setup is the function that calls aven_behavior()."
+      "explanation": "Aven found a library in native/bin but couldn't see what's inside. Each file in native/src becomes its own library, so each one needs AVEN_MODULE(setup) at the end, where setup is the function that calls aven_behavior()."
     },
     {
       "match": "doesn't fit in its data",

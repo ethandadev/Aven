@@ -9,7 +9,8 @@
  *     self.x += speed * dt                          (EasyScript)
  *     aven_set(self, "x", aven_get(self, "x") + s->speed * dt);    (C)
  *
- * do the same thing. Exactly one file of a module ends with AVEN_MODULE(setup):
+ * do the same thing. Each module (one library, built from one file in native/src) ends with
+ * AVEN_MODULE(setup):
  *
  *     #include "aven.h"
  *

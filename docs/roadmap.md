@@ -37,8 +37,8 @@ Where Aven stands, including what's missing. If you'd like to help with any of i
 - **One graphics backend:** OpenGL 3.3 on the desktop and WebGL2 on the web. The renderer goes
   through an abstraction (`rhi.h`), but Vulkan, Metal and Direct3D backends aren't written. On
   macOS, OpenGL is deprecated (it still works).
-- **Tested on Linux and in the browser.** Windows and macOS builds are set up (CMake, icons,
-  Winsock, `.dll`/`.dylib` loading) and built in CI, but haven't been play-tested by hand.
+- **Played by hand on Linux and in the browser only.** On Windows and macOS, CI builds everything
+  and runs the full test suite, but nobody has played the editor there yet.
 - **No phone or console exports.** Phones can play web builds, but there's no touch input yet:
   taps act as mouse clicks, so clicker-style games work and keyboard games don't.
 - **No multiplayer or networking.**

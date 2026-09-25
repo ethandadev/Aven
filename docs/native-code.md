@@ -8,8 +8,8 @@ properties, same game values.
 ## The quickest way in: the Code Ladder
 
 Open any EasyScript or blocks script and press **Code Ladder**, then pick the **C (Aven)** rung.
-It shows your script as a complete C module. **Save to native/src and build** puts it in your
-project and compiles it. Then swap the object's Script for a NativeScript with the same behavior
+It shows your script as a complete C module. **Save to native/src and build** (at the Pro level)
+puts it in your project and compiles it. Then swap the object's Script for a NativeScript with the same behavior
 name.
 
 The translation is designed to compile as it is. Features C has no direct match for, like lists
@@ -32,7 +32,8 @@ native/
 
 To build, you need CMake and a C compiler:
 
-- **Windows:** Visual Studio Community with "Desktop development with C++".
+- **Windows:** Visual Studio Community with "Desktop development with C++", and
+  [CMake](https://cmake.org/download/) (let the installer add it to the PATH, since Aven runs `cmake`).
 - **macOS:** `xcode-select --install` and `brew install cmake`.
 - **Linux:** gcc or clang, and cmake.
 
@@ -98,7 +99,7 @@ obvious C spelling:
 | `game.score += 10` | `aven_game_set("score", aven_game_get("score", 0) + 10);` |
 | `find("Player")` | `aven_find("Player")` |
 | `spawn("prefabs/coin.prefab", x, y)` | `aven_spawn("prefabs/coin.prefab", x, y, 0);` |
-| `self.play_animation(0, 3)` | `aven_call(self, "play_animation", (const double[]){0, 3}, 2);` |
+| `self.play_animation(0, 3)` | `aven_call(self, "play_animation", (const double[]){0, 3}, 2);` (in C++, pass an array variable) |
 | `key_down("left")` | `aven_key_down("left")` |
 | `play_sound("sounds/hit.wav")` | `aven_play_sound("sounds/hit.wav");` |
 | `other.send("hurt", 1)` | `aven_send(other, "hurt", 1);` |

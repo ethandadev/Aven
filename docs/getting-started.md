@@ -9,7 +9,7 @@ You need CMake 3.21 or newer, a C++20 compiler and Git. Aven downloads its other
 |---|---|
 | Windows | Visual Studio 2022 with "Desktop development with C++", and CMake |
 | macOS | Xcode (or `xcode-select --install`), and CMake (`brew install cmake`) |
-| Linux | `gcc` or `clang`, `cmake`, `ninja`, plus GLFW's dependencies, for example on Debian/Ubuntu: `sudo apt install libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl-dev libwayland-dev libxkbcommon-dev` |
+| Linux | `gcc` or `clang` and `cmake`, plus GLFW's dependencies, for example on Debian/Ubuntu: `sudo apt install libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl-dev libwayland-dev libxkbcommon-dev` |
 
 ```sh
 git clone https://github.com/ethandadev/Aven.git
@@ -45,7 +45,7 @@ Press **Play** (or Ctrl+P) to play it inside the editor. Now change something:
 - **Behaviors** need no code. Add Component > Behaviors has a platformer controller,
   collectible, hazard, health, spawner, scene link and more. Change them with settings.
 - **Blocks:** Add Component > Script, then **New script... > Blocks**. Drag blocks from the
-  left, starting with an event like "when the game starts".
+  left, starting with an event like "when game starts".
 - **EasyScript:** the same, choosing EasyScript. See the [EasyScript guide](easyscript.md).
 
 Right-click any behavior and choose **Show as code** to see the script that does the same job.

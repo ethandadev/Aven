@@ -11,7 +11,7 @@ slow in EasyScript, or you want to practise the language most engines are built 
 Build with the **Build** button in Tools > Native Code. You need CMake and a C compiler:
 
 - Windows: Visual Studio (the free Community edition, "Desktop development with C++") or the
-  Build Tools for Visual Studio, plus CMake.
+  Build Tools for Visual Studio, plus CMake (let its installer add it to the PATH).
 - macOS: `xcode-select --install`, plus CMake (`brew install cmake`).
 - Linux: `gcc` or `clang` and `cmake` from your package manager.
 

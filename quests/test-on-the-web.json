@@ -11,7 +11,7 @@
     {"text": "Open a template game, then Build & Share > Web browser > Build for the web.",
      "check": {"type": "project_files", "path": "exports/*-web/index.html", "min": 1}},
     {"text": "Build & Share > Share > Start sharing, then open the link (or scan the game card) on a phone or another computer on the same Wi-Fi."},
-    {"text": "Play for a minute. Does it look right? Do the controls work? Is there sound after you press Play?"},
+    {"text": "Play for a minute. Does it look right? Do the controls work? Is there sound after you press Play? (On phones, taps work like mouse clicks; games that need a keyboard can't be played there yet.)"},
     {"text": "Write down the device, browser and what you saw, and post it in a GitHub issue titled 'Web test: <template> on <device>'."}
   ],
   "submit": "A GitHub issue with your results. Screenshots help a lot."
