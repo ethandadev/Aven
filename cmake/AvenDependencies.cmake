@@ -48,7 +48,33 @@ FetchContent_Declare(box2d
     GIT_TAG v3.1.1
     GIT_SHALLOW TRUE)
 
-FetchContent_MakeAvailable(glfw stb cgltf miniaudio box2d)
+# --- Jolt Physics: 3D physics and character controllers (MIT) ---
+# Portable CPU features so exported games run on older machines.
+set(TARGET_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+set(TARGET_HELLO_WORLD OFF CACHE BOOL "" FORCE)
+set(TARGET_PERFORMANCE_TEST OFF CACHE BOOL "" FORCE)
+set(TARGET_SAMPLES OFF CACHE BOOL "" FORCE)
+set(TARGET_VIEWER OFF CACHE BOOL "" FORCE)
+set(ENABLE_ALL_WARNINGS OFF CACHE BOOL "" FORCE)
+set(INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "" FORCE)
+set(OVERRIDE_CXX_FLAGS OFF CACHE BOOL "" FORCE)
+set(FLOATING_POINT_EXCEPTIONS_ENABLED OFF CACHE BOOL "" FORCE)
+set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF CACHE BOOL "" FORCE)
+set(DEBUG_RENDERER_IN_DEBUG_AND_RELEASE OFF CACHE BOOL "" FORCE)
+set(PROFILER_IN_DEBUG_AND_RELEASE OFF CACHE BOOL "" FORCE)
+set(ENABLE_OBJECT_STREAM OFF CACHE BOOL "" FORCE)
+set(ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+set(GENERATE_DEBUG_SYMBOLS OFF CACHE BOOL "" FORCE)
+foreach(opt USE_AVX USE_AVX2 USE_AVX512 USE_LZCNT USE_TZCNT USE_F16C USE_FMADD)
+    set(${opt} OFF CACHE BOOL "" FORCE)
+endforeach()
+FetchContent_Declare(jolt
+    GIT_REPOSITORY https://github.com/jrouwe/JoltPhysics.git
+    GIT_TAG v5.2.0
+    GIT_SHALLOW TRUE
+    SOURCE_SUBDIR Build)
+
+FetchContent_MakeAvailable(glfw stb cgltf miniaudio box2d jolt)
 
 # glad: generated OpenGL 3.3 core loader, vendored in third_party/glad.
 add_library(aven_glad STATIC ${PROJECT_SOURCE_DIR}/third_party/glad/src/gl.c)

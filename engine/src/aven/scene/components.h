@@ -242,6 +242,7 @@ struct CharacterController {
     float mouseSensitivity = 0.15f;
     Vec3 velocity{0, 0, 0}; // runtime
     bool grounded = false;  // runtime
+    float pitch = 0;        // runtime: first-person look up/down
 };
 
 // ---------------------------------------------------------------- Audio

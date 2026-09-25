@@ -5,7 +5,7 @@ file(GLOB_RECURSE AVEN_ENGINE_SOURCES CONFIGURE_DEPENDS
 
 add_library(aven_engine STATIC ${AVEN_ENGINE_SOURCES})
 target_include_directories(aven_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/sdk/include)
-target_link_libraries(aven_engine PUBLIC glfw aven_glad aven_stb aven_cgltf aven_miniaudio box2d ${CMAKE_DL_LIBS})
+target_link_libraries(aven_engine PUBLIC glfw aven_glad aven_stb aven_cgltf aven_miniaudio box2d Jolt ${CMAKE_DL_LIBS})
 target_compile_definitions(aven_engine PUBLIC AVEN_VERSION="${PROJECT_VERSION}")
 
 if(MSVC)

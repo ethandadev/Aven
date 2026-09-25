@@ -243,7 +243,8 @@ std::vector<ComponentInfo> buildRegistry() {
             .field(F(firstPerson), {.tooltip = "Look around with the mouse; the camera becomes the eyes."})
             .field(F(mouseSensitivity), {.min = 0.01f, .max = 1, .advanced = true})
             .field(F(velocity), {.runtime = true})
-            .field(F(grounded), {.runtime = true});
+            .field(F(grounded), {.runtime = true})
+            .field(F(pitch), {.runtime = true});
     }
     {
         using Type = AudioSource;
