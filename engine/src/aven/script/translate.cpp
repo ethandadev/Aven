@@ -24,7 +24,9 @@ namespace aven::script {
 
 namespace {
 
-using L = TargetLanguage;
+// The engines this translator writes for (Aven C has its own, in translate_c.cpp).
+enum class L { Unity, Godot, Roblox, Unreal };
+TargetLanguage toPublic(L l) { return static_cast<TargetLanguage>(static_cast<int>(l)); }
 
 std::vector<std::string> splitWords(const std::string& raw) {
     std::vector<std::string> out;
@@ -247,7 +249,7 @@ private:
             notes_.push_back(text);
     }
 
-    const char* engine() const { return languageEngine(lang_); }
+    const char* engine() const { return languageEngine(toPublic(lang_)); }
 
     void scanComments() {
         std::istringstream in(source_);
@@ -3147,8 +3149,12 @@ private:
 
 } // namespace
 
+Translation translateToAvenC(std::string_view source, const TranslateOptions& options); // translate_c.cpp
+
 Translation translate(std::string_view source, TargetLanguage language, const TranslateOptions& options) {
-    return Translator(source, language, options).run();
+    if (language == TargetLanguage::AvenC)
+        return translateToAvenC(source, options);
+    return Translator(source, static_cast<L>(static_cast<int>(language)), options).run();
 }
 
 const char* languageName(TargetLanguage language) {
@@ -3157,6 +3163,7 @@ const char* languageName(TargetLanguage language) {
     case TargetLanguage::Godot: return "GDScript";
     case TargetLanguage::Roblox: return "Luau";
     case TargetLanguage::Unreal: return "C++";
+    case TargetLanguage::AvenC: return "C";
     }
     return "";
 }
@@ -3167,6 +3174,7 @@ const char* languageEngine(TargetLanguage language) {
     case TargetLanguage::Godot: return "Godot";
     case TargetLanguage::Roblox: return "Roblox";
     case TargetLanguage::Unreal: return "Unreal";
+    case TargetLanguage::AvenC: return "Aven";
     }
     return "";
 }
@@ -3177,6 +3185,7 @@ const char* languageExtension(TargetLanguage language) {
     case TargetLanguage::Godot: return ".gd";
     case TargetLanguage::Roblox: return ".lua";
     case TargetLanguage::Unreal: return ".h";
+    case TargetLanguage::AvenC: return ".c";
     }
     return "";
 }

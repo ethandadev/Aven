@@ -3,7 +3,7 @@
 This folder holds C and C++ code for your game. It is the advanced tier: when an idea is too
 slow in EasyScript, or you want to practise the language most engines are built in.
 
-- `src/` - your code. Every `.c` and `.cpp` file here is built into one library.
+- `src/` - your code. Every `.c` and `.cpp` file here becomes its own library (shared code goes in `src/common/`).
 - `include/aven.h` - everything your code can ask Aven to do. The names match EasyScript.
 - `bin/` - the built library. Aven loads it from here (and ships it with desktop exports).
 - `build/` - the compiler's working files. Safe to delete.

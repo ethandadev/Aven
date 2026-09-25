@@ -281,8 +281,14 @@ void Editor::drawNativeCode() {
         ImGui::TextDisabled("No .c or .cpp files yet.");
     if (ImGui::SmallButton("+ New C file")) {
         std::string path = uniqueName("native/src", "behavior", ".c");
-        fs::writeText(projectDir_ / path, "#include \"aven.h\"\n\n/* Only one file needs AVEN_MODULE(setup); declare your "
-                                          "behaviors there,\n   or call functions from this file in it. */\n");
+        std::string name = stdfs::path(path).stem().string();
+        fs::writeText(projectDir_ / path,
+                      "/* Each file in native/src is its own module. */\n\n#include \"aven.h\"\n\n"
+                      "static void update(AvenEntity self, void* data, float dt) {\n    (void)data;\n"
+                      "    /* Runs every frame. Try: aven_set(self, \"angle\", aven_get(self, \"angle\") + 90 * dt); */\n"
+                      "    (void)self;\n    (void)dt;\n}\n\n"
+                      "static void setup(AvenModule* module) {\n    AvenBehavior* b = aven_behavior(module, \"" + name + "\", 0);\n"
+                      "    b->on_update = update;\n}\n\nAVEN_MODULE(setup)\n");
         openScript(path);
     }
 

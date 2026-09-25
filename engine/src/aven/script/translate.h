@@ -10,7 +10,9 @@ namespace aven::script {
 // beginner can see what their script looks like in Unity, Godot, Roblox or Unreal.
 // The output is meant for reading and learning. It follows each engine's usual style
 // and is close to working code, and `notes` says where the engines differ.
-enum class TargetLanguage { Unity, Godot, Roblox, Unreal };
+// AvenC is the rung that stays in Aven: a native module in C (see sdk/include/aven.h)
+// that builds as it is.
+enum class TargetLanguage { Unity, Godot, Roblox, Unreal, AvenC };
 
 struct TranslateOptions {
     std::string className = "MyScript"; // class / file name to use

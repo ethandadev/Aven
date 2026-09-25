@@ -14,7 +14,8 @@ using namespace aven::script;
 
 namespace {
 
-const TargetLanguage kAll[] = {TargetLanguage::Unity, TargetLanguage::Godot, TargetLanguage::Roblox, TargetLanguage::Unreal};
+const TargetLanguage kAll[] = {TargetLanguage::Unity, TargetLanguage::Godot, TargetLanguage::Roblox, TargetLanguage::Unreal,
+                               TargetLanguage::AvenC};
 
 bool contains(const std::string& text, const std::string& part) { return text.find(part) != std::string::npos; }
 
@@ -47,8 +48,13 @@ AVEN_TEST(translate_every_template_script) {
             CHECK(t.ok);
             CHECK(!t.code.empty());
             // No EasyScript-only syntax should leak through.
-            CHECK(!contains(t.code, " ? ") || lang == TargetLanguage::Unity || lang == TargetLanguage::Unreal);
-            CHECK(!contains(t.code, "self.") || lang == TargetLanguage::Godot);
+            CHECK(!contains(t.code, " ? ") || lang == TargetLanguage::Unity || lang == TargetLanguage::Unreal ||
+                  lang == TargetLanguage::AvenC);
+            std::string code = t.code;
+            if (lang == TargetLanguage::AvenC) // what couldn't be translated is quoted in comments
+                for (size_t a; (a = code.find("/*")) != std::string::npos;)
+                    code.erase(a, code.find("*/", a) == std::string::npos ? std::string::npos : code.find("*/", a) + 2 - a);
+            CHECK(!contains(code, "self.") || lang == TargetLanguage::Godot);
             if (dump) {
                 std::filesystem::path out = std::filesystem::path(dump) / languageEngine(lang) /
                                             (entry.path().parent_path().parent_path().filename().string() + "_" +
@@ -61,7 +67,7 @@ AVEN_TEST(translate_every_template_script) {
             ++count;
         }
     }
-    CHECK(count >= 40);
+    CHECK(count >= 50);
 }
 
 AVEN_TEST(translate_maps_events_and_api) {
@@ -161,3 +167,41 @@ AVEN_TEST(sfx_presets_make_sound) {
     auto bytes = fs::readBinary(path);
     CHECK(bytes && bytes->size() > 44 && std::memcmp(bytes->data(), "RIFF", 4) == 0);
 }
+
+#ifdef AVEN_C_COMPILER
+// Every template script, translated to Aven C, compiles against aven.h without warnings (-Wall).
+AVEN_TEST(translate_to_c_compiles) {
+    std::filesystem::path dir = std::filesystem::temp_directory_path() / "aven_c_ladder";
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+    std::filesystem::create_directories(dir, ec);
+    int files = 0;
+    std::string all;
+    for (auto& entry : std::filesystem::recursive_directory_iterator(std::filesystem::path(AVEN_SOURCE_DIR) / "templates")) {
+        std::string ext = entry.path().extension().string();
+        if (ext != ".es" && ext != ".blocks")
+            continue;
+        auto text = fs::readText(entry.path());
+        std::string source = ext == ".blocks" ? blocks::compileFile(*text, nullptr) : *text;
+        TranslateOptions options;
+        options.className = classNameFor(entry.path().string());
+        options.is3D = contains(entry.path().string(), "3d");
+        Translation t = translate(source, TargetLanguage::AvenC, options);
+        CHECK(t.ok);
+        auto out = dir / (entry.path().parent_path().parent_path().filename().string() + "_" + entry.path().stem().string() + ".c");
+        fs::writeText(out, t.code);
+        all += " \"" + out.string() + "\"";
+        ++files;
+    }
+    CHECK(files >= 10);
+    std::string log = (dir / "compile.log").string();
+    std::string command = std::string("\"") + AVEN_C_COMPILER + "\" -std=c11 -fsyntax-only -Wall -Wno-unused-but-set-variable -I\"" +
+                          AVEN_SOURCE_DIR + "/sdk/include\"" + all + " > \"" + log + "\" 2>&1";
+    int status = std::system(command.c_str());
+    auto output = fs::readText(log).value_or("");
+    if (status != 0 || !output.empty())
+        std::printf("%s\n", output.c_str());
+    CHECK_EQ(status, 0);
+    CHECK(output.empty());
+}
+#endif

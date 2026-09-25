@@ -14,3 +14,7 @@ if(TARGET aven_example_patrol)
     add_dependencies(aven_tests aven_example_patrol)
     target_compile_definitions(aven_tests PRIVATE AVEN_EXAMPLE_CPP_MODULE="$<TARGET_FILE:aven_example_patrol>")
 endif()
+# The Code Ladder's C rung promises code that compiles: check it with the real C compiler.
+if(NOT MSVC)
+    target_compile_definitions(aven_tests PRIVATE AVEN_C_COMPILER="${CMAKE_C_COMPILER}")
+endif()

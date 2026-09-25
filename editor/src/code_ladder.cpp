@@ -44,7 +44,12 @@ const Rung kTranslations[] = {
     {"C++", "Unreal",
      "Unreal uses C++, the most advanced rung: classes, pointers (->), UPROPERTY for settings and Tick() for every frame.",
      CodeLanguage::Cpp, script::TargetLanguage::Unreal},
+    {"C", "Aven",
+     "The same behavior in C, for Aven's native code tier. Each object gets its own struct of data, and aven_get / "
+     "aven_set use EasyScript's names. Save it to native/src, build, and it runs in this very game.",
+     CodeLanguage::Cpp, script::TargetLanguage::AvenC},
 };
+constexpr int kAvenC = 4; // index of the C rung in kTranslations
 
 std::string lowerName(std::string s) {
     for (auto& c : s)
@@ -236,8 +241,12 @@ void Editor::drawCodeLadder() {
     ImGui::SameLine();
     ImGui::TextDisabled(">");
     ImGui::SameLine();
+    rungButton(2 + kAvenC, std::string(first.empty() ? "2" : "3") + "  C (Aven)", kTranslations[kAvenC].about);
+    ImGui::SameLine();
+    ImGui::TextDisabled(">");
+    ImGui::SameLine();
     ImGui::AlignTextToFramePadding();
-    ImGui::TextDisabled("%s  Other engines:", first.empty() ? "2" : "3");
+    ImGui::TextDisabled("%s  Other engines:", first.empty() ? "3" : "4");
     for (int i = 0; i < 4; ++i) {
         ImGui::SameLine();
         rungButton(2 + i, std::string(kTranslations[i].label) + " (" + kTranslations[i].engine + ")", kTranslations[i].about);
@@ -308,6 +317,23 @@ void Editor::drawCodeLadder() {
         if (ladder_.rung >= 2) {
             ImGui::SameLine();
             ImGui::Checkbox("Side by side with EasyScript", &ladder_.sideBySide);
+        }
+        if (ladder_.rung == 2 + kAvenC && unlocked(Feature::NativeCode) && ladder_.error.empty()) {
+            ImGui::SameLine();
+            ImGui::BeginDisabled(nativeBuild_ != nullptr);
+            if (ImGui::Button("Save to native/src and build")) {
+                if (!stdfs::exists(projectDir_ / "native" / "CMakeLists.txt"))
+                    createNativeModule();
+                std::string path = "native/src/" + lowerName(ladder_.className) + ".c";
+                fs::writeText(projectDir_ / path, ladder_.view->text());
+                scanAssets();
+                buildNativeModule();
+                notify("Saved " + path + ". When it's built, give an object a NativeScript with the behavior " +
+                       ladder_.className + ".");
+            }
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("Each file in native/src becomes its own library, so this runs next to your other native code.");
         }
         if (ladder_.rung == 1 && !ladder_.behavior.empty() && unlocked(Feature::Code)) {
             ImGui::SameLine();
