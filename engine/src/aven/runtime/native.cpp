@@ -617,6 +617,11 @@ void NativeRuntime::attach(Entity e) {
         return;
     const NativeBehaviorInfo* info = NativeModules::get().find(ns->className);
     if (!info) {
+#ifdef __EMSCRIPTEN__
+        reportOnce("Native (C/C++) behaviors don't run in web builds, so '" + ns->className + "' (used by " +
+                   scripts_.game().scene().info(e).name + ") does nothing here. It works in desktop builds.");
+        return;
+#endif
         reportOnce("There's no native behavior called '" + ns->className + "' (used by " +
                    scripts_.game().scene().info(e).name + "). Build your native module in Tools > Native Code, and "
                    "check the name given to aven_behavior().");

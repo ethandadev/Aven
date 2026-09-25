@@ -250,21 +250,15 @@ public:
             }
             std::string wanted = toSnakeCase(toText(v));
             auto& names = f->options.enumNames;
-            for (size_t i = 0; i < names.size(); ++i)
-                if (toSnakeCase(names[i]) == wanted) {
-                    f->ref<int32_t>(c) = static_cast<int32_t>(i);
-                    goto enumDone;
-                }
-            {
-                std::vector<std::string> options;
-                for (auto& n : names)
-                    options.push_back(toSnakeCase(n));
+            auto match = std::find_if(names.begin(), names.end(),
+                                      [&](const std::string& n) { return toSnakeCase(n) == wanted; });
+            if (match == names.end()) {
                 std::string list;
-                for (auto& o : options)
-                    list += (list.empty() ? "" : ", ") + ("\"" + o + "\"");
+                for (auto& n : names)
+                    list += (list.empty() ? "" : ", ") + ("\"" + toSnakeCase(n) + "\"");
                 raise(what + " can't be \"" + toText(v) + "\". Choose one of: " + list + ".");
             }
-        enumDone:
+            f->ref<int32_t>(c) = static_cast<int32_t>(match - names.begin());
             break;
         }
         case FieldType::EntityRef: {
@@ -799,9 +793,16 @@ const std::vector<MethodDef>& entityMethods() {
              scene.transform(bubble).position = {0, height * 0.5f + 0.45f, 0.01f};
              scene.registry().get<TextRenderer>(bubble).text = a[0].toString();
              float seconds = static_cast<float>(a.numberOr(1, "seconds", 2));
+             // A newer say() on the same bubble keeps it up for its own time.
+             static std::unordered_map<uint64_t, int> generation;
+             int said = ++generation[bubble.toHandle()];
              if (seconds > 0) {
                  Game* game = &s.game();
-                 Value remover = script::makeNative("_hide_speech", "", 0, 0, [game, bubble](CallArgs&) {
+                 Value remover = script::makeNative("_hide_speech", "", 0, 0, [game, bubble, said](CallArgs&) {
+                     auto it = generation.find(bubble.toHandle());
+                     if (it == generation.end() || it->second != said)
+                         return Value();
+                     generation.erase(it);
                      if (game->scene().valid(bubble))
                          game->scene().destroyLater(bubble);
                      return Value();
@@ -889,9 +890,15 @@ void setVelocityOf(Game& g, Entity e, Vec3 v) {
     else {
         // A classic mistake: velocity needs physics. Say so once per object instead of doing nothing.
         static std::unordered_set<uint64_t> warned;
-        if (warned.insert(g.scene().info(e).uuid.value).second)
-            Log::warn("'", g.scene().info(e).name,
-                         "' has no RigidBody2D, so changing its velocity does nothing. Add a RigidBody2D (Physics 2D) to it.");
+        if (warned.insert(g.scene().info(e).uuid.value).second) {
+            if (is3D(g.scene(), e))
+                Log::warn("'", g.scene().info(e).name,
+                          "' has no RigidBody, so changing its velocity does nothing. Add a RigidBody (Physics 3D) "
+                          "or a CharacterController to it.");
+            else
+                Log::warn("'", g.scene().info(e).name,
+                          "' has no RigidBody2D, so changing its velocity does nothing. Add a RigidBody2D (Physics 2D) to it.");
+        }
     }
 }
 
@@ -1026,7 +1033,13 @@ bool ScriptSystem::setProperty(Entity e, const std::string& name, const Value& v
         scene.setWorldPosition(e, p);
     } else if (name == "world_position") scene.setWorldPosition(e, toVec3(v, "world_position", scene.worldPosition(e)));
     else if (name == "angle") (three ? t.rotation.y : t.rotation.z) = num("angle");
-    else if (name == "rotation") t.rotation = v.isNumber() ? Vec3(0, 0, num("rotation")) : toVec3(v, "rotation", t.rotation);
+    else if (name == "rotation") {
+        // A single number turns the object like `angle` does, keeping the other axes.
+        if (v.isNumber())
+            (three ? t.rotation.y : t.rotation.z) = num("rotation");
+        else
+            t.rotation = toVec3(v, "rotation", t.rotation);
+    }
     else if (name == "rotation_x") t.rotation.x = num("rotation_x");
     else if (name == "rotation_y") t.rotation.y = num("rotation_y");
     else if (name == "rotation_z") t.rotation.z = num("rotation_z");
@@ -1471,9 +1484,15 @@ void ScriptSystem::updateTweens(float dt) {
             ++it;
         }
     }
-    for (auto& t : finished)
-        if (t.onDone.isCallable())
-            vm_.call(t.onDone, {entityValue(t.entity)});
+    for (auto& t : finished) {
+        if (!t.onDone.isCallable())
+            continue;
+        // The finished object is passed along, unless the function takes no values: def done():
+        std::vector<Value> args{entityValue(t.entity)};
+        if (t.onDone.type() == script::Type::Function && t.onDone.as<script::FunctionObj>()->proto->params.empty())
+            args.clear();
+        vm_.call(t.onDone, std::move(args));
+    }
 }
 
 // ---------------------------------------------------------------- global API
@@ -1556,7 +1575,12 @@ void ScriptSystem::registerApi() {
         const std::string& what = a.string(0, "shape_or_image");
         Entity e = scene.create(what);
         auto& sr = scene.registry().emplace<SpriteRenderer>(e);
-        setProperty(e, what.find('.') != std::string::npos ? "image" : "shape", Value(what));
+        try {
+            setProperty(e, what.find('.') != std::string::npos ? "image" : "shape", Value(what));
+        } catch (script::ScriptError&) {
+            scene.destroyLater(e); // don't leave a half-made object behind
+            throw;
+        }
         if (a.has(1))
             scene.transform(e).position = positionArgs(*this, a, 1, "create_sprite()");
         float size = static_cast<float>(a.has(3) ? a.number(3, "size") : a.keywordNumber("size", 1));
