@@ -264,8 +264,13 @@ void GameplaySystems::onBehaviorCollision(Entity a, Entity b, bool begin) {
             game_.destroyEntity(self);
             continue;
         }
-        if (auto* h = reg.tryGet<Hazard>(self); h && matches(scene, other, h->victimTag))
+        if (auto* h = reg.tryGet<Hazard>(self); h && matches(scene, other, h->victimTag)) {
             damage(other, h->damage, scene.worldPosition(self), h->knockback);
+            if (h->vanishOnHit) {
+                game_.destroyEntity(self);
+                continue;
+            }
+        }
         if (auto* link = reg.tryGet<SceneLink>(self); link && link->when == LinkTrigger::Touch && matches(scene, other, link->tag)) {
             BehaviorState& st = state(self);
             if (!st.linkPending) {

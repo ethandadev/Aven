@@ -389,6 +389,7 @@ struct Hazard {
     std::string victimTag = "player";
     int damage = 1;
     float knockback = 6.0f;
+    bool vanishOnHit = false; // bullets and thrown things disappear after hitting
 };
 
 // Hit points for players and enemies.

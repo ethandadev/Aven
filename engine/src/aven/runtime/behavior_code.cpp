@@ -124,7 +124,8 @@ std::string behaviorAsEasyScript(const std::string& c, const Json& v) {
                "def on_trigger(other):\n"
                "    if other.tag == " + str(v["victim_tag"], "player") + ":\n"
                "        # damage() takes hit points from the Health behavior (or restarts the level).\n"
-               "        other.damage(damage)\n";
+               "        other.damage(damage)\n" +
+               std::string(v["vanish_on_hit"].asBool(false) ? "        self.destroy()  # bullets disappear after hitting\n" : "");
     }
     if (c == "Health") {
         std::string zero = v["when_zero"].asString("RestartScene");

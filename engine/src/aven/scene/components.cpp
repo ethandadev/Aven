@@ -376,7 +376,8 @@ std::vector<ComponentInfo> buildRegistry() {
         r.add<Type>("Hazard", "Behaviors", "Hurts what touches it: spikes, lava, enemies. Needs Health on the victim, otherwise the scene restarts.")
             .field(F(victimTag), {.tooltip = "Who gets hurt (their Tag)."})
             .field(F(damage), {.min = 0, .max = 100})
-            .field(F(knockback), {.tooltip = "How hard the victim is pushed away.", .min = 0, .max = 30});
+            .field(F(knockback), {.tooltip = "How hard the victim is pushed away.", .min = 0, .max = 30})
+            .field(F(vanishOnHit), {.tooltip = "Disappears after hurting something (for bullets and thrown things)."});
     }
     {
         using Type = Health;

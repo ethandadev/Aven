@@ -7,6 +7,7 @@
 #include "aven/runtime/behavior_code.h"
 #include "aven/runtime/game.h"
 #include "aven/runtime/script_system.h"
+#include "aven/runtime/systems.h"
 #include "aven/scene/reflection.h"
 
 #include <filesystem>
@@ -124,4 +125,49 @@ AVEN_TEST(behavior_collectible_counts) {
         game.update(1.0f / 60.0f);
     CHECK_EQ(game.scripts().gameNumber("coins"), 5.0);
     CHECK(!game.scene().findByName("Coin"));
+}
+
+// A bullet (Hazard + Vanish On Hit) destroys an enemy with 1 health; the enemy's script scores on_destroy.
+AVEN_TEST(behavior_bullet_hits_enemy) {
+    namespace stdfs = std::filesystem;
+    stdfs::path dir = stdfs::temp_directory_path() / "aven_bullet_test";
+    std::error_code ec;
+    stdfs::remove_all(dir, ec);
+    stdfs::create_directories(dir / "scripts", ec);
+    fs::writeText(dir / "scripts/enemy.es", "def on_destroy():\n    game.score = get_game(\"score\", 0) + 1\n");
+    Assets assets;
+    assets.setRoot(dir);
+    Input input;
+    ErrorCatcher catcher;
+    Game game(assets, input);
+    auto scene = std::make_unique<Scene>();
+    auto& reg = scene->registry();
+    Entity enemy = scene->create("Enemy");
+    scene->info(enemy).tag = "enemy";
+    reg.emplace<RigidBody2D>(enemy).gravityScale = 0;
+    reg.emplace<CircleCollider2D>(enemy).radius = 0.4f;
+    auto& h = reg.emplace<Health>(enemy);
+    h.maxHealth = 1;
+    h.whenZero = WhenHealthRunsOut::Destroy;
+    h.counter = "";
+    reg.emplace<Script>(enemy).path = "scripts/enemy.es";
+    Entity bullet = scene->create("Bullet");
+    scene->transform(bullet).position = {-2, 0, 0};
+    auto& brb = reg.emplace<RigidBody2D>(bullet);
+    brb.gravityScale = 0;
+    brb.continuous = true;
+    auto& col = reg.emplace<CircleCollider2D>(bullet);
+    col.radius = 0.12f;
+    col.isTrigger = true;
+    auto& hz = reg.emplace<Hazard>(bullet);
+    hz.victimTag = "enemy";
+    hz.vanishOnHit = true;
+    game.start(std::move(scene), "test.scene");
+    game.physics2D().setVelocity(game.scene().findByName("Bullet"), {12, 0});
+    for (int i = 0; i < 40; ++i)
+        game.update(1.0f / 60.0f);
+    CHECK(!game.scene().findByName("Enemy"));
+    CHECK(!game.scene().findByName("Bullet"));
+    CHECK_EQ(game.scripts().gameNumber("score"), 1.0);
+    CHECK(catcher.errors.empty());
 }

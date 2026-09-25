@@ -40,6 +40,7 @@ void Editor::buildLayout(const std::string& name, unsigned int dockId) {
         dock("Inspector", right);
         dock("Learn", rightBottom);
         dock("###Explain", rightBottom);
+        dock("###RecipeCard", rightBottom);
         dock("Assets", bottom);
         dock("###Console", bottom);
         dock("###Doctor", bottom);
@@ -49,6 +50,7 @@ void Editor::buildLayout(const std::string& name, unsigned int dockId) {
         dock("Hierarchy", right);
         dock("Inspector", rightBottom);
         dock("Learn", rightBottom);
+        dock("###RecipeCard", rightBottom);
         dock("Assets", right);
         dock("###Console", right);
         dock("###Doctor", right);
@@ -61,6 +63,7 @@ void Editor::buildLayout(const std::string& name, unsigned int dockId) {
         dock("Assets", leftBottom);
         dock("Inspector", right);
         dock("Learn", right);
+        dock("###RecipeCard", right);
         dock("###Console", bottom);
         dock("###Doctor", bottom);
         dock("Scripting Reference", right);
@@ -73,6 +76,7 @@ void Editor::buildLayout(const std::string& name, unsigned int dockId) {
         dock("Assets", leftBottom);
         dock("Inspector", right);
         dock("Learn", right);
+        dock("###RecipeCard", right);
         dock("###Console", bottom);
         dock("###Doctor", bottom);
     } else {
@@ -83,6 +87,7 @@ void Editor::buildLayout(const std::string& name, unsigned int dockId) {
         dock("Inspector", right);
         dock("Learn", right);
         dock("###Explain", right);
+        dock("###RecipeCard", right);
         dock("Assets", bottom);
         dock("###Console", bottom);
         dock("###Doctor", bottom);
@@ -201,6 +206,11 @@ void Editor::drawMenuBar() {
     }
     if (ImGui::BeginMenu("Create")) {
         ImGui::BeginDisabled(playing_);
+        if (unlocked(Feature::Recipes)) {
+            if (ImGui::MenuItem("Game from a Recipe..."))
+                openRecipes();
+            ImGui::Separator();
+        }
         if (ImGui::BeginMenu("2D Shape")) {
             for (const char* k : {"Square", "Circle", "Triangle", "Rounded Square", "Diamond", "Star", "Heart", "Sprite"})
                 if (ImGui::MenuItem(k))
@@ -300,6 +310,7 @@ void Editor::drawMenuBar() {
         if (ImGui::MenuItem("Learn mode levels..."))
             showLevels_ = true;
         ImGui::MenuItem("Learn (tutorial)", nullptr, &showLearn_, !tutorial_.isNull());
+        ImGui::MenuItem("Recipe Card", nullptr, &showRecipeCard_, !recipeCard_.parts.empty());
         ImGui::MenuItem("Scripting Reference", nullptr, &showReference_);
         if (ImGui::MenuItem("Keyboard shortcuts...")) {
             showPrefs_ = true;

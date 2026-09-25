@@ -195,6 +195,34 @@ public:
     bool replaceWordInLine(const std::string& file, int line, const std::string& from, const std::string& to);
     void addPhysics2D(Entity e, bool trigger);
 
+    // --- Game recipes (recipes.cpp)
+    struct RecipeGoal {
+        enum { CollectAll, ReachExit, Survive, ReachScore };
+    };
+    struct RecipeChoices {
+        int recipe = 0; // platformer, adventure, shooter, dodge, clicker
+        std::string heroShape = "Circle";
+        Color heroColor{0.22f, 0.55f, 0.97f, 1};
+        std::string heroImage;
+        int collect = 1;        // nothing, coins, gems, stars
+        unsigned dangers = 3;   // spikes 1, walkers 2, chasers 4, falling rocks 8
+        int goal = RecipeGoal::ReachExit;
+        int difficulty = 1;     // easy, normal, hard
+        std::string name = "Platformer";
+        bool makeStartScene = false;
+    };
+    struct RecipePart {
+        std::string object, what, tryThis;
+    };
+    struct RecipeCard {
+        std::string title, summary, scene;
+        std::vector<RecipePart> parts;
+    };
+    // Builds a small working game from behaviors; returns the new scene's path.
+    std::string cookRecipe(const RecipeChoices& choices);
+    void loadRecipeCard(const std::string& scenePath);
+    void openRecipes() { showRecipes_ = focusRecipes_ = true; }
+
     // --- Code ladder (code_ladder.cpp)
     void openCodeLadder(const std::string& title, const std::string& easyScript, const std::string& path);
     void openCodeLadderForScript(const std::string& path);
@@ -341,6 +369,9 @@ private:
         std::unique_ptr<CodeEditor> view, left;
     };
     LadderState ladder_;
+    RecipeChoices recipeChoices_;
+    RecipeCard recipeCard_;
+    bool showRecipes_ = false, focusRecipes_ = false, showRecipeCard_ = false, focusRecipeCard_ = false;
     bool showLadder_ = false, focusLadder_ = false;
     bool pausedOnError_ = false; // the game paused itself because of an error
     std::set<std::string> errorPauses_; // "file:line" of errors that already paused this play session
@@ -449,6 +480,8 @@ private:
     void drawDoctor();
     void drawErrorBar(ImVec2 pos, ImVec2 size);
     void drawCodeLadder();
+    void drawRecipes();
+    void drawRecipeCard();
     bool componentUnlocked(const ComponentInfo& info) const;
     void saveAllScripts();
     bool exportGame(const stdfs::path& folder, std::string& message);

@@ -280,10 +280,44 @@ void Editor::drawHub() {
         int columns = std::max(1, static_cast<int>((avail + gap) / (cardW + gap)));
         cardW = (avail - gap * (columns - 1)) / columns;
         ImDrawList* dl = ImGui::GetWindowDrawList();
+        int slot = 0;
+        auto nextSlot = [&] {
+            if (slot++ % columns != 0)
+                ImGui::SameLine(0, gap);
+        };
+        // First card: cook a game from a recipe instead of starting from a template.
+        bool recipeChosen = newProjectTemplate_ == "@recipe";
+        if (unlocked(Feature::Recipes)) {
+            nextSlot();
+            ImVec2 p = ImGui::GetCursorScreenPos();
+            if (ImGui::InvisibleButton("##recipe", {cardW, cardH}))
+                newProjectTemplate_ = "@recipe";
+            bool hovered = ImGui::IsItemHovered();
+            ImVec2 q{p.x + cardW, p.y + cardH};
+            float headerH = cardH * 0.5f;
+            dl->AddRectFilled(p, q, ImGui::GetColorU32(hovered ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg), 8);
+            dl->AddRectFilledMultiColor(p, {q.x, p.y + headerH}, IM_COL32(56, 189, 248, 255), IM_COL32(168, 85, 247, 255),
+                                        IM_COL32(244, 114, 182, 255), IM_COL32(251, 191, 36, 255));
+            const char* icons[] = {"platformer", "shooter", "clicker"};
+            (void)icons;
+            if (fonts.big)
+                dl->AddText(fonts.big, fonts.big->FontSize * 1.1f, {p.x + em * 0.8f, p.y + headerH * 0.5f - fonts.big->FontSize * 0.6f},
+                            IM_COL32(255, 255, 255, 235), "Recipe");
+            float x = p.x + em * 0.8f, y = p.y + headerH + em * 0.5f;
+            if (fonts.bold)
+                dl->AddText(fonts.bold, fonts.bold->FontSize, {x, y}, ImGui::GetColorU32(ImGuiCol_Text), "Cook from a recipe");
+            y += em * 1.4f;
+            dl->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 0.92f, {x, y}, ImGui::GetColorU32(ImGuiCol_TextDisabled),
+                        "Say what you want (platformer, shooter, clicker...), pick the parts, and get a game with every part explained.",
+                        nullptr, cardW - em * 1.6f);
+            ImVec2 tagPos{x, q.y - em * 1.6f};
+            badge(dl, tagPos, "Guided", ImGui::GetColorU32(ImGuiCol_SliderGrab, 0.25f), ImGui::GetColorU32(ImGuiCol_Text));
+            if (recipeChosen)
+                dl->AddRect({p.x - 1, p.y - 1}, {q.x + 1, q.y + 1}, ImGui::GetColorU32(ImGuiCol_SliderGrab), 9, 0, 2.5f);
+        }
         for (size_t i = 0; i < templateCache_.size(); ++i) {
             const TemplateInfo& t = templateCache_[i];
-            if (i % columns != 0)
-                ImGui::SameLine(0, gap);
+            nextSlot();
             ImGui::PushID(t.id.c_str());
             ImVec2 p = ImGui::GetCursorScreenPos();
             bool clicked = ImGui::InvisibleButton("##card", {cardW, cardH});
@@ -376,7 +410,7 @@ void Editor::drawHub() {
             ImGui::InputText("##name", newProjectName_, sizeof(newProjectName_));
             ImGui::SameLine();
             ImGui::BeginDisabled(folderName.empty() || exists);
-            bool create = accentButton(chosen ? "Create game" : "Create empty game", {em * 10, 0});
+            bool create = accentButton(recipeChosen ? "Next: the recipe" : chosen ? "Create game" : "Create empty game", {em * 10, 0});
             ImGui::EndDisabled();
             if (exists) {
                 ImGui::SameLine();
@@ -393,7 +427,18 @@ void Editor::drawHub() {
             if (ImGui::SmallButton("Change..."))
                 hubPickFolder_ = true;
             ImGui::EndTable();
-            if (create) {
+            if (create && recipeChosen) {
+                // An empty 2D project, then the recipe wizard fills it.
+                const TemplateInfo* blank = nullptr;
+                for (auto& t : templateCache_)
+                    if (t.id == "blank-2d")
+                        blank = &t;
+                if (createProject(target, newProjectName_, blank)) {
+                    recipeChoices_.makeStartScene = true;
+                    showLearn_ = false;
+                    openRecipes();
+                }
+            } else if (create) {
                 if (createProject(target, newProjectName_, chosen))
                     notify("Created '" + std::string(newProjectName_) + "'. Press Play to try it!");
             }

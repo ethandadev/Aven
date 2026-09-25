@@ -143,11 +143,16 @@ int main(int argc, char** argv) {
         while (!window.shouldClose() && !game.quitRequested()) {
             window.pollEvents();
             for (auto& press : opt.keyPresses) {
-                int code = Input::keyFromName(press.key);
-                if (press.frame == frame)
-                    window.input().onKey(code, true);
-                if (press.frame + press.frames == frame)
-                    window.input().onKey(code, false);
+                bool down = press.frame == frame, up = press.frame + press.frames == frame;
+                if (!down && !up)
+                    continue;
+                // mouse_left / mouse_right / mouse_middle hold a mouse button instead of a key.
+                if (press.key.rfind("mouse_", 0) == 0) {
+                    int button = press.key == "mouse_right" ? 1 : press.key == "mouse_middle" ? 2 : 0;
+                    window.input().onMouseButton(button, down);
+                } else {
+                    window.input().onKey(Input::keyFromName(press.key), down);
+                }
             }
             double now = Window::time();
             float dt = capture ? 1.0f / 60.0f : static_cast<float>(std::min(now - last, 0.1));

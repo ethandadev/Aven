@@ -233,6 +233,27 @@ void Editor::openPanels(const std::string& list) {
                 if (Entity e = scene_->findByName(arg.substr(at + 1)))
                     behaviorToScript(e, arg.substr(0, at));
         }
+        else if (p == "recipes") { openRecipes(); }
+        else if (p.rfind("recipe:", 0) == 0) { // recipe:<kind>[:goal[:collect[:dangers[:difficulty]]]] cooks right away
+            std::vector<std::string> parts;
+            std::string rest = p.substr(7);
+            for (size_t at; (at = rest.find(':')) != std::string::npos; rest = rest.substr(at + 1))
+                parts.push_back(rest.substr(0, at));
+            parts.push_back(rest);
+            static const char* kinds[] = {"platformer", "adventure", "shooter", "dodge", "clicker"};
+            RecipeChoices c;
+            for (int i = 0; i < 5; ++i)
+                if (parts[0] == kinds[i])
+                    c.recipe = i;
+            c.name = parts[0];
+            c.name[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(c.name[0])));
+            if (parts.size() > 1) c.goal = std::atoi(parts[1].c_str());
+            if (parts.size() > 2) c.collect = std::atoi(parts[2].c_str());
+            if (parts.size() > 3) c.dangers = static_cast<unsigned>(std::atoi(parts[3].c_str()));
+            if (parts.size() > 4) c.difficulty = std::atoi(parts[4].c_str());
+            c.makeStartScene = true;
+            cookRecipe(c);
+        }
         else if (p == "doctor") { runCheckup(); showDoctor_ = true; focusDoctor_ = true; }
         else if (p == "doctorfix") { // automated test: apply the first fix of every problem found
             runCheckup();
@@ -437,6 +458,7 @@ bool Editor::openScene(const std::string& path) {
         stop();
     scene_ = std::move(scene);
     scenePath_ = path;
+    loadRecipeCard(path);
     dirty_ = false;
     undo_.clear();
     redo_.clear();
@@ -1325,6 +1347,10 @@ void Editor::frame(float dt) {
             drawDoctor();
         if (showLadder_ && unlocked(Feature::CodeLadder))
             drawCodeLadder();
+        if (showRecipes_ && unlocked(Feature::Recipes))
+            drawRecipes();
+        if (showRecipeCard_)
+            drawRecipeCard();
         drawScriptTabs();
         if (showSettings_)
             drawSettings();
