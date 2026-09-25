@@ -17,6 +17,9 @@ struct CodePalette {
     static const CodePalette& find(const std::string& name);
 };
 
+// Which language a code view colors (the Code ladder shows other engines' code).
+enum class CodeLanguage { EasyScript, CSharp, GDScript, Luau, Cpp };
+
 // A code editor built for EasyScript: syntax colors, line numbers, auto-indent,
 // bracket pairing, error markers and autocomplete.
 class CodeEditor {
@@ -36,6 +39,7 @@ public:
     void openFind(bool replace); // Ctrl+F / Ctrl+H
     void openGoto();             // Ctrl+G
     bool readOnly = false;
+    CodeLanguage language = CodeLanguage::EasyScript;
     static CodePalette palette; // shared by every code view
     ImFont* font = nullptr;
     std::vector<Completion> completions;

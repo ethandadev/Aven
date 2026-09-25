@@ -8,20 +8,35 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <unordered_set>
 
 namespace aven::editor {
 
 namespace {
 
 
-bool isKeyword(const std::string& w) {
-    static const char* kw[] = {"def",   "if",    "elif", "else", "while", "for",   "in",   "return", "break",
-                               "continue", "pass", "and", "or",  "not",   "True",  "False", "None", "global",
-                               "true",  "false", "null"};
-    for (const char* k : kw)
-        if (w == k)
-            return true;
-    return false;
+bool isKeyword(const std::string& w, CodeLanguage lang = CodeLanguage::EasyScript) {
+    static const std::unordered_set<std::string> easy = {"def", "if", "elif", "else", "while", "for", "in", "return", "break",
+                                                          "continue", "pass", "and", "or", "not", "True", "False", "None",
+                                                          "global", "true", "false", "null"};
+    static const std::unordered_set<std::string> cs = {
+        "using", "public", "private", "protected", "class", "static", "void", "float", "int", "bool", "string", "var", "new",
+        "if", "else", "while", "for", "foreach", "in", "return", "break", "continue", "true", "false", "null", "object",
+        "yield", "override", "virtual", "const", "auto", "struct", "nullptr", "this", "int32", "typedef", "namespace",
+        "IEnumerator", "sizeof", "enum", "operator", "template", "typename"};
+    static const std::unordered_set<std::string> gd = {"extends", "func", "var", "if", "elif", "else", "while", "for", "in",
+                                                        "return", "break", "continue", "pass", "and", "or", "not", "true",
+                                                        "false", "null", "await", "signal", "const", "class_name", "is"};
+    static const std::unordered_set<std::string> lua = {"local", "function", "if", "then", "elseif", "else", "end", "while",
+                                                         "do", "for", "in", "return", "break", "continue", "and", "or", "not",
+                                                         "true", "false", "nil", "repeat", "until"};
+    switch (lang) {
+    case CodeLanguage::CSharp:
+    case CodeLanguage::Cpp: return cs.count(w) > 0;
+    case CodeLanguage::GDScript: return gd.count(w) > 0;
+    case CodeLanguage::Luau: return lua.count(w) > 0;
+    default: return easy.count(w) > 0;
+    }
 }
 
 bool isWordChar(char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; }
@@ -634,11 +649,38 @@ void CodeEditor::drawLine(ImDrawList* dl, int index, ImVec2 pos, bool& inTriple)
         inTriple = false;
     }
     std::string prevWord;
+    bool cLike = language == CodeLanguage::CSharp || language == CodeLanguage::Cpp;
     while (i < s.size()) {
         char c = s[i];
-        if (c == '#') {
+        bool commentStart = cLike ? s.compare(i, 2, "//") == 0
+                            : language == CodeLanguage::Luau ? s.compare(i, 2, "--") == 0
+                                                              : c == '#';
+        if (commentStart) {
             emit(i, s.size(), CodeEditor::palette.comment);
             return;
+        }
+        if (language == CodeLanguage::Cpp && c == '#') { // #include, #pragma
+            size_t start = i++;
+            while (i < s.size() && isWordChar(s[i]))
+                ++i;
+            emit(start, i, CodeEditor::palette.keyword);
+            continue;
+        }
+        if (c == '`' && language == CodeLanguage::Luau) {
+            size_t start = i++;
+            while (i < s.size() && s[i] != '`') {
+                if (s[i] == '\\')
+                    ++i;
+                ++i;
+            }
+            i = std::min(i + 1, s.size());
+            emit(start, i, CodeEditor::palette.string);
+            continue;
+        }
+        if (c == '$' && language == CodeLanguage::CSharp && i + 1 < s.size() && s[i + 1] == '"') {
+            emit(i, i + 1, CodeEditor::palette.string);
+            ++i;
+            continue;
         }
         if (s.compare(i, 3, "\"\"\"") == 0) {
             size_t end = s.find("\"\"\"", i + 3);
@@ -678,12 +720,19 @@ void CodeEditor::drawLine(ImDrawList* dl, int index, ImVec2 pos, bool& inTriple)
                 ++i;
             std::string word = s.substr(start, i - start);
             ImU32 color = CodeEditor::palette.text;
-            if (isKeyword(word))
+            bool selfWord = language == CodeLanguage::Luau ? (word == "part" || word == "script" || word == "game" || word == "workspace")
+                            : cLike                        ? (word == "this" || word == "gameObject" || word == "transform")
+                                                           : (word == "self" || word == "game");
+            if (isKeyword(word, language))
                 color = CodeEditor::palette.keyword;
-            else if (word == "self" || word == "game")
+            else if (selfWord)
                 color = CodeEditor::palette.self;
-            else if (prevWord == "def")
+            else if (prevWord == "def" || prevWord == "func" || prevWord == "function")
                 color = CodeEditor::palette.function;
+            else if (cLike && std::isupper(static_cast<unsigned char>(word[0])) && !(i < s.size() && s[i] == '('))
+                color = CodeEditor::palette.builtin; // types and classes: Vector3, GameObject, FVector
+            else if (language == CodeLanguage::GDScript && std::isupper(static_cast<unsigned char>(word[0])))
+                color = CodeEditor::palette.builtin;
             else if (highlightWords.count(word))
                 color = CodeEditor::palette.builtin;
             else if (i < s.size() && s[i] == '(')
@@ -693,7 +742,8 @@ void CodeEditor::drawLine(ImDrawList* dl, int index, ImVec2 pos, bool& inTriple)
             continue;
         }
         size_t start = i++;
-        while (i < s.size() && !isWordChar(s[i]) && s[i] != '"' && s[i] != '\'' && s[i] != '#' &&
+        while (i < s.size() && !isWordChar(s[i]) && s[i] != '"' && s[i] != '\'' && s[i] != '#' && s[i] != '`' && s[i] != '$' &&
+               !(s[i] == '/' && i + 1 < s.size() && s[i + 1] == '/') && !(s[i] == '-' && i + 1 < s.size() && s[i + 1] == '-') &&
                !std::isdigit(static_cast<unsigned char>(s[i])))
             ++i;
         emit(start, i, CodeEditor::palette.text);

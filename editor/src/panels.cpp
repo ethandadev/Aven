@@ -943,6 +943,14 @@ void Editor::drawInspector() {
             }
             if (ci.removable && ImGui::MenuItem("Remove", nullptr, false, !playing_))
                 keep = false;
+            if (ci.category == "Behaviors" && unlocked(Feature::CodeLadder)) {
+                ImGui::Separator();
+                if (ImGui::MenuItem("Show as code"))
+                    openCodeLadderForBehavior(e, ci.name);
+                if (unlocked(Feature::Code) &&
+                    ImGui::MenuItem("Turn into a script", nullptr, false, !playing_ && !reg.has<Script>(e) && selection.size() == 1))
+                    behaviorToScript(e, ci.name);
+            }
             ImGui::Separator();
             ImGui::PushTextWrapPos(300);
             ImGui::TextDisabled("%s", ci.description.c_str());
@@ -1327,6 +1335,13 @@ void Editor::drawScriptTabs() {
                 ImGui::SameLine();
                 if (ImGui::SmallButton("Reference"))
                     showReference_ = true;
+                if (unlocked(Feature::CodeLadder)) {
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("Code Ladder"))
+                        openCodeLadderForScript(tab.path);
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("See this script as C# (Unity), GDScript (Godot), Luau (Roblox) and C++ (Unreal)");
+                }
                 ImVec2 avail = ImGui::GetContentRegionAvail();
                 if (tab.code->draw("##code", avail)) {
                     tab.modified = true;
@@ -1339,6 +1354,13 @@ void Editor::drawScriptTabs() {
                 }
                 ImGui::SameLine();
                 ImGui::Checkbox("Show code", &tab.blocks->showCode);
+                if (unlocked(Feature::CodeLadder)) {
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("Code Ladder"))
+                        openCodeLadderForScript(tab.path);
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("Climb from blocks to EasyScript, then to the code other engines use");
+                }
                 ImGui::SameLine();
                 ImGui::TextDisabled("Drag blocks from the left. Right-click a block for more.");
                 ImVec2 avail = ImGui::GetContentRegionAvail();

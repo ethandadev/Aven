@@ -248,6 +248,11 @@ void Editor::drawMenuBar() {
         ImGui::MenuItem("Scripting Reference", nullptr, &showReference_);
         if (unlocked(Feature::Explain))
             ImGui::MenuItem("Explain", chordName(prefs.chord("explain")).c_str(), &showExplain_);
+        if (unlocked(Feature::CodeLadder) && ImGui::MenuItem("Code Ladder", nullptr, showLadder_)) {
+            showLadder_ = !showLadder_;
+            if (showLadder_)
+                openCodeLadderForSelection();
+        }
         if (unlocked(Feature::Doctor) && ImGui::MenuItem("Error Doctor", nullptr, showDoctor_)) {
             showDoctor_ = !showDoctor_;
             if (showDoctor_) {

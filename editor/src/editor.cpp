@@ -210,6 +210,29 @@ void Editor::openPanels(const std::string& list) {
         else if (p == "export") showExport_ = true;
         else if (p == "learn") showLearn_ = true;
         else if (p == "explain") { showExplain_ = true; focusExplain_ = true; }
+        else if (p.rfind("ladder:", 0) == 0) { // ladder:<script path>[@rung] or ladder:<Component>@<object>
+            std::string arg = p.substr(7);
+            int rung = -1;
+            if (size_t at = arg.find('#'); at != std::string::npos) {
+                rung = std::atoi(arg.substr(at + 1).c_str());
+                arg = arg.substr(0, at);
+            }
+            if (size_t at = arg.find('@'); at != std::string::npos) {
+                if (Entity e = scene_->findByName(arg.substr(at + 1)))
+                    openCodeLadderForBehavior(e, arg.substr(0, at));
+            } else {
+                openCodeLadderForScript(arg);
+            }
+            if (rung >= 0)
+                ladder_.rung = rung;
+        }
+        else if (p.rfind("behavior2script:", 0) == 0) { // behavior2script:<Component>@<object>
+            std::string arg = p.substr(16);
+            size_t at = arg.find('@');
+            if (at != std::string::npos)
+                if (Entity e = scene_->findByName(arg.substr(at + 1)))
+                    behaviorToScript(e, arg.substr(0, at));
+        }
         else if (p == "doctor") { runCheckup(); showDoctor_ = true; focusDoctor_ = true; }
         else if (p == "doctorfix") { // automated test: apply the first fix of every problem found
             runCheckup();
@@ -1300,6 +1323,8 @@ void Editor::frame(float dt) {
             drawExplain();
         if (showDoctor_ && unlocked(Feature::Doctor))
             drawDoctor();
+        if (showLadder_ && unlocked(Feature::CodeLadder))
+            drawCodeLadder();
         drawScriptTabs();
         if (showSettings_)
             drawSettings();

@@ -194,6 +194,14 @@ public:
     bool rewriteScriptLine(const std::string& file, int line, const std::function<std::string(const std::string&)>& change);
     bool replaceWordInLine(const std::string& file, int line, const std::string& from, const std::string& to);
     void addPhysics2D(Entity e, bool trigger);
+
+    // --- Code ladder (code_ladder.cpp)
+    void openCodeLadder(const std::string& title, const std::string& easyScript, const std::string& path);
+    void openCodeLadderForScript(const std::string& path);
+    void openCodeLadderForBehavior(Entity e, const std::string& component);
+    void openCodeLadderForSelection(); // the selected object's script, or its first behavior
+    bool behaviorToScript(Entity e, const std::string& component); // replaces a behavior with the same logic as a script
+    std::string blocksToScript(const std::string& blocksPath);    // makes an EasyScript copy of a blocks file
     std::vector<LiveChange> collectLiveChanges();
     void applyLiveChanges(const std::vector<LiveChange>& changes);
     void drawLiveChangesBar(ImVec2 pos, ImVec2 size);
@@ -324,6 +332,16 @@ private:
     std::vector<Diagnosis> doctorItems_;
     std::string doctorTitle_;
     bool showDoctor_ = false, focusDoctor_ = false, doctorChecked_ = false;
+    struct LadderState {
+        std::string title, easy, path, behavior, className, error;
+        UUID entity;
+        bool fromBlocks = false, dirty = true, sideBySide = false;
+        int rung = 1; // 0 behavior/blocks, 1 EasyScript, 2+ other engines
+        std::vector<std::string> notes;
+        std::unique_ptr<CodeEditor> view, left;
+    };
+    LadderState ladder_;
+    bool showLadder_ = false, focusLadder_ = false;
     bool pausedOnError_ = false; // the game paused itself because of an error
     std::set<std::string> errorPauses_; // "file:line" of errors that already paused this play session
     int gameAspect_ = 0;
@@ -430,6 +448,7 @@ private:
     void drawExplain();
     void drawDoctor();
     void drawErrorBar(ImVec2 pos, ImVec2 size);
+    void drawCodeLadder();
     bool componentUnlocked(const ComponentInfo& info) const;
     void saveAllScripts();
     bool exportGame(const stdfs::path& folder, std::string& message);
