@@ -6,7 +6,7 @@
 using namespace aven;
 
 namespace {
-struct Health {
+struct TestHealth {
     int value = 100;
 };
 struct Speed {
@@ -17,15 +17,15 @@ struct Speed {
 AVEN_TEST(ecs_create_destroy_generations) {
     Registry r;
     Entity a = r.create();
-    r.emplace<Health>(a, 50);
+    r.emplace<TestHealth>(a, 50);
     CHECK(r.valid(a));
-    CHECK_EQ(r.get<Health>(a).value, 50);
+    CHECK_EQ(r.get<TestHealth>(a).value, 50);
     r.destroy(a);
     CHECK(!r.valid(a));
     Entity b = r.create(); // reuses the slot with a new generation
     CHECK_EQ(b.index, a.index);
     CHECK(!r.valid(a));
-    CHECK(!r.has<Health>(b));
+    CHECK(!r.has<TestHealth>(b));
     CHECK(Entity::fromHandle(b.toHandle()) == b);
 }
 
@@ -34,19 +34,19 @@ AVEN_TEST(ecs_each_filters_and_survives_removal) {
     std::vector<Entity> es;
     for (int i = 0; i < 10; ++i) {
         Entity e = r.create();
-        r.emplace<Health>(e, i);
+        r.emplace<TestHealth>(e, i);
         if (i % 2 == 0)
             r.emplace<Speed>(e, float(i));
         es.push_back(e);
     }
     int visited = 0;
-    r.each<Health, Speed>([&](Entity e, Health& h, Speed& s) {
+    r.each<TestHealth, Speed>([&](Entity e, TestHealth& h, Speed& s) {
         ++visited;
         CHECK_EQ(float(h.value), s.value);
         r.destroy(e); // destroying during iteration must be safe
     });
     CHECK_EQ(visited, 5);
-    CHECK_EQ(r.count<Health>(), size_t(5));
+    CHECK_EQ(r.count<TestHealth>(), size_t(5));
     CHECK_EQ(r.aliveCount(), size_t(5));
 }
 

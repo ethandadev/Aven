@@ -15,9 +15,15 @@ void GameplaySystems::start() {
     shakeAmount_ = shakeTime_ = shakeDuration_ = 0;
     shakeOffset_ = {};
     hovered_ = pressed_ = pressedWorld_ = {};
+    startBehaviors();
 }
 
-void GameplaySystems::stop() { start(); }
+void GameplaySystems::stop() {
+    shakeAmount_ = shakeTime_ = shakeDuration_ = 0;
+    shakeOffset_ = {};
+    hovered_ = pressed_ = pressedWorld_ = {};
+    behaviorStates_.clear();
+}
 
 float GameplaySystems::random01() {
     rng_ ^= rng_ << 13;
@@ -71,8 +77,10 @@ void GameplaySystems::updateUI() {
     for (Entity e : scene.registry().entitiesWith<UIButton>())
         scene.registry().get<UIButton>(e).pressed = (e == pressed_ && e == top && input.mouseDown(MouseButton::Left));
     if (input.mouseReleased(MouseButton::Left)) {
-        if (pressed_ && pressed_ == top && scene.valid(top))
+        if (pressed_ && pressed_ == top && scene.valid(top)) {
             game_.scripts().onClick(top);
+            onBehaviorClick(top);
+        }
         pressed_ = {};
     }
 }
@@ -81,37 +89,12 @@ void GameplaySystems::updateWorldClicks() {
     Input& input = game_.input();
     if (!input.mousePressed(MouseButton::Left) || hovered_)
         return;
-    Scene& scene = game_.scene();
-    Vec2 size = game_.screenSize();
-    CameraView cam = game_.camera(size.x / std::max(size.y, 1.0f));
-    Vec3 world = cam.screenToWorld(input.mousePosition(), size);
-    // Topmost sprite under the mouse (highest order, then last drawn).
-    Entity best;
-    int bestOrder = -1000000;
-    scene.walk([&](Entity e, int) {
-        if (!scene.info(e).active)
-            return false;
-        auto* sr = scene.registry().tryGet<SpriteRenderer>(e);
-        if (!sr || scene.registry().has<Hidden>(e))
-            return true;
-        Vec3 local = transformPoint(inverse(scene.registry().get<WorldTransform>(e).matrix), world);
-        if (std::abs(local.x) <= sr->size.x * 0.5f && std::abs(local.y) <= sr->size.y * 0.5f && sr->order >= bestOrder) {
-            best = e;
-            bestOrder = sr->order;
-        }
-        return true;
-    });
-    if (!best)
-        best = game_.physics2D().pointQuery({world.x, world.y});
-    if (!best) {
-        Vec3 origin, dir;
-        cam.screenRay(input.mousePosition(), size, origin, dir);
-        RayHit hit;
-        if (game_.physics3D().raycast(origin, dir, 1000.0f, hit))
-            best = hit.entity;
-    }
-    if (best)
+    Vec3 world;
+    Entity best = entityUnderMouse(world);
+    if (best) {
         game_.scripts().onClick(best);
+        onBehaviorClick(best);
+    }
 }
 
 void GameplaySystems::burst(Entity e, int count) {

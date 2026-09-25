@@ -9,4 +9,3 @@ compile_commands.json
 __pycache__/
 /exports/
 imgui.ini
-__pycache__/

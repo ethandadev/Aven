@@ -60,6 +60,11 @@ public:
                   script::Value onDone);
 
     script::Value& gameData() { return gameData_; }
+    // Shared game variables (game.score...) for engine features like behaviors.
+    script::Value gameValue(const std::string& name) const; // null if unset
+    void setGameValue(const std::string& name, const script::Value& v);
+    double gameNumber(const std::string& name, double fallback = 0) const;
+    void addToGameNumber(const std::string& name, double amount);
     float deltaTime() const { return deltaTime_; }
 
     // Converts a scripted value to a vector/color, raising a friendly error on bad input.

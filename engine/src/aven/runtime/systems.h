@@ -6,6 +6,7 @@
 #include "aven/scene/scene.h"
 
 #include <memory>
+#include <unordered_map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -118,7 +119,30 @@ public:
     void burst(Entity e, int count);
     Entity hoveredButton() const { return hovered_; }
 
+    // Behaviors (behaviors.cpp)
+    void startBehaviors();
+    void updateBehaviors(float dt);
+    void onBehaviorCollision(Entity a, Entity b, bool begin);
+    void onBehaviorClick(Entity e);
+    void damage(Entity victim, int amount, Vec3 from, float knockback);
+    void sparkle(Vec3 at, Color color);
+    Entity entityUnderMouse(Vec3& world);
+
 private:
+    struct BehaviorState {
+        bool started = false;
+        Vec3 start, startWorld, startScale{1, 1, 1};
+        float dir = 1;
+        float cooldown = 0, age = 0, invincible = 0, coyote = 0, bounce = 0, linkTimer = 0;
+        int jumpsLeft = 0;
+        bool collected = false, dragging = false, linkPending = false;
+        Vec3 dragOffset;
+        std::vector<uint64_t> spawned;
+    };
+    std::unordered_map<uint64_t, BehaviorState> behaviorStates_;
+    BehaviorState& state(Entity e);
+    void moveTo(Entity e, Vec3 local);
+
     Game& game_;
     float shakeAmount_ = 0, shakeTime_ = 0, shakeDuration_ = 0;
     Vec3 shakeOffset_;

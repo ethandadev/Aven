@@ -12,6 +12,7 @@
 #include "code_editor.h"
 #include "learn_mode.h"
 #include "prefs.h"
+#include "script_facts.h"
 
 #include <filesystem>
 #include <functional>
@@ -139,6 +140,60 @@ public:
         Json value;
     };
     void noteLiveChange(Entity e, const std::string& key);
+
+    // --- Ask Aven (assistant.cpp)
+    struct AssistantProposal {
+        std::string text;
+        std::function<void(Editor&)> apply;
+        bool enabled = true;
+    };
+    struct AssistantResult {
+        std::string request;
+        std::vector<AssistantProposal> proposals;
+        std::vector<std::string> understood, unknown, notes;
+    };
+    void askAven(const std::string& request);
+    const AssistantResult& assistantResult() const { return assistant_; }
+    // Reflection helpers used by the assistant, recipes and explanations.
+    Json fieldValue(Entity e, const std::string& component, const std::string& field);
+    void setFieldValue(Entity e, const std::string& component, const std::string& field, const Json& value);
+    bool hasComponent(Entity e, const std::string& component);
+    void addComponentByName(Entity e, const std::string& component);
+    void ensureRequirements(Entity e, const std::string& component);
+    std::vector<std::string> scriptVariables(Entity e);
+    void ensureBulletPrefab();
+
+    // --- Explain (explain.cpp)
+    struct ExplainSection {
+        std::string title;
+        std::vector<std::string> lines;
+    };
+    std::vector<ExplainSection> explainEntity(Entity e);
+    std::vector<ExplainSection> explainGame();
+    ScriptFacts& factsFor(const std::string& scriptPath); // cached per file
+
+    // --- Error doctor (doctor.cpp)
+    struct DoctorFix {
+        std::string label;
+        std::function<void(Editor&)> apply;
+    };
+    struct Diagnosis {
+        std::string title, explanation, original; // original = the engine's message, if any
+        std::string file;                         // script involved, if any
+        int line = 0;
+        std::string entity;                       // object involved, if any
+        std::vector<DoctorFix> fixes;
+        bool warning = false;
+    };
+    // Explains one error message; `file`/`line` say where it happened.
+    std::vector<Diagnosis> diagnose(const std::string& message, const std::string& file, int line);
+    // Looks through the whole scene for mistakes that don't show up as errors.
+    std::vector<Diagnosis> checkup();
+    void openDoctorFor(const std::string& message, const std::string& file, int line);
+    void runCheckup();
+    bool rewriteScriptLine(const std::string& file, int line, const std::function<std::string(const std::string&)>& change);
+    bool replaceWordInLine(const std::string& file, int line, const std::string& from, const std::string& to);
+    void addPhysics2D(Entity e, bool trigger);
     std::vector<LiveChange> collectLiveChanges();
     void applyLiveChanges(const std::vector<LiveChange>& changes);
     void drawLiveChangesBar(ImVec2 pos, ImVec2 size);
@@ -260,6 +315,17 @@ private:
     // Play-and-edit: which fields ("Component/field" or "script/variable") changed while playing.
     std::map<uint64_t, std::set<std::string>> liveChanges_;
     std::vector<LiveChange> pendingKeep_; // offered when the game stops
+    AssistantResult assistant_;
+    std::string assistantText_;
+    bool assistantFocus_ = false;
+    std::map<std::string, float> flashFields_; // "Component/field" highlighted after an automatic change
+    std::map<std::string, std::pair<stdfs::file_time_type, ScriptFacts>> factsCache_;
+    bool showExplain_ = true, focusExplain_ = false;
+    std::vector<Diagnosis> doctorItems_;
+    std::string doctorTitle_;
+    bool showDoctor_ = false, focusDoctor_ = false, doctorChecked_ = false;
+    bool pausedOnError_ = false; // the game paused itself because of an error
+    std::set<std::string> errorPauses_; // "file:line" of errors that already paused this play session
     int gameAspect_ = 0;
     bool showStats_ = false;
     bool muteGame_ = false;
@@ -360,6 +426,10 @@ private:
     bool drawComponent(Entity e, const ComponentInfo& info, void* data);
     void drawScriptVariables(Entity e);
     void drawAddComponent(Entity e);
+    void drawAssistant();
+    void drawExplain();
+    void drawDoctor();
+    void drawErrorBar(ImVec2 pos, ImVec2 size);
     bool componentUnlocked(const ComponentInfo& info) const;
     void saveAllScripts();
     bool exportGame(const stdfs::path& folder, std::string& message);

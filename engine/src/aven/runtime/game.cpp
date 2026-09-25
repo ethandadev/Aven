@@ -110,6 +110,7 @@ void Game::update(float dt) {
     gameplay_->preUpdate(dt);
     auto t1 = Clock::now();
     scripts_->update(scaled);
+    gameplay_->updateBehaviors(scaled);
     auto t2 = Clock::now();
     physics3D_->updateCharacters(scaled);
     auto t3 = Clock::now();

@@ -44,6 +44,7 @@ struct Physics2D::Impl {
     };
     std::unordered_map<Entity, Body> bodies;
     std::vector<Entity> dirty;
+    std::unordered_map<Entity, Vec2> pendingVelocity;
 
     explicit Impl(Game& g) : game(g) {}
 
@@ -118,6 +119,12 @@ struct Physics2D::Impl {
             b2CreateCircleShape(id, &sd, &c);
         }
         bodies[e] = {id, pos, angle, true};
+        // A velocity set before the body existed (e.g. right after spawning).
+        auto pv = pendingVelocity.find(e);
+        if (pv != pendingVelocity.end()) {
+            b2Body_SetLinearVelocity(id, {pv->second.x, pv->second.y});
+            pendingVelocity.erase(pv);
+        }
     }
 
     void syncBodies() {
@@ -225,8 +232,10 @@ struct Physics2D::Impl {
             events.push_back({fromUserData(b2Shape_GetUserData(ev.sensorShapeId)),
                               fromUserData(b2Shape_GetUserData(ev.visitorShapeId)), false, true});
         }
-        for (auto& ev : events)
+        for (auto& ev : events) {
             game.scripts().onCollision(ev.a, ev.b, ev.begin, ev.trigger);
+            game.gameplay().onBehaviorCollision(ev.a, ev.b, ev.begin);
+        }
     }
 
     const Body* find(Entity e) const {
@@ -304,6 +313,8 @@ void Physics2D::setVelocity(Entity e, Vec2 v) {
     if (const auto* b = impl_->find(e)) {
         b2Body_SetLinearVelocity(b->id, {v.x, v.y});
         b2Body_SetAwake(b->id, true);
+    } else {
+        impl_->pendingVelocity[e] = v;
     }
 }
 

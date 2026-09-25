@@ -683,6 +683,7 @@ void Editor::drawViewport(float dt) {
                                               : "Click the game to control it";
         dl->AddText({pos.x + 10, pos.y + size.y - 24}, IM_COL32(255, 255, 255, 140), hint);
         drawLiveChangesBar(pos, size);
+        drawErrorBar(pos, size);
     }
     if (showStats_)
         drawStats(pos);

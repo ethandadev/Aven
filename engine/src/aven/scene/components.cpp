@@ -331,6 +331,143 @@ std::vector<ComponentInfo> buildRegistry() {
             .field(F(hovered), {.runtime = true})
             .field(F(pressed), {.runtime = true});
     }
+    // ---------------------------------------------------------------- behaviors
+    const std::vector<std::string> kAxes{"X", "Y", "Z"};
+    {
+        using Type = Patrol;
+        r.add<Type>("Patrol", "Behaviors", "Walks back and forth. Great for enemies and moving platforms.")
+            .field(F(axis), {.tooltip = "X is left/right, Y is up/down, Z is forward/back (3D).", .enumNames = kAxes})
+            .field(F(distance), {.tooltip = "How far it goes to each side.", .min = 0.1f, .max = 50})
+            .field(F(speed), {.min = 0, .max = 30})
+            .field(F(flipSprite), {.tooltip = "Mirror the image to face the way it walks."});
+    }
+    {
+        using Type = Chase;
+        r.add<Type>("Chase", "Behaviors", "Moves toward the nearest object with a tag, like the player. Can also run away.")
+            .field(F(targetTag), {.tooltip = "Which objects to chase (their Tag)."})
+            .field(F(speed), {.min = 0, .max = 30})
+            .field(F(sight), {.tooltip = "Only notices targets closer than this.", .min = 0.5f, .max = 100})
+            .field(F(stopDistance), {.min = 0, .max = 10})
+            .field(F(runAway), {.tooltip = "Move away instead (for scared animals)."})
+            .field(F(flipSprite));
+    }
+    {
+        using Type = Spin;
+        r.add<Type>("Spin", "Behaviors", "Keeps turning around. Degrees per second for each axis (2D uses Z).")
+            .field(F(speed), {.step = 1});
+    }
+    {
+        using Type = Bob;
+        r.add<Type>("Bob", "Behaviors", "Floats gently up and down, like a coin or a ghost.")
+            .field(F(height), {.min = 0, .max = 5})
+            .field(F(speed), {.tooltip = "Bounces per second.", .min = 0.05f, .max = 10});
+    }
+    {
+        using Type = Collectible;
+        r.add<Type>("Collectible", "Behaviors", "Picked up when the player touches it: adds to a counter (game.score) and disappears.")
+            .field(F(collectorTag), {.tooltip = "Who can pick it up (their Tag)."})
+            .field(F(counter), {.tooltip = "The game variable to add to, e.g. score, coins, gems."})
+            .field(F(amount))
+            .field(F(sound), {.asset = AssetKind::Audio})
+            .field(F(sparkle), {.tooltip = "A little burst of particles when collected."});
+    }
+    {
+        using Type = Hazard;
+        r.add<Type>("Hazard", "Behaviors", "Hurts what touches it: spikes, lava, enemies. Needs Health on the victim, otherwise the scene restarts.")
+            .field(F(victimTag), {.tooltip = "Who gets hurt (their Tag)."})
+            .field(F(damage), {.min = 0, .max = 100})
+            .field(F(knockback), {.tooltip = "How hard the victim is pushed away.", .min = 0, .max = 30});
+    }
+    {
+        using Type = Health;
+        r.add<Type>("Health", "Behaviors", "Hit points. Hazards take them away; when they run out, something happens.")
+            .field(F(maxHealth), {.min = 1, .max = 1000})
+            .field(F(invincibleTime), {.tooltip = "Seconds of blinking safety after getting hurt.", .min = 0, .max = 10})
+            .field(F(whenZero), {.enumNames = {"RestartScene", "Respawn", "Destroy", "Nothing"}})
+            .field(F(counter), {.tooltip = "Also keeps game.<counter> up to date, for hearts on screen. Empty = off."})
+            .field(F(current), {.runtime = true});
+    }
+    {
+        using Type = Lifetime;
+        r.add<Type>("Lifetime", "Behaviors", "Disappears after a while. Good for bullets, effects and pop-up text.")
+            .field(F(seconds), {.min = 0.05f, .max = 120})
+            .field(F(fadeOut));
+    }
+    {
+        using Type = WrapAround;
+        r.add<Type>("WrapAround", "Behaviors", "Going off one edge of the screen brings it back on the other side (2D).", false, true)
+            .field(F(margin), {.min = 0, .max = 5});
+    }
+    {
+        using Type = Shooter;
+        r.add<Type>("Shooter", "Behaviors", "Fires copies of a prefab when a key is pressed: bullets, lasers, fireballs.")
+            .field(F(prefab), {.tooltip = "What to fire. Make one with right-click > Save as Prefab.", .asset = AssetKind::Prefab})
+            .field(F(action), {.tooltip = "Input action (see Project Settings) or key name, e.g. fire, space, z."})
+            .field(F(bulletSpeed), {.min = 0, .max = 100})
+            .field(F(cooldown), {.tooltip = "Seconds between shots.", .min = 0, .max = 5})
+            .field(F(aim), {.enumNames = {"Up", "Right", "Facing", "Mouse"}})
+            .field(F(offset), {.tooltip = "Where bullets appear, relative to this object."})
+            .field(F(sound), {.asset = AssetKind::Audio});
+    }
+    {
+        using Type = PlatformerController;
+        r.add<Type>("PlatformerController", "Behaviors", "Run with the arrow keys or A/D, jump with Space. Adds physics automatically.", false, true)
+            .field(F(speed), {.min = 0, .max = 30})
+            .field(F(jumpPower), {.min = 0, .max = 40})
+            .field(F(extraJumps), {.tooltip = "1 allows a double jump.", .min = 0, .max = 5})
+            .field(F(coyoteTime), {.tooltip = "A moment after running off a ledge when jumping still works.", .min = 0, .max = 0.5f,
+                                   .advanced = true})
+            .field(F(flipSprite))
+            .field(F(jumpSound), {.asset = AssetKind::Audio});
+    }
+    {
+        using Type = TopDownController;
+        r.add<Type>("TopDownController", "Behaviors", "Walk in all directions with the arrow keys or WASD (top-down games).", false, true)
+            .field(F(speed), {.min = 0, .max = 30})
+            .field(F(faceMovement), {.tooltip = "Turn to face the way it moves."});
+    }
+    {
+        using Type = FollowMouse;
+        r.add<Type>("FollowMouse", "Behaviors", "Follows the mouse pointer.")
+            .field(F(smoothness), {.tooltip = "0 snaps instantly; higher is smoother.", .min = 0, .max = 30})
+            .field(F(onlyWhileHeld), {.tooltip = "Only follow while the mouse button is held."});
+    }
+    {
+        using Type = Draggable;
+        r.add<Type>("Draggable", "Behaviors", "Can be picked up and moved with the mouse while playing (puzzles, card games).")
+            .field(F(snapToGrid))
+            .field(F(gridSize), {.min = 0.05f, .max = 10});
+    }
+    {
+        using Type = Spawner;
+        r.add<Type>("Spawner", "Behaviors", "Creates copies of a prefab over and over: enemies, falling rocks, coins.")
+            .field(F(prefab), {.asset = AssetKind::Prefab})
+            .field(F(interval), {.tooltip = "Seconds between copies.", .min = 0.05f, .max = 60})
+            .field(F(maxAlive), {.tooltip = "Stops making more while this many exist.", .min = 1, .max = 500})
+            .field(F(randomRange), {.tooltip = "Copies appear up to this far from the spawner (x, y)."});
+    }
+    {
+        using Type = Clickable;
+        r.add<Type>("Clickable", "Behaviors", "Clicking it adds to a counter. The heart of every clicker game.")
+            .field(F(counter))
+            .field(F(amount))
+            .field(F(sound), {.asset = AssetKind::Audio})
+            .field(F(bounce), {.tooltip = "Squish a little when clicked."});
+    }
+    {
+        using Type = ScoreDisplay;
+        r.add<Type>("ScoreDisplay", "Behaviors", "Shows a game counter as text. {} is replaced by the number.")
+            .field(F(counter))
+            .field(F(format));
+    }
+    {
+        using Type = SceneLink;
+        r.add<Type>("SceneLink", "Behaviors", "Goes to another scene: doors, portals, level ends and Start buttons.")
+            .field(F(scene), {.asset = AssetKind::Scene})
+            .field(F(when), {.enumNames = {"Touch", "Click", "AfterTime"}})
+            .field(F(tag), {.tooltip = "For Touch: who has to touch it."})
+            .field(F(delay), {.tooltip = "Seconds to wait first (for AfterTime, or a pause after touching).", .min = 0, .max = 60});
+    }
     {
         using Type = PrefabInstance;
         r.add<Type>("PrefabInstance", "Basics", "Links this object to the prefab it was created from.", true)

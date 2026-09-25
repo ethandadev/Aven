@@ -539,6 +539,15 @@ bool Editor::drawComponent(Entity e, const ComponentInfo& info, void* data) {
             continue;
         ImGui::PushID(f.name.c_str());
         ImGui::TableNextRow();
+        // Settings just changed by Ask Aven or a recipe glow for a moment.
+        for (const std::string& key : {info.name + "/" + f.name, info.name + "/*"}) {
+            auto flash = flashFields_.find(key);
+            if (flash != flashFields_.end() && flash->second > 0) {
+                Color a = prefs.accentColor();
+                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
+                                       ImGui::ColorConvertFloat4ToU32({a.r, a.g, a.b, std::min(0.45f, flash->second * 0.25f)}));
+            }
+        }
         ImGui::TableSetColumnIndex(0);
         ImGui::AlignTextToFramePadding();
         std::string label = f.label;
@@ -694,7 +703,7 @@ void Editor::drawScriptVariables(Entity e) {
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("%s%s", ex.comment.empty() ? "A variable from the script." : ex.comment.c_str(),
                               overridden ? "\n(Changed for this object only. Right-click to reset.)" : "");
-        if (overridden && ImGui::BeginPopupContextItem()) {
+        if (overridden && ImGui::BeginPopupContextItem("##reset_var")) {
             if (ImGui::MenuItem("Reset to the script's value")) {
                 edited("Reset variable");
                 sc->overrides.erase(ex.name);
@@ -798,6 +807,7 @@ void Editor::drawAddComponent(Entity e) {
             if (ImGui::Selectable(("   " + info.name).c_str())) {
                 recordUndo("Add " + info.name);
                 info.add(reg, e);
+                ensureRequirements(e, info.name);
                 if (info.name == "Script") {
                     // A new script is ready to edit straight away.
                     std::string path = newScriptFile(scene().info(e).name, !advanced());
@@ -862,6 +872,8 @@ void Editor::drawInspector() {
         edited("Change tag");
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Tags group objects: find_all(\"enemy\"), is_touching(\"coin\")...");
+    if (!playing_)
+        drawAssistant();
     if (auto* pi = s.registry().tryGet<PrefabInstance>(e)) {
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("Prefab: %s", pi->path.c_str());
@@ -1257,6 +1269,13 @@ void Editor::drawConsole() {
         }
         ImVec4 color = l.level == LogLevel::Error ? ImVec4(1.0f, 0.45f, 0.45f, 1) : l.level == LogLevel::Warning ? ImVec4(1.0f, 0.8f, 0.35f, 1) : ImVec4(0.85f, 0.87f, 0.9f, 1);
         ImGui::PushID(index++);
+        if (l.level != LogLevel::Info && unlocked(Feature::Doctor)) {
+            if (ImGui::SmallButton("Doctor"))
+                openDoctorFor(l.text, l.file, l.line);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Explain this in plain words, with a fix if there is one");
+            ImGui::SameLine();
+        }
         ImGui::PushStyleColor(ImGuiCol_Text, color);
         std::string prefix = l.file.empty() ? "" : l.file + ":" + std::to_string(l.line) + "  ";
         std::string text = prefix + l.text + (l.count > 1 ? "  (x" + std::to_string(l.count) + ")" : "");

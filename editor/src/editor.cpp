@@ -209,9 +209,31 @@ void Editor::openPanels(const std::string& list) {
         else if (p == "stats") showStats_ = true;
         else if (p == "export") showExport_ = true;
         else if (p == "learn") showLearn_ = true;
+        else if (p == "explain") { showExplain_ = true; focusExplain_ = true; }
+        else if (p == "doctor") { runCheckup(); showDoctor_ = true; focusDoctor_ = true; }
+        else if (p == "doctorfix") { // automated test: apply the first fix of every problem found
+            runCheckup();
+            for (auto& d : doctorItems_)
+                for (auto& fix : d.fixes)
+                    if (fix.label.rfind("Open ", 0) != 0) {
+                        Log::info("Doctor fix: ", fix.label);
+                        fix.apply(*this);
+                        break;
+                    }
+            runCheckup();
+            showDoctor_ = true;
+        }
         else if (p.rfind("prefab:", 0) == 0) openPrefab(p.substr(7));
         else if (p.rfind("aspect:", 0) == 0) gameAspect_ = std::atoi(p.substr(7).c_str());
         else if (p.rfind("layout:", 0) == 0) prefs.layout = p.substr(7);
+        else if (p.rfind("ask:", 0) == 0) { assistantText_ = p.substr(4); askAven(assistantText_); }
+        else if (p.rfind("askapply:", 0) == 0) {
+            askAven(p.substr(9));
+            recordUndo("Ask Aven");
+            for (auto& prop : assistant_.proposals)
+                prop.apply(*this);
+            assistant_ = {};
+        }
         else if (!p.empty()) extraPanels_.push_back(p);
     }
 }
@@ -629,6 +651,8 @@ void Editor::play() {
     game_->start(std::move(copy), scenePath_);
     playing_ = true;
     paused_ = false;
+    pausedOnError_ = false;
+    errorPauses_.clear();
     focusViewport_ = true;
 }
 
@@ -643,6 +667,7 @@ void Editor::stop() {
     game_.reset();
     playing_ = false;
     paused_ = false;
+    pausedOnError_ = false;
     window_.setCursorLocked(false);
     // Assets like textures may have been reloaded while playing; keep them.
 }
@@ -1220,6 +1245,14 @@ void Editor::frame(float dt) {
     {
         std::lock_guard lock(g_consoleMutex);
         for (auto& l : g_pendingLines) {
+            // Pause on the first error while playing, and let the doctor explain it.
+            if (l.level == LogLevel::Error && playing_ && !paused_ && prefs.pauseOnError &&
+                errorPauses_.insert(l.file + ":" + std::to_string(l.line)).second) {
+                paused_ = true;
+                pausedOnError_ = true;
+                if (unlocked(Feature::Doctor))
+                    openDoctorFor(l.text, l.file, l.line);
+            }
             if (!console_.empty() && console_.back().text == l.text && console_.back().file == l.file &&
                 console_.back().line == l.line)
                 ++console_.back().count;
@@ -1231,6 +1264,8 @@ void Editor::frame(float dt) {
         if (console_.size() > 2000)
             console_.erase(console_.begin(), console_.begin() + 500);
     }
+    for (auto it = flashFields_.begin(); it != flashFields_.end();)
+        it = (it->second -= dt) <= 0 ? flashFields_.erase(it) : std::next(it);
     errorCount_ = 0;
     for (auto& l : console_)
         if (l.level == LogLevel::Error)
@@ -1261,6 +1296,10 @@ void Editor::frame(float dt) {
             drawAssets();
         if (showConsole_ && unlocked(Feature::Console))
             drawConsole();
+        if (showExplain_ && unlocked(Feature::Explain))
+            drawExplain();
+        if (showDoctor_ && unlocked(Feature::Doctor))
+            drawDoctor();
         drawScriptTabs();
         if (showSettings_)
             drawSettings();

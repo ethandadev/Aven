@@ -312,6 +312,8 @@ void Editor::drawCommandPalette() {
     add("Undo history", "window", [this] { showHistory_ = true; });
     add("Profiler", "window", [this] { showProfiler_ = true; });
     add("Find in project", "window", [this] { showFind_ = true; findFocus_ = true; });
+    add("Check my game (Error Doctor)", "command", [this] { runCheckup(); showDoctor_ = focusDoctor_ = true; });
+    add("Explain my game", "window", [this] { showExplain_ = focusExplain_ = true; });
     add("Lighting presets", "window", [this] { showLighting_ = true; });
     add("Scripting reference", "window", [this] { showReference_ = true; });
     add("Project settings", "window", [this] { showSettings_ = true; });

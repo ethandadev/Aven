@@ -10,6 +10,7 @@
 #include "aven/script/stdlib.h"
 
 #include <algorithm>
+#include <unordered_set>
 #include <cmath>
 
 namespace aven {
@@ -472,6 +473,18 @@ const std::vector<MethodDef>& entityMethods() {
              s.game().destroyEntity(e);
              return Value();
          }},
+        {"damage", "self.damage(amount)", 1, 1,
+         [](ScriptSystem& s, Entity e, CallArgs& a) {
+             // Works with the Health behavior; without it, the scene restarts.
+             s.game().gameplay().damage(e, static_cast<int>(a.number(0, "amount")), s.game().scene().worldPosition(e), 0);
+             return Value();
+         }},
+        {"heal", "self.heal(amount)", 1, 1,
+         [](ScriptSystem& s, Entity e, CallArgs& a) {
+             if (auto* h = s.game().scene().registry().tryGet<Health>(e))
+                 h->current = std::min(h->maxHealth, h->current + static_cast<int>(a.number(0, "amount")));
+             return Value();
+         }},
         {"move", "self.move(dx, dy) or self.move(dx, dy, dz)", 1, 3,
          [](ScriptSystem& s, Entity e, CallArgs& a) {
              Vec3 d = a[0].isNumber() ? Vec3(static_cast<float>(a.number(0, "dx")), static_cast<float>(a.numberOr(1, "dy", 0)),
@@ -821,12 +834,20 @@ Vec3 velocityOf(Game& g, Entity e) {
 }
 
 void setVelocityOf(Game& g, Entity e, Vec3 v) {
+    auto& reg = g.scene().registry();
     if (g.physics3D().hasBody(e))
         g.physics3D().setVelocity(e, v);
-    else if (auto* cc = g.scene().registry().tryGet<CharacterController>(e))
+    else if (auto* cc = reg.tryGet<CharacterController>(e))
         cc->velocity = v;
-    else
+    else if (reg.has<RigidBody2D>(e) || reg.has<BoxCollider2D>(e) || reg.has<CircleCollider2D>(e) || reg.has<RigidBody>(e))
         g.physics2D().setVelocity(e, {v.x, v.y});
+    else {
+        // A classic mistake: velocity needs physics. Say so once per object instead of doing nothing.
+        static std::unordered_set<uint64_t> warned;
+        if (warned.insert(g.scene().info(e).uuid.value).second)
+            Log::warn("'", g.scene().info(e).name,
+                         "' has no RigidBody2D, so changing its velocity does nothing. Add a RigidBody2D (Physics 2D) to it.");
+    }
 }
 
 } // namespace
@@ -1324,6 +1345,26 @@ void ScriptSystem::onClick(Entity e) {
         vm_.callFunction(inst, onClickSym, {});
 }
 
+Value ScriptSystem::gameValue(const std::string& name) const {
+    auto* obj = gameData_.as<GameDataObject>();
+    if (Value* v = obj->data.dictObj().find(Value(name)))
+        return *v;
+    return Value();
+}
+
+void ScriptSystem::setGameValue(const std::string& name, const Value& v) {
+    gameData_.as<GameDataObject>()->data.dictObj().set(Value(name), v);
+}
+
+double ScriptSystem::gameNumber(const std::string& name, double fallback) const {
+    Value v = gameValue(name);
+    return v.isNumber() ? v.number() : fallback;
+}
+
+void ScriptSystem::addToGameNumber(const std::string& name, double amount) {
+    setGameValue(name, Value(gameNumber(name, 0) + amount));
+}
+
 void ScriptSystem::broadcast(const std::string& message, const Value& data) {
     static const Symbol onMessage = intern("on_message");
     callAll(onMessage, {Value(message), data}, false);
@@ -1519,6 +1560,11 @@ void ScriptSystem::registerApi() {
             raise("load_scene(): there's no scene file \"" + path + "\" in the project.");
         g.requestSceneChange(path);
         return Value();
+    });
+    def("get_game", "get_game(\"score\", 0)", 2, 2, [this](CallArgs& a) {
+        // Like game.score, but gives the default instead of an error when it hasn't been set yet.
+        Value v = gameValue(a.string(0, "name"));
+        return v.isNone() ? a[1] : v;
     });
     def("restart_scene", "restart_scene()", 0, 0, [&g](CallArgs&) {
         g.requestSceneChange(g.scenePath());

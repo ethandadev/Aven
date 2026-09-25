@@ -459,6 +459,7 @@ struct Physics3D::Impl {
             if (sensor && !triggerFirst(ea))
                 std::swap(ea, eb);
             game.scripts().onCollision(ea, eb, ev.begin, sensor);
+            game.gameplay().onBehaviorCollision(ea, eb, ev.begin);
         }
     }
 
@@ -563,8 +564,10 @@ struct Physics3D::Impl {
                 now.insert(contact.mBodyB.GetIndexAndSequenceNumber());
         for (uint32_t id : now)
             if (!c.touching.count(id))
-                if (Entity other = entityOf(JPH::BodyID(id)))
+                if (Entity other = entityOf(JPH::BodyID(id))) {
                     game.scripts().onCollision(e, other, true, false);
+                    game.gameplay().onBehaviorCollision(e, other, true);
+                }
         for (uint32_t id : c.touching)
             if (!now.count(id))
                 if (Entity other = entityOf(JPH::BodyID(id)))

@@ -337,6 +337,149 @@ struct PrefabInstance {
     std::string path;
 };
 
+// ---------------------------------------------------------------- behaviors
+// Ready-made behaviors: add them like any component. Each one has an EasyScript
+// equivalent (see the editor's "Show as code"), so they're also a way to learn.
+
+enum class Axis3 : int32_t { X, Y, Z };
+enum class WhenHealthRunsOut : int32_t { RestartScene, Respawn, Destroy, Nothing };
+enum class AimMode : int32_t { Up, Right, Facing, Mouse };
+enum class LinkTrigger : int32_t { Touch, Click, AfterTime };
+
+// Walks back and forth.
+struct Patrol {
+    Axis3 axis = Axis3::X;
+    float distance = 3.0f;
+    float speed = 2.0f;
+    bool flipSprite = true;
+};
+
+// Moves toward the nearest object with a tag (or away from it).
+struct Chase {
+    std::string targetTag = "player";
+    float speed = 3.0f;
+    float sight = 6.0f;
+    float stopDistance = 0.3f;
+    bool runAway = false;
+    bool flipSprite = true;
+};
+
+// Keeps turning (degrees per second). 2D games use Z.
+struct Spin {
+    Vec3 speed{0, 0, 90};
+};
+
+// Floats gently up and down.
+struct Bob {
+    float height = 0.25f;
+    float speed = 1.0f; // bounces per second
+};
+
+// Picked up when touched: adds to a game counter and disappears.
+struct Collectible {
+    std::string collectorTag = "player";
+    std::string counter = "score";
+    int amount = 1;
+    std::string sound;
+    bool sparkle = true;
+};
+
+// Hurts whatever it touches (needs Health on the victim, otherwise restarts the scene).
+struct Hazard {
+    std::string victimTag = "player";
+    int damage = 1;
+    float knockback = 6.0f;
+};
+
+// Hit points for players and enemies.
+struct Health {
+    int maxHealth = 3;
+    float invincibleTime = 1.0f;
+    WhenHealthRunsOut whenZero = WhenHealthRunsOut::RestartScene;
+    std::string counter = "health"; // mirrors the health into game.<counter> for the HUD ("" = off)
+    int current = 0;                // runtime
+};
+
+// Disappears after a while.
+struct Lifetime {
+    float seconds = 3.0f;
+    bool fadeOut = true;
+};
+
+// Leaving one side of the screen brings it back on the other side (2D).
+struct WrapAround {
+    float margin = 0.5f;
+};
+
+// Fires copies of a prefab (bullets, lasers, fireballs).
+struct Shooter {
+    std::string prefab;
+    std::string action = "fire"; // an input action (Project Settings) or a key name
+    float bulletSpeed = 12.0f;
+    float cooldown = 0.25f;
+    AimMode aim = AimMode::Up;
+    Vec2 offset{0, 0.6f};
+    std::string sound;
+};
+
+// Arrow keys/WASD to run, Space to jump (2D). Adds a RigidBody2D if missing.
+struct PlatformerController {
+    float speed = 6.0f;
+    float jumpPower = 12.0f;
+    int extraJumps = 0; // 1 = double jump
+    float coyoteTime = 0.1f;
+    bool flipSprite = true;
+    std::string jumpSound;
+};
+
+// Moves in all four directions with the arrow keys/WASD (2D top-down).
+struct TopDownController {
+    float speed = 5.0f;
+    bool faceMovement = false;
+};
+
+// Follows the mouse pointer.
+struct FollowMouse {
+    float smoothness = 12.0f; // 0 = snap
+    bool onlyWhileHeld = false;
+};
+
+// Can be picked up and moved with the mouse while playing.
+struct Draggable {
+    bool snapToGrid = false;
+    float gridSize = 0.5f;
+};
+
+// Creates copies of a prefab over and over.
+struct Spawner {
+    std::string prefab;
+    float interval = 1.5f;
+    int maxAlive = 10;
+    Vec2 randomRange{4, 0}; // spawn within +- this much of the spawner
+};
+
+// Clicking it adds to a counter (great for clicker games).
+struct Clickable {
+    std::string counter = "score";
+    int amount = 1;
+    std::string sound;
+    bool bounce = true;
+};
+
+// Shows a game counter in a UIText or TextRenderer, e.g. "Score: {}".
+struct ScoreDisplay {
+    std::string counter = "score";
+    std::string format = "Score: {}";
+};
+
+// Goes to another scene (doors, portals, "Start" buttons, level ends).
+struct SceneLink {
+    std::string scene;
+    LinkTrigger when = LinkTrigger::Touch;
+    std::string tag = "player";
+    float delay = 0.0f;
+};
+
 // ---------------------------------------------------------------- runtime-only (never saved)
 
 // Hides an entity's renderers without disabling its scripts (self.visible = False).

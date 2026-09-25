@@ -42,6 +42,7 @@ void Editor::buildLayout(const std::string& name, unsigned int dockId) {
         dock("###Explain", rightBottom);
         dock("Assets", bottom);
         dock("###Console", bottom);
+        dock("###Doctor", bottom);
     } else if (name == "Big Scene") {
         right = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, 0.24f, nullptr, &center);
         rightBottom = ImGui::DockBuilderSplitNode(right, ImGuiDir_Down, 0.6f, nullptr, &right);
@@ -50,6 +51,7 @@ void Editor::buildLayout(const std::string& name, unsigned int dockId) {
         dock("Learn", rightBottom);
         dock("Assets", right);
         dock("###Console", right);
+        dock("###Doctor", right);
     } else if (name == "Coder") {
         left = ImGui::DockBuilderSplitNode(center, ImGuiDir_Left, 0.18f, nullptr, &center);
         leftBottom = ImGui::DockBuilderSplitNode(left, ImGuiDir_Down, 0.5f, nullptr, &left);
@@ -60,6 +62,7 @@ void Editor::buildLayout(const std::string& name, unsigned int dockId) {
         dock("Inspector", right);
         dock("Learn", right);
         dock("###Console", bottom);
+        dock("###Doctor", bottom);
         dock("Scripting Reference", right);
     } else if (name == "Artist") {
         left = ImGui::DockBuilderSplitNode(center, ImGuiDir_Left, 0.22f, nullptr, &center);
@@ -71,6 +74,7 @@ void Editor::buildLayout(const std::string& name, unsigned int dockId) {
         dock("Inspector", right);
         dock("Learn", right);
         dock("###Console", bottom);
+        dock("###Doctor", bottom);
     } else {
         left = ImGui::DockBuilderSplitNode(center, ImGuiDir_Left, 0.18f, nullptr, &center);
         right = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, 0.26f, nullptr, &center);
@@ -81,6 +85,7 @@ void Editor::buildLayout(const std::string& name, unsigned int dockId) {
         dock("###Explain", right);
         dock("Assets", bottom);
         dock("###Console", bottom);
+        dock("###Doctor", bottom);
     }
     dock("###Viewport", center);
     ImGui::DockBuilderFinish(dockId);
@@ -241,6 +246,16 @@ void Editor::drawMenuBar() {
             ImGui::MenuItem("Console", nullptr, &showConsole_);
         ImGui::MenuItem("Learn (tutorial)", nullptr, &showLearn_, !tutorial_.isNull());
         ImGui::MenuItem("Scripting Reference", nullptr, &showReference_);
+        if (unlocked(Feature::Explain))
+            ImGui::MenuItem("Explain", chordName(prefs.chord("explain")).c_str(), &showExplain_);
+        if (unlocked(Feature::Doctor) && ImGui::MenuItem("Error Doctor", nullptr, showDoctor_)) {
+            showDoctor_ = !showDoctor_;
+            if (showDoctor_) {
+                runCheckup();
+                focusDoctor_ = true;
+            }
+        }
+        ImGui::Separator();
         if (unlocked(Feature::History))
             ImGui::MenuItem("Undo History", nullptr, &showHistory_);
         if (unlocked(Feature::Profiler))
@@ -447,8 +462,16 @@ void Editor::drawStatusBar() {
         x -= w + 12;
         ImGui::SameLine(x);
         ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(150, 40, 45, 255));
-        if (ImGui::SmallButton(err.c_str()))
-            showConsole_ = true;
+        if (ImGui::SmallButton(err.c_str())) {
+            if (unlocked(Feature::Doctor)) {
+                runCheckup();
+                showDoctor_ = focusDoctor_ = true;
+            } else {
+                showConsole_ = true;
+            }
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(unlocked(Feature::Doctor) ? "Open the Error Doctor" : "Show the Console");
         ImGui::PopStyleColor();
         x = ImGui::GetWindowWidth() - ImGui::CalcTextSize(right.c_str()).x - 16;
     }
@@ -479,6 +502,18 @@ void Editor::handleShortcuts() {
     }
     if (shortcut("preferences"))
         showPrefs_ = !showPrefs_;
+    if (shortcut("explain") && unlocked(Feature::Explain)) {
+        showExplain_ = true;
+        focusExplain_ = true;
+    }
+    if (shortcut("doctor") && unlocked(Feature::Doctor)) {
+        runCheckup();
+        showDoctor_ = focusDoctor_ = true;
+    }
+    if (shortcut("ask") && unlocked(Feature::Assistant)) {
+        showInspector_ = true;
+        assistantFocus_ = true;
+    }
     if (shortcut("command_palette") && unlocked(Feature::CommandPalette))
         showPalette_ = true;
     if (shortcut("find") && unlocked(Feature::Find)) {

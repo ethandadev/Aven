@@ -84,6 +84,7 @@ const std::vector<KeyAction>& keyActions() {
         {"ask", "Ask Aven (describe a change)", ImGuiMod_Ctrl | ImGuiKey_J, true},
         {"find", "Find in project", ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_F, true},
         {"explain", "Explain the selected object", ImGuiKey_F1, false},
+        {"doctor", "Error Doctor (check my game)", ImGuiKey_F8, true},
         {"screenshot", "Screenshot of the game view", ImGuiKey_F12, true},
         {"record_gif", "Record a GIF of the game", ImGuiMod_Shift | ImGuiKey_F12, true},
         {"toggle_2d3d", "Switch 2D / 3D view", ImGuiKey_F4, false},
