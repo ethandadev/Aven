@@ -19,4 +19,6 @@ add_dependencies(aven_editor aven_player)
 add_custom_command(TARGET aven_editor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/templates $<TARGET_FILE_DIR:aven_editor>/templates
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/data $<TARGET_FILE_DIR:aven_editor>/data
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/quests $<TARGET_FILE_DIR:aven_editor>/quests)
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/quests $<TARGET_FILE_DIR:aven_editor>/quests
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/sdk/include $<TARGET_FILE_DIR:aven_editor>/sdk/include
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/sdk/template $<TARGET_FILE_DIR:aven_editor>/sdk/template)

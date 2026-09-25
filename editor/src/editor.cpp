@@ -1,5 +1,7 @@
 #include "editor.h"
 
+#include "aven/runtime/native.h"
+
 #include "aven/blocks/blocks.h"
 #include "aven/core/fs.h"
 #include "aven/core/log.h"
@@ -29,6 +31,8 @@ Editor::Editor(Window& window, rhi::Device& device)
 Editor::~Editor() {
     if (gifThread_.joinable())
         gifThread_.join();
+    if (nativeThread_.joinable())
+        nativeThread_.join();
     if (options_.screenshot.empty())
         prefs.save();
     if (playing_)
@@ -225,6 +229,9 @@ void Editor::openPanels(const std::string& list) {
         else if (p == "spritesheet") openSpriteSheet();
         else if (p == "tiles") openTilePainter();
         else if (p == "savescene") saveScene();
+        else if (p == "native") openNativeCode();
+        else if (p == "newnative") createNativeModule();
+        else if (p == "buildnative") buildNativeModule();
         else if (p == "newtilemap") createEntity("Tilemap");
         else if (p == "startertiles") useStarterTileset(selected());
         else if (p.rfind("tilebox:", 0) == 0) { // tilebox:x0:y0:x1:y1:tile fills a box on the selected Tilemap
@@ -250,6 +257,7 @@ void Editor::openPanels(const std::string& list) {
         else if (p == "sharestart") { std::string m; startSharing(m); Log::info(m); openShare(); }
         else if (p == "learn") showLearn_ = true;
         else if (p == "explain") { showExplain_ = true; focusExplain_ = true; }
+        else if (p == "inspector") { showInspector_ = true; focusInspector_ = true; }
         else if (p.rfind("ladder:", 0) == 0) { // ladder:<script path>[@rung] or ladder:<Component>@<object>
             std::string arg = p.substr(7);
             int rung = -1;
@@ -481,6 +489,7 @@ bool Editor::openProject(const stdfs::path& dir) {
     lastReplay_ = {};
     clearThumbnails();
     checkLastSession();
+    NativeModules::get().refresh(projectDir_); // C/C++ behaviors, if the project has any
     Log::info("Opened project '", settings_.name, "'");
     return true;
 }
@@ -1154,8 +1163,12 @@ void Editor::openScript(const std::string& path, int line) {
     tab->code = std::make_unique<CodeEditor>();
     tab->code->setText(*text);
     tab->code->font = fonts.code;
-    tab->code->completions = completions_;
-    tab->code->highlightWords = apiWords_;
+    if (isNativeSource(path)) {
+        tab->code->language = CodeLanguage::Cpp;
+    } else {
+        tab->code->completions = completions_;
+        tab->code->highlightWords = apiWords_;
+    }
     if (line > 0)
         tab->code->gotoLine(line);
     tab->focus = true;
@@ -1213,6 +1226,8 @@ void Editor::openBlocks(const std::string& path) {
 }
 
 void Editor::checkScript(ScriptTab& tab) {
+    if (isNativeSource(tab.path))
+        return; // the C compiler checks these (Build)
     std::string source;
     if (tab.code)
         source = tab.code->text();
@@ -1407,6 +1422,8 @@ void Editor::frame(float dt) {
     }
     for (auto it = flashFields_.begin(); it != flashFields_.end();)
         it = (it->second -= dt) <= 0 ? flashFields_.erase(it) : std::next(it);
+    if (!projectDir_.empty())
+        updateNativeCode(dt);
     errorCount_ = 0;
     for (auto& l : console_)
         if (l.level == LogLevel::Error)
@@ -1461,6 +1478,8 @@ void Editor::frame(float dt) {
             drawSpriteSheet();
         if (showTilePainter_ && unlocked(Feature::Tilemap))
             drawTilePainter();
+        if (showNativeCode_ && unlocked(Feature::NativeCode))
+            drawNativeCode();
         drawScriptTabs();
         if (showSettings_)
             drawSettings();

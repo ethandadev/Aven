@@ -1,4 +1,5 @@
 #include "aven/runtime/script_system.h"
+#include "aven/runtime/native.h"
 
 #include "aven/blocks/blocks.h"
 #include "aven/core/fs.h"
@@ -768,6 +769,10 @@ const std::vector<MethodDef>& entityMethods() {
          }},
         {"send", "self.send(\"function_name\", values...)", 1, -1,
          [](ScriptSystem& s, Entity e, CallArgs& a) {
+             // C/C++ behaviors hear it as on_message(name, first value).
+             if (s.native().has(e))
+                 s.native().message(e, a.string(0, "function_name"),
+                                    a.has(1) && a[1].isNumber() ? a[1].number() : 0.0);
              auto inst = s.instanceOf(e);
              if (!inst)
                  return Value();
@@ -1132,9 +1137,10 @@ ScriptSystem::ScriptSystem(Game& game) : game_(game) {
         }
     };
     registerApi();
+    native_ = std::make_unique<NativeRuntime>(*this);
 }
 
-ScriptSystem::~ScriptSystem() = default;
+ScriptSystem::~ScriptSystem() { native_.reset(); }
 
 std::string ScriptSystem::loadSource(const std::string& path, bool& ok) {
     auto text = fs::readText(game_.assets().resolve(path));
@@ -1240,9 +1246,12 @@ void ScriptSystem::start() {
         attach(e);
         return true;
     });
+    native_->start();
 }
 
 void ScriptSystem::stop() {
+    if (native_)
+        native_->stop();
     for (auto& [e, inst] : instances_)
         inst->alive = false;
     instances_.clear();
@@ -1265,9 +1274,11 @@ void ScriptSystem::onSpawn(Entity root) {
             visit(c);
     };
     visit(root);
+    native_->onSpawn(root);
 }
 
 void ScriptSystem::onDestroy(Entity e) {
+    native_->onDestroy(e);
     auto it = instances_.find(e);
     if (it != instances_.end()) {
         auto inst = it->second;
@@ -1347,18 +1358,22 @@ void ScriptSystem::update(float dt) {
     for (int k = 0; k < keys::Count; ++k)
         if (input.keyPressed(k)) {
             std::string keyName = Input::nameOfKey(k);
-            if (!keyName.empty())
+            if (!keyName.empty()) {
                 callAll(onKey, {Value(keyName)}, false);
+                native_->onKeyPressed(keyName);
+            }
         }
 
     static const Symbol onUpdate = intern("on_update");
     callAll(onUpdate, {Value(dt)}, true);
+    native_->update(dt);
     updateTweens(dt);
 }
 
 void ScriptSystem::fixedUpdate(float dt) {
     static const Symbol onFixed = intern("on_fixed_update");
     callAll(onFixed, {Value(dt)}, true);
+    native_->fixedUpdate(dt);
 }
 
 void ScriptSystem::onCollision(Entity a, Entity b, bool begin, bool trigger) {
@@ -1377,12 +1392,14 @@ void ScriptSystem::onCollision(Entity a, Entity b, bool begin, bool trigger) {
                 if (!inst->find(trig))
                     vm_.callFunction(inst, collide, {entityValue(other)});
     }
+    native_->onCollision(a, b, begin, trigger);
 }
 
 void ScriptSystem::onClick(Entity e) {
     static const Symbol onClickSym = intern("on_click");
     if (auto inst = instanceOf(e))
         vm_.callFunction(inst, onClickSym, {});
+    native_->onClick(e);
 }
 
 Value ScriptSystem::gameValue(const std::string& name) const {
@@ -1408,6 +1425,7 @@ void ScriptSystem::addToGameNumber(const std::string& name, double amount) {
 void ScriptSystem::broadcast(const std::string& message, const Value& data) {
     static const Symbol onMessage = intern("on_message");
     callAll(onMessage, {Value(message), data}, false);
+    native_->message({}, message, data.isNumber() ? data.number() : data.isBool() ? (data.boolean() ? 1.0 : 0.0) : 0.0);
 }
 
 void ScriptSystem::addTween(Entity e, const std::string& property, float target, float duration, Easing easing,

@@ -3,6 +3,8 @@
 
 #include "editor.h"
 
+#include "aven/runtime/native.h"
+
 #include "aven/blocks/blocks.h"
 #include "aven/core/fs.h"
 #include "script_facts.h"
@@ -15,6 +17,11 @@
 namespace aven::editor {
 
 namespace {
+
+// "a" or "an" for the word that follows.
+std::string article(const std::string& word) {
+    return !word.empty() && std::string("aeiouAEIOU").find(word[0]) != std::string::npos ? "an" : "a";
+}
 
 std::string colorName(Color c) {
     struct Named {
@@ -161,13 +168,21 @@ std::vector<Editor::ExplainSection> Editor::explainEntity(Entity e) {
     // --- What it is
     ExplainSection what{"What it is", {}};
     if (auto* sr = reg.tryGet<SpriteRenderer>(e))
-        what.lines.push_back(sr->texture.empty() ? "It looks like a " + colorName(sr->color) + " " + shapeName(sr->shape) + "."
+        what.lines.push_back(sr->texture.empty() ? "It looks like " + article(colorName(sr->color)) + " " + colorName(sr->color) + " " +
+                                                       shapeName(sr->shape) + "."
                                                  : "It's a picture: " + sr->texture + ".");
     if (auto* mr = reg.tryGet<MeshRenderer>(e))
         what.lines.push_back(mr->mesh == MeshShape::Model ? "It's a 3D model: " + mr->model + "."
-                                                          : "It's a " + colorName(mr->color) + " 3D " + meshName(mr->mesh) + ".");
+                                                          : "It's " + article(colorName(mr->color)) + " " + colorName(mr->color) +
+                                                                " 3D " + meshName(mr->mesh) + ".");
     if (auto* t = reg.tryGet<TextRenderer>(e))
         what.lines.push_back("It shows the text \"" + t->text + "\".");
+    if (auto* tm = reg.tryGet<Tilemap>(e)) {
+        static const char* kCollision[] = {"things pass through it", "it's solid", "it's a trigger"};
+        what.lines.push_back("It's a tilemap with " + std::to_string(tm->tiles.size()) + " tiles" +
+                             (tm->tileset.empty() ? " (colored blocks)" : " from " + tm->tileset) + "; " +
+                             kCollision[std::clamp(static_cast<int>(tm->collision), 0, 2)] + ".");
+    }
     if (reg.has<UIButton>(e))
         what.lines.push_back("It's a button on the screen labeled \"" + reg.get<UIButton>(e).text + "\".");
     else if (auto* ut = reg.tryGet<UIText>(e))
@@ -257,6 +272,43 @@ std::vector<Editor::ExplainSection> Editor::explainEntity(Entity e) {
         if (f.handlers.empty() && f.error.empty())
             script.lines.push_back("The script doesn't do anything yet.");
         out.push_back(std::move(script));
+    }
+
+    // --- Native code
+    if (auto* ns = reg.tryGet<NativeScript>(e); ns && !ns->className.empty()) {
+        ExplainSection native{"Its native code (C/C++): " + ns->className, {}};
+        if (const NativeBehaviorInfo* b = NativeModules::get().find(ns->className)) {
+            native.lines.push_back("The behavior " + b->name + " comes from " + b->module + ", built from the code in native/src.");
+            std::string props;
+            for (auto& p : b->properties) {
+                const Json& o = ns->overrides[p.name];
+                double v = o.isNumber() ? o.asNumber() : o.isBool() ? (o.asBool() ? 1 : 0) : p.defaultValue;
+                char text[64];
+                std::snprintf(text, sizeof text, "%g", v);
+                props += (props.empty() ? "" : ", ") + p.name + " = " + text;
+            }
+            if (!props.empty())
+                native.lines.push_back("Its settings: " + props + ".");
+            const AvenBehavior& cb = b->callbacks;
+            std::string when;
+            auto add = [&](bool has, const char* what) {
+                if (has)
+                    when += (when.empty() ? "" : ", ") + std::string(what);
+            };
+            add(cb.on_start, "when the game starts");
+            add(cb.on_update || cb.on_fixed_update, "every frame");
+            add(cb.on_collide || cb.on_trigger, "when it touches something");
+            add(cb.on_click, "when it's clicked");
+            add(cb.on_key_pressed, "when a key is pressed");
+            add(cb.on_message, "when it gets a message");
+            add(cb.on_destroy, "when it's destroyed");
+            if (!when.empty())
+                native.lines.push_back("Its C code runs " + when + ".");
+        } else {
+            native.lines.push_back("No behavior called " + ns->className + " is built yet, so it won't do anything. Build the "
+                                   "native module in Tools > Native Code.");
+        }
+        out.push_back(std::move(native));
     }
 
     // --- Connections to other objects

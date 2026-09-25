@@ -140,7 +140,7 @@ bool Editor::packageTemplate(std::string& message) {
     }
     saveScene();
     saveAllScripts();
-    copyGameFiles(dest, projectDir_ / "exports", nullptr);
+    copyGameFiles(dest, projectDir_ / "exports", nullptr, GameCopy::Template);
     Json info = Json::object();
     info["name"] = t.name;
     info["description"] = t.description;

@@ -7,6 +7,8 @@
 
 #include "editor.h"
 
+#include "aven/runtime/native.h"
+
 #include "aven/core/embedded.h"
 #include "aven/core/fs.h"
 #include "aven/render/scene_renderer.h"
@@ -478,15 +480,19 @@ std::string Editor::safeGameName() const {
     return safeName.empty() ? "Game" : safeName;
 }
 
-void Editor::copyGameFiles(const stdfs::path& to, const stdfs::path& skip, std::vector<std::string>* list) {
+void Editor::copyGameFiles(const stdfs::path& to, const stdfs::path& skip, std::vector<std::string>* list, GameCopy kind) {
     std::error_code ec;
     stdfs::create_directories(to, ec);
     for (auto it = stdfs::recursive_directory_iterator(projectDir_, ec); it != stdfs::recursive_directory_iterator(); it.increment(ec)) {
         stdfs::path rel = stdfs::relative(it->path(), projectDir_, ec);
         std::string first = rel.begin()->string();
+        std::string second = std::distance(rel.begin(), rel.end()) > 1 ? std::next(rel.begin())->string() : "";
+        bool nativeSkipped = first == "native" && (kind == GameCopy::Web ? true
+                                                   : kind == GameCopy::Desktop ? !second.empty() && second != "bin"
+                                                                               : second == "bin" || second == "build");
         // Editor-only files and earlier exports stay behind.
         if (first == "exports" || first == "bug_reports" || first == "recipes" || first == "captures" || (!first.empty() && first[0] == '.') ||
-            rel == "tutorial.json" || (!skip.empty() && stdfs::equivalent(it->path(), skip, ec))) {
+            nativeSkipped || rel == "tutorial.json" || (!skip.empty() && stdfs::equivalent(it->path(), skip, ec))) {
             if (it->is_directory())
                 it.disable_recursion_pending();
             continue;
@@ -589,7 +595,7 @@ bool Editor::exportWeb(const stdfs::path& folder, std::string& message) {
     saveScene();
     saveAllScripts();
     std::vector<std::string> files;
-    copyGameFiles(out / "game", folder, &files);
+    copyGameFiles(out / "game", folder, &files, GameCopy::Web);
     Json list = Json::object();
     list["files"] = Json::array();
     for (auto& f : files)
@@ -815,6 +821,9 @@ void Editor::drawExport() {
                 exportTab_ = -1;
             ImGui::TextWrapped("Makes a web version that runs in any modern browser (Chrome, Edge, Firefox, Safari), on computers "
                                "and phones. No install needed.");
+            if (!NativeModules::get().behaviors().empty())
+                ImGui::TextColored({1, 0.75f, 0.35f, 1}, "This game uses native (C/C++) behaviors, which can't run in a browser. "
+                                                          "Objects using them will sit still on the web.");
             ImGui::Spacing();
             bool ready = !webPlayerDir().empty();
             if (!ready)
@@ -932,7 +941,7 @@ bool Editor::exportGame(const stdfs::path& folder, std::string& message) {
         }
         stdfs::remove_all(out / "game", ec);
     }
-    copyGameFiles(out / "game", folder, nullptr);
+    copyGameFiles(out / "game", folder, nullptr, GameCopy::Desktop);
 #ifdef _WIN32
     stdfs::path player = fs::executableDir() / "aven-player.exe";
     stdfs::path exe = out / (safeName + ".exe");

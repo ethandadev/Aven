@@ -323,6 +323,10 @@ void Editor::drawCommandPalette() {
         add("Sprite Sheet and Animation", "window", [this] { openSpriteSheet(); });
     if (unlocked(Feature::Tilemap))
         add("Tile Painter (paint levels with tiles)", "window", [this] { openTilePainter(); });
+    if (unlocked(Feature::NativeCode)) {
+        add("Native Code (write behaviors in C or C++)", "window", [this] { openNativeCode(); });
+        add("Build native code", "command", [this] { buildNativeModule(); });
+    }
     if (unlocked(Feature::BugReplay))
         add("Bug Replay (play the last 20 seconds again)", "window", [this] { openBugReplay(); });
     if (unlocked(Feature::Recipes))

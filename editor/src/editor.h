@@ -21,6 +21,7 @@
 #include <filesystem>
 #include <functional>
 #include <map>
+#include <mutex>
 #include <set>
 #include <unordered_set>
 #include <memory>
@@ -218,6 +219,8 @@ public:
     void openSoundMaker();
     void openPixelEditor(const std::string& imagePath); // "" = a new image
     void openTilePainter();
+    void openNativeCode();
+    void buildNativeModule();
     void openSpriteSheet();
 
     // --- Capture (capture.cpp): screenshots and GIFs of the game view
@@ -447,6 +450,25 @@ private:
     void drawTilePainter();
     void paintTilesInViewport(const CameraView& cam, ImVec2 pos);
     void useStarterTileset(Entity e);
+    // Native code (C/C++ modules): the window, building in the background, the Inspector.
+    struct NativeBuild {
+        std::mutex mutex;
+        std::vector<std::string> lines; // compiler output not yet shown
+        std::atomic<bool> done{false};
+        bool ok = false;
+    };
+    std::shared_ptr<NativeBuild> nativeBuild_;
+    std::thread nativeThread_;
+    std::vector<std::string> nativeOutput_;
+    bool focusInspector_ = false;
+    bool showNativeCode_ = false, focusNativeCode_ = false, nativeBuildOk_ = false, nativeBuiltOnce_ = false;
+    int nativeErrors_ = 0;
+    float nativeRefreshTimer_ = 10; // starts high: load straight away
+    void drawNativeCode();
+    void createNativeModule();
+    void updateNativeCode(float dt); // every frame: build output, reloading
+    void drawNativeScriptInspector(Entity e);
+    bool isNativeSource(const std::string& path) const;
     SfxParams sfx_;
     std::vector<float> sfxSamples_;
     std::unique_ptr<SoundPreview> soundPreview_;
@@ -483,7 +505,10 @@ private:
     rhi::TextureHandle cardTexture_;
     int exportTab_ = 0; // tab to open in Build & Share (-1: leave as is)
     std::string safeGameName() const;
-    void copyGameFiles(const stdfs::path& to, const stdfs::path& skip, std::vector<std::string>* list);
+    // What the copy is for decides what native (C/C++) files go along: only the built library for
+    // desktop games, nothing for the web (it can't run there), the sources for a template.
+    enum class GameCopy { Desktop, Web, Template };
+    void copyGameFiles(const stdfs::path& to, const stdfs::path& skip, std::vector<std::string>* list, GameCopy kind);
     stdfs::path webPlayerDir() const;
     struct Thumb {
         int frame = 0;
@@ -646,6 +671,7 @@ private:
 // Editor data files (editor/data), read fresh when they change (editor_data.cpp).
 stdfs::path editorDataDir();
 stdfs::path sourceDir(); // Aven's source code, when the editor was built from it (else empty)
+stdfs::path sdkDir();    // aven.h and the native module template
 void openExternal(const std::string& target); // a file, folder or link in the system's app
 const Json& editorData(const std::string& name);
 

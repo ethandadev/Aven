@@ -87,6 +87,7 @@ const std::vector<KeyAction>& keyActions() {
         {"doctor", "Error Doctor (check my game)", ImGuiKey_F8, true},
         {"screenshot", "Screenshot of the game view", ImGuiKey_F12, true},
         {"record_gif", "Record a GIF of the game", ImGuiMod_Shift | ImGuiKey_F12, true},
+        {"build_native", "Build native (C/C++) code", ImGuiMod_Ctrl | ImGuiKey_B, true},
         {"toggle_2d3d", "Switch 2D / 3D view", ImGuiKey_F4, false},
         {"preferences", "Preferences", ImGuiMod_Ctrl | ImGuiKey_Comma, true},
     };

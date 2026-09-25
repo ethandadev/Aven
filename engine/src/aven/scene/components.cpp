@@ -231,7 +231,18 @@ std::vector<ComponentInfo> buildRegistry() {
     {
         using Type = NativeScript;
         r.add<Type>("NativeScript", "Scripting", "Behavior written in C or C++ inside a native module.", true)
-            .field(F(className));
+            .field(F(className), {.label = "Behavior", .tooltip = "The name the module gave it in aven_behavior()."});
+        auto& info = r.list.back();
+        info.extraKeys = {"overrides"};
+        info.saveExtra = [](const void* c, Json& j) {
+            auto& s = *static_cast<const NativeScript*>(c);
+            if (s.overrides.size())
+                j["overrides"] = s.overrides;
+        };
+        info.loadExtra = [](void* c, const Json& j) {
+            auto& s = *static_cast<NativeScript*>(c);
+            s.overrides = j["overrides"].isObject() ? j["overrides"] : Json::object();
+        };
     }
     {
         using Type = RigidBody2D;

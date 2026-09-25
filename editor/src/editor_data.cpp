@@ -24,6 +24,14 @@ stdfs::path sourceDir() {
     return stdfs::exists(source / "engine", ec) && stdfs::exists(source / "editor", ec) ? source : stdfs::path();
 }
 
+stdfs::path sdkDir() {
+    std::error_code ec;
+    stdfs::path source = stdfs::path(AVEN_SOURCE_DIR) / "sdk";
+    if (stdfs::exists(source / "include" / "aven.h", ec))
+        return source;
+    return fs::executableDir() / "sdk";
+}
+
 const Json& editorData(const std::string& name) {
     struct Entry {
         stdfs::file_time_type time;

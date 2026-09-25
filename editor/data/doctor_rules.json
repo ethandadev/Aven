@@ -60,6 +60,26 @@
       "match": "This line ends too early",
       "title": "A line that ends too early",
       "explanation": "Something is missing at the end of line {line}: often a closing ) or ], a value after =, or the : at the end of an if or def."
+    },
+    {
+      "match": "There's no native behavior called",
+      "title": "A native behavior that isn't built",
+      "explanation": "An object's NativeScript names a C/C++ behavior that isn't loaded. Open Tools > Native Code and press Build. If it still doesn't appear, check the name you gave aven_behavior() in native/src matches the Inspector exactly (capital letters count)."
+    },
+    {
+      "match": "didn't load: it has no AVEN_MODULE",
+      "title": "A native library without AVEN_MODULE",
+      "explanation": "Aven found a library in native/bin but couldn't see what's inside. One of your C files needs AVEN_MODULE(setup) at the end, where setup is the function that calls aven_behavior()."
+    },
+    {
+      "match": "doesn't fit in its data",
+      "title": "A property outside its behavior's data",
+      "explanation": "aven_number()/aven_integer()/aven_flag() place a property inside your behavior's struct. Pass sizeof(YourStruct) to aven_behavior() and offsetof(YourStruct, field) for each property, so Aven knows where it goes."
+    },
+    {
+      "match": "CMake isn't installed",
+      "title": "No CMake to build native code",
+      "explanation": "Building C/C++ needs CMake and a compiler. Windows: install Visual Studio Community with 'Desktop development with C++' and CMake. macOS: run xcode-select --install and brew install cmake. Linux: install gcc (or clang) and cmake. Then restart Aven so it can find them."
     }
   ]
 }

@@ -325,6 +325,8 @@ void Editor::drawMenuBar() {
             openSpriteSheet();
         if (unlocked(Feature::Tilemap) && ImGui::MenuItem("Tile Painter"))
             openTilePainter();
+        if (unlocked(Feature::NativeCode) && ImGui::MenuItem("Native Code (C/C++)"))
+            openNativeCode();
         ImGui::Separator();
         if (unlocked(Feature::Capture)) {
             if (ImGui::MenuItem("Take a Screenshot", chordName(prefs.chord("screenshot")).c_str()))
@@ -577,6 +579,8 @@ void Editor::handleShortcuts() {
         takeScreenshot();
     if (shortcut("record_gif") && unlocked(Feature::Capture))
         toggleGifRecording();
+    if (shortcut("build_native") && unlocked(Feature::NativeCode) && stdfs::exists(projectDir_ / "native" / "CMakeLists.txt"))
+        buildNativeModule();
     if (shortcut("doctor") && unlocked(Feature::Doctor)) {
         runCheckup();
         showDoctor_ = focusDoctor_ = true;

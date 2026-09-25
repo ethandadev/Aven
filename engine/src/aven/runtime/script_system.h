@@ -15,6 +15,7 @@
 namespace aven {
 
 class Game;
+class NativeRuntime;
 
 enum class Easing { Linear, EaseIn, EaseOut, EaseInOut, Bounce, Elastic, Back };
 bool parseEasing(const std::string& name, Easing& out);
@@ -29,6 +30,7 @@ public:
 
     script::VM& vm() { return vm_; }
     Game& game() { return game_; }
+    NativeRuntime& native() { return *native_; } // C/C++ behaviors (NativeScript)
 
     void start();
     void stop();
@@ -76,6 +78,7 @@ public:
 private:
     Game& game_;
     script::VM vm_;
+    std::unique_ptr<NativeRuntime> native_;
     script::Value gameData_;
     std::unordered_map<Entity, std::shared_ptr<script::Instance>> instances_;
     std::unordered_map<Entity, script::Value> entityValues_;

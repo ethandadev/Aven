@@ -776,6 +776,8 @@ bool Editor::componentUnlocked(const ComponentInfo& info) const {
         return unlocked(Feature::Animation);
     if (info.name == "Tilemap")
         return unlocked(Feature::Tilemap);
+    if (info.name == "NativeScript")
+        return unlocked(Feature::NativeCode);
     return true;
 }
 
@@ -835,6 +837,10 @@ void Editor::drawAddComponent(Entity e) {
 
 void Editor::drawInspector() {
     ui::panelClass();
+    if (focusInspector_) {
+        ImGui::SetNextWindowFocus();
+        focusInspector_ = false;
+    }
     ImGui::Begin("Inspector", &showInspector_);
     Entity e = selected();
     Scene& s = scene();
@@ -980,7 +986,9 @@ void Editor::drawInspector() {
                         openTilePainter();
                 }
             }
-            if (ImGui::BeginTable("##fields", 2, ImGuiTableFlags_SizingStretchProp)) {
+            if (ci.name == "NativeScript") {
+                drawNativeScriptInspector(e);
+            } else if (ImGui::BeginTable("##fields", 2, ImGuiTableFlags_SizingStretchProp)) {
                 ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, 110);
                 ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
                 drawComponent(e, ci, data);
@@ -1139,6 +1147,8 @@ void Editor::drawAssets() {
             ImU32 col = IM_COL32(120, 130, 150, 255);
             const char* badge = "FILE";
             if (ext == ".es") { col = IM_COL32(255, 140, 90, 255); badge = "CODE"; }
+            else if (ext == ".c" || ext == ".cpp" || ext == ".cc") { col = IM_COL32(90, 140, 230, 255); badge = ext == ".c" ? "C" : "C++"; }
+            else if (ext == ".h" || ext == ".hpp") { col = IM_COL32(120, 150, 200, 255); badge = "HEADER"; }
             else if (ext == ".blocks") { col = IM_COL32(242, 176, 30, 255); badge = "BLOCKS"; }
             else if (ext == ".scene") { col = IM_COL32(90, 170, 255, 255); badge = "SCENE"; }
             else if (ext == ".prefab") { col = IM_COL32(120, 220, 170, 255); badge = "PREFAB"; }
@@ -1162,7 +1172,7 @@ void Editor::drawAssets() {
                 assetFolder_ = rel;
             else if (ext == ".scene")
                 openScene(rel);
-            else if (ext == ".es" || ext == ".blocks")
+            else if (ext == ".es" || ext == ".blocks" || isNativeSource(rel))
                 openScript(rel);
             else if (ext == ".prefab")
                 openPrefab(rel);
@@ -1348,6 +1358,20 @@ void Editor::drawScriptTabs() {
                     tab.modified = false;
                 }
                 ImGui::SameLine();
+                if (isNativeSource(tab.path)) {
+                    ImGui::TextDisabled("C/C++");
+                    ImGui::SameLine();
+                    ImGui::BeginDisabled(nativeBuild_ != nullptr);
+                    if (ImGui::SmallButton(nativeBuild_ ? "Building..." : "Save and Build (Ctrl+B)")) {
+                        fs::writeText(projectDir_ / tab.path, tab.code->text());
+                        tab.modified = false;
+                        buildNativeModule();
+                    }
+                    ImGui::EndDisabled();
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("aven.h"))
+                        openScript("native/include/aven.h");
+                } else {
                 ImGui::TextDisabled("EasyScript");
                 ImGui::SameLine();
                 if (ImGui::SmallButton("Reference"))
@@ -1358,6 +1382,7 @@ void Editor::drawScriptTabs() {
                         openCodeLadderForScript(tab.path);
                     if (ImGui::IsItemHovered())
                         ImGui::SetTooltip("See this script as C# (Unity), GDScript (Godot), Luau (Roblox) and C++ (Unreal)");
+                }
                 }
                 ImVec2 avail = ImGui::GetContentRegionAvail();
                 if (tab.code->draw("##code", avail)) {

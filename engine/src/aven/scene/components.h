@@ -239,6 +239,7 @@ struct Script {
 // A script written in C or C++, compiled into a native module (advanced tier).
 struct NativeScript {
     std::string className;
+    Json overrides = Json::object(); // property values set in the Inspector
 };
 
 // ---------------------------------------------------------------- Physics
