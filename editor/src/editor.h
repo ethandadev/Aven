@@ -217,6 +217,7 @@ public:
     // --- Sound Maker (sound_maker.cpp), Pixel Editor (pixel_editor.cpp), Sprite Sheet (sprite_sheet.cpp)
     void openSoundMaker();
     void openPixelEditor(const std::string& imagePath); // "" = a new image
+    void openTilePainter();
     void openSpriteSheet();
 
     // --- Capture (capture.cpp): screenshots and GIFs of the game view
@@ -436,6 +437,16 @@ private:
     int sheetRangeStart_ = -1;
     float sheetPreviewTime_ = 0;
     void drawSpriteSheet();
+    enum class TileTool { Paint, Erase, Box, Fill, Pick };
+    bool showTilePainter_ = false, focusTilePainter_ = false;
+    TileTool tileTool_ = TileTool::Paint;
+    int tileBrush_ = 0;
+    bool tileStroke_ = false, tileBoxing_ = false;
+    std::pair<int, int> tileBoxStart_{0, 0}, tileLast_{0, 0};
+    Tilemap* paintingTilemap(); // the selected Tilemap while the Tile Painter is painting in the Scene view
+    void drawTilePainter();
+    void paintTilesInViewport(const CameraView& cam, ImVec2 pos);
+    void useStarterTileset(Entity e);
     SfxParams sfx_;
     std::vector<float> sfxSamples_;
     std::unique_ptr<SoundPreview> soundPreview_;

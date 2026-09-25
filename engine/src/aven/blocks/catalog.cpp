@@ -108,6 +108,10 @@ std::vector<BlockDef> build() {
          "Higher layers are drawn on top."});
     add({"emit", "Looks", S::Statement, "burst {count} particles", "self.emit({count})", "", "", {num("count", "20")},
          "Needs a ParticleEmitter on this object."});
+    add({"set_tile_at", "Looks", S::Statement, "set tile at x {x} y {y} of {map} to {tile}",
+         "find({map}).set_tile_at({x}, {y}, {tile})", "", "",
+         {num("x", "0"), num("y", "0"), text("map", "Tilemap"), num("tile", "0")},
+         "Paints (or with -1, removes) the tile of a Tilemap at a spot in the world. Good for digging and building."});
     add({"shake", "Looks", S::Statement, "shake the camera {amount}", "camera_shake({amount}, 0.3)", "", "",
          {num("amount", "0.3")}, ""});
 
@@ -156,6 +160,8 @@ std::vector<BlockDef> build() {
     add({"distance_to", "Sensing", S::Reporter, "distance to {target}", "self.distance_to(find({target}))", "", "",
          {text("target", "Player")}, ""});
     add({"time", "Sensing", S::Reporter, "time", "time()", "", "", {}, "Seconds since the scene started."});
+    add({"tile_at", "Sensing", S::Reporter, "tile at x {x} y {y} of {map}", "find({map}).get_tile_at({x}, {y})", "", "",
+         {num("x", "0"), num("y", "0"), text("map", "Tilemap")}, "The tile number at a spot in the world, or -1 if empty."});
     add({"delta_time", "Sensing", S::Reporter, "frame time", "delta_time()", "", "", {},
          "Seconds since the last frame; multiply speeds by this."});
     add({"axis", "Sensing", S::Reporter, "{axis} input", "axis({axis})", "", "", {choice("axis", {"horizontal", "vertical"})},

@@ -145,7 +145,8 @@ const std::set<std::string> kEvents = {"on_start",  "on_update",       "on_fixed
 const std::set<std::string> kEntityMethods = {
     "destroy", "damage",  "heal",  "move",  "move_forward", "turn", "look_at", "move_toward", "distance_to", "direction_to",
     "is_touching", "apply_force", "apply_impulse", "play_animation", "stop_animation", "tween", "clone", "hide", "show",
-    "get_component", "add_component", "has_component", "remove_component", "find_child", "play_sound", "send", "say", "emit"};
+    "get_component", "add_component", "has_component", "remove_component", "find_child", "play_sound", "send", "say", "emit",
+    "set_tile", "get_tile", "set_tile_at", "get_tile_at"};
 
 const std::set<std::string> kListMethods = {"append", "remove", "pop", "insert", "index", "clear", "keys", "values",
                                             "contains", "upper", "lower", "split", "join", "strip", "replace"};
@@ -1623,6 +1624,16 @@ private:
                 note("Unity plays animations with an Animator and animation clips instead of frame numbers.");
                 return self + "GetComponent<Animator>()." + (m == "play_animation" ? "Play(\"Walk\")" : "StopPlayback()");
             }
+            if (m == "set_tile" || m == "get_tile" || m == "set_tile_at" || m == "get_tile_at") {
+                note("Unity tilemaps place Tile assets: add a `public TileBase[] tiles;` list and fill it in the Inspector.");
+                std::string map = self + "GetComponent<Tilemap>()";
+                std::string cell = m.size() > 8 ? map + ".WorldToCell(new Vector3(" + a0 + ", " + a1 + ", 0))"
+                                                : "new Vector3Int(" + a0 + ", " + a1 + ", 0)";
+                if (m[0] == 'g')
+                    return "System.Array.IndexOf(tiles, " + map + ".GetTile(" + cell + "))";
+                std::string t = arg(a, 2);
+                return map + ".SetTile(" + cell + ", " + t + " >= 0 ? tiles[" + t + "] : null)";
+            }
             return unsupported(m, self + pascal(m) + "(" + argList(a) + ")");
         }
         case L::Godot: {
@@ -1665,6 +1676,16 @@ private:
             if (m == "play_animation" || m == "stop_animation") {
                 note("Godot plays animations with an AnimatedSprite2D or AnimationPlayer node.");
                 return P + "get_node(\"AnimatedSprite2D\")." + (m == "play_animation" ? "play()" : "stop()");
+            }
+            if (m == "set_tile" || m == "get_tile" || m == "set_tile_at" || m == "get_tile_at") {
+                note("In Godot, tiles live in a TileMapLayer node; a tile is picked by its atlas coordinates in the TileSet.");
+                std::string layer = P + "get_node(\"TileMapLayer\")";
+                std::string cell = m.size() > 8 ? layer + ".local_to_map(" + layer + ".to_local(Vector2(" + a0 + ", " + a1 + ")))"
+                                                : "Vector2i(" + a0 + ", " + a1 + ")";
+                if (m[0] == 'g')
+                    return layer + ".get_cell_source_id(" + cell + ")";
+                std::string t = arg(a, 2);
+                return layer + ".set_cell(" + cell + ", 0, Vector2i(" + t + " % COLUMNS, " + t + " / COLUMNS))";
             }
             return unsupported(m, P + m + "(" + argList(a) + ")");
         }
@@ -1711,6 +1732,8 @@ private:
                 helpers_.insert("messages");
                 return "messages:Fire(" + a0 + ", " + arg(a, 1, "nil") + ")";
             }
+            if (m == "set_tile" || m == "get_tile" || m == "set_tile_at" || m == "get_tile_at")
+                note("Roblox has no 2D tilemaps; levels are built from Parts (or Terrain:FillBlock for voxel terrain).");
             return unsupported(m, O + ":" + pascal(m) + "(" + argList(a) + ")");
         }
         case L::Unreal: {
@@ -1734,6 +1757,13 @@ private:
             if (m == "damage") return "UGameplayStatics::ApplyDamage(" + self + ", " + a0 + ", nullptr, this, nullptr)";
             if (m == "clone" || m == "emit" || m == "send" || m == "heal")
                 note("In Unreal, " + m + "() is done with Blueprints or your own C++ functions.");
+            if (m == "set_tile" || m == "get_tile") {
+                note("Unreal's 2D tilemaps are Paper2D UPaperTileMapComponent; tiles come from a UPaperTileSet.");
+                std::string map = Pre + "FindComponentByClass<UPaperTileMapComponent>()";
+                if (m == "get_tile")
+                    return map + "->GetTile(" + a0 + ", " + a1 + ", 0).GetTileIndex()";
+                return map + "->SetTile(" + a0 + ", " + a1 + ", 0, MakeTile(" + arg(a, 2) + "))";
+            }
             return unsupported(m, Pre + pascal(m) + "(" + argList(a) + ")");
         }
         }

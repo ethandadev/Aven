@@ -10,6 +10,7 @@
 #include "aven/ecs/registry.h"
 #include "aven/math/math.h"
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -104,6 +105,70 @@ struct SpriteRenderer {
     int rows = 1;
     int frame = 0;
 };
+
+enum class TileCollision : int32_t { None, Solid, Trigger };
+
+// A grid of tiles painted from a tileset image (tiles laid out in columns and rows). Tile (x, y)
+// covers local space x..x+1, y..y+1 times tileSize. Without a tileset, tiles are colored blocks.
+struct Tilemap {
+    std::string tileset;
+    int columns = 4; // tiles across the tileset image
+    int rows = 4;    // tiles down the tileset image
+    float tileSize = 1.0f;
+    Color color{1, 1, 1, 1};
+    int order = -1;
+    bool pixelArt = true;
+    TileCollision collision = TileCollision::Solid;
+    std::string notSolid; // tile numbers things pass through, e.g. "6, 15" (water, ladders)
+    float friction = 0.4f;
+
+    // Sparse: only painted cells are stored. Keys sort by row, then column.
+    std::map<int64_t, int> tiles;
+    uint32_t version = 0; // bumped on every change so physics can rebuild
+
+    // x is biased so keys order by (y, x) even for negative x.
+    static int64_t key(int x, int y) {
+        return static_cast<int64_t>(static_cast<uint64_t>(static_cast<int64_t>(y)) << 32 | (static_cast<uint32_t>(x) ^ 0x80000000u));
+    }
+    static int keyX(int64_t k) { return static_cast<int32_t>(static_cast<uint32_t>(k) ^ 0x80000000u); }
+    static int keyY(int64_t k) { return static_cast<int32_t>(k >> 32); }
+    // -1 when the cell is empty.
+    int get(int x, int y) const {
+        auto it = tiles.find(key(x, y));
+        return it == tiles.end() ? -1 : it->second;
+    }
+    std::vector<int> passThroughTiles() const;
+    bool isSolidTile(int tile) const;
+    void setSolidTile(int tile, bool solid);
+    // Changes whenever the collision shapes would (tiles, collision settings, size).
+    uint64_t shapeSignature() const;
+    // A negative tile empties the cell. Returns true if something changed.
+    bool set(int x, int y, int tile) {
+        int64_t k = key(x, y);
+        auto it = tiles.find(k);
+        if (tile < 0) {
+            if (it == tiles.end())
+                return false;
+            tiles.erase(it);
+        } else {
+            if (it != tiles.end() && it->second == tile)
+                return false;
+            tiles[k] = tile;
+        }
+        ++version;
+        return true;
+    }
+};
+
+// Colors used for tiles when a Tilemap has no tileset image.
+Color tileColor(int tile);
+
+struct TileRect {
+    int x0, x1, y0, y1; // inclusive tile coordinates
+};
+// Covers the painted tiles with few rectangles: runs along each row, then runs of the same
+// width stacked in neighbouring rows. Physics uses these, so floors have no seams to snag on.
+std::vector<TileRect> tileRects(const Tilemap& map);
 
 struct SpriteAnimator {
     int firstFrame = 0;

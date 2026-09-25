@@ -259,13 +259,14 @@ void SceneRenderer::draw2D(Scene& scene, const CameraView& camera, bool depthTes
             return true;
         const SpriteRenderer* sr = reg.tryGet<SpriteRenderer>(e);
         const TextRenderer* tr = reg.tryGet<TextRenderer>(e);
+        const Tilemap* tm = reg.tryGet<Tilemap>(e);
         const ParticleState* ps = reg.tryGet<ParticleState>(e);
         bool particles = ps && !ps->particles.empty() && reg.has<ParticleEmitter>(e);
-        if (!sr && !tr && !particles)
+        if (!sr && !tr && !particles && !(tm && !tm->tiles.empty()))
             return true;
         const Mat4& world = reg.get<WorldTransform>(e).matrix;
         float viewZ = transformPoint(camera.view, {world.m[12], world.m[13], world.m[14]}).z;
-        int order = sr ? sr->order : tr ? tr->order : 0;
+        int order = sr ? sr->order : tr ? tr->order : tm ? tm->order : 0;
         items.push_back({order, viewZ, seq, e});
         return true;
     });
@@ -280,6 +281,8 @@ void SceneRenderer::draw2D(Scene& scene, const CameraView& camera, bool depthTes
     renderer2D_.begin(camera.viewProjection, true, depthTest);
     for (const Item& item : items) {
         const Mat4& world = reg.get<WorldTransform>(item.e).matrix;
+        if (const Tilemap* tm = reg.tryGet<Tilemap>(item.e))
+            drawTilemap(*tm, world, camera);
         if (const SpriteRenderer* sr = reg.tryGet<SpriteRenderer>(item.e)) {
             const TextureAsset& tex =
                 sr->texture.empty() ? assets_->shape(sr->shape) : assets_->texture(sr->texture, sr->pixelArt);
@@ -319,6 +322,66 @@ void SceneRenderer::draw2D(Scene& scene, const CameraView& camera, bool depthTes
         }
     }
     renderer2D_.end();
+}
+
+void SceneRenderer::drawTilemap(const Tilemap& map, const Mat4& world, const CameraView& camera) {
+    if (map.tiles.empty())
+        return;
+    const float ts = std::max(map.tileSize, 0.001f);
+    const bool colored = map.tileset.empty();
+    const TextureAsset& tex = colored ? assets_->white() : assets_->texture(map.tileset, map.pixelArt);
+    const int cols = std::max(1, map.columns), rows = std::max(1, map.rows);
+    // A hair inside each tile's edges so neighbours in the tileset never bleed in.
+    const float insetU = 0.001f / cols, insetV = 0.001f / rows;
+
+    auto drawTile = [&](int x, int y, int tile) {
+        Vec3 corners[4] = {transformPoint(world, {x * ts, y * ts, 0}), transformPoint(world, {(x + 1) * ts, y * ts, 0}),
+                           transformPoint(world, {(x + 1) * ts, (y + 1) * ts, 0}), transformPoint(world, {x * ts, (y + 1) * ts, 0})};
+        if (colored) {
+            // A faint checker keeps neighbouring blocks of the same color readable.
+            Color c = tileColor(tile);
+            float shade = ((x + y) & 1) ? 0.92f : 1.0f;
+            c = {c.r * map.color.r * shade, c.g * map.color.g * shade, c.b * map.color.b * shade, c.a * map.color.a};
+            Vec2 uvs[4] = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+            renderer2D_.quad(corners, uvs, c, tex.handle);
+            return;
+        }
+        int t = tile % (cols * rows);
+        int col = t % cols, row = t / cols;
+        float u0 = static_cast<float>(col) / cols + insetU, u1 = static_cast<float>(col + 1) / cols - insetU;
+        float v1 = 1.0f - static_cast<float>(row) / rows - insetV, v0 = 1.0f - static_cast<float>(row + 1) / rows + insetV;
+        Vec2 uvs[4] = {{u0, v0}, {u1, v0}, {u1, v1}, {u0, v1}};
+        renderer2D_.quad(corners, uvs, map.color, tex.handle);
+    };
+
+    if (!camera.orthographic) {
+        for (auto& [k, tile] : map.tiles)
+            drawTile(Tilemap::keyX(k), Tilemap::keyY(k), tile);
+        return;
+    }
+    // Only the tiles the camera can see: the view's corners in the map's own space.
+    Mat4 toLocal = inverse(world) * inverse(camera.viewProjection);
+    float minX = 1e30f, minY = 1e30f, maxX = -1e30f, maxY = -1e30f;
+    for (Vec2 ndc : {Vec2{-1, -1}, Vec2{1, -1}, Vec2{1, 1}, Vec2{-1, 1}}) {
+        Vec3 p = transformPoint(toLocal, {ndc.x, ndc.y, 0});
+        minX = std::min(minX, p.x);
+        maxX = std::max(maxX, p.x);
+        minY = std::min(minY, p.y);
+        maxY = std::max(maxY, p.y);
+    }
+    auto cell = [&](float v) { return static_cast<int>(std::clamp(std::floor(v / ts), -2.0e9f, 2.0e9f)); };
+    int x0 = cell(minX) - 1, x1 = cell(maxX) + 1, y0 = cell(minY) - 1, y1 = cell(maxY) + 1;
+    if (static_cast<int64_t>(y1) - y0 > static_cast<int64_t>(map.tiles.size())) {
+        for (auto& [k, tile] : map.tiles) {
+            int x = Tilemap::keyX(k), y = Tilemap::keyY(k);
+            if (x >= x0 && x <= x1 && y >= y0 && y <= y1)
+                drawTile(x, y, tile);
+        }
+        return;
+    }
+    for (int y = y0; y <= y1; ++y)
+        for (auto it = map.tiles.lower_bound(Tilemap::key(x0, y)); it != map.tiles.end() && it->first <= Tilemap::key(x1, y); ++it)
+            drawTile(Tilemap::keyX(it->first), y, it->second);
 }
 
 namespace {

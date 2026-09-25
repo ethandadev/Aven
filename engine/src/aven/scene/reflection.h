@@ -61,6 +61,7 @@ struct ComponentInfo {
     std::function<void(Registry&, Entity)> remove;
     std::function<void(const void*, Json&)> saveExtra; // optional custom data
     std::function<void(void*, const Json&)> loadExtra;
+    std::vector<std::string> extraKeys; // keys saveExtra writes (so loading doesn't call them typos)
 
     const FieldInfo* findField(std::string_view fieldName) const;
 };

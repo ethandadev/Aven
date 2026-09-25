@@ -335,6 +335,7 @@ const char* kComponentAliases[][2] = {
     {"animator", "SpriteAnimator"}, {"mesh", "MeshRenderer"},       {"text_renderer", "TextRenderer"},
     {"ui", "UIElement"},            {"button", "UIButton"},         {"collider", "BoxCollider2D"},
     {"controller", "CharacterController"}, {"follow", "CameraFollow"}, {"post", "PostProcessing"},
+    {"tilemap", "Tilemap"},
 };
 
 class EntityObject final : public script::NativeObject {
@@ -624,6 +625,45 @@ const std::vector<MethodDef>& entityMethods() {
              anim.loop = loop;
              anim.playing = true;
              return Value();
+         }},
+        {"set_tile", "tilemap.set_tile(column, row, tile)  (tile -1 erases)", 3, 3,
+         [](ScriptSystem& s, Entity e, CallArgs& a) {
+             auto* tm = s.game().scene().registry().tryGet<Tilemap>(e);
+             if (!tm)
+                 raise("set_tile(): this object has no Tilemap.");
+             int tile = a[2].isNone() ? -1 : static_cast<int>(a.number(2, "tile"));
+             tm->set(static_cast<int>(std::floor(a.number(0, "column"))), static_cast<int>(std::floor(a.number(1, "row"))), tile);
+             return Value();
+         }},
+        {"get_tile", "tilemap.get_tile(column, row)  (-1 if empty)", 2, 2,
+         [](ScriptSystem& s, Entity e, CallArgs& a) {
+             auto* tm = s.game().scene().registry().tryGet<Tilemap>(e);
+             if (!tm)
+                 raise("get_tile(): this object has no Tilemap.");
+             return Value(static_cast<double>(
+                 tm->get(static_cast<int>(std::floor(a.number(0, "column"))), static_cast<int>(std::floor(a.number(1, "row"))))));
+         }},
+        {"set_tile_at", "tilemap.set_tile_at(x, y, tile)  (a world position; tile -1 erases)", 3, 3,
+         [](ScriptSystem& s, Entity e, CallArgs& a) {
+             auto* tm = s.game().scene().registry().tryGet<Tilemap>(e);
+             if (!tm)
+                 raise("set_tile_at(): this object has no Tilemap.");
+             Vec3 local = transformPoint(inverse(s.game().scene().worldMatrix(e)),
+                                         {static_cast<float>(a.number(0, "x")), static_cast<float>(a.number(1, "y")), 0});
+             float ts = std::max(tm->tileSize, 0.001f);
+             int tile = a[2].isNone() ? -1 : static_cast<int>(a.number(2, "tile"));
+             tm->set(static_cast<int>(std::floor(local.x / ts)), static_cast<int>(std::floor(local.y / ts)), tile);
+             return Value();
+         }},
+        {"get_tile_at", "tilemap.get_tile_at(x, y)  (a world position; -1 if empty)", 2, 2,
+         [](ScriptSystem& s, Entity e, CallArgs& a) {
+             auto* tm = s.game().scene().registry().tryGet<Tilemap>(e);
+             if (!tm)
+                 raise("get_tile_at(): this object has no Tilemap.");
+             Vec3 local = transformPoint(inverse(s.game().scene().worldMatrix(e)),
+                                         {static_cast<float>(a.number(0, "x")), static_cast<float>(a.number(1, "y")), 0});
+             float ts = std::max(tm->tileSize, 0.001f);
+             return Value(static_cast<double>(tm->get(static_cast<int>(std::floor(local.x / ts)), static_cast<int>(std::floor(local.y / ts)))));
          }},
         {"stop_animation", "self.stop_animation()", 0, 0,
          [](ScriptSystem& s, Entity e, CallArgs&) {

@@ -6,6 +6,7 @@
 #include <box2d/box2d.h>
 
 #include <cmath>
+#include <map>
 #include <unordered_map>
 
 namespace aven {
@@ -29,6 +30,11 @@ b2BodyType bodyType(BodyType t) {
     return b2_dynamicBody;
 }
 
+bool hasTileCollision(const Registry& reg, Entity e) {
+    auto* tm = reg.tryGet<Tilemap>(e);
+    return tm && tm->collision != TileCollision::None && !tm->tiles.empty();
+}
+
 } // namespace
 
 struct Physics2D::Impl {
@@ -41,6 +47,7 @@ struct Physics2D::Impl {
         Vec2 lastPosition;
         float lastAngle = 0;
         bool enabled = true;
+        uint64_t tilemapSignature = 0;
     };
     std::unordered_map<Entity, Body> bodies;
     std::vector<Entity> dirty;
@@ -65,7 +72,8 @@ struct Physics2D::Impl {
         auto* rb = reg.tryGet<RigidBody2D>(e);
         auto* box = reg.tryGet<BoxCollider2D>(e);
         auto* circle = reg.tryGet<CircleCollider2D>(e);
-        if (!rb && !box && !circle)
+        auto* tiles = hasTileCollision(reg, e) ? reg.tryGet<Tilemap>(e) : nullptr;
+        if (!rb && !box && !circle && !tiles)
             return;
         Mat4 m = scene.worldMatrix(e);
         Vec2 pos{m.m[12], m.m[13]};
@@ -118,7 +126,17 @@ struct Physics2D::Impl {
                        std::max(0.005f, circle->radius * std::max(scale.x, scale.y))};
             b2CreateCircleShape(id, &sd, &c);
         }
-        bodies[e] = {id, pos, angle, true};
+        if (tiles) {
+            b2ShapeDef sd = shapeDef(tiles->friction, 0, tiles->collision == TileCollision::Trigger);
+            float ts = std::max(tiles->tileSize, 0.001f);
+            for (const TileRect& r : tileRects(*tiles)) {
+                float hw = (r.x1 - r.x0 + 1) * ts * 0.5f * scale.x, hh = (r.y1 - r.y0 + 1) * ts * 0.5f * scale.y;
+                b2Vec2 center{(r.x0 * ts) * scale.x + hw, (r.y0 * ts) * scale.y + hh};
+                b2Polygon poly = b2MakeOffsetBox(std::max(0.005f, hw), std::max(0.005f, hh), center, b2Rot_identity);
+                b2CreatePolygonShape(id, &sd, &poly);
+            }
+        }
+        bodies[e] = {id, pos, angle, true, tiles ? tiles->shapeSignature() : 0u};
         // A velocity set before the body existed (e.g. right after spawning).
         auto pv = pendingVelocity.find(e);
         if (pv != pendingVelocity.end()) {
@@ -136,8 +154,12 @@ struct Physics2D::Impl {
         // Bodies whose entity or components are gone.
         for (auto it = bodies.begin(); it != bodies.end();) {
             Entity e = it->first;
-            bool keep = scene.valid(e) &&
-                        (reg.has<RigidBody2D>(e) || reg.has<BoxCollider2D>(e) || reg.has<CircleCollider2D>(e));
+            bool keep = scene.valid(e) && (reg.has<RigidBody2D>(e) || reg.has<BoxCollider2D>(e) ||
+                                           reg.has<CircleCollider2D>(e) || hasTileCollision(reg, e));
+            // Painted or erased tiles (or changed collision settings): rebuild the shapes.
+            if (keep)
+                if (auto* tm = reg.tryGet<Tilemap>(e); tm && tm->shapeSignature() != it->second.tilemapSignature)
+                    keep = false;
             if (!keep) {
                 if (b2Body_IsValid(it->second.id))
                     b2DestroyBody(it->second.id);
@@ -156,6 +178,9 @@ struct Physics2D::Impl {
             ensure(e);
         for (Entity e : reg.entitiesWith<CircleCollider2D>())
             ensure(e);
+        for (Entity e : reg.entitiesWith<Tilemap>())
+            if (hasTileCollision(reg, e))
+                ensure(e);
 
         // Objects moved or disabled by scripts.
         for (auto& [e, body] : bodies) {

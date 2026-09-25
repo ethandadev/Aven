@@ -326,6 +326,14 @@ void Editor::drawSceneOverlay(const CameraView& cam) {
         if (prefs.showColliders) {
             if (auto* b = reg.tryGet<BoxCollider2D>(sel))
                 box2D(b->size * 0.5f, b->offset, {0.3f, 1, 0.4f, 1});
+            if (auto* tm = reg.tryGet<Tilemap>(sel); tm && tm->collision != TileCollision::None) {
+                float ts = std::max(tm->tileSize, 0.001f);
+                Color c = tm->collision == TileCollision::Trigger ? Color{1, 0.8f, 0.3f, 1} : Color{0.3f, 1, 0.4f, 1};
+                for (const TileRect& t : tileRects(*tm)) {
+                    Vec2 half{(t.x1 - t.x0 + 1) * ts * 0.5f, (t.y1 - t.y0 + 1) * ts * 0.5f};
+                    box2D(half, {t.x0 * ts + half.x, t.y0 * ts + half.y}, c);
+                }
+            }
             if (auto* c = reg.tryGet<CircleCollider2D>(sel)) {
                 for (int i = 0; i < 32; ++i) {
                     float a0 = i * 2 * kPi / 32, a1 = (i + 1) * 2 * kPi / 32;
@@ -605,7 +613,10 @@ void Editor::drawViewport(float dt) {
             updateViewportCamera(dt);
         CameraView cam = viewportCamera();
         bool usingGizmo = false, overGizmo = false;
-        drawGizmo(cam, pos, size, usingGizmo, overGizmo);
+        // With the Tile Painter open on a Tilemap, clicks paint instead of selecting and moving.
+        const bool paintingTiles = !playing_ && cam.orthographic && paintingTilemap();
+        if (!paintingTiles)
+            drawGizmo(cam, pos, size, usingGizmo, overGizmo);
         gizmoWasUsing_ = usingGizmo;
 
         // 3D view cube: click a face to look from that side.
@@ -646,7 +657,10 @@ void Editor::drawViewport(float dt) {
 
         // Click to select; drag on empty space (2D) to select everything in a box.
         ImGuiIO& io = ImGui::GetIO();
-        if (viewportHovered_ && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !overGizmo && !io.KeyAlt &&
+        if (paintingTiles) {
+            paintTilesInViewport(cam, pos);
+            boxSelecting_ = false;
+        } else if (viewportHovered_ && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !overGizmo && !io.KeyAlt &&
             !ImGuizmo::IsViewManipulateHovered()) {
             Vec2 local{io.MousePos.x - viewportPos_.x, io.MousePos.y - viewportPos_.y};
             boxSelecting_ = cam.orthographic && !pickEntity(scene(), cam, local);
@@ -681,19 +695,20 @@ void Editor::drawViewport(float dt) {
                     pickInViewport({b.x - viewportPos_.x, b.y - viewportPos_.y});
                 }
             }
-        } else if (viewportHovered_ && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !usingGizmo && !overGizmo &&
+        } else if (!paintingTiles && viewportHovered_ && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !usingGizmo && !overGizmo &&
                    !io.KeyAlt && !ImGuizmo::IsUsingViewManipulate()) {
             ImVec2 click = io.MouseClickedPos[0];
             ImVec2 now = io.MousePos;
             if (std::abs(click.x - now.x) < 4 && std::abs(click.y - now.y) < 4)
                 pickInViewport({now.x - viewportPos_.x, now.y - viewportPos_.y});
         }
-        if (!playing_ && viewportHovered_ && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && selected())
+        if (!playing_ && !paintingTiles && viewportHovered_ && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && selected())
             focusSelected();
 
         if (!playing_ && prefs.showHints) {
-            const char* hint = view3D_ ? "Right-drag: look  |  Right-drag + WASD: fly  |  Alt+drag: orbit  |  F: focus"
-                                       : "Right-drag: pan  |  Scroll: zoom  |  Drag: box select  |  W/E/R: move/rotate/scale";
+            const char* hint = paintingTiles ? "Painting tiles  |  Shift: erase  |  [ ]: change tile  |  Right-drag: pan  |  Scroll: zoom"
+                               : view3D_     ? "Right-drag: look  |  Right-drag + WASD: fly  |  Alt+drag: orbit  |  F: focus"
+                                             : "Right-drag: pan  |  Scroll: zoom  |  Drag: box select  |  W/E/R: move/rotate/scale";
             dl->AddText({pos.x + 10, pos.y + size.y - 24}, IM_COL32(255, 255, 255, 110), hint);
         }
     } else {

@@ -235,6 +235,8 @@ void Editor::drawMenuBar() {
                     createEntity(k);
             ImGui::EndMenu();
         }
+        if (unlocked(Feature::Tilemap) && ImGui::MenuItem("Tilemap"))
+            createEntity("Tilemap");
         for (const char* k : {"Text", "Camera", "Player 3D"})
             if (ImGui::MenuItem(k))
                 createEntity(k);
@@ -321,6 +323,8 @@ void Editor::drawMenuBar() {
             openPixelEditor("");
         if (unlocked(Feature::Animation) && ImGui::MenuItem("Sprite Sheet and Animation"))
             openSpriteSheet();
+        if (unlocked(Feature::Tilemap) && ImGui::MenuItem("Tile Painter"))
+            openTilePainter();
         ImGui::Separator();
         if (unlocked(Feature::Capture)) {
             if (ImGui::MenuItem("Take a Screenshot", chordName(prefs.chord("screenshot")).c_str()))

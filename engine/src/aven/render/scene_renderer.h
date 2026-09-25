@@ -99,6 +99,7 @@ private:
     void ensureTargets(int w, int h);
     void releaseTargets();
     void draw2D(Scene& scene, const CameraView& camera, bool depthTest);
+    void drawTilemap(const Tilemap& map, const Mat4& world, const CameraView& camera);
     void drawUI(Scene& scene, int w, int h);
 };
 

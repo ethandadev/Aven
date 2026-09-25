@@ -1,6 +1,12 @@
 #include "aven/scene/components.h"
 #include "aven/scene/reflection.h"
 
+#include <algorithm>
+#include <iterator>
+#include <functional>
+#include <cstring>
+#include <map>
+
 namespace aven {
 
 #define F(member) #member, &Type::member
@@ -112,6 +118,57 @@ std::vector<ComponentInfo> buildRegistry() {
             .field(F(time), {.runtime = true});
     }
     {
+        using Type = Tilemap;
+        r.add<Type>("Tilemap", "Rendering 2D", "A grid of tiles for building levels. Paint it with the Tile Painter.", false, true)
+            .field(F(tileset), {.tooltip = "An image with tiles laid out in a grid. Leave empty for colored blocks.",
+                                .asset = AssetKind::Image})
+            .field(F(columns), {.tooltip = "Tiles across the tileset image."})
+            .field(F(rows), {.tooltip = "Tiles down the tileset image."})
+            .field(F(tileSize), {.tooltip = "How big one tile is in the world.", .min = 0.05f, .max = 16})
+            .field(F(color))
+            .field(F(order), {.tooltip = "Higher numbers are drawn on top."})
+            .field(F(pixelArt), {.tooltip = "Keep pixels sharp instead of smoothing them."})
+            .field(F(collision), {.tooltip = "Solid: things stand on it and bump into it. Trigger: things pass through but "
+                                             "scripts hear on_trigger (good for spikes and water).",
+                                  .enumNames = {"None", "Solid", "Trigger"}})
+            .field(F(notSolid), {.label = "Pass-through Tiles",
+                                 .tooltip = "Tile numbers that things pass through, like \"6, 15\" for water and ladders."})
+            .field(F(friction), {.min = 0, .max = 1});
+        auto& info = r.list.back();
+        info.extraKeys = {"tiles"};
+        // Tiles are saved as runs along each row: [x, y, tile, count].
+        info.saveExtra = [](const void* c, Json& j) {
+            auto& t = *static_cast<const Tilemap*>(c);
+            Json runs = Json::array();
+            for (auto it = t.tiles.begin(); it != t.tiles.end();) {
+                int x = Tilemap::keyX(it->first), y = Tilemap::keyY(it->first), tile = it->second, count = 1;
+                auto next = std::next(it);
+                while (next != t.tiles.end() && next->first == Tilemap::key(x + count, y) && next->second == tile) {
+                    ++count;
+                    ++next;
+                }
+                Json run = Json::array();
+                for (int v : {x, y, tile, count})
+                    run.push(v);
+                runs.push(std::move(run));
+                it = next;
+            }
+            j["tiles"] = std::move(runs);
+        };
+        info.loadExtra = [](void* c, const Json& j) {
+            auto& t = *static_cast<Tilemap*>(c);
+            t.tiles.clear();
+            const Json& runs = j["tiles"];
+            for (size_t i = 0; runs.isArray() && i < runs.size(); ++i) {
+                const Json& run = runs[i];
+                int x = run[0].asInt(), y = run[1].asInt(), tile = run[2].asInt(), count = std::clamp(run[3].asInt(1), 1, 100000);
+                for (int k = 0; k < count && tile >= 0; ++k)
+                    t.tiles[Tilemap::key(x + k, y)] = tile;
+            }
+            ++t.version;
+        };
+    }
+    {
         using Type = TextRenderer;
         r.add<Type>("TextRenderer", "Rendering 2D", "Draws text in the game world.")
             .field(F(text), {.multiline = true})
@@ -165,6 +222,7 @@ std::vector<ComponentInfo> buildRegistry() {
             if (s.overrides.size())
                 j["overrides"] = s.overrides;
         };
+        info.extraKeys = {"overrides"};
         info.loadExtra = [](void* c, const Json& j) {
             auto& s = *static_cast<Script*>(c);
             s.overrides = j["overrides"].isObject() ? j["overrides"] : Json::object();
@@ -480,6 +538,99 @@ std::vector<ComponentInfo> buildRegistry() {
 } // namespace
 
 #undef F
+
+std::vector<int> Tilemap::passThroughTiles() const {
+    std::vector<int> out;
+    int value = 0;
+    bool inNumber = false;
+    for (char c : notSolid + ",") {
+        if (c >= '0' && c <= '9') {
+            value = value * 10 + (c - '0');
+            inNumber = true;
+        } else if (inNumber) {
+            out.push_back(value);
+            value = 0;
+            inNumber = false;
+        }
+    }
+    std::sort(out.begin(), out.end());
+    out.erase(std::unique(out.begin(), out.end()), out.end());
+    return out;
+}
+
+bool Tilemap::isSolidTile(int tile) const {
+    auto list = passThroughTiles();
+    return !std::binary_search(list.begin(), list.end(), tile);
+}
+
+void Tilemap::setSolidTile(int tile, bool solid) {
+    auto list = passThroughTiles();
+    list.erase(std::remove(list.begin(), list.end(), tile), list.end());
+    if (!solid)
+        list.push_back(tile);
+    std::sort(list.begin(), list.end());
+    notSolid.clear();
+    for (int t : list)
+        notSolid += (notSolid.empty() ? "" : ", ") + std::to_string(t);
+}
+
+uint64_t Tilemap::shapeSignature() const {
+    uint32_t sizeBits;
+    std::memcpy(&sizeBits, &tileSize, sizeof sizeBits);
+    return version * 0x9E3779B97F4A7C15ull ^ std::hash<std::string>{}(notSolid) ^ (static_cast<uint64_t>(collision) << 56) ^
+           (static_cast<uint64_t>(sizeBits) << 8);
+}
+
+std::vector<TileRect> tileRects(const Tilemap& map) {
+    const std::vector<int> passThrough = map.passThroughTiles();
+    std::vector<TileRect> done;
+    std::map<std::pair<int, int>, TileRect> open; // by (x0, x1)
+    std::vector<std::pair<int, int>> row;
+    auto finishRow = [&](int y) {
+        std::map<std::pair<int, int>, TileRect> next;
+        for (auto& run : row) {
+            auto it = open.find(run);
+            if (it != open.end() && it->second.y1 == y - 1) {
+                TileRect r = it->second;
+                r.y1 = y;
+                next[run] = r;
+                open.erase(it);
+            } else {
+                next[run] = {run.first, run.second, y, y};
+            }
+        }
+        for (auto& [k, r] : open)
+            done.push_back(r);
+        open = std::move(next);
+        row.clear();
+    };
+    bool any = false;
+    int currentY = 0;
+    for (auto& [k, tile] : map.tiles) {
+        if (std::binary_search(passThrough.begin(), passThrough.end(), tile))
+            continue;
+        int x = Tilemap::keyX(k), y = Tilemap::keyY(k);
+        if (any && y != currentY)
+            finishRow(currentY);
+        any = true;
+        currentY = y;
+        if (!row.empty() && row.back().second == x - 1)
+            row.back().second = x;
+        else
+            row.push_back({x, x});
+    }
+    if (any)
+        finishRow(currentY);
+    for (auto& [k, r] : open)
+        done.push_back(r);
+    return done;
+}
+
+Color tileColor(int tile) {
+    static const uint32_t kColors[] = {0x6ABE30, 0x8F563B, 0x9BADB7, 0x5B6EE1, 0xD95763, 0xFBF236, 0x37946E, 0x663931,
+                                       0xCBDBFC, 0xDF7126, 0x76428A, 0x222034, 0x639BFF, 0xAC3232, 0xEEC39A, 0xFFFFFF};
+    return Color::fromHex(kColors[static_cast<size_t>(std::max(tile, 0)) % std::size(kColors)]);
+}
 
 const std::vector<ComponentInfo>& ComponentRegistry::all() {
     static const std::vector<ComponentInfo> registry = buildRegistry();

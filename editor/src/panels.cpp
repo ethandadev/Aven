@@ -455,6 +455,8 @@ void Editor::drawHierarchy() {
         for (const char* k : {"Square", "Circle", "Triangle", "Star", "Heart", "Sprite", "Text"})
             if (ImGui::MenuItem(k))
                 createEntity(k);
+        if (unlocked(Feature::Tilemap) && ImGui::MenuItem("Tilemap"))
+            createEntity("Tilemap");
         ImGui::Separator();
         ImGui::TextDisabled("3D");
         for (const char* k : {"Cube", "Sphere", "Plane", "Cylinder", "Capsule", "Player 3D"})
@@ -772,6 +774,8 @@ bool Editor::componentUnlocked(const ComponentInfo& info) const {
         return unlocked(Feature::PostProcessing);
     if (info.name == "SpriteAnimator")
         return unlocked(Feature::Animation);
+    if (info.name == "Tilemap")
+        return unlocked(Feature::Tilemap);
     return true;
 }
 
@@ -967,6 +971,15 @@ void Editor::drawInspector() {
         if (open) {
             if (ci.name == "ParticleEmitter")
                 drawParticlePresets(e, selection);
+            if (ci.name == "Tilemap" && unlocked(Feature::Tilemap)) {
+                bool painting = showTilePainter_;
+                if (ImGui::Button(painting ? "Stop painting" : "Paint tiles", {-1, 28})) {
+                    if (painting)
+                        showTilePainter_ = false;
+                    else
+                        openTilePainter();
+                }
+            }
             if (ImGui::BeginTable("##fields", 2, ImGuiTableFlags_SizingStretchProp)) {
                 ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, 110);
                 ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);

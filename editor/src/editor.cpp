@@ -223,6 +223,20 @@ void Editor::openPanels(const std::string& list) {
         else if (p == "pixel") openPixelEditor("");
         else if (p.rfind("pixel:", 0) == 0) openPixelEditor(p.substr(6));
         else if (p == "spritesheet") openSpriteSheet();
+        else if (p == "tiles") openTilePainter();
+        else if (p == "savescene") saveScene();
+        else if (p == "newtilemap") createEntity("Tilemap");
+        else if (p == "startertiles") useStarterTileset(selected());
+        else if (p.rfind("tilebox:", 0) == 0) { // tilebox:x0:y0:x1:y1:tile fills a box on the selected Tilemap
+            int v[5] = {0, 0, 0, 0, 0};
+            std::sscanf(p.c_str() + 8, "%d:%d:%d:%d:%d", &v[0], &v[1], &v[2], &v[3], &v[4]);
+            if (auto* map = selected() ? scene().registry().tryGet<Tilemap>(selected()) : nullptr) {
+                recordUndo("Paint tiles");
+                for (int y = v[1]; y <= v[3]; ++y)
+                    for (int x = v[0]; x <= v[2]; ++x)
+                        map->set(x, y, v[4]);
+            }
+        }
         else if (p.rfind("quest:", 0) == 0) {
             openQuests();
             loadQuests();
@@ -850,8 +864,16 @@ Entity Editor::createEntity(const std::string& kind, Entity parent) {
         s.transform(e).position.y = 1.5f;
     } else if (kind == "Environment")
         reg.emplace<Environment>(e);
+    else if (kind == "Tilemap") {
+        // At the origin, so tiles line up with the grid.
+        reg.emplace<Tilemap>(e);
+        if (!parent)
+            s.transform(e).position = {0, 0, 0};
+    }
     s.info(e).name = kind == "Rounded Square" ? "RoundedSquare" : kind;
     select(e);
+    if (kind == "Tilemap")
+        openTilePainter();
     milestone("objects_added");
     return e;
 }
@@ -1437,6 +1459,8 @@ void Editor::frame(float dt) {
             pixelEditorFocused_ = false;
         if (showSpriteSheet_ && unlocked(Feature::Animation))
             drawSpriteSheet();
+        if (showTilePainter_ && unlocked(Feature::Tilemap))
+            drawTilePainter();
         drawScriptTabs();
         if (showSettings_)
             drawSettings();

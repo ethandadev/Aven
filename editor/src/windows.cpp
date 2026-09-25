@@ -317,6 +317,12 @@ void Editor::drawCommandPalette() {
     add("Contributor Quests (help build Aven)", "window", [this] { openQuests(); });
     if (unlocked(Feature::SoundMaker))
         add("Sound Maker (make sound effects)", "window", [this] { openSoundMaker(); });
+    if (unlocked(Feature::PixelEditor))
+        add("Pixel Editor (draw sprites and animations)", "window", [this] { openPixelEditor(""); });
+    if (unlocked(Feature::Animation))
+        add("Sprite Sheet and Animation", "window", [this] { openSpriteSheet(); });
+    if (unlocked(Feature::Tilemap))
+        add("Tile Painter (paint levels with tiles)", "window", [this] { openTilePainter(); });
     if (unlocked(Feature::BugReplay))
         add("Bug Replay (play the last 20 seconds again)", "window", [this] { openBugReplay(); });
     if (unlocked(Feature::Recipes))
@@ -329,8 +335,8 @@ void Editor::drawCommandPalette() {
     add("Build & export", "window", [this] { showExport_ = true; });
     for (auto& t : extraCommands_)
         add(t.first, "tool", t.second);
-    for (const char* k : {"Square", "Circle", "Sprite", "Text", "Cube", "Sphere", "Player 3D", "Camera", "Particles", "Sound",
-                          "UI Text", "UI Button", "Sun", "Point Light"})
+    for (const char* k : {"Square", "Circle", "Sprite", "Text", "Tilemap", "Cube", "Sphere", "Player 3D", "Camera", "Particles",
+                          "Sound", "UI Text", "UI Button", "Sun", "Point Light"})
         add(std::string("Create ") + k, "create", [this, k] { createEntity(k); });
     int objects = 0;
     scene().walk([&](Entity e, int) {
