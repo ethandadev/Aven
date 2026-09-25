@@ -1,0 +1,19 @@
+{
+  "id": "add-a-behavior",
+  "title": "Add a new behavior",
+  "level": "Medium",
+  "time": "2-4 hours",
+  "touches": "C++ (components and gameplay)",
+  "summary": "Behaviors are ready-made abilities you add in the Inspector (Patrol, Chase, Collectible...). Add a new one, like 'Blink', 'Orbit' or 'Magnet'.",
+  "why": "Each behavior is something beginners can do without writing code.",
+  "learn": ["C++", "How a game engine's component system works"],
+  "steps": [
+    {"text": "Add the settings struct next to the other behaviors in engine/src/aven/scene/components.h.", "open": "engine/src/aven/scene/components.h"},
+    {"text": "Register it (name, category \"Behaviors\", tooltips) in engine/src/aven/scene/components.cpp.", "open": "engine/src/aven/scene/components.cpp"},
+    {"text": "Make it work each frame in engine/src/aven/runtime/behaviors.cpp (see updateBehaviors).", "open": "engine/src/aven/runtime/behaviors.cpp"},
+    {"text": "Write the EasyScript that does the same job in engine/src/aven/runtime/behavior_code.cpp, so the Code Ladder can show it.",
+     "open": "engine/src/aven/runtime/behavior_code.cpp"},
+    {"text": "Build and run the tests (every behavior's EasyScript is tested automatically): cmake --build build && build/bin/aven_tests"}
+  ],
+  "submit": "Open a pull request with a short video or GIF of your behavior. Put 'Quest: add-a-behavior' in the description."
+}

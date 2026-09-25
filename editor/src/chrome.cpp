@@ -317,6 +317,11 @@ void Editor::drawMenuBar() {
             showLevels_ = true;
         ImGui::MenuItem("Learn (tutorial)", nullptr, &showLearn_, !tutorial_.isNull());
         ImGui::MenuItem("Recipe Card", nullptr, &showRecipeCard_, !recipeCard_.parts.empty());
+        ImGui::Separator();
+        if (ImGui::MenuItem("Contributor Quests..."))
+            openQuests();
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Small, guided ways to help build Aven itself");
         ImGui::MenuItem("Scripting Reference", nullptr, &showReference_);
         if (ImGui::MenuItem("Keyboard shortcuts...")) {
             showPrefs_ = true;

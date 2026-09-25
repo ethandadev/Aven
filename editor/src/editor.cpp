@@ -214,6 +214,14 @@ void Editor::openPanels(const std::string& list) {
         else if (p == "stats") showStats_ = true;
         else if (p == "export") showExport_ = true;
         else if (p == "share") openShare();
+        else if (p == "quests") openQuests();
+        else if (p.rfind("quest:", 0) == 0) {
+            openQuests();
+            loadQuests();
+            for (size_t i = 0; i < quests_.size(); ++i)
+                if (quests_[i]["id"].asString("") == p.substr(6))
+                    questIndex_ = static_cast<int>(i);
+        }
         else if (p == "itchzip") { std::string m; makeItchZip(m); Log::info(m); }
         else if (p == "webexport") { std::string m; exportWeb(projectDir_ / "exports", m); Log::info(m); }
         else if (p == "card") { std::string m; makeGameCard(projectDir_ / "exports" / "card.png", "", m); Log::info(m); openShare(); }
@@ -302,8 +310,10 @@ void Editor::openPanels(const std::string& list) {
         else if (p.rfind("askapply:", 0) == 0) {
             askAven(p.substr(9));
             recordUndo("Ask Aven");
-            for (auto& prop : assistant_.proposals)
+            for (auto& prop : assistant_.proposals) {
+                Log::info("Ask Aven: ", prop.text);
                 prop.apply(*this);
+            }
             assistant_ = {};
         }
         else if (!p.empty()) extraPanels_.push_back(p);
@@ -1409,6 +1419,8 @@ void Editor::frame(float dt) {
             drawRecipeCard();
         if (showReplay_ && unlocked(Feature::BugReplay))
             drawBugReplay();
+        if (showQuests_)
+            drawQuests();
         drawScriptTabs();
         if (showSettings_)
             drawSettings();

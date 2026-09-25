@@ -1,0 +1,18 @@
+{
+  "id": "report-a-bug",
+  "title": "Report a bug with Bug Replay",
+  "level": "Starter",
+  "time": "15 minutes",
+  "touches": "Nothing: you use Aven and tell us what broke",
+  "summary": "Found something that doesn't work? A bug report with a replay lets anyone watch it happen, which makes it much easier to fix.",
+  "why": "Bugs that come with an exact replay get fixed first. You don't need to know any code.",
+  "learn": ["How developers track problems", "Using GitHub issues"],
+  "steps": [
+    {"text": "Play a game until something goes wrong (an error, something that looks broken, or a crash)."},
+    {"text": "Open Window > Bug Replay and press 'Replay the last 20 seconds' to check it happens again the same way."},
+    {"text": "Press 'Save a bug report'. It makes a folder in bug_reports/ with the replay, pictures and report.md.",
+     "check": {"type": "project_files", "path": "bug_reports/*/report.md", "min": 1}},
+    {"text": "On GitHub, open a new issue at github.com/ethandadev/Aven/issues. Paste report.md, and attach filmstrip.png and session.replay (zip the folder if needed)."}
+  ],
+  "submit": "A GitHub issue is all it takes. Say what you expected to happen and what happened instead."
+}

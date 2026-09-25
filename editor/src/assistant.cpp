@@ -37,6 +37,28 @@ std::string trim(const std::string& s) {
     return a == std::string::npos ? "" : s.substr(a, b - a + 1);
 }
 
+// Other ways of saying things (editor/data/assistant_words.json): "zippier" -> "faster".
+std::string withSynonyms(std::string text) {
+    auto isWordChar = [](char ch) { return std::isalnum(static_cast<unsigned char>(ch)) || ch == '_' || ch == '-'; };
+    for (auto& [canonical, list] : editorData("assistant_words.json")["synonyms"].members())
+        for (auto& alt : list.elements()) {
+            std::string word = lower(alt.asString(""));
+            if (word.empty())
+                continue;
+            for (size_t p = text.find(word); p != std::string::npos; p = text.find(word, p)) {
+                bool startOk = p == 0 || !isWordChar(text[p - 1]);
+                bool endOk = p + word.size() >= text.size() || !isWordChar(text[p + word.size()]);
+                if (startOk && endOk) {
+                    text.replace(p, word.size(), canonical);
+                    p += canonical.size();
+                } else {
+                    p += word.size();
+                }
+            }
+        }
+    return text;
+}
+
 // Splits a request into separate instructions: "bigger and red, then spin" -> 3 clauses.
 std::vector<std::string> clauses(const std::string& text) {
     std::string t = " " + text + " ";
@@ -375,7 +397,7 @@ void Editor::askAven(const std::string& request) {
     };
 
     for (const std::string& original : clauses(request)) {
-        std::string c = lower(original);
+        std::string c = withSynonyms(lower(original));
         bool understood = false;
         auto ok = [&](const std::string& summary) {
             understood = true;

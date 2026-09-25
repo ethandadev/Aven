@@ -1,0 +1,19 @@
+{
+  "id": "improve-the-code-ladder",
+  "title": "Improve a Code Ladder translation",
+  "level": "Medium",
+  "time": "1-2 hours",
+  "touches": "C++ (the EasyScript translator)",
+  "summary": "The Code Ladder shows EasyScript as Unity C#, Godot GDScript, Roblox Luau and Unreal C++. Some commands aren't translated yet (the notes say 'has no single matching command'). Add one.",
+  "why": "Better translations help people move on to other engines with confidence.",
+  "learn": ["C++", "How the same idea is written in different engines"],
+  "steps": [
+    {"text": "In the Code Ladder, find a note saying a command has no single matching command, for the engine you know best."},
+    {"text": "Open engine/src/aven/script/translate.cpp and find the global() or method() function where commands are mapped.",
+     "open": "engine/src/aven/script/translate.cpp"},
+    {"text": "Add the translation, following the ones around it. Check the other engine's documentation for the right call."},
+    {"text": "Add a check to tests/test_translate.cpp that your translation appears.", "open": "tests/test_translate.cpp"},
+    {"text": "Build and run the tests: cmake --build build && build/bin/aven_tests"}
+  ],
+  "submit": "Open a pull request. Put 'Quest: improve-the-code-ladder' in the description and say which engine you checked against."
+}

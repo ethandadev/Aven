@@ -1,0 +1,69 @@
+{
+  "about": "Other ways people say things to Ask Aven. Each word on the left is what Ask Aven understands; the list says which words mean the same. Add yours: that's the 'Teach Ask Aven new words' contributor quest.",
+  "synonyms": {
+    "faster": [
+      "quicker",
+      "speedier",
+      "zippier",
+      "snappier",
+      "more speedy"
+    ],
+    "slower": [
+      "less fast",
+      "more slowly",
+      "sluggish"
+    ],
+    "bigger": [
+      "larger",
+      "huge",
+      "giant",
+      "enormous",
+      "taller"
+    ],
+    "smaller": [
+      "tiny",
+      "little",
+      "littler",
+      "shorter"
+    ],
+    "jump": [
+      "hop",
+      "leap"
+    ],
+    "spin": [
+      "rotate around",
+      "twirl"
+    ],
+    "glow": [
+      "shine",
+      "light up"
+    ],
+    "patrol": [
+      "walk back and forth",
+      "pace",
+      "go back and forth"
+    ],
+    "chase": [
+      "hunt",
+      "go after"
+    ],
+    "collectible": [
+      "pickup",
+      "power-up",
+      "powerup"
+    ],
+    "dangerous": [
+      "deadly",
+      "harmful",
+      "lethal"
+    ],
+    "transparent": [
+      "see-through",
+      "see through"
+    ],
+    "remove": [
+      "get rid of",
+      "take away"
+    ]
+  }
+}

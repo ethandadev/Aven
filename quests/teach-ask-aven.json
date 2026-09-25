@@ -1,0 +1,20 @@
+{
+  "id": "teach-ask-aven",
+  "title": "Teach Ask Aven new words",
+  "level": "Easy",
+  "time": "20 minutes",
+  "touches": "A JSON word list (no C++)",
+  "summary": "Ask Aven changes objects from plain requests like 'make it faster'. Teach it other ways people say the same thing.",
+  "why": "People describe things in many ways. The more Ask Aven understands, the less beginners get stuck.",
+  "learn": ["JSON", "How simple language understanding works"],
+  "steps": [
+    {"text": "Select an object and try requests in the Ask box in the Inspector. Note ones it doesn't understand, like 'make it zoomier'."},
+    {"text": "Open editor/data/assistant_words.json. Each word on the left is one Ask Aven knows; the list holds words that mean the same.",
+     "open": "editor/data/assistant_words.json"},
+    {"text": "Add your words to the right list (or a new entry for a word Ask Aven already knows).",
+     "check": {"type": "json_valid", "path": "editor/data/assistant_words.json"}},
+    {"text": "Try the request again: it works now (the file is read again when it changes)."},
+    {"text": "Send it as a pull request."}
+  ],
+  "submit": "Open a pull request with your change to editor/data/assistant_words.json. Put 'Quest: teach-ask-aven' in the description."
+}

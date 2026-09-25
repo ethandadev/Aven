@@ -1,0 +1,65 @@
+{
+  "about": "Extra plain-language explanations for the Error Doctor. Each rule matches part of an error message (not case sensitive) and explains it. {file} and {line} are filled in when the error came from a script. Add your own: that's the 'Teach the Error Doctor' contributor quest.",
+  "rules": [
+    {
+      "match": "Functions called each other too many times",
+      "title": "A function that never stops calling itself",
+      "explanation": "A function calls itself (or two functions call each other) over and over without end. Make sure there's a way out, like an if that stops calling once the job is done."
+    },
+    {
+      "match": "Can't loop over a number",
+      "title": "Looping over a number",
+      "explanation": "'for' walks through a list of things. To repeat something a number of times, use range: for i in range(10):"
+    },
+    {
+      "match": "EasyScript uses 'self' instead of 'this'",
+      "title": "'this' is called 'self' here",
+      "explanation": "Other languages say 'this' for the object the script is on. EasyScript says 'self', like Python. Replace 'this' with 'self' ({file} line {line})."
+    },
+    {
+      "match": "Vectors and colors can't be changed piece by piece",
+      "title": "Changing part of a vector",
+      "explanation": "A position or color is one value. To change part of it, make a new one: self.position = vec(5, self.y) instead of changing only its x."
+    },
+    {
+      "match": "Text can't be changed letter by letter",
+      "title": "Changing one letter of text",
+      "explanation": "Text can't be edited in place. Build a new piece of text instead, for example: name = name + \"!\""
+    },
+    {
+      "match": "This object has been destroyed",
+      "title": "Using an object after it was destroyed",
+      "explanation": "The script used an object that no longer exists. After destroy(), don't touch it again. Checking 'if thing:' before using it helps."
+    },
+    {
+      "match": "The dictionary doesn't have the key",
+      "title": "A missing key in a dictionary",
+      "explanation": "The dictionary has no entry with that name. Check the spelling, or use 'if key in my_dict:' first."
+    },
+    {
+      "match": "'+' only works on numbers here",
+      "title": "Adding text and a number",
+      "explanation": "To join text and a number, turn the number into text first: \"Score: \" + str(score). Or use an f-string: f\"Score: {score}\""
+    },
+    {
+      "match": "Only sprites and UI elements have a size",
+      "title": "Size on an object without a picture",
+      "explanation": "size belongs to sprites and UI. For 3D objects and others, change scale instead: self.scale = vec(2, 2, 2)"
+    },
+    {
+      "match": "Couldn't play the sound",
+      "title": "A sound that won't play",
+      "explanation": "The sound file is missing or in a format Aven can't read. Aven plays .wav, .mp3, .ogg and .flac files from your project folder."
+    },
+    {
+      "match": "Couldn't load the model",
+      "title": "A 3D model that won't load",
+      "explanation": "Aven loads .gltf and .glb models. Check that the file is in your project, and try exporting it again from your 3D program as glTF 2.0."
+    },
+    {
+      "match": "This line ends too early",
+      "title": "A line that ends too early",
+      "explanation": "Something is missing at the end of line {line}: often a closing ) or ], a value after =, or the : at the end of an if or def."
+    }
+  ]
+}

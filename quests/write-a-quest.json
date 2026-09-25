@@ -1,0 +1,16 @@
+{
+  "id": "write-a-quest",
+  "title": "Write a new contributor quest",
+  "level": "Starter",
+  "time": "30 minutes",
+  "touches": "A JSON file",
+  "summary": "Know a small job that would help Aven? Write it up as a quest so the next person can do it.",
+  "why": "Good first tasks are how open-source projects welcome new people.",
+  "learn": ["Writing clear instructions", "JSON"],
+  "steps": [
+    {"text": "Read quests/README.md to see how quests are written.", "open": "quests/README.md"},
+    {"text": "Copy a quest file like quests/teach-the-doctor.json and change it for your idea. Keep steps short, one action each."},
+    {"text": "Check that it's valid JSON and shows up in this list after a restart.", "check": {"type": "files", "path": "quests/*.json", "min": 11}}
+  ],
+  "submit": "Open a pull request with the new quest file. Put 'Quest: write-a-quest' in the description."
+}

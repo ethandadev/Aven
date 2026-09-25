@@ -1,0 +1,18 @@
+{
+  "id": "test-on-the-web",
+  "title": "Test games in web browsers and phones",
+  "level": "Starter",
+  "time": "20 minutes",
+  "touches": "Nothing: you try games and report what you find",
+  "summary": "Aven games can run in web browsers. Try the templates on the browsers and phones you have and tell us what works.",
+  "why": "We can't own every phone and browser. Your testing tells us what to fix.",
+  "learn": ["How web games are built", "Testing like a game studio"],
+  "steps": [
+    {"text": "Open a template game, then Build & Share > Web browser > Build for the web.",
+     "check": {"type": "project_files", "path": "exports/*-web/index.html", "min": 1}},
+    {"text": "Build & Share > Share > Start sharing, then open the link (or scan the game card) on a phone or another computer on the same Wi-Fi."},
+    {"text": "Play for a minute. Does it look right? Do the controls work? Is there sound after you press Play?"},
+    {"text": "Write down the device, browser and what you saw, and post it in a GitHub issue titled 'Web test: <template> on <device>'."}
+  ],
+  "submit": "A GitHub issue with your results. Screenshots help a lot."
+}

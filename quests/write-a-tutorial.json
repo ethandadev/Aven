@@ -1,0 +1,36 @@
+{
+  "id": "write-a-tutorial",
+  "title": "Write or improve a Learn tutorial",
+  "level": "Easy",
+  "time": "45 minutes",
+  "touches": "A tutorial.json file",
+  "summary": "Tutorials are the step-by-step guides in the Learn panel. Improve one for a template, or write one for a new template, so it explains how the game works and invites changes.",
+  "why": "Tutorials turn a template from 'a game' into 'a lesson'.",
+  "learn": [
+    "Explaining code simply",
+    "JSON"
+  ],
+  "steps": [
+    {
+      "text": "Pick a template to improve (or your own new template). Play it and follow its tutorial in the Learn panel, noting what was unclear."
+    },
+    {
+      "text": "Look at templates/platformer/tutorial.json to see the format: each step has a title and text, and can 'open' a script, 'select' an object or ask to 'play'.",
+      "open": "templates/platformer/tutorial.json"
+    },
+    {
+      "text": "Write 5 to 8 steps. Start by playing, then explain one idea per step, then give a challenge."
+    },
+    {
+      "text": "Check that every tutorial file is still valid JSON.",
+      "check": {
+        "type": "json_valid",
+        "path": "templates/*/tutorial.json"
+      }
+    },
+    {
+      "text": "Make a game from the template and follow your tutorial in the Learn panel from start to finish."
+    }
+  ],
+  "submit": "Open a pull request with the new tutorial.json. Put 'Quest: write-a-tutorial' in the description."
+}

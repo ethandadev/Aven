@@ -1,0 +1,20 @@
+{
+  "id": "teach-the-doctor",
+  "title": "Teach the Error Doctor a new error",
+  "level": "Easy",
+  "time": "30 minutes",
+  "touches": "A JSON file of explanations (no C++)",
+  "summary": "The Error Doctor turns confusing error messages into plain words. Pick an error that confused you and write the explanation you wish you'd had.",
+  "why": "Every rule helps every beginner who hits that error after you.",
+  "learn": ["JSON", "How Aven explains errors"],
+  "steps": [
+    {"text": "Find an error message that isn't explained well yet: make a small mistake in a script on purpose, or look in the Console, then press Doctor on it."},
+    {"text": "Open editor/data/doctor_rules.json. Each rule has 'match' (part of the error message), 'title' and 'explanation'.",
+     "open": "editor/data/doctor_rules.json"},
+    {"text": "Add your rule to the list. Keep it short and friendly, and say how to fix it. {file} and {line} are replaced with where the error happened.",
+     "check": {"type": "json_valid", "path": "editor/data/doctor_rules.json"}},
+    {"text": "Make the error happen again and press Doctor: your explanation shows up (the file is read again when it changes)."},
+    {"text": "Send it as a pull request on GitHub."}
+  ],
+  "submit": "Open a pull request with your change to editor/data/doctor_rules.json. Put 'Quest: teach-the-doctor' in the description."
+}

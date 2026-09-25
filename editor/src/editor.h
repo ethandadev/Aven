@@ -211,6 +211,9 @@ public:
     std::string gameControls();         // "Arrow keys to run · Space to jump", from the start scene
     std::string gameDescription() const;
 
+    // --- Contributor quests (quests.cpp)
+    void openQuests() { showQuests_ = focusQuests_ = true; }
+
     // --- Bug replay (bug_replay.cpp)
     void openBugReplay();
     std::string saveBugReport(); // returns the report's folder
@@ -391,6 +394,18 @@ private:
         std::unique_ptr<CodeEditor> view, left;
     };
     LadderState ladder_;
+    std::vector<Json> quests_;
+    bool questsLoaded_ = false, showQuests_ = false, focusQuests_ = false;
+    int questIndex_ = 0;
+    std::string questMessage_;
+    struct TemplatePackage {
+        std::string id, name, description, style = "Behaviors", difficulty = "Beginner";
+    } templatePackage_;
+    void loadQuests();
+    int questCheck(const Json& check);
+    bool packageTemplate(std::string& message);
+    void drawQuests();
+    std::vector<uint8_t> renderStartScene(int w, int h); // the start scene a moment after Play, as RGBA
     std::unique_ptr<ShareServer, ShareServerDeleter> shareServer_;
     std::string webExportDir_, webResult_, shareResult_, shareUrl_, cardPath_;
     rhi::TextureHandle cardTexture_;
@@ -552,6 +567,12 @@ private:
     void scanAssets();
     void checkScript(ScriptTab& tab);
 };
+
+// Editor data files (editor/data), read fresh when they change (editor_data.cpp).
+stdfs::path editorDataDir();
+stdfs::path sourceDir(); // Aven's source code, when the editor was built from it (else empty)
+void openExternal(const std::string& target); // a file, folder or link in the system's app
+const Json& editorData(const std::string& name);
 
 // Small shared UI helpers.
 namespace ui {

@@ -313,6 +313,9 @@ std::string lanAddress() {
     return ip;
 }
 
+
+} // namespace
+
 void openExternal(const std::string& target) {
 #ifdef _WIN32
     std::string cmd = "start \"\" \"" + target + "\"";
@@ -323,8 +326,6 @@ void openExternal(const std::string& target) {
 #endif
     [[maybe_unused]] int r = std::system(cmd.c_str());
 }
-
-} // namespace
 
 // ---------------------------------------------------------------- the share server
 
@@ -654,29 +655,33 @@ bool Editor::makeItchZip(std::string& message) {
 
 // ---------------------------------------------------------------- game card
 
+std::vector<uint8_t> Editor::renderStartScene(int w, int h) {
+    auto game = makeGame();
+    if (!game->loadScene(settings_.startScene))
+        return {};
+    game->setScreenSize({static_cast<float>(w), static_cast<float>(h)});
+    for (int i = 0; i < 20; ++i)
+        game->update(1.0f / 60.0f);
+    device_.beginFrame();
+    auto overlay = std::move(renderer_.sceneOverlay); // no editor grid or gizmos in the picture
+    renderer_.sceneOverlay = nullptr;
+    game->render(renderer_, w, h);
+    renderer_.sceneOverlay = std::move(overlay);
+    std::vector<uint8_t> shot = renderer_.readOutput();
+    game->stop();
+    return shot.size() == static_cast<size_t>(w) * h * 4 ? shot : std::vector<uint8_t>{};
+}
+
 bool Editor::makeGameCard(const stdfs::path& png, const std::string& shareUrl, std::string& message) {
     constexpr int W = 1200, H = 630;
     Image card(W, H);
     // A picture of the game a moment after it starts.
-    {
-        auto game = makeGame();
-        if (!game->loadScene(settings_.startScene)) {
-            message = "Couldn't load the start scene " + settings_.startScene;
-            return false;
-        }
-        game->setScreenSize({static_cast<float>(W), static_cast<float>(H)});
-        for (int i = 0; i < 20; ++i)
-            game->update(1.0f / 60.0f);
-        device_.beginFrame();
-        auto overlay = std::move(renderer_.sceneOverlay); // no editor grid or gizmos in the picture
-        renderer_.sceneOverlay = nullptr;
-        game->render(renderer_, W, H);
-        renderer_.sceneOverlay = std::move(overlay);
-        std::vector<uint8_t> shot = renderer_.readOutput();
-        if (shot.size() == card.px.size())
-            card.px = std::move(shot);
-        game->stop();
+    std::vector<uint8_t> shot = renderStartScene(W, H);
+    if (shot.empty()) {
+        message = "Couldn't load the start scene " + settings_.startScene;
+        return false;
     }
+    card.px = std::move(shot);
     // A dark band for the text.
     for (int y = H - 300; y < H; ++y) {
         float t = (y - (H - 300)) / 300.0f;

@@ -135,6 +135,22 @@ bool Editor::replaceWordInLine(const std::string& file, int line, const std::str
 
 // ---------------------------------------------------------------- diagnosing one error
 
+namespace {
+
+const Json* matchDoctorRule(const std::string& message) {
+    std::string m = message;
+    std::transform(m.begin(), m.end(), m.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    for (auto& rule : editorData("doctor_rules.json")["rules"].elements()) {
+        std::string match = rule["match"].asString("");
+        std::transform(match.begin(), match.end(), match.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        if (!match.empty() && m.find(match) != std::string::npos)
+            return &rule;
+    }
+    return nullptr;
+}
+
+} // namespace
+
 std::vector<Editor::Diagnosis> Editor::diagnose(const std::string& message, const std::string& file, int line) {
     std::vector<Diagnosis> out;
     Diagnosis d;
@@ -403,6 +419,18 @@ std::vector<Editor::Diagnosis> Editor::diagnose(const std::string& message, cons
                                    ed.replaceWordInLine(f, l, word, sug);
                                }});
         }
+        openFix();
+    } else if (const Json* rule = matchDoctorRule(message)) {
+        // Explanations from editor/data/doctor_rules.json (contributors add these).
+        auto fillIn = [&](std::string text) {
+            for (auto [key, value] : {std::pair<std::string, std::string>{"{file}", file.empty() ? "the script" : file},
+                                      {"{line}", std::to_string(line)}})
+                for (size_t p; (p = text.find(key)) != std::string::npos;)
+                    text.replace(p, key.size(), value);
+            return text;
+        };
+        d.title = fillIn((*rule)["title"].asString("Problem"));
+        d.explanation = fillIn((*rule)["explanation"].asString(message));
         openFix();
     } else {
         d.title = file.empty() ? "Problem" : "Problem in " + stdfs::path(file).filename().string();
