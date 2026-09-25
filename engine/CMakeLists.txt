@@ -20,4 +20,9 @@ target_link_libraries(aven_engine PUBLIC Threads::Threads)
 
 aven_embed_files(aven_engine FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/data/fonts/Roboto-Medium.ttf
-    ${CMAKE_CURRENT_SOURCE_DIR}/data/fonts/Cousine-Regular.ttf)
+    ${CMAKE_CURRENT_SOURCE_DIR}/data/fonts/Cousine-Regular.ttf
+    ${CMAKE_CURRENT_SOURCE_DIR}/data/icon/aven_16.png
+    ${CMAKE_CURRENT_SOURCE_DIR}/data/icon/aven_32.png
+    ${CMAKE_CURRENT_SOURCE_DIR}/data/icon/aven_48.png
+    ${CMAKE_CURRENT_SOURCE_DIR}/data/icon/aven_64.png
+    ${CMAKE_CURRENT_SOURCE_DIR}/data/icon/aven_128.png)

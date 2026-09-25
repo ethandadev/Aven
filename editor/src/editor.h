@@ -10,6 +10,8 @@
 #include "aven/scene/scene.h"
 
 #include "code_editor.h"
+#include "learn_mode.h"
+#include "prefs.h"
 
 #include <filesystem>
 #include <functional>
@@ -64,6 +66,8 @@ struct EditorOptions {
     stdfs::path newProject;    // --new: create a project here from --template, then open it
     std::string templateId;
     stdfs::path exportTo;      // --export: export the project to this folder and quit
+    int level = 0;             // --level 1-4: Learn mode level (0 = saved preference)
+    std::string theme;         // --theme name
 };
 
 // The Aven editor: project hub, scene editing, scripting, block coding, play mode and export.
@@ -73,7 +77,10 @@ public:
     ~Editor();
 
     bool init(const EditorOptions& options);
+    // Called before ImGui::NewFrame(): rebuilds fonts and style when preferences changed.
+    void beginFrame();
     void frame(float dt);
+    void setDpiScale(float scale) { dpiScale_ = scale; styleDirty_ = true; }
     bool wantsQuit() const { return quit_; }
     void requestQuit();
     SceneRenderer& renderer() { return renderer_; }
@@ -95,8 +102,12 @@ public:
     bool is3D() const { return view3D_; }
 
     // --- selection and undo
-    Entity selected();
-    void select(Entity e);
+    Entity selected(); // the main selected object (shown in the Inspector)
+    void select(Entity e); // selects only `e` (or nothing)
+    void addToSelection(Entity e);
+    void toggleSelection(Entity e);
+    bool isSelected(Entity e);
+    std::vector<Entity> selectedEntities();
     void recordUndo(const std::string& label);
     void undo();
     void redo();
@@ -119,7 +130,12 @@ public:
     void savePrefab(Entity e);
 
     Fonts fonts;
-    bool advanced() const { return settings_.advancedMode; }
+    Prefs prefs;
+    bool advanced() const { return prefs.level >= 4 || settings_.advancedMode; }
+    bool unlocked(Feature f) const { return prefs.level >= featureLevel(f); }
+    // Counts progress toward the next Learn mode level ("plays", "objects_added"...).
+    void milestone(const std::string& key, int amount = 1);
+    bool shortcut(const char* action);
     void notify(const std::string& message, bool error = false);
     std::vector<std::string> projectFiles(const std::vector<std::string>& extensions) const;
     Assets& assets() { return assets_; }
@@ -142,14 +158,14 @@ private:
     bool stepOnce_ = false;
     bool quit_ = false;
     bool confirmQuit_ = false;
-    UUID selected_;
+    std::vector<UUID> selection_; // last = main selection
     EditorOptions options_;
     int frameCount_ = 0;
 
     struct Snapshot {
         std::string label;
         Json scene;
-        UUID selected;
+        std::vector<UUID> selection;
     };
     std::vector<Snapshot> undo_, redo_;
     Json cachedSnapshot_;
@@ -166,8 +182,16 @@ private:
     std::vector<std::string> assetFiles_;
     float assetScanTimer_ = 0;
     std::string selectedAsset_;
-    bool clearOnPlay_ = true;
     bool errorsOnly_ = false;
+    float dpiScale_ = 1.0f;
+    bool styleDirty_ = true;
+    float autosaveTimer_ = 0;
+    int levelUpTo_ = 0; // a level-up offer waiting to be shown
+    bool showPrefs_ = false;
+    bool showLevels_ = false;
+    std::string pendingLayout_; // applied at the start of the next frame
+    std::string prefsSection_ = "Look";
+    std::string rebindAction_;
 
     // Editor camera
     bool view3D_ = false;
@@ -192,6 +216,7 @@ private:
     bool showExport_ = false;
     bool showAbout_ = false;
     bool resetLayout_ = true;
+    bool showHierarchy_ = true, showInspector_ = true, showAssets_ = true, showConsole_ = true;
     std::string hierarchyFilter_;
     std::string assetFolder_;
     std::vector<ConsoleLine> console_;
@@ -229,6 +254,12 @@ private:
     void loadRecent();
     void saveRecent();
     void setupDockspace();
+    void buildLayout(const std::string& name, unsigned int dockId);
+    void drawStatusBar();
+    void drawPreferences();
+    void drawLevels();
+    void checkLevelUp();
+    void autosave(float dt);
     void drawMenuBar();
     void drawToolbar();
     void drawHub();
@@ -254,6 +285,7 @@ private:
     bool drawComponent(Entity e, const ComponentInfo& info, void* data);
     void drawScriptVariables(Entity e);
     void drawAddComponent(Entity e);
+    bool componentUnlocked(const ComponentInfo& info) const;
     void saveAllScripts();
     bool exportGame(const stdfs::path& folder, std::string& message);
     void loadTutorial();
@@ -270,6 +302,7 @@ private:
 
 // Small shared UI helpers.
 namespace ui {
+void panelClass();
 void helpMarker(const char* text);
 bool iconButton(const char* id, int icon, const char* tooltip, bool active = false, float size = 0);
 void sectionHeader(const char* text);

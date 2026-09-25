@@ -10,14 +10,6 @@ namespace aven::editor {
 
 namespace {
 
-const ImU32 kColText = IM_COL32(220, 223, 228, 255);
-const ImU32 kColKeyword = IM_COL32(198, 120, 221, 255);
-const ImU32 kColString = IM_COL32(152, 195, 121, 255);
-const ImU32 kColNumber = IM_COL32(209, 154, 102, 255);
-const ImU32 kColComment = IM_COL32(110, 118, 129, 255);
-const ImU32 kColFunction = IM_COL32(97, 175, 239, 255);
-const ImU32 kColBuiltin = IM_COL32(229, 192, 123, 255);
-const ImU32 kColSelf = IM_COL32(224, 108, 117, 255);
 
 bool isKeyword(const std::string& w) {
     static const char* kw[] = {"def",   "if",    "elif", "else", "while", "for",   "in",   "return", "break",
@@ -33,6 +25,53 @@ bool isWordChar(char c) { return std::isalnum(static_cast<unsigned char>(c)) || 
 bool isContinuation(char c) { return (static_cast<unsigned char>(c) & 0xC0) == 0x80; }
 
 } // namespace
+
+const std::vector<CodePalette>& CodePalette::presets() {
+    // background, text, keyword, string, number, comment, function, builtin, self,
+    // line number, current line number, current line, selection, cursor, gutter line
+    static const std::vector<CodePalette> list = {
+        {"Aven Dark", IM_COL32(30, 33, 39, 255), IM_COL32(220, 223, 228, 255), IM_COL32(198, 120, 221, 255),
+         IM_COL32(152, 195, 121, 255), IM_COL32(209, 154, 102, 255), IM_COL32(110, 118, 129, 255),
+         IM_COL32(97, 175, 239, 255), IM_COL32(229, 192, 123, 255), IM_COL32(224, 108, 117, 255),
+         IM_COL32(95, 102, 115, 255), IM_COL32(200, 205, 215, 255), IM_COL32(255, 255, 255, 10),
+         IM_COL32(80, 120, 200, 110), IM_COL32(230, 230, 240, 255), IM_COL32(60, 65, 75, 255)},
+        {"Paper", IM_COL32(250, 250, 247, 255), IM_COL32(40, 42, 48, 255), IM_COL32(166, 38, 164, 255),
+         IM_COL32(80, 161, 79, 255), IM_COL32(152, 104, 1, 255), IM_COL32(160, 161, 167, 255),
+         IM_COL32(64, 120, 242, 255), IM_COL32(193, 132, 1, 255), IM_COL32(228, 86, 73, 255),
+         IM_COL32(170, 172, 178, 255), IM_COL32(60, 62, 70, 255), IM_COL32(0, 0, 0, 12),
+         IM_COL32(100, 150, 240, 80), IM_COL32(40, 42, 48, 255), IM_COL32(220, 220, 222, 255)},
+        {"Midnight Neon", IM_COL32(13, 15, 26, 255), IM_COL32(214, 222, 255, 255), IM_COL32(255, 92, 205, 255),
+         IM_COL32(126, 250, 175, 255), IM_COL32(255, 196, 92, 255), IM_COL32(98, 108, 150, 255),
+         IM_COL32(92, 200, 255, 255), IM_COL32(255, 238, 120, 255), IM_COL32(255, 120, 120, 255),
+         IM_COL32(70, 78, 110, 255), IM_COL32(190, 200, 240, 255), IM_COL32(120, 140, 255, 16),
+         IM_COL32(120, 90, 255, 100), IM_COL32(255, 92, 205, 255), IM_COL32(40, 44, 70, 255)},
+        {"Forest", IM_COL32(24, 32, 27, 255), IM_COL32(218, 228, 214, 255), IM_COL32(242, 181, 94, 255),
+         IM_COL32(170, 214, 128, 255), IM_COL32(236, 140, 106, 255), IM_COL32(112, 132, 112, 255),
+         IM_COL32(128, 204, 188, 255), IM_COL32(226, 214, 132, 255), IM_COL32(230, 120, 110, 255),
+         IM_COL32(88, 108, 92, 255), IM_COL32(200, 214, 196, 255), IM_COL32(255, 255, 255, 9),
+         IM_COL32(90, 150, 110, 100), IM_COL32(220, 230, 210, 255), IM_COL32(48, 60, 52, 255)},
+        {"Monokai", IM_COL32(39, 40, 34, 255), IM_COL32(248, 248, 242, 255), IM_COL32(249, 38, 114, 255),
+         IM_COL32(230, 219, 116, 255), IM_COL32(174, 129, 255, 255), IM_COL32(117, 113, 94, 255),
+         IM_COL32(166, 226, 46, 255), IM_COL32(102, 217, 239, 255), IM_COL32(253, 151, 31, 255),
+         IM_COL32(117, 113, 94, 255), IM_COL32(220, 220, 210, 255), IM_COL32(255, 255, 255, 10),
+         IM_COL32(73, 72, 62, 255), IM_COL32(248, 248, 240, 255), IM_COL32(60, 61, 54, 255)},
+        {"High Contrast", IM_COL32(0, 0, 0, 255), IM_COL32(255, 255, 255, 255), IM_COL32(255, 220, 0, 255),
+         IM_COL32(0, 255, 140, 255), IM_COL32(0, 220, 255, 255), IM_COL32(170, 170, 170, 255),
+         IM_COL32(120, 190, 255, 255), IM_COL32(255, 170, 60, 255), IM_COL32(255, 110, 110, 255),
+         IM_COL32(150, 150, 150, 255), IM_COL32(255, 255, 255, 255), IM_COL32(255, 255, 255, 22),
+         IM_COL32(0, 110, 255, 150), IM_COL32(255, 255, 0, 255), IM_COL32(90, 90, 90, 255)},
+    };
+    return list;
+}
+
+const CodePalette& CodePalette::find(const std::string& name) {
+    for (auto& p : presets())
+        if (p.name == name)
+            return p;
+    return presets().front();
+}
+
+CodePalette CodeEditor::palette = CodePalette::presets().front();
 
 CodeEditor::CodeEditor() = default;
 
@@ -567,10 +606,10 @@ void CodeEditor::drawLine(ImDrawList* dl, int index, ImVec2 pos, bool& inTriple)
     if (inTriple) {
         size_t end = s.find("\"\"\"");
         if (end == std::string::npos) {
-            emit(0, s.size(), kColString);
+            emit(0, s.size(), CodeEditor::palette.string);
             return;
         }
-        emit(0, end + 3, kColString);
+        emit(0, end + 3, CodeEditor::palette.string);
         i = end + 3;
         inTriple = false;
     }
@@ -578,17 +617,17 @@ void CodeEditor::drawLine(ImDrawList* dl, int index, ImVec2 pos, bool& inTriple)
     while (i < s.size()) {
         char c = s[i];
         if (c == '#') {
-            emit(i, s.size(), kColComment);
+            emit(i, s.size(), CodeEditor::palette.comment);
             return;
         }
         if (s.compare(i, 3, "\"\"\"") == 0) {
             size_t end = s.find("\"\"\"", i + 3);
             if (end == std::string::npos) {
-                emit(i, s.size(), kColString);
+                emit(i, s.size(), CodeEditor::palette.string);
                 inTriple = true;
                 return;
             }
-            emit(i, end + 3, kColString);
+            emit(i, end + 3, CodeEditor::palette.string);
             i = end + 3;
             continue;
         }
@@ -603,14 +642,14 @@ void CodeEditor::drawLine(ImDrawList* dl, int index, ImVec2 pos, bool& inTriple)
                 ++i;
             }
             i = std::min(i + 1, s.size());
-            emit(start, i, kColString);
+            emit(start, i, CodeEditor::palette.string);
             continue;
         }
         if (std::isdigit(static_cast<unsigned char>(c))) {
             size_t start = i;
             while (i < s.size() && (std::isalnum(static_cast<unsigned char>(s[i])) || s[i] == '.' || s[i] == '_'))
                 ++i;
-            emit(start, i, kColNumber);
+            emit(start, i, CodeEditor::palette.number);
             continue;
         }
         if (isWordChar(c)) {
@@ -618,17 +657,17 @@ void CodeEditor::drawLine(ImDrawList* dl, int index, ImVec2 pos, bool& inTriple)
             while (i < s.size() && isWordChar(s[i]))
                 ++i;
             std::string word = s.substr(start, i - start);
-            ImU32 color = kColText;
+            ImU32 color = CodeEditor::palette.text;
             if (isKeyword(word))
-                color = kColKeyword;
+                color = CodeEditor::palette.keyword;
             else if (word == "self" || word == "game")
-                color = kColSelf;
+                color = CodeEditor::palette.self;
             else if (prevWord == "def")
-                color = kColFunction;
+                color = CodeEditor::palette.function;
             else if (highlightWords.count(word))
-                color = kColBuiltin;
+                color = CodeEditor::palette.builtin;
             else if (i < s.size() && s[i] == '(')
-                color = kColFunction;
+                color = CodeEditor::palette.function;
             emit(start, i, color);
             prevWord = word;
             continue;
@@ -637,7 +676,7 @@ void CodeEditor::drawLine(ImDrawList* dl, int index, ImVec2 pos, bool& inTriple)
         while (i < s.size() && !isWordChar(s[i]) && s[i] != '"' && s[i] != '\'' && s[i] != '#' &&
                !std::isdigit(static_cast<unsigned char>(s[i])))
             ++i;
-        emit(start, i, kColText);
+        emit(start, i, CodeEditor::palette.text);
     }
 }
 
@@ -647,7 +686,7 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
     ImGui::PushFont(f);
     charWidth_ = f->CalcTextSizeA(f->FontSize, FLT_MAX, 0, "M").x;
     lineHeight_ = f->FontSize + 3.0f;
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(30, 33, 39, 255));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, palette.background);
     ImGui::BeginChild(id, size, ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoNav);
     ImDrawList* dl = ImGui::GetWindowDrawList();
     float gutter = charWidth_ * (std::to_string(lines_.size()).size() + 2) + 8;
@@ -725,7 +764,7 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
     for (int l = first; l < last; ++l) {
         float y = origin.y + l * lineHeight_;
         if (l == cursor_.line && focused_ && !hasSelection())
-            dl->AddRectFilled({winPos.x, y}, {winPos.x + winW, y + lineHeight_}, IM_COL32(255, 255, 255, 10));
+            dl->AddRectFilled({winPos.x, y}, {winPos.x + winW, y + lineHeight_}, palette.currentLine);
         if (l + 1 == errorLine_) {
             dl->AddRectFilled({winPos.x, y}, {winPos.x + winW, y + lineHeight_}, IM_COL32(224, 70, 70, 55));
             dl->AddCircleFilled({origin.x + 6, y + lineHeight_ * 0.5f}, 4, IM_COL32(240, 80, 80, 255));
@@ -733,23 +772,23 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
         if (hasSelection() && l >= a.line && l <= b.line) {
             float x0 = l == a.line ? columnX(l, a.col) : 0;
             float x1 = l == b.line ? columnX(l, b.col) : columnX(l, static_cast<int>(lines_[static_cast<size_t>(l)].size())) + charWidth_;
-            dl->AddRectFilled({origin.x + gutter + x0, y}, {origin.x + gutter + x1, y + lineHeight_}, IM_COL32(80, 120, 200, 110));
+            dl->AddRectFilled({origin.x + gutter + x0, y}, {origin.x + gutter + x1, y + lineHeight_}, palette.selection);
         }
         char num[16];
         std::snprintf(num, sizeof num, "%d", l + 1);
         float numW = f->CalcTextSizeA(f->FontSize, FLT_MAX, 0, num).x;
         dl->AddText(f, f->FontSize, {origin.x + gutter - numW - 10, y + 1},
-                    l == cursor_.line ? IM_COL32(200, 205, 215, 255) : IM_COL32(95, 102, 115, 255), num);
+                    l == cursor_.line ? palette.currentLineNumber : palette.lineNumber, num);
         drawLine(dl, l, {origin.x + gutter, y + 1}, inTriple);
     }
     dl->AddLine({origin.x + gutter - 5, winPos.y}, {origin.x + gutter - 5, winPos.y + ImGui::GetWindowHeight()},
-                IM_COL32(60, 65, 75, 255));
+                palette.gutterLine);
 
     // Cursor
     blink_ += ImGui::GetIO().DeltaTime;
     ImVec2 cursorScreen{origin.x + gutter + columnX(cursor_.line, cursor_.col), origin.y + cursor_.line * lineHeight_};
     if (focused_ && !readOnly && std::fmod(blink_, 1.0f) < 0.6f)
-        dl->AddRectFilled(cursorScreen, {cursorScreen.x + 2, cursorScreen.y + lineHeight_}, IM_COL32(230, 230, 240, 255));
+        dl->AddRectFilled(cursorScreen, {cursorScreen.x + 2, cursorScreen.y + lineHeight_}, palette.cursor);
     if (scrollToCursor_) {
         float top = cursorScreen.y - winPos.y, bottom = top + lineHeight_;
         if (top < lineHeight_)

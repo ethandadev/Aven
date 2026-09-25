@@ -1,5 +1,6 @@
 #include "aven/assets/assets.h"
 
+#include "aven/core/embedded.h"
 #include "aven/core/fs.h"
 #include "aven/core/log.h"
 
@@ -10,9 +11,6 @@
 
 namespace aven {
 
-namespace embedded {
-const unsigned char* find(const char* name, std::size_t* size);
-}
 
 namespace {
 

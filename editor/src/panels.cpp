@@ -23,6 +23,13 @@ namespace aven::editor {
 
 namespace ui {
 
+void panelClass() {
+    // Docked panels close from their tab; hide the extra close button on the dock node.
+    ImGuiWindowClass wc;
+    wc.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_NoCloseButton;
+    ImGui::SetNextWindowClass(&wc);
+}
+
 void helpMarker(const char* text) {
     ImGui::SameLine();
     ImGui::TextDisabled("(?)");
@@ -49,9 +56,9 @@ bool iconButton(const char* id, int icon, const char* tooltip, bool active, floa
     bool clicked = ImGui::InvisibleButton("##btn", {size, size});
     bool hovered = ImGui::IsItemHovered();
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    ImU32 bg = active ? IM_COL32(59, 130, 246, 255) : hovered ? IM_COL32(70, 78, 92, 255) : IM_COL32(48, 54, 66, 255);
-    dl->AddRectFilled(p, {p.x + size, p.y + size}, bg, 5);
-    ImU32 fg = IM_COL32(235, 238, 245, 255);
+    ImU32 bg = active ? ImGui::GetColorU32(ImGuiCol_SliderGrab) : ImGui::GetColorU32(hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button);
+    dl->AddRectFilled(p, {p.x + size, p.y + size}, bg, ImGui::GetStyle().FrameRounding);
+    ImU32 fg = active ? IM_COL32(255, 255, 255, 255) : ImGui::GetColorU32(ImGuiCol_Text);
     float c = size * 0.5f, s = size * 0.26f;
     ImVec2 m{p.x + c, p.y + c};
     switch (icon) {
@@ -232,7 +239,7 @@ void Editor::drawEntityNode(Entity e) {
                 if (ImGui::MenuItem("Delete", "Del")) {
                     recordUndo("Delete");
                     s.destroy(e);
-                    selected_ = {};
+                    selection_.clear();
                     ImGui::EndPopup();
                     if (dim)
                         ImGui::PopStyleColor();
@@ -290,7 +297,8 @@ void Editor::drawEntityNode(Entity e) {
 }
 
 void Editor::drawHierarchy() {
-    ImGui::Begin("Hierarchy");
+    ui::panelClass();
+    ImGui::Begin("Hierarchy", &showHierarchy_);
     hierarchyFocused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
     ImGui::SetNextItemWidth(-60);
     ImGui::InputTextWithHint("##filter", "Search...", &hierarchyFilter_);
@@ -338,7 +346,7 @@ void Editor::drawHierarchy() {
         ImGui::EndDragDropTarget();
     }
     if (ImGui::IsItemClicked())
-        selected_ = {};
+        selection_.clear();
     if (s.roots().empty())
         ImGui::TextDisabled("This scene is empty.\nClick '+ Add' to add objects.");
     ImGui::EndChild();
@@ -488,6 +496,8 @@ void Editor::drawScriptVariables(Entity e) {
     // While playing, show the live values of this object's variables.
     std::shared_ptr<script::Instance> live = playing_ ? game_->scripts().instanceOf(e) : nullptr;
     for (auto& ex : mod->exports) {
+        if (ex.name == "is_clone") // set by clone(), not something to edit
+            continue;
         ImGui::PushID(ex.name.c_str());
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
@@ -549,6 +559,25 @@ void Editor::drawScriptVariables(Entity e) {
     }
 }
 
+bool Editor::componentUnlocked(const ComponentInfo& info) const {
+    const std::string& c = info.category;
+    if (c == "Physics 2D" || c == "Physics 3D")
+        return unlocked(Feature::Physics);
+    if (c == "Audio")
+        return unlocked(Feature::Audio);
+    if (c == "Effects")
+        return unlocked(Feature::Particles);
+    if (c == "UI")
+        return unlocked(Feature::UI);
+    if (info.name == "Light" || info.name == "Environment")
+        return unlocked(Feature::Lighting);
+    if (info.name == "PostProcessing")
+        return unlocked(Feature::PostProcessing);
+    if (info.name == "SpriteAnimator")
+        return unlocked(Feature::Animation);
+    return true;
+}
+
 void Editor::drawAddComponent(Entity e) {
     static std::string filter;
     ImGui::Spacing();
@@ -566,7 +595,7 @@ void Editor::drawAddComponent(Entity e) {
         std::string lastCategory;
         auto& reg = scene().registry();
         for (auto& info : ComponentRegistry::all()) {
-            if (info.get(reg, e) || (info.advanced && !advanced()))
+            if (info.get(reg, e) || (info.advanced && !advanced()) || !componentUnlocked(info))
                 continue;
             std::string hay = info.name + " " + info.description + " " + info.category;
             std::string needle = filter;
@@ -603,7 +632,8 @@ void Editor::drawAddComponent(Entity e) {
 }
 
 void Editor::drawInspector() {
-    ImGui::Begin("Inspector");
+    ui::panelClass();
+    ImGui::Begin("Inspector", &showInspector_);
     Entity e = selected();
     Scene& s = scene();
     if (!e) {
@@ -703,7 +733,8 @@ void Editor::drawInspector() {
 // ---------------------------------------------------------------- assets
 
 void Editor::drawAssets() {
-    ImGui::Begin("Assets");
+    ui::panelClass();
+    ImGui::Begin("Assets", &showAssets_);
     // Breadcrumbs
     if (ImGui::SmallButton("Project"))
         assetFolder_.clear();
@@ -781,7 +812,7 @@ void Editor::drawAssets() {
         ImGui::InvisibleButton("##item", {cell, cell});
         bool hovered = ImGui::IsItemHovered();
         ImDrawList* dl = ImGui::GetWindowDrawList();
-        dl->AddRectFilled(p, {p.x + cell, p.y + cell}, isSelected ? IM_COL32(59, 130, 246, 90) : hovered ? IM_COL32(255, 255, 255, 20) : 0, 6);
+        dl->AddRectFilled(p, {p.x + cell, p.y + cell}, isSelected ? ImGui::GetColorU32(ImGuiCol_Header) : hovered ? ImGui::GetColorU32(ImGuiCol_FrameBgHovered) : 0, 6);
         ImVec2 iconMin{p.x + 16, p.y + 8}, iconMax{p.x + cell - 16, p.y + cell - 30};
         bool isImage = ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga";
         if (entry.is_directory()) {
@@ -810,7 +841,7 @@ void Editor::drawAssets() {
         }
         std::string shown = name.size() > 13 ? name.substr(0, 11) + ".." : name;
         ImVec2 ts = ImGui::CalcTextSize(shown.c_str());
-        dl->AddText({p.x + (cell - ts.x) * 0.5f, p.y + cell - 22}, IM_COL32(220, 225, 232, 255), shown.c_str());
+        dl->AddText({p.x + (cell - ts.x) * 0.5f, p.y + cell - 22}, ImGui::GetColorU32(ImGuiCol_Text), shown.c_str());
         if (hovered && name != shown)
             ImGui::SetTooltip("%s", name.c_str());
         if (ImGui::IsItemClicked())
@@ -904,13 +935,15 @@ void Editor::drawAssets() {
 
 void Editor::drawConsole() {
     std::string title = errorCount_ > 0 ? "Console (" + std::to_string(errorCount_) + " errors)###Console" : "Console###Console";
-    ImGui::Begin(title.c_str());
+    ui::panelClass();
+    ImGui::Begin(title.c_str(), &showConsole_);
     if (ImGui::SmallButton("Clear"))
         console_.clear();
     ImGui::SameLine();
     ImGui::Checkbox("Errors only", &errorsOnly_);
     ImGui::SameLine();
-    ImGui::Checkbox("Clear on play", &clearOnPlay_);
+    if (ImGui::Checkbox("Clear on play", &prefs.clearConsoleOnPlay))
+        prefs.save();
     ImGui::Separator();
     ImGui::BeginChild("##log", {0, 0}, ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar);
     ImGui::PushFont(fonts.code);

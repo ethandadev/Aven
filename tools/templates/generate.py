@@ -2,12 +2,15 @@
 """Regenerates every starter template in templates/.
 
     python3 tools/templates/generate.py
+    python3 tools/templates/generate.py --thumbnails build/bin/aven-player   # also render thumbnail.png files
 
 Templates are ordinary Aven projects plus a template.json (shown in the editor's
 new-project gallery) and a tutorial.json (shown in the Learn panel).
 """
 
 import os
+import shutil
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -319,6 +322,30 @@ def main():
     obby_3d(root)
     explorer_3d(root)
     print("Templates written to", root)
+    if "--thumbnails" in sys.argv:
+        player = sys.argv[sys.argv.index("--thumbnails") + 1]
+        render_thumbnails(root, os.path.abspath(player))
+
+
+def render_thumbnails(root, player):
+    """Runs every template for a moment in the player and saves a small screenshot for the new-project gallery."""
+    prefix = []
+    if not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
+        prefix = ["xvfb-run", "-a"]
+    # Some games look better after a little play (e.g. the ship flying up into view).
+    inputs = {
+        "space-shooter": ["--press", "5:up:45", "--press", "60:space", "--press", "75:space", "--press", "90:space"],
+        "platformer": ["--press", "10:right:60"],
+    }
+    for name in sorted(os.listdir(root)):
+        folder = os.path.join(root, name)
+        if not os.path.isfile(os.path.join(folder, "project.aven")) or name.startswith("blank"):
+            continue
+        out = os.path.join(folder, "thumbnail.png")
+        subprocess.run(prefix + [player, folder, "--screenshot", out, "--frames", "100", "--size", "480x270", "--hidden"] +
+                       inputs.get(name, []),
+                       check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print("thumbnail", name, "ok" if os.path.exists(out) else "FAILED")
 
 
 if __name__ == "__main__":

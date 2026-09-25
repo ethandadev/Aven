@@ -35,9 +35,9 @@ std::string safeFolderName(const std::string& name) {
 }
 
 bool accentButton(const char* label, ImVec2 size) {
-    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(59, 130, 246, 255));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(96, 155, 250, 255));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(37, 99, 235, 255));
+    ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_SliderGrab));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4(ImGuiCol_SliderGrabActive));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetStyleColorVec4(ImGuiCol_HeaderActive));
     ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 255, 255, 255));
     bool pressed = ImGui::Button(label, size);
     ImGui::PopStyleColor(4);
@@ -104,7 +104,7 @@ bool Editor::drawFolderBrowser(bool projectsOnly, stdfs::path* picked) {
         ImGui::PushID(e.name.c_str());
         std::string label = (e.project ? "[game]  " : "[folder]  ") + e.name;
         if (e.project)
-            ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(120, 180, 255, 255));
+            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SliderGrab));
         bool clicked = ImGui::Selectable(label.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick);
         if (e.project)
             ImGui::PopStyleColor();
@@ -171,7 +171,7 @@ void Editor::drawHub() {
     ImGui::SetNextWindowViewport(vp->ID);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0, 0});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(20, 22, 26, 255));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::GetStyleColorVec4(ImGuiCol_MenuBarBg));
     ImGui::Begin("##hub", nullptr,
                  ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
                      ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoDocking);
@@ -181,7 +181,7 @@ void Editor::drawHub() {
     float em = ImGui::GetFontSize();
 
     // ---- sidebar
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(27, 29, 35, 255));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetStyleColorVec4(ImGuiCol_WindowBg));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {em * 1.2f, em * 1.2f});
     ImGui::BeginChild("##side", {em * 17, 0}, ImGuiChildFlags_AlwaysUseWindowPadding);
     ImGui::PopStyleVar();
@@ -192,9 +192,9 @@ void Editor::drawHub() {
         // Logo: a little blue diamond next to the name.
         float r = em * 0.75f;
         ImVec2 c{p.x + r, p.y + r * 1.1f};
-        dl->AddQuadFilled({c.x, c.y - r}, {c.x + r, c.y}, {c.x, c.y + r}, {c.x - r, c.y}, IM_COL32(59, 130, 246, 255));
+        dl->AddQuadFilled({c.x, c.y - r}, {c.x + r, c.y}, {c.x, c.y + r}, {c.x - r, c.y}, ImGui::GetColorU32(ImGuiCol_SliderGrab));
         dl->AddQuadFilled({c.x, c.y - r * 0.45f}, {c.x + r * 0.45f, c.y}, {c.x, c.y + r * 0.45f}, {c.x - r * 0.45f, c.y},
-                          IM_COL32(27, 29, 35, 255));
+                          ImGui::GetColorU32(ImGuiCol_WindowBg));
         ImGui::SetCursorScreenPos({p.x + r * 2 + em * 0.6f, p.y});
         pushFont(fonts.big);
         ImGui::TextUnformatted("Aven");
@@ -204,7 +204,7 @@ void Editor::drawHub() {
 
         auto navButton = [&](const char* label, int page) {
             bool active = hubPage_ == page;
-            ImGui::PushStyleColor(ImGuiCol_Button, active ? IM_COL32(45, 70, 115, 255) : IM_COL32(0, 0, 0, 0));
+            ImGui::PushStyleColor(ImGuiCol_Button, active ? ImGui::GetColorU32(ImGuiCol_Header) : IM_COL32(0, 0, 0, 0));
             ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, {0.0f, 0.5f});
             if (ImGui::Button(label, {-1, em * 2.2f}))
                 hubPage_ = page;
@@ -275,7 +275,7 @@ void Editor::drawHub() {
         if (templateCache_.empty()) {
             ImGui::TextDisabled("No templates were found next to the editor. You can still start from an empty project.");
         }
-        float cardW = em * 15.5f, cardH = em * 11.0f, gap = em * 0.9f;
+        float cardW = em * 15.5f, cardH = em * 14.5f, gap = em * 0.9f;
         float avail = ImGui::GetContentRegionAvail().x;
         int columns = std::max(1, static_cast<int>((avail + gap) / (cardW + gap)));
         cardW = (avail - gap * (columns - 1)) / columns;
@@ -296,33 +296,57 @@ void Editor::drawHub() {
             if (selected)
                 chosen = &t;
             ImVec2 q{p.x + cardW, p.y + cardH};
-            dl->AddRectFilled(p, q, hovered ? IM_COL32(40, 44, 52, 255) : IM_COL32(33, 36, 43, 255), 8);
-            // Colored header with a big letter, like a game box.
-            float headerH = cardH * 0.36f;
-            dl->AddRectFilled(p, {q.x, p.y + headerH}, toU32(t.color), 8, ImDrawFlags_RoundCornersTop);
-            dl->AddRectFilledMultiColor({p.x, p.y + headerH * 0.4f}, {q.x, p.y + headerH}, IM_COL32(0, 0, 0, 0),
-                                        IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 60), IM_COL32(0, 0, 0, 60));
-            if (fonts.big) {
-                std::string initial = t.name.substr(0, 1);
-                dl->AddText(fonts.big, fonts.big->FontSize * 1.3f, {p.x + em * 0.8f, p.y + headerH * 0.5f - fonts.big->FontSize * 0.65f},
-                            IM_COL32(255, 255, 255, 200), initial.c_str());
+            dl->AddRectFilled(p, q, ImGui::GetColorU32(hovered ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg), 8);
+            // Header: a screenshot of the game if the template has one, else its color and initial.
+            float headerH = cardH * 0.5f;
+            std::error_code thumbError;
+            stdfs::path thumb = t.folder / "thumbnail.png";
+            const TextureAsset* tex = stdfs::exists(thumb, thumbError) ? &assets_.texture(thumb.string()) : nullptr;
+            if (tex && !tex->missing && tex->width > 0) {
+                // Crop the image to fill the header ("cover").
+                float boxAspect = cardW / headerH, imgAspect = static_cast<float>(tex->width) / tex->height;
+                ImVec2 uv0{0, 1}, uv1{1, 0};
+                if (imgAspect > boxAspect) {
+                    float crop = (1 - boxAspect / imgAspect) * 0.5f;
+                    uv0.x = crop;
+                    uv1.x = 1 - crop;
+                } else {
+                    float crop = (1 - imgAspect / boxAspect) * 0.5f;
+                    uv0.y = 1 - crop;
+                    uv1.y = crop;
+                }
+                dl->AddImageRounded(static_cast<ImTextureID>(device_.nativeTexture(tex->handle)), p, {q.x, p.y + headerH}, uv0, uv1,
+                                    IM_COL32(255, 255, 255, 255), 8, ImDrawFlags_RoundCornersTop);
+            } else {
+                dl->AddRectFilled(p, {q.x, p.y + headerH}, toU32(t.color), 8, ImDrawFlags_RoundCornersTop);
+                dl->AddRectFilledMultiColor({p.x, p.y + headerH * 0.4f}, {q.x, p.y + headerH}, IM_COL32(0, 0, 0, 0),
+                                            IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 60), IM_COL32(0, 0, 0, 60));
+                if (fonts.big) {
+                    std::string initial = t.name.substr(0, 1);
+                    dl->AddText(fonts.big, fonts.big->FontSize * 1.3f,
+                                {p.x + em * 0.8f, p.y + headerH * 0.5f - fonts.big->FontSize * 0.65f}, IM_COL32(255, 255, 255, 200),
+                                initial.c_str());
+                }
             }
+            dl->AddRectFilled({p.x, p.y + headerH - 3}, {q.x, p.y + headerH}, toU32(t.color));
             ImVec2 badgePos{q.x - em * 4.2f, p.y + em * 0.6f};
             badge(dl, badgePos, t.is3D ? "3D" : "2D", IM_COL32(0, 0, 0, 90), IM_COL32(255, 255, 255, 255));
             // Text.
             float x = p.x + em * 0.8f, y = p.y + headerH + em * 0.5f;
             if (fonts.bold)
-                dl->AddText(fonts.bold, fonts.bold->FontSize, {x, y}, IM_COL32(240, 242, 246, 255), t.name.c_str());
+                dl->AddText(fonts.bold, fonts.bold->FontSize, {x, y}, ImGui::GetColorU32(ImGuiCol_Text), t.name.c_str());
             y += em * 1.4f;
-            dl->PushClipRect({x, y}, {q.x - em * 0.6f, q.y - em * 1.9f}, true);
-            dl->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 0.92f, {x, y}, IM_COL32(160, 168, 182, 255), t.description.c_str(),
+            // Two lines of description; the tooltip shows all of it.
+            float lineH = ImGui::GetFontSize() * 0.92f;
+            dl->PushClipRect({x, y}, {q.x - em * 0.6f, y + lineH * 2.05f}, true);
+            dl->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 0.92f, {x, y}, ImGui::GetColorU32(ImGuiCol_TextDisabled), t.description.c_str(),
                         nullptr, cardW - em * 1.6f);
             dl->PopClipRect();
             ImVec2 tagPos{x, q.y - em * 1.6f};
-            badge(dl, tagPos, t.style.c_str(), IM_COL32(59, 130, 246, 50), IM_COL32(150, 190, 255, 255));
-            badge(dl, tagPos, t.difficulty.c_str(), IM_COL32(255, 255, 255, 18), IM_COL32(190, 196, 208, 255));
+            badge(dl, tagPos, t.style.c_str(), ImGui::GetColorU32(ImGuiCol_SliderGrab, 0.25f), ImGui::GetColorU32(ImGuiCol_Text));
+            badge(dl, tagPos, t.difficulty.c_str(), ImGui::GetColorU32(ImGuiCol_Border), ImGui::GetColorU32(ImGuiCol_Text));
             if (selected)
-                dl->AddRect({p.x - 1, p.y - 1}, {q.x + 1, q.y + 1}, IM_COL32(96, 155, 250, 255), 9, 0, 2.5f);
+                dl->AddRect({p.x - 1, p.y - 1}, {q.x + 1, q.y + 1}, ImGui::GetColorU32(ImGuiCol_SliderGrab), 9, 0, 2.5f);
             if (hovered && !t.description.empty()) {
                 ImGui::SetNextWindowSize({em * 20, 0});
                 ImGui::BeginTooltip();

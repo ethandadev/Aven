@@ -1,6 +1,10 @@
 #include "aven/platform/window.h"
 
+#include "aven/core/embedded.h"
+#include "aven/core/fs.h"
 #include "aven/core/log.h"
+
+#include <stb_image.h>
 
 #include <GLFW/glfw3.h>
 
@@ -170,6 +174,44 @@ float Window::contentScale() const {
 }
 
 void Window::setTitle(const std::string& title) { if (handle_) glfwSetWindowTitle(handle_, title.c_str()); }
+
+void Window::setIcon(const std::vector<std::pair<const unsigned char*, std::size_t>>& pngs) {
+    if (!handle_ || glfwGetPlatform() == GLFW_PLATFORM_WAYLAND || glfwGetPlatform() == GLFW_PLATFORM_COCOA)
+        return;
+    std::vector<GLFWimage> images;
+    std::vector<unsigned char*> decoded;
+    for (auto& [data, size] : pngs) {
+        int w = 0, h = 0, n = 0;
+        unsigned char* px = stbi_load_from_memory(data, static_cast<int>(size), &w, &h, &n, 4);
+        if (!px)
+            continue;
+        decoded.push_back(px);
+        images.push_back({w, h, px});
+    }
+    if (!images.empty())
+        glfwSetWindowIcon(handle_, static_cast<int>(images.size()), images.data());
+    for (unsigned char* px : decoded)
+        stbi_image_free(px);
+}
+
+void Window::setIconFromFile(const std::string& pngPath) {
+    auto bytes = fs::readBinary(pngPath);
+    if (!bytes || bytes->empty()) {
+        setDefaultIcon();
+        return;
+    }
+    setIcon({{bytes->data(), bytes->size()}});
+}
+
+void Window::setDefaultIcon() {
+    std::vector<std::pair<const unsigned char*, std::size_t>> pngs;
+    for (const char* name : {"aven_16.png", "aven_32.png", "aven_48.png", "aven_64.png", "aven_128.png"}) {
+        std::size_t size = 0;
+        if (const unsigned char* data = embedded::find(name, &size))
+            pngs.push_back({data, size});
+    }
+    setIcon(pngs);
+}
 
 void Window::setFullscreen(bool fullscreen) {
     if (!handle_ || fullscreen == fullscreen_)

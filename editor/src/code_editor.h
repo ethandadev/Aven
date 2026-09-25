@@ -8,6 +8,15 @@
 
 namespace aven::editor {
 
+// Syntax colors for the code editor (chosen in Preferences).
+struct CodePalette {
+    std::string name;
+    ImU32 background, text, keyword, string, number, comment, function, builtin, self;
+    ImU32 lineNumber, currentLineNumber, currentLine, selection, cursor, gutterLine;
+    static const std::vector<CodePalette>& presets();
+    static const CodePalette& find(const std::string& name);
+};
+
 // A code editor built for EasyScript: syntax colors, line numbers, auto-indent,
 // bracket pairing, error markers and autocomplete.
 class CodeEditor {
@@ -25,6 +34,7 @@ public:
     void setError(int line, const std::string& message); // line 0 clears
     void gotoLine(int line);
     bool readOnly = false;
+    static CodePalette palette; // shared by every code view
     ImFont* font = nullptr;
     std::vector<Completion> completions;
     std::unordered_set<std::string> highlightWords; // functions to color (engine API)

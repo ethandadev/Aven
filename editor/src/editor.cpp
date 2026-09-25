@@ -9,6 +9,7 @@
 #include "code_editor.h"
 
 #include <imgui.h>
+#include <imgui_impl_opengl3.h>
 #include <imgui_internal.h>
 
 #include <algorithm>
@@ -25,6 +26,8 @@ Editor::Editor(Window& window, rhi::Device& device)
     : window_(window), device_(device), assets_(&device), scene_(std::make_unique<Scene>()) {}
 
 Editor::~Editor() {
+    if (options_.screenshot.empty())
+        prefs.save();
     if (playing_)
         stop();
     tabs_.clear();
@@ -34,6 +37,15 @@ Editor::~Editor() {
 
 bool Editor::init(const EditorOptions& options) {
     options_ = options;
+    if (options.screenshot.empty())
+        prefs.load();
+    else
+        prefs.level = options.level > 0 ? options.level : 4; // automated screenshots show everything
+    if (options.level > 0)
+        prefs.level = options.level;
+    if (!options.theme.empty())
+        prefs.theme = options.theme;
+    CodeEditor::palette = CodePalette::find(prefs.codeTheme);
     if (!renderer_.init(&device_, &assets_))
         return false;
     renderer_.sceneOverlay = [this](const CameraView& cam) { drawSceneOverlay(cam); };
@@ -89,6 +101,16 @@ bool Editor::init(const EditorOptions& options) {
             showSettings_ = true;
         if (options.openPanel == "reference")
             showReference_ = true;
+        if (options.openPanel == "prefs")
+            showPrefs_ = true;
+        if (options.openPanel.rfind("prefs:", 0) == 0) {
+            showPrefs_ = true;
+            prefsSection_ = options.openPanel.substr(6);
+        }
+        if (options.openPanel == "levels")
+            showLevels_ = true;
+        if (options.openPanel == "levelup")
+            levelUpTo_ = std::min(4, prefs.level + 1);
         if (options.play) {
             for (auto& t : tabs_)
                 t->focus = false;
@@ -98,6 +120,82 @@ bool Editor::init(const EditorOptions& options) {
     if (options.openPanel == "hub")
         showHub_ = true;
     return true;
+}
+
+void Editor::beginFrame() {
+    if (!pendingLayout_.empty()) {
+        auto it = prefs.savedLayouts.find(pendingLayout_);
+        if (it != prefs.savedLayouts.end()) {
+            ImGui::LoadIniSettingsFromMemory(it->second.c_str(), it->second.size());
+        } else {
+            resetLayout_ = true;
+        }
+        prefs.layout = pendingLayout_;
+        pendingLayout_.clear();
+    }
+    if (!styleDirty_)
+        return;
+    styleDirty_ = false;
+    ImGui_ImplOpenGL3_DestroyFontsTexture();
+    buildFonts(prefs, dpiScale_, fonts);
+    ImGui_ImplOpenGL3_CreateFontsTexture();
+    applyStyle(prefs, dpiScale_);
+    CodeEditor::palette = CodePalette::find(prefs.codeTheme);
+    for (auto& t : tabs_) {
+        if (t->code)
+            t->code->font = fonts.code;
+        if (t->blocks) {
+            t->blocks->font = fonts.ui;
+            t->blocks->codeFont = fonts.code;
+        }
+    }
+}
+
+void Editor::milestone(const std::string& key, int amount) {
+    if (!options_.screenshot.empty())
+        return;
+    prefs.counters[key] += amount;
+    checkLevelUp();
+}
+
+void Editor::checkLevelUp() {
+    if (!prefs.autoLevelUp || levelUpTo_ || prefs.level >= 4)
+        return;
+    int earned = earnedLevel(prefs);
+    std::string snooze = "snoozed_level_" + std::to_string(earned);
+    if (earned > prefs.level && !prefs.counters.count(snooze))
+        levelUpTo_ = earned;
+}
+
+bool Editor::shortcut(const char* action) {
+    ImGuiKeyChord chord = prefs.chord(action);
+    if (!chord || !ImGui::IsKeyChordPressed(chord))
+        return false;
+    for (auto& a : keyActions())
+        if (std::string(a.id) == action && !a.whileTyping && ImGui::GetIO().WantTextInput)
+            return false;
+    return true;
+}
+
+void Editor::autosave(float dt) {
+    if (prefs.autosaveMinutes <= 0 || playing_ || !hasProject())
+        return;
+    autosaveTimer_ += dt;
+    if (autosaveTimer_ < prefs.autosaveMinutes * 60.0f)
+        return;
+    autosaveTimer_ = 0;
+    bool anyScript = false;
+    for (auto& t : tabs_)
+        anyScript = anyScript || t->modified;
+    if (!dirty_ && !anyScript)
+        return;
+    saveAllScripts();
+    if (dirty_ && !scenePath_.empty()) {
+        fs::writeText(projectDir_ / scenePath_, scene_->save().dump(2) + "\n");
+        dirty_ = false;
+        refreshTitle();
+    }
+    notify("Autosaved.");
 }
 
 void Editor::refreshTitle() {
@@ -179,7 +277,7 @@ bool Editor::createProject(const stdfs::path& dir, const std::string& name, cons
     if (tmpl) {
         for (auto& entry : stdfs::recursive_directory_iterator(tmpl->folder, ec)) {
             stdfs::path rel = stdfs::relative(entry.path(), tmpl->folder, ec);
-            if (rel == "template.json")
+            if (rel == "template.json" || rel == "thumbnail.png")
                 continue;
             if (entry.is_directory())
                 stdfs::create_directories(dir / rel, ec);
@@ -280,7 +378,7 @@ bool Editor::openScene(const std::string& path) {
     undo_.clear();
     redo_.clear();
     snapshotValid_ = false;
-    selected_ = {};
+    selection_.clear();
     // Pick the 2D or 3D view to match the scene.
     Entity cam = SceneRenderer::findCamera(*scene_);
     view3D_ = scene_->registry().count<MeshRenderer>() > 0 ||
@@ -355,7 +453,7 @@ void Editor::newScene(bool is3D) {
     undo_.clear();
     redo_.clear();
     snapshotValid_ = false;
-    selected_ = {};
+    selection_.clear();
     refreshTitle();
 }
 
@@ -372,17 +470,57 @@ std::string Editor::uniqueName(const std::string& folder, const std::string& bas
 // ---------------------------------------------------------------- selection and undo
 
 Entity Editor::selected() {
-    return selected_ ? scene().findByUUID(selected_) : Entity{};
+    while (!selection_.empty()) {
+        if (Entity e = scene().findByUUID(selection_.back()))
+            return e;
+        selection_.pop_back(); // deleted objects drop out of the selection
+    }
+    return {};
 }
 
 void Editor::select(Entity e) {
-    selected_ = e ? scene().info(e).uuid : UUID{};
+    selection_.clear();
+    if (e)
+        selection_.push_back(scene().info(e).uuid);
+}
+
+void Editor::addToSelection(Entity e) {
+    if (!e)
+        return;
+    UUID id = scene().info(e).uuid;
+    std::erase(selection_, id);
+    selection_.push_back(id);
+}
+
+void Editor::toggleSelection(Entity e) {
+    if (!e)
+        return;
+    UUID id = scene().info(e).uuid;
+    if (std::find(selection_.begin(), selection_.end(), id) != selection_.end())
+        std::erase(selection_, id);
+    else
+        selection_.push_back(id);
+}
+
+bool Editor::isSelected(Entity e) {
+    if (!e)
+        return false;
+    UUID id = scene().info(e).uuid;
+    return std::find(selection_.begin(), selection_.end(), id) != selection_.end();
+}
+
+std::vector<Entity> Editor::selectedEntities() {
+    std::vector<Entity> out;
+    for (UUID id : selection_)
+        if (Entity e = scene().findByUUID(id))
+            out.push_back(e);
+    return out;
 }
 
 void Editor::recordUndo(const std::string& label) {
     if (playing_)
         return;
-    undo_.push_back({label, scene_->save(), selected_});
+    undo_.push_back({label, scene_->save(), selection_});
     if (undo_.size() > 100)
         undo_.erase(undo_.begin());
     redo_.clear();
@@ -399,7 +537,7 @@ void Editor::edited(const std::string& label) {
             cachedSnapshot_ = scene_->save();
             snapshotValid_ = true;
         }
-        undo_.push_back({label, cachedSnapshot_, selected_});
+        undo_.push_back({label, cachedSnapshot_, selection_});
         if (undo_.size() > 100)
             undo_.erase(undo_.begin());
         redo_.clear();
@@ -415,11 +553,11 @@ void Editor::edited(const std::string& label) {
 void Editor::undo() {
     if (playing_ || undo_.empty())
         return;
-    redo_.push_back({undo_.back().label, scene_->save(), selected_});
+    redo_.push_back({undo_.back().label, scene_->save(), selection_});
     Snapshot s = std::move(undo_.back());
     undo_.pop_back();
     scene_->load(s.scene);
-    selected_ = s.selected;
+    selection_ = s.selection;
     snapshotValid_ = false;
     dirty_ = true;
     notify("Undo: " + s.label);
@@ -429,11 +567,11 @@ void Editor::undo() {
 void Editor::redo() {
     if (playing_ || redo_.empty())
         return;
-    undo_.push_back({redo_.back().label, scene_->save(), selected_});
+    undo_.push_back({redo_.back().label, scene_->save(), selection_});
     Snapshot s = std::move(redo_.back());
     redo_.pop_back();
     scene_->load(s.scene);
-    selected_ = s.selected;
+    selection_ = s.selection;
     snapshotValid_ = false;
     dirty_ = true;
     notify("Redo: " + s.label);
@@ -447,8 +585,9 @@ void Editor::play() {
         return;
     saveAllScripts();
     settings_.save(projectDir_);
-    if (clearOnPlay_)
+    if (prefs.clearConsoleOnPlay)
         console_.clear();
+    milestone("plays");
     game_ = std::make_unique<Game>(assets_, gameInput_);
     game_->loadProject(projectDir_);
     game_->setCursorLocked = [this](bool locked) { window_.setCursorLocked(locked); };
@@ -547,7 +686,8 @@ Entity Editor::createEntity(const std::string& kind, Entity parent) {
     } else if (kind == "Environment")
         reg.emplace<Environment>(e);
     s.info(e).name = kind == "Rounded Square" ? "RoundedSquare" : kind;
-    selected_ = s.info(e).uuid;
+    select(e);
+    milestone("objects_added");
     return e;
 }
 
@@ -894,12 +1034,17 @@ void Editor::frame(float dt) {
             if (!playing_ && assets_.reloadChanged())
                 notify("Images updated from disk.");
         }
+        autosave(dt);
         setupDockspace();
-        drawHierarchy();
-        drawInspector();
+        if (showHierarchy_)
+            drawHierarchy();
+        if (showInspector_)
+            drawInspector();
         drawViewport(dt);
-        drawAssets();
-        drawConsole();
+        if (showAssets_ && unlocked(Feature::Assets))
+            drawAssets();
+        if (showConsole_ && unlocked(Feature::Console))
+            drawConsole();
         drawScriptTabs();
         if (showSettings_)
             drawSettings();
@@ -911,6 +1056,10 @@ void Editor::frame(float dt) {
             drawExport();
         handleShortcuts();
     }
+    if (showPrefs_)
+        drawPreferences();
+    if (showLevels_ || levelUpTo_)
+        drawLevels();
     drawNotification(dt);
     drawQuitDialog();
 
@@ -970,286 +1119,6 @@ void Editor::drawNotification(float dt) {
                       notificationError_ ? IM_COL32(150, 40, 45, static_cast<int>(235 * a)) : IM_COL32(35, 42, 55, static_cast<int>(235 * a)), 8);
     fg->AddText(ImGui::GetFont(), ImGui::GetFontSize(), {pos.x + 16, pos.y + 10}, IM_COL32(255, 255, 255, static_cast<int>(255 * a)),
                 notification_.c_str(), nullptr, 520);
-}
-
-void Editor::setupDockspace() {
-    ImGuiViewport* vp = ImGui::GetMainViewport();
-    float toolbarHeight = ImGui::GetFrameHeight() + 14;
-    ImGui::SetNextWindowPos(vp->WorkPos);
-    ImGui::SetNextWindowSize(vp->WorkSize);
-    ImGui::SetNextWindowViewport(vp->ID);
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
-                             ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus |
-                             ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0, 0});
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-    ImGui::Begin("##root", nullptr, flags);
-    ImGui::PopStyleVar(2);
-    drawMenuBar();
-    drawToolbar();
-    ImGuiID dockId = ImGui::GetID("MainDock");
-    if (resetLayout_ || !ImGui::DockBuilderGetNode(dockId)) {
-        resetLayout_ = false;
-        ImGui::DockBuilderRemoveNode(dockId);
-        ImGui::DockBuilderAddNode(dockId, ImGuiDockNodeFlags_DockSpace);
-        ImGui::DockBuilderSetNodeSize(dockId, {vp->WorkSize.x, vp->WorkSize.y - toolbarHeight});
-        ImGuiID left, right, bottom, center = dockId;
-        left = ImGui::DockBuilderSplitNode(center, ImGuiDir_Left, 0.18f, nullptr, &center);
-        right = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, 0.26f, nullptr, &center);
-        bottom = ImGui::DockBuilderSplitNode(center, ImGuiDir_Down, 0.28f, nullptr, &center);
-        ImGui::DockBuilderDockWindow("Hierarchy", left);
-        ImGui::DockBuilderDockWindow("Inspector", right);
-        ImGui::DockBuilderDockWindow("Learn", right);
-        ImGui::DockBuilderDockWindow("Assets", bottom);
-        ImGui::DockBuilderDockWindow("###Console", bottom);
-        ImGui::DockBuilderDockWindow("###Viewport", center);
-        ImGui::DockBuilderFinish(dockId);
-    }
-    ImGui::DockSpace(dockId, {0, 0}, ImGuiDockNodeFlags_None);
-    ImGui::End();
-}
-
-void Editor::drawMenuBar() {
-    if (!ImGui::BeginMenuBar())
-        return;
-    if (ImGui::BeginMenu("File")) {
-        if (ImGui::MenuItem("New 2D Scene"))
-            newScene(false);
-        if (ImGui::MenuItem("New 3D Scene"))
-            newScene(true);
-        if (ImGui::BeginMenu("Open Scene")) {
-            for (auto& s : projectFiles({".scene"}))
-                if (ImGui::MenuItem(s.c_str(), nullptr, s == scenePath_))
-                    openScene(s);
-            ImGui::EndMenu();
-        }
-        if (ImGui::MenuItem("Save Scene", "Ctrl+S"))
-            saveScene();
-        ImGui::Separator();
-        if (ImGui::MenuItem("Build & Export Game..."))
-            showExport_ = true;
-        if (ImGui::MenuItem("Project Settings..."))
-            showSettings_ = true;
-        ImGui::Separator();
-        if (ImGui::MenuItem("Project Hub (new or open project)")) {
-            saveAllScripts();
-            showHub_ = true;
-        }
-        if (ImGui::MenuItem("Quit", "Ctrl+Q"))
-            requestQuit();
-        ImGui::EndMenu();
-    }
-    if (ImGui::BeginMenu("Edit")) {
-        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, !undo_.empty() && !playing_))
-            undo();
-        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, !redo_.empty() && !playing_))
-            redo();
-        ImGui::Separator();
-        Entity sel = selected();
-        if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, sel && !playing_)) {
-            recordUndo("Duplicate");
-            select(scene_->duplicate(sel));
-        }
-        if (ImGui::MenuItem("Delete", "Del", false, sel && !playing_)) {
-            recordUndo("Delete");
-            scene_->destroy(sel);
-            selected_ = {};
-        }
-        ImGui::EndMenu();
-    }
-    if (ImGui::BeginMenu("Create")) {
-        bool disabled = playing_;
-        ImGui::BeginDisabled(disabled);
-        if (ImGui::BeginMenu("2D Shape"))
-        {
-            for (const char* k : {"Square", "Circle", "Triangle", "Rounded Square", "Diamond", "Star", "Heart", "Sprite"})
-                if (ImGui::MenuItem(k))
-                    createEntity(k);
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("3D Shape")) {
-            for (const char* k : {"Cube", "Sphere", "Plane", "Cylinder", "Capsule", "Cone", "Torus"})
-                if (ImGui::MenuItem(k))
-                    createEntity(k);
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Light")) {
-            for (const char* k : {"Sun", "Point Light", "Spot Light", "Environment"})
-                if (ImGui::MenuItem(k))
-                    createEntity(k);
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("UI")) {
-            for (const char* k : {"UI Text", "UI Button", "UI Panel"})
-                if (ImGui::MenuItem(k))
-                    createEntity(k);
-            ImGui::EndMenu();
-        }
-        for (const char* k : {"Text", "Camera", "Particles", "Sound", "Player 3D"})
-            if (ImGui::MenuItem(k))
-                createEntity(k);
-        if (ImGui::MenuItem("Empty Object"))
-            createEntity("Entity");
-        ImGui::EndDisabled();
-        ImGui::EndMenu();
-    }
-    if (ImGui::BeginMenu("View")) {
-        ImGui::MenuItem("Learn (tutorial)", nullptr, &showLearn_, !tutorial_.isNull());
-        ImGui::MenuItem("Scripting Reference", nullptr, &showReference_);
-        ImGui::MenuItem("Show Grid", nullptr, &showGrid_);
-        if (ImGui::MenuItem("Advanced Mode", nullptr, &settings_.advancedMode))
-            settings_.save(projectDir_);
-        if (ImGui::MenuItem("Reset Layout"))
-            resetLayout_ = true;
-        ImGui::EndMenu();
-    }
-    if (ImGui::BeginMenu("Help")) {
-        ImGui::MenuItem("Scripting Reference", nullptr, &showReference_);
-        if (ImGui::MenuItem("About Aven"))
-            showAbout_ = true;
-        ImGui::EndMenu();
-    }
-    // Project name on the right.
-    std::string label = settings_.name + (dirty_ ? "  (unsaved)" : "");
-    ImGui::SameLine(ImGui::GetWindowWidth() - ImGui::CalcTextSize(label.c_str()).x - 20);
-    ImGui::TextDisabled("%s", label.c_str());
-    ImGui::EndMenuBar();
-    if (showAbout_) {
-        ImGui::OpenPopup("About Aven");
-        showAbout_ = false;
-    }
-    if (ImGui::BeginPopupModal("About Aven", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::PushFont(fonts.big);
-        ImGui::Text("Aven %s", AVEN_VERSION);
-        ImGui::PopFont();
-        ImGui::Text("A beginner-friendly 2D and 3D game engine.");
-        ImGui::TextDisabled("Blocks -> EasyScript -> C/C++ -> C#");
-        ImGui::Spacing();
-        ImGui::TextDisabled("Renderer: %s", device_.description().c_str());
-        if (ImGui::Button("Close", {120, 0}))
-            ImGui::CloseCurrentPopup();
-        ImGui::EndPopup();
-    }
-}
-
-// The toolbar lives inside the root window, between the menu bar and the dock space.
-void Editor::drawToolbar() {
-    float height = ImGui::GetFrameHeight() + 14;
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {10, 7});
-    ImGui::BeginChild("##toolbar", {0, height}, ImGuiChildFlags_AlwaysUseWindowPadding,
-                      ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-    ImGui::PopStyleVar();
-    float b = ImGui::GetFrameHeight();
-    // Tools
-    if (ui::iconButton("move", ui::Move, "Move (W)", gizmoOp_ == 0, b))
-        gizmoOp_ = 0;
-    ImGui::SameLine();
-    if (ui::iconButton("rotate", ui::Rotate, "Rotate (E)", gizmoOp_ == 1, b))
-        gizmoOp_ = 1;
-    ImGui::SameLine();
-    if (ui::iconButton("scale", ui::Scale, "Scale (R)", gizmoOp_ == 2, b))
-        gizmoOp_ = 2;
-    ImGui::SameLine();
-    if (ui::iconButton("snap", ui::Magnet, "Snap to grid (hold Ctrl)", snap_, b))
-        snap_ = !snap_;
-    ImGui::SameLine();
-    if (ui::iconButton("grid", ui::Grid, "Show grid", showGrid_, b))
-        showGrid_ = !showGrid_;
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(70);
-    int view = view3D_ ? 1 : 0;
-    const char* views[] = {"2D", "3D"};
-    if (ImGui::Combo("##view", &view, views, 2))
-        view3D_ = view == 1;
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Switch between the 2D and 3D scene view");
-
-    // Play controls in the middle.
-    float center = ImGui::GetWindowWidth() * 0.5f;
-    ImGui::SameLine(center - b * 1.6f);
-    if (ui::iconButton("play", playing_ ? ui::Stop : ui::Play, playing_ ? "Stop (Ctrl+P)" : "Play (Ctrl+P)", playing_, b))
-        playing_ ? stop() : play();
-    ImGui::SameLine();
-    ImGui::BeginDisabled(!playing_);
-    if (ui::iconButton("pause", ui::Pause, "Pause", paused_, b))
-        paused_ = !paused_;
-    ImGui::SameLine();
-    if (ui::iconButton("step", ui::Step, "Next frame", false, b)) {
-        paused_ = true;
-        stepOnce_ = true;
-    }
-    ImGui::EndDisabled();
-
-    // Right side, aligned using the width measured last frame.
-    static float rightWidth = 400;
-    ImGui::SameLine(std::max(ImGui::GetCursorPosX() + 20, ImGui::GetWindowWidth() - rightWidth - 10));
-    float rightStart = ImGui::GetCursorScreenPos().x;
-    if (!tutorial_.isNull()) {
-        if (ImGui::Button("Learn"))
-            showLearn_ = !showLearn_;
-        ImGui::SameLine();
-    }
-    if (ImGui::Button("Reference"))
-        showReference_ = !showReference_;
-    ImGui::SameLine();
-    if (ImGui::Checkbox("Advanced", &settings_.advancedMode))
-        settings_.save(projectDir_);
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Show advanced components and settings (shaders, post-processing, C++ scripts...)");
-    ImGui::SameLine();
-    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(34, 150, 90, 255));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(44, 175, 105, 255));
-    if (ImGui::Button("Build & Export"))
-        showExport_ = true;
-    ImGui::PopStyleColor(2);
-    rightWidth = ImGui::GetItemRectMax().x - rightStart;
-    ImGui::EndChild();
-}
-
-void Editor::handleShortcuts() {
-    ImGuiIO& io = ImGui::GetIO();
-    bool ctrl = io.KeyCtrl || io.KeySuper;
-    if (ctrl && ImGui::IsKeyPressed(ImGuiKey_S, false)) {
-        bool scriptFocused = false;
-        for (auto& t : tabs_)
-            if (t->modified)
-                scriptFocused = true;
-        saveAllScripts();
-        if (!playing_)
-            saveScene();
-        else if (scriptFocused)
-            notify("Scripts saved.");
-    }
-    if (ctrl && ImGui::IsKeyPressed(ImGuiKey_P, false))
-        playing_ ? stop() : play();
-    if (ctrl && ImGui::IsKeyPressed(ImGuiKey_Q, false))
-        requestQuit();
-    if (io.WantTextInput || playing_)
-        return;
-    if (ctrl && ImGui::IsKeyPressed(ImGuiKey_Z, false) && !io.KeyShift)
-        undo();
-    if (ctrl && (ImGui::IsKeyPressed(ImGuiKey_Y, false) || (io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Z, false))))
-        redo();
-    Entity sel = selected();
-    if (sel && ctrl && ImGui::IsKeyPressed(ImGuiKey_D, false)) {
-        recordUndo("Duplicate");
-        select(scene_->duplicate(sel));
-    }
-    if (sel && ImGui::IsKeyPressed(ImGuiKey_Delete, false) && (viewportFocused_ || hierarchyFocused_)) {
-        recordUndo("Delete");
-        scene_->destroy(sel);
-        selected_ = {};
-    }
-    if (viewportHovered_ && !ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-        if (ImGui::IsKeyPressed(ImGuiKey_W, false))
-            gizmoOp_ = 0;
-        if (ImGui::IsKeyPressed(ImGuiKey_E, false))
-            gizmoOp_ = 1;
-        if (ImGui::IsKeyPressed(ImGuiKey_R, false))
-            gizmoOp_ = 2;
-        if (ImGui::IsKeyPressed(ImGuiKey_F, false))
-            focusSelected();
-    }
 }
 
 } // namespace aven::editor

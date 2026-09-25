@@ -45,6 +45,11 @@ public:
     Vec2 windowSize() const;      // screen coordinates
     float contentScale() const;   // UI scale on high-DPI displays
     void setTitle(const std::string& title);
+    // Window/taskbar icon from PNG files in memory (several sizes let the OS pick).
+    // Unsupported on some platforms (macOS uses the app bundle's icon), where it does nothing.
+    void setIcon(const std::vector<std::pair<const unsigned char*, std::size_t>>& pngs);
+    void setIconFromFile(const std::string& pngPath);
+    void setDefaultIcon(); // the Aven logo
     void setFullscreen(bool fullscreen);
     bool isFullscreen() const { return fullscreen_; }
     void setVsync(bool vsync);
