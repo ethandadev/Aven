@@ -27,6 +27,8 @@ Editor::Editor(Window& window, rhi::Device& device)
     : window_(window), device_(device), assets_(&device), scene_(std::make_unique<Scene>()) {}
 
 Editor::~Editor() {
+    if (gifThread_.joinable())
+        gifThread_.join();
     if (options_.screenshot.empty())
         prefs.save();
     if (playing_)
@@ -214,6 +216,8 @@ void Editor::openPanels(const std::string& list) {
         else if (p == "stats") showStats_ = true;
         else if (p == "export") showExport_ = true;
         else if (p == "share") openShare();
+        else if (p == "screenshotview") takeScreenshot();
+        else if (p == "gif") toggleGifRecording();
         else if (p == "quests") openQuests();
         else if (p.rfind("quest:", 0) == 0) {
             openQuests();

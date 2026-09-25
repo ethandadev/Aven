@@ -481,6 +481,7 @@ void Editor::drawStatusBar() {
     else
         ImGui::TextDisabled("%s", scenePath_.empty() ? "Unsaved scene" : scenePath_.c_str());
 
+    drawCaptureStatus();
     // Right side: errors, level progress, frame rate.
     std::string right = std::to_string(static_cast<int>(std::round(ImGui::GetIO().Framerate))) + " FPS";
     std::string hint = nextLevelHint(prefs);
@@ -535,6 +536,10 @@ void Editor::handleShortcuts() {
         showExplain_ = true;
         focusExplain_ = true;
     }
+    if (shortcut("screenshot") && unlocked(Feature::Capture))
+        takeScreenshot();
+    if (shortcut("record_gif") && unlocked(Feature::Capture))
+        toggleGifRecording();
     if (shortcut("doctor") && unlocked(Feature::Doctor)) {
         runCheckup();
         showDoctor_ = focusDoctor_ = true;

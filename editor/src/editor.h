@@ -15,6 +15,7 @@
 #include "prefs.h"
 #include "script_facts.h"
 
+#include <atomic>
 #include <deque>
 #include <filesystem>
 #include <functional>
@@ -23,6 +24,7 @@
 #include <unordered_set>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <imgui.h>
@@ -211,6 +213,10 @@ public:
     std::string gameControls();         // "Arrow keys to run · Space to jump", from the start scene
     std::string gameDescription() const;
 
+    // --- Capture (capture.cpp): screenshots and GIFs of the game view
+    void takeScreenshot();
+    void toggleGifRecording();
+
     // --- Contributor quests (quests.cpp)
     void openQuests() { showQuests_ = focusQuests_ = true; }
 
@@ -394,6 +400,19 @@ private:
         std::unique_ptr<CodeEditor> view, left;
     };
     LadderState ladder_;
+    struct GifFrame {
+        int w = 0, h = 0;
+        std::vector<uint8_t> rgba;
+    };
+    std::vector<GifFrame> gifFrames_;
+    bool screenshotPending_ = false, gifRecording_ = false;
+    std::atomic<bool> gifEncoding_{false};
+    std::thread gifThread_;
+    std::string gifDone_; // written by the encoder thread, read after joining it
+    float gifTimer_ = 0, gifTime_ = 0;
+    void captureView(int w, int h, float dt);
+    void finishGif();
+    void drawCaptureStatus();
     std::vector<Json> quests_;
     bool questsLoaded_ = false, showQuests_ = false, focusQuests_ = false;
     int questIndex_ = 0;
@@ -554,6 +573,9 @@ private:
     void drawRecipes();
     void drawRecipeCard();
     bool componentUnlocked(const ComponentInfo& info) const;
+    void drawParticlePresets(Entity e, const std::vector<Entity>& selection);
+    void previewParticles(float dt);
+    uint32_t previewRng_ = 99991;
     void saveAllScripts();
     bool exportGame(const stdfs::path& folder, std::string& message);
     void loadTutorial();

@@ -148,6 +148,7 @@ Json Prefs::toJson() const {
     j["show_hints"] = showHints;
     j["show_icons"] = showIcons;
     j["show_colliders"] = showColliders;
+    j["preview_particles"] = previewParticles;
     j["move_snap"] = moveSnap;
     j["rotate_snap"] = rotateSnap;
     j["scale_snap"] = scaleSnap;
@@ -203,6 +204,7 @@ void Prefs::fromJson(const Json& j) {
     showHints = j["show_hints"].asBool(d.showHints);
     showIcons = j["show_icons"].asBool(d.showIcons);
     showColliders = j["show_colliders"].asBool(d.showColliders);
+    previewParticles = j["preview_particles"].asBool(d.previewParticles);
     moveSnap = j["move_snap"].asFloat(d.moveSnap);
     rotateSnap = j["rotate_snap"].asFloat(d.rotateSnap);
     scaleSnap = j["scale_snap"].asFloat(d.scaleSnap);

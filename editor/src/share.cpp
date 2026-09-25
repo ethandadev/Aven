@@ -485,7 +485,7 @@ void Editor::copyGameFiles(const stdfs::path& to, const stdfs::path& skip, std::
         stdfs::path rel = stdfs::relative(it->path(), projectDir_, ec);
         std::string first = rel.begin()->string();
         // Editor-only files and earlier exports stay behind.
-        if (first == "exports" || first == "bug_reports" || first == "recipes" || (!first.empty() && first[0] == '.') ||
+        if (first == "exports" || first == "bug_reports" || first == "recipes" || first == "captures" || (!first.empty() && first[0] == '.') ||
             rel == "tutorial.json" || (!skip.empty() && stdfs::equivalent(it->path(), skip, ec))) {
             if (it->is_directory())
                 it.disable_recursion_pending();

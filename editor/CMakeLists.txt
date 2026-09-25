@@ -1,7 +1,7 @@
 file(GLOB_RECURSE AVEN_EDITOR_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
 add_executable(aven_editor ${AVEN_EDITOR_SOURCES})
 target_include_directories(aven_editor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(aven_editor PRIVATE aven_engine aven_imgui aven_qrcodegen)
+target_link_libraries(aven_editor PRIVATE aven_engine aven_imgui aven_qrcodegen aven_gifh)
 if(WIN32)
     target_link_libraries(aven_editor PRIVATE ws2_32) # the "share on this network" web server
 endif()

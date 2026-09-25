@@ -488,6 +488,21 @@ void Editor::drawViewport(float dt) {
         ImGui::SetTooltip("Screen shape used while playing (and in the scene view for UI).");
     ImGui::SameLine();
     ImGui::Checkbox("Stats", &showStats_);
+    if (unlocked(Feature::Capture)) {
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Screenshot"))
+            takeScreenshot();
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Save a picture of this view in captures/ (%s)", chordName(prefs.chord("screenshot")).c_str());
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Text, gifRecording_ ? ImVec4(1, 0.4f, 0.4f, 1) : ImGui::GetStyleColorVec4(ImGuiCol_Text));
+        if (ImGui::SmallButton(gifRecording_ ? "Stop GIF" : "Record GIF"))
+            toggleGifRecording();
+        ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Record a GIF of this view (up to 12 seconds) into captures/ (%s)",
+                              chordName(prefs.chord("record_gif")).c_str());
+    }
     ImGui::SameLine();
     if (ImGui::Checkbox("Mute", &muteGame_) && game_)
         game_->audio().setMasterVolume(muteGame_ ? 0.0f : 1.0f);
@@ -532,6 +547,8 @@ void Editor::drawViewport(float dt) {
     float scale = ImGui::GetIO().DisplayFramebufferScale.x;
     int w = static_cast<int>(viewportSize_.x * scale), h = static_cast<int>(viewportSize_.y * scale);
 
+    if (!playing_)
+        previewParticles(dt);
     if (playing_ && replaying_) {
         viewportFocused_ = ImGui::IsWindowFocused();
         updateReplay(dt); // the recording drives the game, not the keyboard
@@ -566,6 +583,7 @@ void Editor::drawViewport(float dt) {
         renderMs_ = std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - t0).count();
         if (playing_ && !paused_ && !replaying_)
             captureThumbnail(w, h);
+        captureView(w, h, dt);
         ImTextureID tex = static_cast<ImTextureID>(device_.nativeTexture(renderer_.outputTexture()));
         ImGui::Image(tex, size, {0, 1}, {1, 0});
     } else {

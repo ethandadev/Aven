@@ -107,7 +107,13 @@ if(AVEN_BUILD_EDITOR)
         GIT_REPOSITORY https://github.com/nayuki/QR-Code-generator.git
         GIT_TAG v1.8.0
         GIT_SHALLOW TRUE)
-    FetchContent_MakeAvailable(imgui imguizmo qrcodegen)
+    # GIF recording of the game view (public domain).
+    FetchContent_Declare(gifh
+        GIT_REPOSITORY https://github.com/charlietangora/gif-h.git
+        GIT_TAG 05dd65662f03f10880070f1a673f271a267b2fe8)
+    FetchContent_MakeAvailable(imgui imguizmo qrcodegen gifh)
+    add_library(aven_gifh INTERFACE)
+    target_include_directories(aven_gifh SYSTEM INTERFACE ${gifh_SOURCE_DIR})
     add_library(aven_qrcodegen STATIC ${qrcodegen_SOURCE_DIR}/cpp/qrcodegen.cpp)
     target_include_directories(aven_qrcodegen SYSTEM PUBLIC ${qrcodegen_SOURCE_DIR}/cpp)
 

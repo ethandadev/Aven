@@ -965,6 +965,8 @@ void Editor::drawInspector() {
             continue;
         }
         if (open) {
+            if (ci.name == "ParticleEmitter")
+                drawParticlePresets(e, selection);
             if (ImGui::BeginTable("##fields", 2, ImGuiTableFlags_SizingStretchProp)) {
                 ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, 110);
                 ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
