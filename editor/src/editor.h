@@ -97,6 +97,10 @@ public:
     void setDpiScale(float scale) { dpiScale_ = scale; styleDirty_ = true; }
     bool wantsQuit() const { return quit_; }
     void requestQuit();
+    // Runs `action` now, or asks to save first when there are unsaved changes (the scene's,
+    // and also open scripts' when `scripts` is true) and runs it once the user has answered.
+    // Returns true if it had to ask.
+    bool deferIfUnsaved(std::function<void()> action, bool scripts);
     SceneRenderer& renderer() { return renderer_; }
 
     // --- projects
@@ -314,6 +318,9 @@ private:
     bool stepOnce_ = false;
     bool quit_ = false;
     bool confirmQuit_ = false;
+    std::function<void()> pendingSwitch_; // waiting on the "Save changes?" question
+    bool pendingSwitchScripts_ = false;
+    bool confirmSwitch_ = false;
     std::vector<UUID> selection_; // last = main selection
     EditorOptions options_;
     int frameCount_ = 0;
@@ -635,6 +642,7 @@ private:
     void drawExport();
     void drawNotification(float dt);
     void drawQuitDialog();
+    void drawSwitchDialog();
     void drawSceneOverlay(const CameraView& camera);
     void handleShortcuts();
     void updateViewportCamera(float dt);

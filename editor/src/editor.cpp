@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <mutex>
+#include <optional>
 #include <random>
 
 namespace aven::editor {
@@ -229,6 +230,7 @@ void Editor::openPanels(const std::string& list) {
         else if (p == "spritesheet") openSpriteSheet();
         else if (p == "tiles") openTilePainter();
         else if (p == "savescene") saveScene();
+        else if (p == "unsavedtest") { dirty_ = true; pendingSwitch_ = [] {}; confirmSwitch_ = true; } // the "Save changes?" question
         else if (p.rfind("reference-md:", 0) == 0) writeApiReference(p.substr(13));
         else if (p == "native") openNativeCode();
         else if (p == "newnative") createNativeModule();
@@ -421,6 +423,11 @@ std::vector<TemplateInfo> Editor::templates() const {
 }
 
 bool Editor::createProject(const stdfs::path& dir, const std::string& name, const TemplateInfo* tmpl) {
+    std::optional<TemplateInfo> copy;
+    if (tmpl)
+        copy = *tmpl;
+    if (deferIfUnsaved([this, dir, name, copy] { createProject(dir, name, copy ? &*copy : nullptr); }, true))
+        return false;
     std::error_code ec;
     if (stdfs::exists(dir / ProjectSettings::kFileName, ec)) {
         notify("There's already a project in that folder.", true);
@@ -460,6 +467,8 @@ bool Editor::createProject(const stdfs::path& dir, const std::string& name, cons
 }
 
 bool Editor::openProject(const stdfs::path& dir) {
+    if (deferIfUnsaved([this, dir] { openProject(dir); }, true))
+        return false;
     ProjectSettings s;
     std::string error;
     if (!s.load(dir, &error)) {
@@ -496,6 +505,8 @@ bool Editor::openProject(const stdfs::path& dir) {
 }
 
 void Editor::closeProject() {
+    if (deferIfUnsaved([this] { closeProject(); }, true))
+        return;
     if (playing_)
         stop();
     tabs_.clear();
@@ -517,6 +528,8 @@ void Editor::loadTutorial() {
 // ---------------------------------------------------------------- scenes
 
 bool Editor::openScene(const std::string& path) {
+    if (deferIfUnsaved([this, path] { openScene(path); }, false))
+        return false;
     auto text = fs::readText(projectDir_ / path);
     if (!text)
         return false;
@@ -584,6 +597,8 @@ bool Editor::saveScene() {
 }
 
 void Editor::newScene(bool is3D) {
+    if (deferIfUnsaved([this, is3D] { newScene(is3D); }, false))
+        return;
     if (playing_)
         stop();
     scene_ = std::make_unique<Scene>();
@@ -1528,6 +1543,7 @@ void Editor::frame(float dt) {
     drawKeepChangesDialog();
     drawNotification(dt);
     drawQuitDialog();
+    drawSwitchDialog();
 
     if (!options_.screenshot.empty() && frameCount_ == options_.frames) {
         // Screenshot of the whole editor window is taken by main after rendering.
@@ -1542,6 +1558,69 @@ void Editor::requestQuit() {
         confirmQuit_ = true;
     else
         quit_ = true;
+}
+
+bool Editor::deferIfUnsaved(std::function<void()> action, bool scripts) {
+    // Leaving prefab editing saves the prefab (as switching prefabs does) and returns to its scene,
+    // so the question below is about that scene.
+    if (editingPrefab())
+        closePrefab(true);
+    bool unsaved = hasProject() && dirty_;
+    if (scripts)
+        for (auto& t : tabs_)
+            unsaved = unsaved || t->modified;
+    if (!unsaved || !options_.screenshot.empty())
+        return false;
+    pendingSwitch_ = std::move(action);
+    pendingSwitchScripts_ = scripts;
+    confirmSwitch_ = true;
+    return true;
+}
+
+void Editor::drawSwitchDialog() {
+    if (confirmSwitch_) {
+        ImGui::OpenPopup("Unsaved changes");
+        confirmSwitch_ = false;
+    }
+    if (!ImGui::BeginPopupModal("Unsaved changes", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        return;
+    std::string what = dirty_ ? (scenePath_.empty() ? "This scene" : scenePath_) : "";
+    int scripts = 0;
+    if (pendingSwitchScripts_)
+        for (auto& t : tabs_)
+            scripts += t->modified ? 1 : 0;
+    if (scripts)
+        what += (what.empty() ? "" : " and ") + std::to_string(scripts) + (scripts == 1 ? " script" : " scripts");
+    ImGui::Text("%s %s unsaved changes. Save them first?", what.c_str(), dirty_ && !scripts ? "has" : "have");
+    ImGui::Spacing();
+    auto proceed = [this] {
+        auto action = std::move(pendingSwitch_);
+        pendingSwitch_ = nullptr;
+        ImGui::CloseCurrentPopup();
+        if (action)
+            action();
+    };
+    if (ImGui::Button("Save", {110, 0})) {
+        bool ok = !dirty_ || saveScene();
+        if (pendingSwitchScripts_)
+            saveAllScripts();
+        if (ok)
+            proceed();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Don't save", {110, 0})) {
+        dirty_ = false;
+        if (pendingSwitchScripts_)
+            for (auto& t : tabs_)
+                t->modified = false;
+        proceed();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel", {90, 0})) {
+        pendingSwitch_ = nullptr;
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
 }
 
 void Editor::drawQuitDialog() {
