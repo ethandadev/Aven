@@ -3,6 +3,10 @@ target_link_libraries(aven_player PRIVATE aven_engine)
 set_target_properties(aven_player PROPERTIES OUTPUT_NAME "aven-player")
 if(WIN32)
     set_target_properties(aven_player PROPERTIES WIN32_EXECUTABLE $<CONFIG:Release>)
+    # A windowed app without a console, still starting at the standard main().
+    if(MSVC)
+        target_link_options(aven_player PRIVATE $<$<CONFIG:Release>:/ENTRY:mainCRTStartup>)
+    endif()
 endif()
 if(EMSCRIPTEN)
     # The web player: aven-player.js + aven-player.wasm. The page (web/index.html) downloads the

@@ -12,6 +12,10 @@ target_compile_definitions(aven_editor PRIVATE AVEN_TEMPLATES_DIR="${PROJECT_SOU
                            AVEN_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
 if(WIN32)
     set_target_properties(aven_editor PROPERTIES WIN32_EXECUTABLE $<CONFIG:Release>)
+    # A windowed app without a console, still starting at the standard main().
+    if(MSVC)
+        target_link_options(aven_editor PRIVATE $<$<CONFIG:Release>:/ENTRY:mainCRTStartup>)
+    endif()
 endif()
 # The editor exports games by copying the player next to them.
 add_dependencies(aven_editor aven_player)
