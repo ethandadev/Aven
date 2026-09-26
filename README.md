@@ -19,7 +19,8 @@ know how the bigger engines think.
 - **3D:** a PBR renderer with shadows, a sky and fog, glTF models with animation, and Jolt physics
   with a character controller.
 - **Post-processing:** bloom, tonemapping, color grading, vignette, SSAO and FXAA.
-- **Game UI:** text, buttons, panels and anchors.
+- **Game UI:** text, buttons, panels, images, value bars (health, energy) and anchors. Buttons
+  work without code: **Click Actions** list what a click does, like Unity's On Click list.
 - **Audio:** 2D and 3D sound and music.
 - **Saving:** save data for games.
 - **The rest:** scenes, prefabs, an object hierarchy, and an ECS with reflection, so every
@@ -34,9 +35,13 @@ know how the bigger engines think.
 - **Runs on:** Windows, macOS and Linux, plus a WebGL2 player for browsers.
 
 **The editor**, a full editor rather than a viewer:
-- **Scene work:** a hierarchy, Inspector, scene view with gizmos, assets browser, console, undo
+- **Scene work:** a hierarchy with folders, an Inspector (multi-object editing, prefab overrides,
+  reset/copy/paste for any setting, a lock), scene view with gizmos, assets browser, console, undo
   history, find in project, a command palette and a profiler.
-- **Code:** a code editor with autocomplete and error markers, and a block editor.
+- **Ready-made UI:** Start Menu, Pause Menu, Health Bar and Score Text in the Create menu, all
+  working without code.
+- **Code:** a built-in code editor with colors, autocomplete, parameter hints, live problem checks
+  and go to definition, and a block editor.
 - **Sharing:** export to desktop, the web and itch.io.
 - **Creator tools:**
   - A Pixel Editor with animation frames and onion skin.

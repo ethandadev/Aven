@@ -406,6 +406,16 @@ private:
     Json clipboard_; // copied objects (also placed on the system clipboard as text)
     Json componentClipboard_;
     std::string componentClipboardType_;
+    Json fieldClipboard_;                 // one copied setting (right-click a setting's name)
+    FieldType fieldClipboardType_ = FieldType::Float;
+    UUID inspectorLock_;                  // the Inspector keeps showing this object while set
+    std::vector<Entity> inspected_;       // what the Inspector is editing (edits apply to all of them)
+    struct PrefabCache {
+        int64_t modified = -1;
+        Json root; // components of the prefab's top object
+    };
+    std::map<std::string, PrefabCache> prefabCache_;
+    const Json* prefabRootComponents(const std::string& path);
     // Play-and-edit: which fields ("Component/field" or "script/variable") changed while playing.
     std::map<uint64_t, std::set<std::string>> liveChanges_;
     std::vector<LiveChange> pendingKeep_; // offered when the game stops
@@ -486,6 +496,12 @@ private:
     void createNativeModule();
     void updateNativeCode(float dt); // every frame: build output, reloading
     void drawNativeScriptInspector(Entity e);
+    void drawClickActions(Entity e, const std::vector<Entity>& selection);
+    void drawValueBarHint(Entity e);
+    void buildMenu(Entity root, bool pause); // Create > UI > Start/Pause Menu
+    std::function<std::string(const std::string&)> objectNamer(); // object id -> name, for generated code
+    // A combo listing the scene's objects (also takes drops from the Hierarchy).
+    bool entityPicker(const char* label, UUID& id, Entity self, const char* noneLabel);
     bool isNativeSource(const std::string& path) const;
     SfxParams sfx_;
     std::vector<float> sfxSamples_;
@@ -705,6 +721,10 @@ void helpMarker(const char* text);
 bool iconButton(const char* id, int icon, const char* tooltip, bool active = false, float size = 0);
 void sectionHeader(const char* text);
 bool assetField(const char* label, std::string& value, const std::vector<std::string>& options, const char* dragType);
+// A vector setting as colored X / Y / Z boxes.
+bool vectorField(float* v, int count, float step);
+// The nine screen anchors as a clickable 3x3 grid.
+bool anchorGrid(int32_t& anchor);
 enum Icon { Play, Pause, Stop, Step, Move, Rotate, Scale, Grid, Magnet, Folder, File, Plus, Blocks, Code, Image, Sound,
             Model, Scene, Prefab };
 } // namespace ui

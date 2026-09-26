@@ -451,6 +451,21 @@ void SceneRenderer::drawUI(Scene& scene, int w, int h) {
         UIRect rect = computeUIRect(scene, item.e, static_cast<float>(w), static_cast<float>(h));
         if (const UIImage* img = reg.tryGet<UIImage>(item.e))
             drawPanel(renderer2D_, *assets_, rect, img->shape, img->texture, img->color);
+        if (const ValueBar* bar = reg.tryGet<ValueBar>(item.e)) {
+            drawPanel(renderer2D_, *assets_, rect, Shape2D::RoundedSquare, "", bar->backColor);
+            float fill = std::clamp(bar->fill, 0.0f, 1.0f);
+            if (fill > 0.001f) {
+                // A small inset so the back shows around the fill.
+                float inset = std::min(3.0f * rect.scale, rect.size().y * 0.2f);
+                UIRect inner = rect;
+                inner.min += Vec2(inset);
+                inner.max -= Vec2(inset);
+                inner.max.x = inner.min.x + (inner.max.x - inner.min.x) * fill;
+                float low = std::clamp((0.5f - fill) * 2.0f, 0.0f, 1.0f); // mixes in below half
+                Color c = lerp(bar->fillColor, bar->lowColor, low);
+                drawPanel(renderer2D_, *assets_, inner, Shape2D::RoundedSquare, "", c);
+            }
+        }
         if (const UIButton* btn = reg.tryGet<UIButton>(item.e)) {
             Color c = btn->pressed ? btn->pressedColor : btn->hovered ? btn->hoverColor : btn->normalColor;
             drawPanel(renderer2D_, *assets_, rect, Shape2D::RoundedSquare, "", c);

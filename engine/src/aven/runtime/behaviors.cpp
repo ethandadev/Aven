@@ -3,8 +3,10 @@
 // Each behavior is a normal component with settings in the Inspector. The editor can show
 // the equivalent EasyScript for any of them, so they double as examples to learn from.
 
+#include "aven/core/log.h"
 #include "aven/render/scene_renderer.h"
 #include "aven/runtime/game.h"
+#include "aven/runtime/native.h"
 #include "aven/runtime/script_system.h"
 #include "aven/runtime/systems.h"
 
@@ -297,6 +299,81 @@ void GameplaySystems::onBehaviorClick(Entity e) {
         BehaviorState& st = state(e);
         st.linkPending = true;
         st.linkTimer = link->delay;
+    }
+    if (auto* ca = reg.tryGet<ClickActions>(e)) {
+        auto steps = ca->steps; // a step may destroy or change this object
+        for (auto& step : steps)
+            runClickStep(e, step);
+    }
+}
+
+void GameplaySystems::runClickStep(Entity self, const ClickStep& step) {
+    Scene& scene = game_.scene();
+    ScriptSystem& scripts = game_.scripts();
+    Entity target = self;
+    if (step.target) {
+        target = scene.findByUUID(step.target);
+        if (!target)
+            return; // it was destroyed
+    }
+    if (!scene.valid(target))
+        return;
+    switch (step.action) {
+    case ClickDo::LoadScene: {
+        std::string path = step.text;
+        if (path.empty())
+            break;
+        if (path.find('.') == std::string::npos)
+            path = "scenes/" + path + ".scene";
+        game_.requestSceneChange(path);
+        break;
+    }
+    case ClickDo::RestartScene: game_.requestSceneChange(game_.scenePath()); break;
+    case ClickDo::Quit: game_.requestQuit(); break;
+    case ClickDo::Pause: game_.setPaused(!game_.paused()); break;
+    case ClickDo::Show: scene.info(target).active = true; break;
+    case ClickDo::Hide: scene.info(target).active = false; break;
+    case ClickDo::ShowHide: scene.info(target).active = !scene.info(target).active; break;
+    case ClickDo::Broadcast:
+        if (!step.text.empty())
+            scripts.broadcast(step.text, script::Value(static_cast<double>(step.number)));
+        break;
+    case ClickDo::PlaySound:
+        if (!step.text.empty())
+            game_.audio().playSound(step.text);
+        break;
+    case ClickDo::SetGameValue:
+        if (!step.text.empty())
+            scripts.setGameValue(step.text, script::Value(static_cast<double>(step.number)));
+        break;
+    case ClickDo::AddToGameValue:
+        if (!step.text.empty())
+            scripts.addToGameNumber(step.text, step.number);
+        break;
+    case ClickDo::Spawn:
+        if (!step.text.empty())
+            game_.spawnPrefab(step.text, scene.worldPosition(target));
+        break;
+    case ClickDo::Destroy: game_.destroyEntity(target); break;
+    case ClickDo::CallFunction: {
+        if (step.text.empty())
+            break;
+        // Like self.send(): C/C++ behaviors hear it as on_message.
+        bool native = scripts.native().has(target);
+        if (native)
+            scripts.native().message(target, step.text, step.number);
+        auto inst = scripts.instanceOf(target);
+        script::Value* fn = inst ? inst->find(script::intern(step.text)) : nullptr;
+        if (!fn || fn->type() != script::Type::Function) {
+            if (!native)
+                Log::warn("Click Actions on '", scene.info(self).name, "': '", scene.info(target).name,
+                          "' has no script function called ", step.text, "().");
+            break;
+        }
+        scripts.vm().callFunction(inst, script::intern(step.text), {script::Value(static_cast<double>(step.number))});
+        break;
+    }
+    case ClickDo::Count: break;
     }
 }
 
@@ -616,6 +693,17 @@ void GameplaySystems::updateBehaviors(float dt) {
         st.bounce -= dt;
         float k = st.bounce > 0 ? 1.0f + std::sin(st.bounce / 0.12f * kPi) * 0.08f : 1.0f;
         scene.transform(e).scale = st.startScale * k;
+    });
+
+    reg.each<ValueBar>([&](Entity, ValueBar& bar) {
+        script::Value v = game_.scripts().gameValue(bar.counter);
+        if (!v.isNumber())
+            return; // nothing has set it yet: stay as it is (full)
+        double value = v.number();
+        bar.highest = std::max(bar.highest, static_cast<float>(value));
+        float full = bar.max > 0 ? bar.max : bar.highest;
+        float target = full > 0 ? std::clamp(static_cast<float>(value) / full, 0.0f, 1.0f) : 0.0f;
+        bar.fill += (target - bar.fill) * std::min(1.0f, dt * 10.0f); // slides instead of jumping
     });
 
     reg.each<ScoreDisplay>([&](Entity e, ScoreDisplay& sd) {

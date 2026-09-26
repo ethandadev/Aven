@@ -282,6 +282,9 @@ void Editor::ensureRequirements(Entity e, const std::string& component) {
             reg.get<BoxCollider2D>(e).isTrigger = true;
         }
     };
+    // Screen things need a place on the screen.
+    if (const ComponentInfo* ci = ComponentRegistry::find(component); ci && ci->category == "UI" && !reg.has<UIElement>(e))
+        reg.emplace<UIElement>(e).size = component == "ValueBar" ? Vec2{300, 32} : Vec2{220, 64};
     if (component == "PlatformerController" || component == "TopDownController") {
         if (!reg.has<RigidBody2D>(e)) {
             auto& rb = reg.emplace<RigidBody2D>(e);

@@ -51,6 +51,19 @@ Press **Play** (or Ctrl+P) to play it inside the editor. Now change something:
 Right-click any behavior and choose **Show as code** to see the script that does the same job.
 That's the first step of the [learning path](learning-path.md).
 
+**Buttons and menus without code.** Every UI Button comes with **Click Actions**: a list of
+steps that run when it's clicked. Click **+ Add step** and pick one: load a scene, restart,
+quit, pause or resume, show or hide an object (like a menu panel), play a sound, set or add to
+a game value, spawn a prefab, destroy an object, send a message or call a script function.
+Click Actions work on objects in the world too. For a head start, **Create > UI** has a Start
+Menu, a Pause Menu, a Health Bar and Score Text that already work.
+
+**Inspector tips:**
+- Right-click a setting's name to reset it, or to copy it and paste it somewhere else.
+- On a prefab copy, settings that differ from the prefab have a bold name and a colored bar.
+- The padlock next to the name keeps the Inspector on one object while you select others.
+- Select several objects to change them all at once.
+
 ## 4. Make it yours
 
 The **Tools** menu has creators for your own content:

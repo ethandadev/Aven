@@ -1,4 +1,5 @@
 #include "aven/scene/components.h"
+#include "aven/core/log.h"
 #include "aven/scene/reflection.h"
 
 #include <algorithm>
@@ -389,6 +390,17 @@ std::vector<ComponentInfo> buildRegistry() {
             .field(F(color));
     }
     {
+        using Type = ValueBar;
+        r.add<Type>("ValueBar", "UI", "A bar that shows a game value, like a health bar. No code needed.")
+            .field(F(counter), {.label = "Game value", .tooltip = "Which game value it shows, like health (game.health)."})
+            .field(F(max), {.tooltip = "The value of a full bar. 0 = whatever the value was at its highest."})
+            .field(F(fillColor))
+            .field(F(lowColor), {.tooltip = "The color it turns as it runs low."})
+            .field(F(backColor))
+            .field(F(fill), {.runtime = true})
+            .field(F(highest), {.runtime = true});
+    }
+    {
         using Type = UIButton;
         r.add<Type>("UIButton", "UI", "A clickable button. Scripts on this object get on_click().")
             .field(F(text))
@@ -539,6 +551,54 @@ std::vector<ComponentInfo> buildRegistry() {
             .field(F(delay), {.tooltip = "Seconds to wait first (for AfterTime, or a pause after touching).", .min = 0, .max = 60});
     }
     {
+        using Type = ClickActions;
+        r.add<Type>("ClickActions", "Behaviors",
+                    "A list of things to do when clicked: load a scene, show a menu, play a sound, add to the score... No code needed.");
+        auto& info = r.list.back();
+        info.extraKeys = {"steps"};
+        info.saveExtra = [](const void* c, Json& j) {
+            Json steps = Json::array();
+            for (auto& st : static_cast<const ClickActions*>(c)->steps) {
+                Json s = Json::object();
+                s["do"] = clickDoNames()[static_cast<size_t>(st.action)];
+                if (st.target)
+                    s["target"] = st.target.toString();
+                if (!st.text.empty())
+                    s["text"] = st.text;
+                if (st.number != 0)
+                    s["number"] = static_cast<double>(st.number);
+                steps.push(std::move(s));
+            }
+            j["steps"] = std::move(steps);
+        };
+        info.loadExtra = [](void* c, const Json& j) {
+            auto& ca = *static_cast<ClickActions*>(c);
+            ca.steps.clear();
+            if (!j["steps"].isArray())
+                return;
+            for (auto& s : j["steps"].elements()) {
+                ClickStep st;
+                const std::string what = s["do"].asString();
+                auto& names = clickDoNames();
+                auto it = std::find(names.begin(), names.end(), what);
+                if (it == names.end()) {
+                    Log::warn("Click Actions: unknown action \"", what, "\" (skipped).");
+                    continue;
+                }
+                st.action = static_cast<ClickDo>(it - names.begin());
+                if (s["target"].isString())
+                    st.target = UUID::fromString(s["target"].asString());
+                st.text = s["text"].asString();
+                st.number = static_cast<float>(s["number"].asNumber());
+                ca.steps.push_back(std::move(st));
+            }
+        };
+        info.eachRef = [](void* c, const std::function<void(UUID&)>& fn) {
+            for (auto& st : static_cast<ClickActions*>(c)->steps)
+                fn(st.target);
+        };
+    }
+    {
         using Type = PrefabInstance;
         r.add<Type>("PrefabInstance", "Basics", "Links this object to the prefab it was created from.", true)
             .field(F(path), {.label = "Prefab", .asset = AssetKind::Prefab});
@@ -549,6 +609,21 @@ std::vector<ComponentInfo> buildRegistry() {
 } // namespace
 
 #undef F
+
+const std::vector<std::string>& clickDoNames() {
+    static const std::vector<std::string> names = {"load_scene", "restart_scene", "quit",       "pause",      "show",
+                                                   "hide",       "show_hide",     "broadcast",  "play_sound", "set_game_value",
+                                                   "add_to_game_value", "spawn",  "destroy",    "call_function"};
+    return names;
+}
+
+const std::vector<std::string>& clickDoLabels() {
+    static const std::vector<std::string> labels = {"Load scene",     "Restart scene",     "Quit the game", "Pause / resume",
+                                                    "Show object",    "Hide object",       "Show / hide",   "Send message",
+                                                    "Play sound",     "Set game value",    "Add to game value",
+                                                    "Spawn prefab",   "Destroy object",    "Call script function"};
+    return labels;
+}
 
 std::vector<int> Tilemap::passThroughTiles() const {
     std::vector<int> out;

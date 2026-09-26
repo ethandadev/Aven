@@ -62,6 +62,7 @@ struct ComponentInfo {
     std::function<void(const void*, Json&)> saveExtra; // optional custom data
     std::function<void(void*, const Json&)> loadExtra;
     std::vector<std::string> extraKeys; // keys saveExtra writes (so loading doesn't call them typos)
+    std::function<void(void*, const std::function<void(UUID&)>&)> eachRef; // object references in custom data
 
     const FieldInfo* findField(std::string_view fieldName) const;
 };

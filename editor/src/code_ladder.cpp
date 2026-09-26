@@ -94,12 +94,19 @@ void Editor::openCodeLadderForScript(const std::string& path) {
     openCodeLadder(title, source, path);
 }
 
+std::function<std::string(const std::string&)> Editor::objectNamer() {
+    return [this](const std::string& id) {
+        Entity e = scene().findByUUID(UUID::fromString(id));
+        return e ? scene().info(e).name : std::string();
+    };
+}
+
 void Editor::openCodeLadderForBehavior(Entity e, const std::string& component) {
     const ComponentInfo* info = ComponentRegistry::find(component);
     void* data = info ? info->get(scene().registry(), e) : nullptr;
     if (!data)
         return;
-    std::string code = behaviorAsEasyScript(component, saveComponent(*info, data));
+    std::string code = behaviorAsEasyScript(component, saveComponent(*info, data), objectNamer());
     if (code.empty())
         return;
     openCodeLadder(component + " on " + scene().info(e).name, code, "");
@@ -137,7 +144,7 @@ bool Editor::behaviorToScript(Entity e, const std::string& component) {
         notify("This object already has a script. Copy the code from the Code Ladder into it instead.", true);
         return false;
     }
-    std::string code = behaviorAsEasyScript(component, saveComponent(*info, data));
+    std::string code = behaviorAsEasyScript(component, saveComponent(*info, data), objectNamer());
     if (code.empty())
         return false;
     std::string path = uniqueName("scripts", lowerName(s.info(e).name + "_" + component), ".es");

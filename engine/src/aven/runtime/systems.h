@@ -125,6 +125,7 @@ public:
     void updateBehaviors(float dt);
     void onBehaviorCollision(Entity a, Entity b, bool begin);
     void onBehaviorClick(Entity e);
+    void runClickStep(Entity self, const ClickStep& step);
     void damage(Entity victim, int amount, Vec3 from, float knockback);
     void sparkle(Vec3 at, Color color);
     Entity entityUnderMouse(Vec3& world);

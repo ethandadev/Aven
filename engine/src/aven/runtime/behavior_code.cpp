@@ -47,7 +47,7 @@ std::string lowerAxis(const Json& v) {
 
 } // namespace
 
-std::string behaviorAsEasyScript(const std::string& c, const Json& v) {
+std::string behaviorAsEasyScript(const std::string& c, const Json& v, const std::function<std::string(const std::string&)>& nameOf) {
     if (c == "Patrol") {
         std::string axis = lowerAxis(v["axis"]);
         std::string code = "# Patrol: walks back and forth.\n\n"
@@ -294,6 +294,51 @@ std::string behaviorAsEasyScript(const std::string& c, const Json& v) {
         }
         return "# SceneLink: touching it goes to another scene.\n\n"
                "def on_trigger(other):\n    if other.tag == " + str(v["tag"], "player") + ":\n" + indented;
+    }
+    if (c == "ClickActions") {
+        std::string body;
+        for (auto& step : v["steps"].elements()) {
+            const std::string what = step["do"].asString();
+            const Json& text = step["text"];
+            // The object a step works on: another object by name, or this one.
+            std::string target = "self";
+            if (step["target"].isString()) {
+                std::string name = nameOf ? nameOf(step["target"].asString()) : "";
+                target = "find(" + str(Json(name.empty() ? "Object" : name), "") + ")";
+            }
+            if (what == "load_scene")
+                body += "    load_scene(" + str(text, "scenes/main.scene") + ")\n";
+            else if (what == "restart_scene")
+                body += "    restart_scene()\n";
+            else if (what == "quit")
+                body += "    quit()\n";
+            else if (what == "pause")
+                body += "    if is_paused():\n        resume_game()\n    else:\n        pause_game()\n";
+            else if (what == "show")
+                body += "    " + target + ".active = True\n";
+            else if (what == "hide")
+                body += "    " + target + ".active = False\n";
+            else if (what == "show_hide")
+                body += target == "self" ? "    self.active = not self.active\n"
+                                         : "    thing = " + target + "\n    thing.active = not thing.active\n";
+            else if (what == "broadcast")
+                body += "    broadcast(" + str(text, "message") + ", " + num(step["number"], 0) + ")\n";
+            else if (what == "play_sound")
+                body += "    play_sound(" + str(text, "") + ")\n";
+            else if (what == "set_game_value")
+                body += "    game." + ident(text, "value") + " = " + num(step["number"], 0) + "\n";
+            else if (what == "add_to_game_value") {
+                std::string name = ident(text, "value");
+                body += "    game." + name + " = get_game(\"" + name + "\", 0) + " + num(step["number"], 0) + "\n";
+            } else if (what == "spawn")
+                body += "    spawn(" + str(text, "") + ", " + target + ")\n";
+            else if (what == "destroy")
+                body += "    destroy(" + target + ")\n";
+            else if (what == "call_function")
+                body += "    " + target + ".send(" + str(text, "") + ", " + num(step["number"], 0) + ")\n";
+        }
+        return "# ClickActions: what happens when this is clicked, step by step.\n\n"
+               "def on_click():\n" + (body.empty() ? "    pass\n" : body);
     }
     return "";
 }

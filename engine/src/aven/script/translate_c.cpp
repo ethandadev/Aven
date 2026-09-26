@@ -270,6 +270,12 @@ private:
         return "/* not in C: " + sourceLine(line) + " */";
     }
 
+    // Something C can't do stands in as 0, except when dividing by it: then 1, so the C still compiles cleanly.
+    std::string divisor(const Expr* b, int precedence) {
+        std::string d = ex(b, precedence);
+        return d.rfind("0 /* not in C", 0) == 0 ? "1" + d.substr(1) : d;
+    }
+
     // ------------------------------------------------------------ names
 
     static std::string snake(const std::string& s) {
@@ -590,12 +596,12 @@ private:
         case Tok::Slash:
             // EasyScript always divides as decimals; C divides whole numbers as whole numbers.
             if (a->kind == ExprKind::Number && b->kind == ExprKind::Number && a->number == std::floor(a->number))
-                return num(a->number) + ".0 / " + ex(b, p + 1);
+                return num(a->number) + ".0 / " + divisor(b, p + 1);
             if (a->kind == ExprKind::Name && loopInts_.count(a->text))
-                return "(double)" + ex(a, 10) + " / " + ex(b, p + 1);
-            return ex(a, p) + " / " + ex(b, p + 1);
-        case Tok::SlashSlash: return "floor(" + ex(a) + " / " + ex(b, 8) + ")";
-        case Tok::Percent: return "fmod(" + ex(a) + ", " + ex(b) + ")";
+                return "(double)" + ex(a, 10) + " / " + divisor(b, p + 1);
+            return ex(a, p) + " / " + divisor(b, p + 1);
+        case Tok::SlashSlash: return "floor(" + ex(a) + " / " + divisor(b, 8) + ")";
+        case Tok::Percent: return "fmod(" + ex(a) + ", " + divisor(b, 0) + ")";
         case Tok::StarStar: return "pow(" + ex(a) + ", " + ex(b) + ")";
         default: return ex(a, p) + " /* ? */ " + ex(b, p + 1);
         }

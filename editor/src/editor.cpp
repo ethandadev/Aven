@@ -208,6 +208,7 @@ void Editor::openPanels(const std::string& list) {
             continue;
         }
         if (p == "settings") showSettings_ = true;
+        else if (p == "inspector") focusInspector_ = true;
         else if (p == "reference") showReference_ = true;
         else if (p == "prefs") showPrefs_ = true;
         else if (p.rfind("prefs:", 0) == 0) { showPrefs_ = true; prefsSection_ = p.substr(6); }
@@ -247,6 +248,7 @@ void Editor::openPanels(const std::string& list) {
         else if (p == "newnative") createNativeModule();
         else if (p == "buildnative") buildNativeModule();
         else if (p == "newtilemap") createEntity("Tilemap");
+        else if (p.rfind("create:", 0) == 0) createEntity(p.substr(7)); // create:Pause Menu
         else if (p == "startertiles") useStarterTileset(selected());
         else if (p.rfind("tilebox:", 0) == 0) { // tilebox:x0:y0:x1:y1:tile fills a box on the selected Tilemap
             int v[5] = {0, 0, 0, 0, 0};
@@ -890,9 +892,41 @@ Entity Editor::createEntity(const std::string& kind, Entity parent) {
     } else if (kind == "UI Button") {
         reg.emplace<UIElement>(e).size = {220, 64};
         reg.emplace<UIButton>(e);
+        reg.emplace<ClickActions>(e); // what clicking does, ready to fill in
     } else if (kind == "UI Panel") {
         reg.emplace<UIElement>(e).size = {400, 300};
         reg.emplace<UIImage>(e).color = {0, 0, 0, 0.5f};
+    } else if (kind == "UI Image") {
+        reg.emplace<UIElement>(e).size = {128, 128};
+        reg.emplace<UIImage>(e);
+    } else if (kind == "Health Bar") {
+        // In the top-left corner, below anything already there (like a score).
+        float below = -24;
+        for (Entity other : reg.entitiesWith<UIElement>()) {
+            auto& o = reg.get<UIElement>(other);
+            if (other != e && o.anchor == Anchor::TopLeft && !(s.parent(other) && reg.has<UIElement>(s.parent(other))))
+                below = std::min(below, o.offset.y - o.size.y - 12);
+        }
+        auto& ui = reg.emplace<UIElement>(e);
+        ui.anchor = Anchor::TopLeft;
+        ui.offset = {24, below};
+        ui.size = {300, 32};
+        auto& bar = reg.emplace<ValueBar>(e);
+        // Show what a Health behavior in the scene counts, if there is one.
+        for (Entity other : reg.entitiesWith<Health>())
+            if (!reg.get<Health>(other).counter.empty()) {
+                bar.counter = reg.get<Health>(other).counter;
+                break;
+            }
+    } else if (kind == "Score Text") {
+        auto& ui = reg.emplace<UIElement>(e);
+        ui.anchor = Anchor::Top;
+        ui.offset = {0, -20};
+        ui.size = {400, 60};
+        reg.emplace<UIText>(e).text = "Score: 0";
+        reg.emplace<ScoreDisplay>(e);
+    } else if (kind == "Start Menu" || kind == "Pause Menu") {
+        buildMenu(e, kind == "Pause Menu");
     } else if (kind == "Player 3D") {
         reg.emplace<MeshRenderer>(e).mesh = MeshShape::Capsule;
         reg.get<MeshRenderer>(e).color = Color::fromHex(0x3B82F6);
@@ -909,12 +943,81 @@ Entity Editor::createEntity(const std::string& kind, Entity parent) {
         if (!parent)
             s.transform(e).position = {0, 0, 0};
     }
-    s.info(e).name = kind == "Rounded Square" ? "RoundedSquare" : kind;
+    if (kind != "Start Menu" && kind != "Pause Menu")
+        s.info(e).name = kind == "Rounded Square" ? "RoundedSquare" : kind;
     select(e);
     if (kind == "Tilemap")
         openTilePainter();
     milestone("objects_added");
     return e;
+}
+
+// Ready-made menus built from buttons with Click Actions, so they work without any code.
+void Editor::buildMenu(Entity root, bool pause) {
+    Scene& s = *scene_;
+    auto& reg = s.registry();
+    auto ui = [&](Entity x, Anchor anchor, Vec2 offset, Vec2 size) {
+        auto& u = reg.emplace<UIElement>(x);
+        u.anchor = anchor;
+        u.offset = offset;
+        u.size = size;
+        u.order = 100; // above the game's other UI
+    };
+    auto text = [&](Entity parent, const std::string& words, float y, float fontSize) {
+        Entity t = s.create("Title", parent);
+        ui(t, Anchor::Top, {0, y}, {420, 70});
+        auto& ut = reg.emplace<UIText>(t);
+        ut.text = words;
+        ut.fontSize = fontSize;
+        return t;
+    };
+    auto button = [&](Entity parent, const std::string& label, float y, std::vector<ClickStep> steps) {
+        Entity b = s.create(label + " Button", parent);
+        ui(b, Anchor::Top, {0, y}, {260, 64});
+        reg.emplace<UIButton>(b).text = label;
+        reg.emplace<ClickActions>(b).steps = std::move(steps);
+        return b;
+    };
+    Entity panel = root;
+    s.info(root).name = "Start Menu";
+    UUID panelId = s.info(panel).uuid;
+    if (pause) {
+        // A small Pause button in the corner opens the menu; the menu starts hidden.
+        s.info(root).name = "Pause UI";
+        s.transform(root).position = {0, 0, 0};
+        Entity open = s.create("Pause Button", root);
+        ui(open, Anchor::TopRight, {-20, -20}, {140, 52});
+        reg.emplace<UIButton>(open).text = "Pause";
+        reg.get<UIButton>(open).fontSize = 24;
+        panel = s.create("Pause Menu", root);
+        panelId = s.info(panel).uuid;
+        reg.emplace<ClickActions>(open).steps = {{ClickDo::Pause, {}, "", 0}, {ClickDo::Show, panelId, "", 0}};
+        s.info(panel).active = false;
+    }
+    ui(panel, Anchor::Center, {0, 0}, {460, pause ? 400.0f : 340.0f});
+    reg.emplace<UIImage>(panel).color = {0.05f, 0.06f, 0.1f, 0.85f};
+    if (pause) {
+        text(panel, "Paused", -30, 48);
+        button(panel, "Resume", -120, {{ClickDo::Pause, {}, "", 0}, {ClickDo::Hide, panelId, "", 0}});
+        button(panel, "Restart", -200, {{ClickDo::RestartScene, {}, "", 0}});
+        button(panel, "Quit", -280, {{ClickDo::Quit, {}, "", 0}});
+    } else {
+        text(panel, settings_.name.empty() ? "My Game" : settings_.name, -30, 52);
+        // Play goes to the next scene if there is one; otherwise it just closes the menu.
+        std::string next;
+        for (auto& f : projectFiles({".scene"}))
+            if (f != scenePath_) {
+                next = f;
+                break;
+            }
+        std::vector<ClickStep> play;
+        if (!next.empty())
+            play.push_back({ClickDo::LoadScene, {}, next, 0});
+        else
+            play.push_back({ClickDo::Hide, panelId, "", 0});
+        button(panel, "Play", -140, std::move(play));
+        button(panel, "Quit", -225, {{ClickDo::Quit, {}, "", 0}});
+    }
 }
 
 Entity Editor::instantiatePrefab(const std::string& path, Vec3 position) {

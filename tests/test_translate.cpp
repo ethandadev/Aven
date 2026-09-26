@@ -2,6 +2,9 @@
 
 #include "aven/blocks/blocks.h"
 #include "aven/core/fs.h"
+#include "aven/runtime/behavior_code.h"
+#include "aven/scene/components.h"
+#include "aven/scene/reflection.h"
 #include "aven/script/translate.h"
 
 #include <cmath>
@@ -194,6 +197,36 @@ AVEN_TEST(translate_to_c_compiles) {
         ++files;
     }
     CHECK(files >= 10);
+    // The code every behavior stands for (Show as code) builds too, including every Click Actions step.
+    Json steps = Json::array();
+    for (auto& name : clickDoNames()) {
+        Json step = Json::object();
+        step["do"] = name;
+        step["text"] = name == "load_scene" ? "scenes/menu.scene" : name == "spawn" ? "prefabs/coin.prefab" : "coins";
+        step["number"] = 2;
+        if (name == "show" || name == "call_function")
+            step["target"] = "00000000000000aa";
+        steps.push(std::move(step));
+    }
+    for (auto& ci : ComponentRegistry::all()) {
+        if (ci.category != "Behaviors")
+            continue;
+        Registry r;
+        Entity e = r.create();
+        Json values = saveComponent(ci, ci.add(r, e));
+        if (ci.name == "ClickActions")
+            values["steps"] = steps;
+        std::string source = behaviorAsEasyScript(ci.name, values, [](const std::string&) { return std::string("Menu"); });
+        TranslateOptions options;
+        options.className = ci.name;
+        Translation t = translate(source, TargetLanguage::AvenC, options);
+        CHECK(t.ok);
+        for (auto lang : {TargetLanguage::Unity, TargetLanguage::Godot, TargetLanguage::Roblox, TargetLanguage::Unreal})
+            CHECK(translate(source, lang, options).ok);
+        auto out = dir / ("behavior_" + ci.name + ".c");
+        fs::writeText(out, t.code);
+        all += " \"" + out.string() + "\"";
+    }
     std::string log = (dir / "compile.log").string();
     std::string command = std::string("\"") + AVEN_C_COMPILER + "\" -std=c11 -fsyntax-only -Wall -Wno-unused-but-set-variable -I\"" +
                           AVEN_SOURCE_DIR + "/sdk/include\"" + all + " > \"" + log + "\" 2>&1";

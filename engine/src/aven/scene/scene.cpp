@@ -334,15 +334,20 @@ std::vector<Entity> Scene::instantiate(const Json& data, Entity parentEntity) {
         created.push_back(e);
     }
     // Entity references inside the copied set point at the new copies.
+    auto fix = [&](UUID& id) {
+        auto it = remap.find(id.toString());
+        if (it != remap.end())
+            id = it->second;
+    };
     for (Entity e : created)
         for (auto& ci : ComponentRegistry::all())
-            if (void* c = ci.get(registry_, e))
+            if (void* c = ci.get(registry_, e)) {
                 for (auto& f : ci.fields)
-                    if (f.type == FieldType::EntityRef) {
-                        auto it = remap.find(f.ref<UUID>(c).toString());
-                        if (it != remap.end())
-                            f.ref<UUID>(c) = it->second;
-                    }
+                    if (f.type == FieldType::EntityRef)
+                        fix(f.ref<UUID>(c));
+                if (ci.eachRef)
+                    ci.eachRef(c, fix);
+            }
     updateTransforms();
     return tops;
 }

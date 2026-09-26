@@ -79,7 +79,8 @@ std::string fmt(float v) {
 }
 
 // One sentence about a behavior's settings.
-std::string describeBehavior(Registry& reg, Entity e, const std::string& name) {
+std::string describeBehavior(Scene& s, Entity e, const std::string& name) {
+    Registry& reg = s.registry();
     if (name == "Patrol") {
         auto& p = reg.get<Patrol>(e);
         const char* dir = p.axis == Axis3::X ? "left and right" : p.axis == Axis3::Y ? "up and down" : "forward and back";
@@ -129,6 +130,29 @@ std::string describeBehavior(Registry& reg, Entity e, const std::string& name) {
     if (name == "Clickable") {
         auto& c = reg.get<Clickable>(e);
         return "adds " + std::to_string(c.amount) + " to game." + c.counter + " each time it's clicked";
+    }
+    if (name == "ClickActions") {
+        auto& steps = reg.get<ClickActions>(e).steps;
+        if (steps.empty())
+            return "does nothing when clicked yet (no steps added)";
+        std::string out = "does this when clicked: ";
+        for (size_t i = 0; i < steps.size(); ++i) {
+            if (i == 4) {
+                out += ", and " + std::to_string(steps.size() - 4) + " more";
+                break;
+            }
+            const ClickStep& st = steps[i];
+            std::string label = clickDoLabels()[static_cast<size_t>(st.action)];
+            label[0] = static_cast<char>(std::tolower(static_cast<unsigned char>(label[0])));
+            // "hide object" reads better as "hide Pause Menu".
+            Entity target = st.target ? s.findByUUID(st.target) : Entity{};
+            if (target && label.ends_with(" object"))
+                label = label.substr(0, label.size() - 6) + s.info(target).name;
+            else if (target)
+                label += " (" + s.info(target).name + ")";
+            out += (i ? ", " : "") + label + (st.text.empty() ? "" : " " + st.text);
+        }
+        return out;
     }
     if (name == "ScoreDisplay") return "shows game." + reg.get<ScoreDisplay>(e).counter + " as text";
     if (name == "SceneLink") {
@@ -189,6 +213,9 @@ std::vector<Editor::ExplainSection> Editor::explainEntity(Entity e) {
         what.lines.push_back("It's text pinned to the screen: \"" + ut->text + "\".");
     if (reg.has<UIImage>(e))
         what.lines.push_back("It's a panel or picture pinned to the screen.");
+    if (auto* bar = reg.tryGet<ValueBar>(e))
+        what.lines.push_back("It's a bar on the screen that fills up to show game." + bar->counter +
+                             (bar->max > 0 ? " out of " + fmt(bar->max) + "." : " (full at its highest)."));
     if (auto* cam = reg.tryGet<Camera>(e))
         what.lines.push_back(std::string("It's a camera: it decides what the player sees") +
                              (cam->projection == Projection::Perspective ? " in 3D." : " (2D)."));
@@ -246,7 +273,7 @@ std::vector<Editor::ExplainSection> Editor::explainEntity(Entity e) {
     ExplainSection behaviors{"Ready-made behaviors", {}};
     for (auto& ci : ComponentRegistry::all())
         if (ci.category == "Behaviors" && ci.get(reg, e)) {
-            std::string line = describeBehavior(reg, e, ci.name);
+            std::string line = describeBehavior(s, e, ci.name);
             if (!line.empty())
                 behaviors.lines.push_back(ci.name + ": it " + line + ".");
         }
@@ -431,6 +458,10 @@ std::vector<Editor::ExplainSection> Editor::explainGame() {
             ++hazards;
         if (auto* l = reg.tryGet<SceneLink>(e))
             goals.lines.push_back(n + " leads to " + (l->scene.empty() ? "another scene" : l->scene) + ".");
+        if (auto* ca = reg.tryGet<ClickActions>(e))
+            for (auto& st : ca->steps)
+                if (st.action == ClickDo::LoadScene && !st.text.empty())
+                    goals.lines.push_back("Clicking " + n + " goes to " + st.text + ".");
         if (auto* sc = reg.tryGet<Script>(e); sc && !sc->path.empty()) {
             ScriptFacts& f = factsFor(sc->path);
             for (auto& sc2 : f.scenes)
@@ -463,7 +494,7 @@ std::vector<Editor::ExplainSection> Editor::explainGame() {
         std::vector<std::string> parts;
         for (auto& ci : ComponentRegistry::all())
             if (ci.category == "Behaviors" && ci.get(reg, e))
-                parts.push_back(describeBehavior(reg, e, ci.name));
+                parts.push_back(describeBehavior(s, e, ci.name));
         if (auto* sc = reg.tryGet<Script>(e); sc && !sc->path.empty()) {
             ScriptFacts& f = factsFor(sc->path);
             if (!f.handlers.empty())

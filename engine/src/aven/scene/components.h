@@ -398,6 +398,17 @@ struct UIButton {
     bool pressed = false; // runtime
 };
 
+// A bar that fills up to show a game value: health, energy, level progress...
+struct ValueBar {
+    std::string counter = "health";
+    float max = 0; // 0 = the highest the value has been (full at the start)
+    Color fillColor = Color::fromHex(0x22C55E);
+    Color lowColor = Color::fromHex(0xEF4444); // mixed in as the bar empties
+    Color backColor{0, 0, 0, 0.45f};
+    float fill = 1.0f;    // runtime: what is shown (0..1)
+    float highest = 0.0f; // runtime
+};
+
 // Marks an entity as an instance of a prefab asset.
 struct PrefabInstance {
     std::string path;
@@ -545,6 +556,39 @@ struct SceneLink {
     LinkTrigger when = LinkTrigger::Touch;
     std::string tag = "player";
     float delay = 0.0f;
+};
+
+// What a Click Actions step does. Saved by name (see clickDoNames()).
+enum class ClickDo : int32_t {
+    LoadScene,      // text = scene file
+    RestartScene,
+    Quit,
+    Pause,          // pauses, or resumes when already paused
+    Show,           // target (or this object) becomes active
+    Hide,
+    ShowHide,       // flips it
+    Broadcast,      // text = message, number = data
+    PlaySound,      // text = sound file
+    SetGameValue,   // text = name (game.score), number = value
+    AddToGameValue,
+    Spawn,          // text = prefab, at the target (or this object)
+    Destroy,        // target (or this object)
+    CallFunction,   // text = function in the target's (or this object's) script
+    Count
+};
+const std::vector<std::string>& clickDoNames();  // "load_scene"...
+const std::vector<std::string>& clickDoLabels(); // "Load scene"...
+
+struct ClickStep {
+    ClickDo action = ClickDo::LoadScene;
+    UUID target; // another object; none = this one
+    std::string text;
+    float number = 0;
+};
+
+// A list of things to do when clicked: no code needed. Works on UI buttons and on objects in the world.
+struct ClickActions {
+    std::vector<ClickStep> steps;
 };
 
 // ---------------------------------------------------------------- runtime-only (never saved)

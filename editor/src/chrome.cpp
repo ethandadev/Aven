@@ -230,7 +230,7 @@ void Editor::drawMenuBar() {
             ImGui::EndMenu();
         }
         if (unlocked(Feature::UI) && ImGui::BeginMenu("UI")) {
-            for (const char* k : {"UI Text", "UI Button", "UI Panel"})
+            for (const char* k : {"UI Text", "UI Button", "UI Panel", "UI Image", "Score Text", "Health Bar", "Start Menu", "Pause Menu"})
                 if (ImGui::MenuItem(k))
                     createEntity(k);
             ImGui::EndMenu();

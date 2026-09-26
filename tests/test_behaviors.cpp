@@ -171,3 +171,122 @@ AVEN_TEST(behavior_bullet_hits_enemy) {
     CHECK_EQ(game.scripts().gameNumber("score"), 1.0);
     CHECK(catcher.errors.empty());
 }
+
+// Click Actions: a no-code list of steps. The steps survive saving, and the code the
+// editor shows for them does the same thing.
+AVEN_TEST(behavior_click_actions_run_steps) {
+    namespace stdfs = std::filesystem;
+    stdfs::path dir = stdfs::temp_directory_path() / "aven_click_actions_test";
+    std::error_code ec;
+    stdfs::remove_all(dir, ec);
+    stdfs::create_directories(dir / "scripts", ec);
+    fs::writeText(dir / "scripts/door.es", "def open_door(amount):\n    game.opened = amount\n");
+
+    auto makeScene = [] {
+        auto scene = std::make_unique<Scene>();
+        auto& reg = scene->registry();
+        Entity menu = scene->create("Menu");
+        scene->info(menu).active = false;
+        Entity door = scene->create("Door");
+        reg.emplace<Script>(door).path = "scripts/door.es";
+        scene->create("Coin");
+        Entity button = scene->create("Button");
+        auto& ca = reg.emplace<ClickActions>(button);
+        auto step = [&](ClickDo d, Entity target, std::string text, float number) {
+            ca.steps.push_back({d, target ? scene->info(target).uuid : UUID{}, std::move(text), number});
+        };
+        step(ClickDo::Show, menu, "", 0);
+        step(ClickDo::AddToGameValue, {}, "coins", 2);
+        step(ClickDo::SetGameValue, {}, "lives", 3);
+        step(ClickDo::CallFunction, door, "open_door", 7);
+        step(ClickDo::Destroy, scene->findByName("Coin"), "", 0);
+        step(ClickDo::Pause, {}, "", 0);
+        // Saved and loaded again, like a scene file.
+        Json saved = scene->save();
+        auto loaded = std::make_unique<Scene>();
+        std::string error;
+        CHECK(loaded->load(saved, &error));
+        CHECK(error.empty());
+        return loaded;
+    };
+
+    auto check = [&](Game& game) {
+        Scene& s = game.scene();
+        CHECK(s.info(s.findByName("Menu")).active);
+        CHECK_EQ(game.scripts().gameNumber("coins"), 2.0);
+        CHECK_EQ(game.scripts().gameNumber("lives"), 3.0);
+        CHECK_EQ(game.scripts().gameNumber("opened"), 7.0);
+        CHECK(!s.findByName("Coin"));
+        CHECK(game.paused());
+    };
+
+    Assets assets;
+    assets.setRoot(dir);
+    Input input;
+    std::string code;
+    {
+        ErrorCatcher catcher;
+        Game game(assets, input);
+        game.start(makeScene(), "scenes/test.scene");
+        game.update(1.0f / 60.0f);
+        Scene& s = game.scene();
+        CHECK_EQ(s.registry().get<ClickActions>(s.findByName("Button")).steps.size(), size_t(6));
+        // The code version, with object names filled in.
+        code = behaviorAsEasyScript("ClickActions", saveComponent(*ComponentRegistry::find("ClickActions"),
+                                                                  &s.registry().get<ClickActions>(s.findByName("Button"))),
+                                    [&](const std::string& id) {
+                                        Entity e = s.findByUUID(UUID::fromString(id));
+                                        return e ? s.info(e).name : std::string();
+                                    });
+        game.gameplay().onBehaviorClick(s.findByName("Button"));
+        game.update(1.0f / 60.0f);
+        check(game);
+        CHECK(catcher.errors.empty());
+        game.stop();
+    }
+    CHECK(code.find("find(\"Menu\").active = True") != std::string::npos);
+    CHECK(code.find("find(\"Door\").send(\"open_door\", 7)") != std::string::npos);
+    fs::writeText(dir / "scripts/button.es", code);
+    {
+        ErrorCatcher catcher;
+        Game game(assets, input);
+        auto scene = makeScene();
+        Entity button = scene->findByName("Button");
+        scene->registry().remove<ClickActions>(button);
+        scene->registry().emplace<Script>(button).path = "scripts/button.es";
+        game.start(std::move(scene), "scenes/test.scene");
+        game.update(1.0f / 60.0f);
+        game.scripts().onClick(game.scene().findByName("Button"));
+        game.update(1.0f / 60.0f);
+        check(game);
+        if (!catcher.errors.empty())
+            std::printf("%s\n  -> %s\n", code.c_str(), catcher.errors[0].c_str());
+        CHECK(catcher.errors.empty());
+    }
+}
+
+// A Value Bar follows a game value; with max 0 its highest value counts as full.
+AVEN_TEST(behavior_value_bar_follows_game_value) {
+    Assets assets;
+    Input input;
+    Game game(assets, input);
+    auto scene = std::make_unique<Scene>();
+    Entity bar = scene->create("Bar");
+    scene->registry().emplace<UIElement>(bar);
+    scene->registry().emplace<ValueBar>(bar);
+    game.start(std::move(scene), "test.scene");
+    Entity e = game.scene().findByName("Bar");
+    auto& vb = game.scene().registry().get<ValueBar>(e);
+    game.update(1.0f / 60.0f);
+    CHECK_EQ(vb.fill, 1.0f); // nothing sets game.health yet
+    game.scripts().setGameValue("health", script::Value(4.0));
+    game.update(1.0f / 60.0f);
+    game.scripts().setGameValue("health", script::Value(1.0));
+    for (int i = 0; i < 120; ++i)
+        game.update(1.0f / 60.0f);
+    CHECK(std::abs(vb.fill - 0.25f) < 0.01f);
+    vb.max = 2;
+    for (int i = 0; i < 120; ++i)
+        game.update(1.0f / 60.0f);
+    CHECK(std::abs(vb.fill - 0.5f) < 0.01f);
+}
