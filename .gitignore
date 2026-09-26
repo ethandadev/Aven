@@ -9,3 +9,9 @@ compile_commands.json
 __pycache__/
 /exports/
 imgui.ini
+
+# A game project made in the repo folder by mistake (e.g. cooking a recipe there)
+/project.aven
+/scenes/
+/scripts/
+/prefabs/
