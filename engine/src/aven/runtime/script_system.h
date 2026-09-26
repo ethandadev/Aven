@@ -58,6 +58,11 @@ public:
     static std::vector<std::string> propertyNames();
     static std::vector<std::string> methodNames();
     static std::vector<std::string> methodSignatures(); // how to call each one, e.g. self.move(dx, dy)
+    struct MethodLimits {
+        int minArgs, maxArgs; // maxArgs -1 = any number
+    };
+    static std::vector<MethodLimits> methodLimits();                          // same order as methodNames()
+    static std::vector<std::pair<std::string, std::string>> componentAliases(); // self.sprite -> SpriteRenderer...
 
     void addTween(Entity e, const std::string& property, float target, float duration, Easing easing,
                   script::Value onDone);

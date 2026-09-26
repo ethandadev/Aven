@@ -269,6 +269,7 @@ private:
         do {
             const Token& name = expect(Tok::Name, "Expected a variable name after 'for', like: for item in items:");
             auto n = std::make_unique<Expr>(ExprKind::Name, name.line);
+            n->col = name.column;
             n->text = name.text;
             n->sym = intern(name.text);
             target->items.push_back(std::move(n));
@@ -490,6 +491,7 @@ private:
                 int line = advance().line;
                 const Token& name = expect(Tok::Name, "Expected a name after '.'");
                 auto attr = std::make_unique<Expr>(ExprKind::Attr, line);
+                attr->col = name.column;
                 attr->a = std::move(e);
                 attr->text = name.text;
                 attr->sym = intern(name.text);
@@ -549,6 +551,7 @@ private:
         }
         case Tok::String: {
             auto e = std::make_unique<Expr>(ExprKind::String, tok.line);
+            e->col = tok.column;
             e->text = tok.text;
             // Adjacent strings join: "a" "b" == "ab"
             while (check(Tok::String))
@@ -563,6 +566,7 @@ private:
             if (tok.text == "self")
                 return std::make_unique<Expr>(ExprKind::Self, tok.line);
             auto e = std::make_unique<Expr>(ExprKind::Name, tok.line);
+            e->col = tok.column;
             e->text = tok.text;
             e->sym = intern(tok.text);
             return e;

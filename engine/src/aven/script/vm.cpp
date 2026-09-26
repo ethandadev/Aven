@@ -166,6 +166,20 @@ const Value* VM::global(Symbol s) const {
     return it == globals_.end() ? nullptr : &it->second;
 }
 
+std::vector<const NativeFunctionObj*> VM::methodsOf(Type t) const {
+    const std::unordered_map<Symbol, Value>* table = t == Type::List     ? &listMethods_
+                                                     : t == Type::String ? &stringMethods_
+                                                     : t == Type::Dict   ? &dictMethods_
+                                                     : t == Type::Vec    ? &vecMethods_
+                                                                         : nullptr;
+    std::vector<const NativeFunctionObj*> out;
+    if (table)
+        for (auto& [s, v] : *table)
+            out.push_back(v.as<NativeFunctionObj>());
+    std::sort(out.begin(), out.end(), [](auto* a, auto* b) { return a->name < b->name; });
+    return out;
+}
+
 std::vector<std::string> VM::globalNames() const {
     std::vector<std::string> out;
     for (auto& [s, v] : globals_)

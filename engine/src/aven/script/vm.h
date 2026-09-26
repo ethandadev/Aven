@@ -69,6 +69,8 @@ public:
     void defineFunction(std::string_view name, std::string signature, int minArgs, int maxArgs, NativeFn fn);
     const Value* global(Symbol s) const;
     std::vector<std::string> globalNames() const;
+    // The methods of lists, text, dictionaries and vectors (for editor tools).
+    std::vector<const NativeFunctionObj*> methodsOf(Type t) const;
 
     // Compiles a script. Reports errors through onError and returns null on failure.
     std::shared_ptr<Module> compile(std::string_view source, const std::string& path);

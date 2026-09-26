@@ -38,6 +38,7 @@ using ExprPtr = std::unique_ptr<Expr>;
 struct Expr {
     ExprKind kind;
     int line = 0;
+    int col = 0; // 1-based column of names, attribute names and strings (0 = not recorded); for editor tools
     double number = 0;
     std::string text;
     Symbol sym = 0;

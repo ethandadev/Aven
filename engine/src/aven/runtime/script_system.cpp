@@ -840,6 +840,20 @@ std::vector<std::string> ScriptSystem::methodNames() {
     return out;
 }
 
+std::vector<ScriptSystem::MethodLimits> ScriptSystem::methodLimits() {
+    std::vector<MethodLimits> out;
+    for (auto& m : entityMethods())
+        out.push_back({m.minArgs, m.maxArgs});
+    return out;
+}
+
+std::vector<std::pair<std::string, std::string>> ScriptSystem::componentAliases() {
+    std::vector<std::pair<std::string, std::string>> out;
+    for (auto& a : kComponentAliases)
+        out.emplace_back(a[0], a[1]);
+    return out;
+}
+
 std::vector<std::string> ScriptSystem::methodSignatures() {
     std::vector<std::string> out;
     for (auto& m : entityMethods())

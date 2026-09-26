@@ -55,6 +55,14 @@ const NamedColor kColors[] = {
 
 void seedRandom(uint32_t seed) { rng().seed(seed); }
 
+std::vector<std::string> colorNames() {
+    std::vector<std::string> out;
+    for (auto& c : kColors)
+        out.push_back(c.name);
+    out.push_back("transparent");
+    return out;
+}
+
 // Parses "red", "#ff8800", "#f80" or "ff8800". Returns false if unknown.
 bool parseColorName(const std::string& text, double out[4]) {
     std::string s;
