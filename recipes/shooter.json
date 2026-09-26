@@ -1,0 +1,27 @@
+{
+  "title": "Shooter",
+  "summary": "An arena shooter. Move with WASD, aim with the mouse and hold the left button to fire. Reach a score to win.",
+  "scene": "scenes/shooter.scene",
+  "parts": [
+    {
+      "object": "Hero",
+      "what": "TopDownController moves with WASD. Shooter fires prefabs/shooter_bullet.prefab toward the mouse while the left button is held.",
+      "try": "Lower Cooldown to 0.08 for a machine gun, or raise Bullet Speed."
+    },
+    {
+      "object": "Bullet (prefab)",
+      "what": "Each bullet has Hazard with Victim Tag 'enemy' and Vanish On Hit, so it hurts enemies and disappears. Lifetime removes bullets that miss.",
+      "try": "Open the prefab (double-click it in Assets) and make bullets bigger."
+    },
+    {
+      "object": "Enemy Door",
+      "what": "A Spawner that keeps making copies of prefabs/shooter_enemy.prefab. Enemies Chase the hero and have Health; their script adds a point when they're destroyed.",
+      "try": "Set Max Alive to 8 on one door for chaos."
+    },
+    {
+      "object": "You Win",
+      "what": "Its script (scripts/shooter_win.es) watches game.score and shows the message at 20.",
+      "try": "Open scripts/shooter_win.es and change target."
+    }
+  ]
+}

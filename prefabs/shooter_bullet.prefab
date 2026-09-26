@@ -1,0 +1,39 @@
+{
+  "entities": [
+    {
+      "id": "00000000000000a1",
+      "name": "Bullet",
+      "tag": "bullet",
+      "components": {
+        "Transform": {
+          "position": [0, 0, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [0.992156863, 0.87843138, 0.278431386, 1],
+          "size": [0.25, 0.25],
+          "order": 6
+        },
+        "RigidBody2D": {
+          "gravity_scale": 0,
+          "fixed_rotation": true,
+          "continuous": true
+        },
+        "CircleCollider2D": {
+          "radius": 0.12,
+          "is_trigger": true
+        },
+        "Hazard": {
+          "victim_tag": "enemy",
+          "damage": 1,
+          "knockback": 3,
+          "vanish_on_hit": true
+        },
+        "Lifetime": {
+          "seconds": 2,
+          "fade_out": false
+        }
+      }
+    }
+  ]
+}

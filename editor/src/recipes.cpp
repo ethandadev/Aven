@@ -145,6 +145,35 @@ public:
     }
     const Json& doc() const { return doc_; }
 
+    // Tidies the Hierarchy: moves top-level objects into folder objects. A group takes the objects
+    // with one of `names`, or every screen UI object when `names` is empty. Each folder appears where
+    // its first object was; ids don't change, so references stay valid.
+    void organize(const std::vector<std::pair<std::string, std::vector<std::string>>>& groups) {
+        std::vector<Json> entities = doc_["entities"].elements();
+        for (auto& [group, names] : groups) {
+            auto belongs = [&](const Json& e) {
+                if (e.contains("parent"))
+                    return false;
+                if (names.empty())
+                    return e["components"].contains("UIElement");
+                return std::find(names.begin(), names.end(), e["name"].asString()) != names.end();
+            };
+            auto first = std::find_if(entities.begin(), entities.end(), belongs);
+            if (first == entities.end())
+                continue;
+            std::string gid = id();
+            for (auto& e : entities)
+                if (belongs(e))
+                    e["parent"] = gid;
+            Json folder = obj({{"id", gid}, {"name", group}});
+            folder["components"] = obj({{"Transform", at(0, 0)}});
+            entities.insert(first, std::move(folder));
+        }
+        doc_["entities"] = Json::array();
+        for (auto& e : entities)
+            doc_["entities"].push(std::move(e));
+    }
+
 private:
     Json doc_;
     uint64_t base_ = 0;
@@ -752,6 +781,14 @@ std::string Editor::cookRecipe(const RecipeChoices& choices) {
         fs::writeText(projectDir_ / path, text);
     }
     stdfs::create_directories(projectDir_ / "scenes", ec);
+    // Folders keep the Hierarchy short, the same way the templates are organized.
+    cooking.scene.organize({
+        {"Background", {"Hill", "Cloud", "Twinkle", "Grass"}},
+        {"Level", {"Ground", "Platform", "Wall", "Floor", "Tree"}},
+        {"Pickups", {"Coin", "Gem", "Star"}},
+        {"Dangers", {"Spikes", "Walker", "Trap", "Slime", "Enemy Door"}},
+        {"UI", {}},
+    });
     fs::writeText(projectDir_ / scenePath, cooking.scene.doc().dump(2));
 
     RecipeCard& card = cooking.card;

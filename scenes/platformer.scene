@@ -1,0 +1,1053 @@
+{
+  "aven": "scene",
+  "version": 1,
+  "name": "Platformer",
+  "entities": [
+    {
+      "id": "00c85fd592180002",
+      "name": "Camera",
+      "components": {
+        "Transform": {
+          "position": [-6, 0, 10]
+        },
+        "Camera": {
+          "size": 6,
+          "background": [0.56078434, 0.827451, 1, 1]
+        },
+        "CameraFollow": {
+          "target": "00c85fd592180001",
+          "offset": [0, 1, 0],
+          "smoothness": 4,
+          "follow_z": false
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180003",
+      "name": "Hill",
+      "components": {
+        "Transform": {
+          "position": [-10, -7, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [0.423529416, 0.772549033, 0.423529416, 1],
+          "size": [12, 12],
+          "order": -20
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180004",
+      "name": "Hill",
+      "components": {
+        "Transform": {
+          "position": [8, -8, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [0.423529416, 0.772549033, 0.423529416, 1],
+          "size": [14, 14],
+          "order": -20
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180005",
+      "name": "Hill",
+      "components": {
+        "Transform": {
+          "position": [26, -7, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [0.423529416, 0.772549033, 0.423529416, 1],
+          "size": [12, 12],
+          "order": -20
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180006",
+      "name": "Hill",
+      "components": {
+        "Transform": {
+          "position": [44, -8, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [0.423529416, 0.772549033, 0.423529416, 1],
+          "size": [14, 14],
+          "order": -20
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180007",
+      "name": "Cloud",
+      "components": {
+        "Transform": {
+          "position": [-4, 5, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [1, 1, 1, 0.9],
+          "size": [2.2, 1.4],
+          "order": -15
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180008",
+      "name": "Cloud",
+      "components": {
+        "Transform": {
+          "position": [12, 6, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [1, 1, 1, 0.9],
+          "size": [2.2, 1.4],
+          "order": -15
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180009",
+      "name": "Cloud",
+      "components": {
+        "Transform": {
+          "position": [30, 5.5, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [1, 1, 1, 0.9],
+          "size": [2.2, 1.4],
+          "order": -15
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218000a",
+      "name": "Cloud",
+      "components": {
+        "Transform": {
+          "position": [46, 6, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [1, 1, 1, 0.9],
+          "size": [2.2, 1.4],
+          "order": -15
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218000b",
+      "name": "Ground",
+      "components": {
+        "Transform": {
+          "position": [-2, -4, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Square",
+          "color": [0.603921592, 0.419607848, 0.247058824, 1],
+          "size": [22, 2],
+          "order": 0
+        },
+        "BoxCollider2D": {
+          "size": [22, 2],
+          "friction": 0.6
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218000c",
+      "name": "Grass",
+      "parent": "00c85fd59218000b",
+      "components": {
+        "Transform": {
+          "position": [0, 0.9, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Square",
+          "color": [0.356862754, 0.749019623, 0.356862754, 1],
+          "size": [22, 0.3],
+          "order": 1
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218000d",
+      "name": "Ground",
+      "components": {
+        "Transform": {
+          "position": [15, -4, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Square",
+          "color": [0.603921592, 0.419607848, 0.247058824, 1],
+          "size": [10, 2],
+          "order": 0
+        },
+        "BoxCollider2D": {
+          "size": [10, 2],
+          "friction": 0.6
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218000e",
+      "name": "Grass",
+      "parent": "00c85fd59218000d",
+      "components": {
+        "Transform": {
+          "position": [0, 0.9, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Square",
+          "color": [0.356862754, 0.749019623, 0.356862754, 1],
+          "size": [10, 0.3],
+          "order": 1
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218000f",
+      "name": "Ground",
+      "components": {
+        "Transform": {
+          "position": [29, -4, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Square",
+          "color": [0.603921592, 0.419607848, 0.247058824, 1],
+          "size": [12, 2],
+          "order": 0
+        },
+        "BoxCollider2D": {
+          "size": [12, 2],
+          "friction": 0.6
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180010",
+      "name": "Grass",
+      "parent": "00c85fd59218000f",
+      "components": {
+        "Transform": {
+          "position": [0, 0.9, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Square",
+          "color": [0.356862754, 0.749019623, 0.356862754, 1],
+          "size": [12, 0.3],
+          "order": 1
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180011",
+      "name": "Ground",
+      "components": {
+        "Transform": {
+          "position": [43, -4, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Square",
+          "color": [0.603921592, 0.419607848, 0.247058824, 1],
+          "size": [10, 2],
+          "order": 0
+        },
+        "BoxCollider2D": {
+          "size": [10, 2],
+          "friction": 0.6
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180012",
+      "name": "Grass",
+      "parent": "00c85fd592180011",
+      "components": {
+        "Transform": {
+          "position": [0, 0.9, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Square",
+          "color": [0.356862754, 0.749019623, 0.356862754, 1],
+          "size": [10, 0.3],
+          "order": 1
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180013",
+      "name": "Platform",
+      "components": {
+        "Transform": {
+          "position": [-5, -0.5, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [0.690196097, 0.478431374, 0.290196091, 1],
+          "size": [3, 0.5],
+          "order": 0
+        },
+        "BoxCollider2D": {
+          "size": [3, 0.5],
+          "friction": 0.6
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180014",
+      "name": "Platform",
+      "components": {
+        "Transform": {
+          "position": [1, 1, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [0.690196097, 0.478431374, 0.290196091, 1],
+          "size": [3, 0.5],
+          "order": 0
+        },
+        "BoxCollider2D": {
+          "size": [3, 0.5],
+          "friction": 0.6
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180015",
+      "name": "Platform",
+      "components": {
+        "Transform": {
+          "position": [6, -0.5, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [0.690196097, 0.478431374, 0.290196091, 1],
+          "size": [2.5, 0.5],
+          "order": 0
+        },
+        "BoxCollider2D": {
+          "size": [2.5, 0.5],
+          "friction": 0.6
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180016",
+      "name": "Platform",
+      "components": {
+        "Transform": {
+          "position": [15, 1, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [0.690196097, 0.478431374, 0.290196091, 1],
+          "size": [3, 0.5],
+          "order": 0
+        },
+        "BoxCollider2D": {
+          "size": [3, 0.5],
+          "friction": 0.6
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180017",
+      "name": "Platform",
+      "components": {
+        "Transform": {
+          "position": [21.5, 0.5, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [0.690196097, 0.478431374, 0.290196091, 1],
+          "size": [2.5, 0.5],
+          "order": 0
+        },
+        "BoxCollider2D": {
+          "size": [2.5, 0.5],
+          "friction": 0.6
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180018",
+      "name": "Platform",
+      "components": {
+        "Transform": {
+          "position": [27, 1.5, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [0.690196097, 0.478431374, 0.290196091, 1],
+          "size": [3, 0.5],
+          "order": 0
+        },
+        "BoxCollider2D": {
+          "size": [3, 0.5],
+          "friction": 0.6
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180019",
+      "name": "Platform",
+      "components": {
+        "Transform": {
+          "position": [33, 3, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [0.690196097, 0.478431374, 0.290196091, 1],
+          "size": [3, 0.5],
+          "order": 0
+        },
+        "BoxCollider2D": {
+          "size": [3, 0.5],
+          "friction": 0.6
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218001a",
+      "name": "Platform",
+      "components": {
+        "Transform": {
+          "position": [41, 1, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [0.690196097, 0.478431374, 0.290196091, 1],
+          "size": [3, 0.5],
+          "order": 0
+        },
+        "BoxCollider2D": {
+          "size": [3, 0.5],
+          "friction": 0.6
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180001",
+      "name": "Hero",
+      "tag": "player",
+      "components": {
+        "Transform": {
+          "position": [-10, -2, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Circle",
+          "color": [0.22, 0.55, 0.97, 1],
+          "size": [0.9, 0.9],
+          "order": 5
+        },
+        "RigidBody2D": {
+          "gravity_scale": 2.5,
+          "fixed_rotation": true
+        },
+        "BoxCollider2D": {
+          "size": [0.75, 0.85],
+          "friction": 0
+        },
+        "PlatformerController": {
+          "speed": 6,
+          "jump_power": 12
+        },
+        "Health": {
+          "max_health": 3,
+          "when_zero": "RestartScene",
+          "counter": "health"
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218001b",
+      "name": "Star",
+      "tag": "star",
+      "components": {
+        "Transform": {
+          "position": [-7, -2.3, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Star",
+          "color": [0.980392158, 0.8, 0.0823529437, 1],
+          "size": [0.6, 0.6],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "is_trigger": true
+        },
+        "Collectible": {
+          "counter": "stars",
+          "amount": 1
+        },
+        "Bob": {
+          "height": 0.12,
+          "speed": 0.8
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218001c",
+      "name": "Star",
+      "tag": "star",
+      "components": {
+        "Transform": {
+          "position": [-5, 0.6, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Star",
+          "color": [0.980392158, 0.8, 0.0823529437, 1],
+          "size": [0.6, 0.6],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "is_trigger": true
+        },
+        "Collectible": {
+          "counter": "stars",
+          "amount": 1
+        },
+        "Bob": {
+          "height": 0.12,
+          "speed": 0.85
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218001d",
+      "name": "Star",
+      "tag": "star",
+      "components": {
+        "Transform": {
+          "position": [1, 2.1, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Star",
+          "color": [0.980392158, 0.8, 0.0823529437, 1],
+          "size": [0.6, 0.6],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "is_trigger": true
+        },
+        "Collectible": {
+          "counter": "stars",
+          "amount": 1
+        },
+        "Bob": {
+          "height": 0.12,
+          "speed": 0.9
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218001e",
+      "name": "Star",
+      "tag": "star",
+      "components": {
+        "Transform": {
+          "position": [3, -2.3, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Star",
+          "color": [0.980392158, 0.8, 0.0823529437, 1],
+          "size": [0.6, 0.6],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "is_trigger": true
+        },
+        "Collectible": {
+          "counter": "stars",
+          "amount": 1
+        },
+        "Bob": {
+          "height": 0.12,
+          "speed": 0.95
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218001f",
+      "name": "Star",
+      "tag": "star",
+      "components": {
+        "Transform": {
+          "position": [6, 0.6, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Star",
+          "color": [0.980392158, 0.8, 0.0823529437, 1],
+          "size": [0.6, 0.6],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "is_trigger": true
+        },
+        "Collectible": {
+          "counter": "stars",
+          "amount": 1
+        },
+        "Bob": {
+          "height": 0.12,
+          "speed": 1
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180020",
+      "name": "Star",
+      "tag": "star",
+      "components": {
+        "Transform": {
+          "position": [12, -2.3, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Star",
+          "color": [0.980392158, 0.8, 0.0823529437, 1],
+          "size": [0.6, 0.6],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "is_trigger": true
+        },
+        "Collectible": {
+          "counter": "stars",
+          "amount": 1
+        },
+        "Bob": {
+          "height": 0.12,
+          "speed": 0.8
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180021",
+      "name": "Star",
+      "tag": "star",
+      "components": {
+        "Transform": {
+          "position": [15, 2.1, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Star",
+          "color": [0.980392158, 0.8, 0.0823529437, 1],
+          "size": [0.6, 0.6],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "is_trigger": true
+        },
+        "Collectible": {
+          "counter": "stars",
+          "amount": 1
+        },
+        "Bob": {
+          "height": 0.12,
+          "speed": 0.85
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180022",
+      "name": "Star",
+      "tag": "star",
+      "components": {
+        "Transform": {
+          "position": [21.5, 1.6, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Star",
+          "color": [0.980392158, 0.8, 0.0823529437, 1],
+          "size": [0.6, 0.6],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "is_trigger": true
+        },
+        "Collectible": {
+          "counter": "stars",
+          "amount": 1
+        },
+        "Bob": {
+          "height": 0.12,
+          "speed": 0.9
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180023",
+      "name": "Star",
+      "tag": "star",
+      "components": {
+        "Transform": {
+          "position": [25, -2.3, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Star",
+          "color": [0.980392158, 0.8, 0.0823529437, 1],
+          "size": [0.6, 0.6],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "is_trigger": true
+        },
+        "Collectible": {
+          "counter": "stars",
+          "amount": 1
+        },
+        "Bob": {
+          "height": 0.12,
+          "speed": 0.95
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180024",
+      "name": "Star",
+      "tag": "star",
+      "components": {
+        "Transform": {
+          "position": [27, 2.6, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Star",
+          "color": [0.980392158, 0.8, 0.0823529437, 1],
+          "size": [0.6, 0.6],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "is_trigger": true
+        },
+        "Collectible": {
+          "counter": "stars",
+          "amount": 1
+        },
+        "Bob": {
+          "height": 0.12,
+          "speed": 1
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180025",
+      "name": "Star",
+      "tag": "star",
+      "components": {
+        "Transform": {
+          "position": [33, 4.1, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Star",
+          "color": [0.980392158, 0.8, 0.0823529437, 1],
+          "size": [0.6, 0.6],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "is_trigger": true
+        },
+        "Collectible": {
+          "counter": "stars",
+          "amount": 1
+        },
+        "Bob": {
+          "height": 0.12,
+          "speed": 0.8
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180026",
+      "name": "Star",
+      "tag": "star",
+      "components": {
+        "Transform": {
+          "position": [41, 2.1, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Star",
+          "color": [0.980392158, 0.8, 0.0823529437, 1],
+          "size": [0.6, 0.6],
+          "order": 3
+        },
+        "CircleCollider2D": {
+          "radius": 0.3,
+          "is_trigger": true
+        },
+        "Collectible": {
+          "counter": "stars",
+          "amount": 1
+        },
+        "Bob": {
+          "height": 0.12,
+          "speed": 0.85
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180027",
+      "name": "Spikes",
+      "tag": "hazard",
+      "components": {
+        "Transform": {
+          "position": [-1, -2.7, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Triangle",
+          "color": [0.611764729, 0.639215708, 0.686274529, 1],
+          "size": [1, 0.7],
+          "order": 2
+        },
+        "BoxCollider2D": {
+          "size": [0.8, 0.5],
+          "is_trigger": true
+        },
+        "Hazard": {
+          "damage": 1
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180028",
+      "name": "Spikes",
+      "tag": "hazard",
+      "components": {
+        "Transform": {
+          "position": [12.8, -2.7, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Triangle",
+          "color": [0.611764729, 0.639215708, 0.686274529, 1],
+          "size": [1, 0.7],
+          "order": 2
+        },
+        "BoxCollider2D": {
+          "size": [0.8, 0.5],
+          "is_trigger": true
+        },
+        "Hazard": {
+          "damage": 1
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180029",
+      "name": "Spikes",
+      "tag": "hazard",
+      "components": {
+        "Transform": {
+          "position": [30.5, -2.7, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Triangle",
+          "color": [0.611764729, 0.639215708, 0.686274529, 1],
+          "size": [1, 0.7],
+          "order": 2
+        },
+        "BoxCollider2D": {
+          "size": [0.8, 0.5],
+          "is_trigger": true
+        },
+        "Hazard": {
+          "damage": 1
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218002a",
+      "name": "Walker",
+      "tag": "enemy",
+      "components": {
+        "Transform": {
+          "position": [4, -2.4, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [0.65882355, 0.333333343, 0.968627453, 1],
+          "size": [0.9, 0.8],
+          "order": 4
+        },
+        "RigidBody2D": {
+          "gravity_scale": 2,
+          "fixed_rotation": true
+        },
+        "BoxCollider2D": {
+          "size": [0.85, 0.75]
+        },
+        "Patrol": {
+          "distance": 2,
+          "speed": 2
+        },
+        "Hazard": {
+          "damage": 1
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218002b",
+      "name": "Walker",
+      "tag": "enemy",
+      "components": {
+        "Transform": {
+          "position": [17, -2.4, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [0.65882355, 0.333333343, 0.968627453, 1],
+          "size": [0.9, 0.8],
+          "order": 4
+        },
+        "RigidBody2D": {
+          "gravity_scale": 2,
+          "fixed_rotation": true
+        },
+        "BoxCollider2D": {
+          "size": [0.85, 0.75]
+        },
+        "Patrol": {
+          "distance": 2,
+          "speed": 2
+        },
+        "Hazard": {
+          "damage": 1
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218002c",
+      "name": "Walker",
+      "tag": "enemy",
+      "components": {
+        "Transform": {
+          "position": [31, -2.4, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "RoundedSquare",
+          "color": [0.65882355, 0.333333343, 0.968627453, 1],
+          "size": [0.9, 0.8],
+          "order": 4
+        },
+        "RigidBody2D": {
+          "gravity_scale": 2,
+          "fixed_rotation": true
+        },
+        "BoxCollider2D": {
+          "size": [0.85, 0.75]
+        },
+        "Patrol": {
+          "distance": 2,
+          "speed": 2
+        },
+        "Hazard": {
+          "damage": 1
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218002d",
+      "name": "Finish",
+      "components": {
+        "Transform": {
+          "position": [46, -1.8, 0]
+        },
+        "SpriteRenderer": {
+          "shape": "Star",
+          "color": [0.992156863, 0.87843138, 0.278431386, 1],
+          "size": [1.6, 1.6],
+          "order": 2
+        },
+        "CircleCollider2D": {
+          "radius": 0.7,
+          "is_trigger": true
+        },
+        "Spin": {
+          "speed": [0, 0, 60]
+        },
+        "Script": {
+          "path": "scripts/platformer_finish.es"
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218002e",
+      "name": "You Win",
+      "components": {
+        "UIElement": {
+          "anchor": "Center",
+          "offset": [0, 40],
+          "size": [900, 200]
+        },
+        "UIText": {
+          "text": "You win!\nPress R to play again",
+          "font_size": 72,
+          "align": "Center",
+          "color": [0.992156863, 0.87843138, 0.278431386, 1]
+        },
+        "Script": {
+          "path": "scripts/platformer_win.es"
+        }
+      }
+    },
+    {
+      "id": "00c85fd59218002f",
+      "name": "Stars Counter",
+      "components": {
+        "UIElement": {
+          "anchor": "TopLeft",
+          "offset": [24, -20],
+          "size": [360, 56]
+        },
+        "UIText": {
+          "text": "Stars: 0",
+          "font_size": 40,
+          "align": "Left",
+          "color": [1, 1, 1, 1]
+        },
+        "ScoreDisplay": {
+          "counter": "stars",
+          "format": "Stars: {}"
+        }
+      }
+    },
+    {
+      "id": "00c85fd592180030",
+      "name": "Health Counter",
+      "components": {
+        "UIElement": {
+          "anchor": "TopRight",
+          "offset": [-24, -20],
+          "size": [300, 56]
+        },
+        "UIText": {
+          "text": "Health: 3",
+          "font_size": 40,
+          "align": "Right",
+          "color": [0.988235295, 0.647058845, 0.647058845, 1]
+        },
+        "ScoreDisplay": {
+          "counter": "health",
+          "format": "Health: {}"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "title": "Platformer",
+  "summary": "A side-on platformer. Run with the arrow keys, jump with Space. Reach the finish to win.",
+  "scene": "scenes/platformer.scene",
+  "parts": [
+    {
+      "object": "Camera",
+      "what": "CameraFollow keeps the hero in the middle of the screen as it moves.",
+      "try": "Change Smoothness: lower numbers make the camera lag behind more."
+    },
+    {
+      "object": "Ground and Platform",
+      "what": "Plain sprites with a BoxCollider2D, so things can stand on them.",
+      "try": "Select a Platform, press Ctrl+D to copy it, and drag the copy somewhere new."
+    },
+    {
+      "object": "Hero",
+      "what": "PlatformerController runs with the arrow keys or A/D and jumps with Space. RigidBody2D adds gravity, and Health gives 3 hits before the level restarts.",
+      "try": "Set Jump Power to 16 for a floaty jump, or Extra Jumps to 1 for a double jump."
+    },
+    {
+      "object": "Star",
+      "what": "Collectible adds 1 to game.stars when the hero touches it, then disappears. Bob makes it float up and down.",
+      "try": "Set Amount to 5 on one of them to make a super star."
+    },
+    {
+      "object": "Spikes",
+      "what": "Hazard takes 1 health from whatever tagged 'player' touches it, and knocks it back.",
+      "try": "Raise Knockback to 12 for a big bounce."
+    },
+    {
+      "object": "Walker",
+      "what": "Patrol walks back and forth, and Hazard hurts the hero on contact.",
+      "try": "Make one faster: set Patrol Speed to 4."
+    },
+    {
+      "object": "Finish",
+      "what": "Touching it runs scripts/platformer_finish.es: on_trigger checks it's the player, then broadcasts \"win\".",
+      "try": "Drag the Finish somewhere harder to reach."
+    },
+    {
+      "object": "Stars Counter",
+      "what": "ScoreDisplay shows game.stars on screen. Collectibles add to it when you pick them up.",
+      "try": "Change its Format, for example to \"Loot: {}\"."
+    }
+  ]
+}

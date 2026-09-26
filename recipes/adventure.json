@@ -1,0 +1,47 @@
+{
+  "title": "Adventure",
+  "summary": "A top-down adventure seen from above. Move with the arrow keys or WASD. Collect everything to win.",
+  "scene": "scenes/adventure.scene",
+  "parts": [
+    {
+      "object": "Camera",
+      "what": "CameraFollow keeps the hero in the middle of the screen as it moves.",
+      "try": "Change Smoothness: lower numbers make the camera lag behind more."
+    },
+    {
+      "object": "Tree and Wall",
+      "what": "Colliders with no RigidBody2D never move, so they block the way.",
+      "try": "Copy a Tree with Ctrl+D to make a maze."
+    },
+    {
+      "object": "Hero",
+      "what": "TopDownController moves in four directions with the arrow keys or WASD. Gravity Scale is 0 because this game is seen from above.",
+      "try": "Set Speed to 8, or turn on Face Movement so the hero turns where it walks."
+    },
+    {
+      "object": "Star",
+      "what": "Collectible adds 1 to game.stars when the hero touches it.",
+      "try": "Change the Counter name on one of them to start a second kind of treasure."
+    },
+    {
+      "object": "Trap",
+      "what": "Hazard: stepping on it costs 1 health and pushes the hero away.",
+      "try": "Set Damage to 2 on one trap."
+    },
+    {
+      "object": "Slime",
+      "what": "Patrol walks back and forth along one axis (some go sideways, some up and down). Hazard hurts.",
+      "try": "Change a slime's Axis from X to Y."
+    },
+    {
+      "object": "You Win",
+      "what": "Its script (scripts/adventure_win.es) counts the Stars still in the level with count(\"star\"). At zero, the message appears.",
+      "try": "Hide one more collectible somewhere hard to reach."
+    },
+    {
+      "object": "Stars Counter",
+      "what": "ScoreDisplay shows game.stars on screen. Collectibles add to it when you pick them up.",
+      "try": "Change its Format, for example to \"Loot: {}\"."
+    }
+  ]
+}
