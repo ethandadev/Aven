@@ -313,14 +313,21 @@ void Editor::drawQuests() {
     ImGui::TextUnformatted(q["submit"].asString("").c_str());
     ImGui::PopTextWrapPos();
     bool done = prefs.counters.count("quest_done:" + id) > 0;
-    if (!done && finished == total && ImGui::Button("I sent it! Mark this quest done")) {
-        prefs.counters["quest_done:" + id] = 1;
-        milestone("quests");
-        notify("Thank you for helping build Aven!");
+    bool besideSomething = false; // the GitHub button goes next to a button or note, never after the paragraph
+    if (!done && finished == total) {
+        if (ImGui::Button("I sent it! Mark this quest done")) {
+            prefs.counters["quest_done:" + id] = 1;
+            milestone("quests");
+            notify("Thank you for helping build Aven!");
+        }
+        besideSomething = true;
     }
-    if (done)
+    if (done) {
         ImGui::TextColored({0.45f, 0.9f, 0.6f, 1}, "Quest complete. Thank you!");
-    ImGui::SameLine();
+        besideSomething = true;
+    }
+    if (besideSomething)
+        ImGui::SameLine();
     if (ImGui::SmallButton("Open Aven on GitHub"))
         openExternal("https://github.com/ethandadev/Aven");
     ImGui::EndChild();

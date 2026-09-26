@@ -982,7 +982,7 @@ void Editor::drawLevels() {
 
     if (!showLevels_)
         return;
-    ImGui::SetNextWindowSize({820, 520}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({860, 580}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_FirstUseEver, {0.5f, 0.5f});
     if (!ImGui::Begin("Learn mode", &showLevels_, ImGuiWindowFlags_NoDocking)) {
         ImGui::End();
@@ -992,13 +992,16 @@ void Editor::drawLevels() {
                        "Pick any level at any time: nothing in your project changes, only what the editor shows.");
     ImGui::Spacing();
     float w = (ImGui::GetContentRegionAvail().x - 3 * 8) / 4;
+    // Room below the cards for the buttons and the hint line.
+    float cardH = std::max(160.0f, ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeightWithSpacing() * 2.2f);
     for (int lvl = 1; lvl <= 4; ++lvl) {
         if (lvl > 1)
             ImGui::SameLine(0, 8);
+        ImGui::BeginGroup(); // a card and its button form one column
         ImGui::PushID(lvl);
         bool current = prefs.level == lvl;
         ImGui::PushStyleColor(ImGuiCol_ChildBg, current ? ImGui::GetStyleColorVec4(ImGuiCol_Header) : ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
-        ImGui::BeginChild("##level", {w, -ImGui::GetFrameHeightWithSpacing() * 1.5f}, ImGuiChildFlags_Borders);
+        ImGui::BeginChild("##level", {w, cardH}, ImGuiChildFlags_Borders);
         ImGui::PushFont(fonts.bold);
         ImGui::Text("%d. %s", lvl, levelName(lvl));
         ImGui::PopFont();
@@ -1021,6 +1024,7 @@ void Editor::drawLevels() {
             prefs.save();
         }
         ImGui::PopID();
+        ImGui::EndGroup();
     }
     std::string hint = nextLevelHint(prefs);
     if (!hint.empty())

@@ -110,6 +110,13 @@ void Editor::drawTilePainter() {
     Tilemap* map = e ? reg.tryGet<Tilemap>(e) : nullptr;
     if (!map) {
         ImGui::TextWrapped("Select a Tilemap to paint on, or make a new one.");
+        ImGui::Spacing();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+        ImGui::TextWrapped("A Tilemap is a grid you paint small square pictures (tiles) onto: ground, walls, "
+                            "water, grass. Painted tiles are solid, so the player can stand on them. Paint with "
+                            "the starter tiles, or pick your own image.");
+        ImGui::PopStyleColor();
+        ImGui::Spacing();
         ImGui::BeginDisabled(playing_);
         if (ImGui::Button("Create a Tilemap", {-1, 34}))
             createEntity("Tilemap");
@@ -118,6 +125,10 @@ void Editor::drawTilePainter() {
         int n = 0;
         scene().walk([&](Entity t, int) {
             if (reg.has<Tilemap>(t)) {
+                if (n == 0) {
+                    ImGui::Spacing();
+                    ImGui::TextDisabled("Tilemaps in this scene:");
+                }
                 ImGui::PushID(n++);
                 if (ImGui::Selectable(scene().info(t).name.c_str()))
                     select(t);
