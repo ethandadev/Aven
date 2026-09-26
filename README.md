@@ -77,6 +77,12 @@ know how the bigger engines think.
 Starter templates: Blank 2D, Blank 3D, Platformer, Gem Quest (top-down), Space Shooter, Cookie
 Clicker, 3D Obby and Crystal Forest (3D exploring).
 
+## Download
+
+Ready-to-run builds for Windows, macOS (Apple silicon) and Linux are on the
+[Releases page](https://github.com/ethandadev/Aven/releases). Unzip, open `aven-editor`, and see
+`START HERE.txt` for the first run.
+
 ## Building
 
 You need CMake 3.21+, a C++20 compiler (Visual Studio 2022, Xcode, GCC or Clang) and Git. The

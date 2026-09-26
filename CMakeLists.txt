@@ -5,6 +5,9 @@ project(Aven
     DESCRIPTION "A beginner-friendly 2D/3D game engine"
     LANGUAGES C CXX)
 
+# The version the editor and player show. Release builds pass the tag's version (-DAVEN_VERSION=0.2.0).
+set(AVEN_VERSION "${PROJECT_VERSION}" CACHE STRING "Version shown by the editor and player")
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)

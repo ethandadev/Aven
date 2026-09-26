@@ -66,3 +66,20 @@ If you change what scripts can call, regenerate the API reference with
    tests.
 
 By contributing, you agree your work is released under the [MIT License](LICENSE).
+
+## Making a release
+
+Releases are built by `.github/workflows/release.yml`. To publish one from `main`:
+
+```sh
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+That builds and tests Aven on Windows, macOS and Linux, packs each into a zip with the templates
+and the web player (`tools/release/package.sh`), checks the Linux zip runs on its own, and
+publishes a GitHub release with the zips and notes generated from the commits. The tag sets the
+version the editor shows. A tag with a dash, like `v0.2.0-beta.1`, becomes a pre-release.
+
+To try the build without publishing, open the Release workflow on the Actions tab and click
+**Run workflow**: the zips are attached to that run instead.

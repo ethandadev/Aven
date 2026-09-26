@@ -13,7 +13,7 @@ if(EMSCRIPTEN)
 else()
     target_link_libraries(aven_engine PUBLIC glfw aven_glad)
 endif()
-target_compile_definitions(aven_engine PUBLIC AVEN_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(aven_engine PUBLIC AVEN_VERSION="${AVEN_VERSION}")
 
 if(MSVC)
     target_compile_options(aven_engine PRIVATE /W4 /wd4100 /wd4201 /wd4244 /wd4267 /wd4305 /utf-8)

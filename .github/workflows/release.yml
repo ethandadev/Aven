@@ -1,0 +1,172 @@
+name: Release
+
+# Push a tag like v0.2.0 to build Aven for Windows, macOS and Linux and publish a GitHub
+# release with the downloads. Tags with a dash (v0.2.0-beta.1) become pre-releases.
+# "Run workflow" on the Actions tab builds the same zips without publishing (a dry run).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build, e.g. 0.2.0 (dry run: the zips are uploaded to the run, no release is made)"
+        required: true
+        default: "0.0.0-test"
+
+permissions:
+  contents: write
+
+jobs:
+  web:
+    name: Web player
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mymindstorm/setup-emsdk@v14
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Build the web player
+        run: tools/web/build_web_player.sh web-player
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-player
+          path: web-player
+
+  desktop:
+    name: ${{ matrix.name }}
+    needs: web
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-24.04
+            suffix: linux-x64
+            bin: build/bin
+          - name: Windows
+            os: windows-latest
+            suffix: windows-x64
+            bin: build/bin/Release
+          - name: macOS
+            os: macos-latest
+            suffix: macos-arm64
+            bin: build/bin
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then v="${GITHUB_REF_NAME#v}"; else v="${{ inputs.version }}"; fi
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+          echo "PACKAGE=aven-$v-${{ matrix.suffix }}" >> "$GITHUB_ENV"
+          echo "Building Aven $v"
+
+      - name: Install Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
+            libgl-dev libwayland-dev libxkbcommon-dev wayland-protocols xvfb libgl1-mesa-dri
+
+      - name: Cache downloaded libraries
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: deps-${{ matrix.os }}-${{ hashFiles('cmake/AvenDependencies.cmake') }}
+
+      - name: Configure
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then generator="-G Ninja"; fi
+          cmake -S . -B build $generator -DCMAKE_BUILD_TYPE=Release -DAVEN_VERSION="$VERSION"
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        shell: bash
+        run: |
+          tests=$(find build -name 'aven_tests' -o -name 'aven_tests.exe' | head -n 1)
+          "$tests"
+
+      - name: Get the web player
+        uses: actions/download-artifact@v4
+        with:
+          name: web-player
+          path: web-player
+
+      - name: Package
+        shell: bash
+        run: tools/release/package.sh "${{ matrix.bin }}" "$PACKAGE" web-player dist
+
+      - name: Add the Visual C++ runtime
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # Copied next to the programs, so Aven runs on PCs without the Visual C++ Redistributable.
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $dlls = & $vswhere -latest -find "VC\Redist\MSVC\*\x64\Microsoft.VC*.CRT\*.dll"
+          if (-not $dlls) { throw "Couldn't find the Visual C++ runtime DLLs." }
+          $stage = "dist\$env:PACKAGE"
+          Copy-Item $dlls $stage
+          Remove-Item "dist\$env:PACKAGE.zip"
+          Compress-Archive -Path $stage -DestinationPath "dist\$env:PACKAGE.zip"
+
+      - name: Check the download works on its own
+        if: runner.os == 'Linux'
+        run: |
+          # Unzip somewhere else and hide the source folders, so the editor can only use what's in the zip.
+          mkdir -p /tmp/try && cd /tmp/try && unzip -q "$GITHUB_WORKSPACE/dist/$PACKAGE.zip"
+          cd "$GITHUB_WORKSPACE" && mv editor/data editor/data.hidden && mv sdk sdk.hidden && mv quests quests.hidden && mv templates templates.hidden
+          app="/tmp/try/$PACKAGE"
+          xvfb-run -a -s "-screen 0 1920x1080x24" "$app/aven-editor" --screenshot hub.png --frames 20 2>&1 | tee editor.log
+          xvfb-run -a -s "-screen 0 1920x1080x24" "$app/aven-editor" "$app/templates/platformer" --screenshot editor.png --frames 20 2>&1 | tee -a editor.log
+          xvfb-run -a -s "-screen 0 1280x720x24" "$app/aven-player" "$app/templates/platformer" --screenshot player.png --frames 30 --hidden 2>&1 | tee player.log
+          test -s hub.png && test -s editor.png && test -s player.png
+          grep -q "Aven Editor $VERSION" editor.log
+          if grep -h "\[error\]" editor.log player.log; then echo "The packaged build logged errors."; exit 1; fi
+
+      - name: Upload screenshots of the packaged build
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-screenshots
+          path: |
+            hub.png
+            editor.png
+            player.png
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE }}
+          path: dist/${{ env.PACKAGE }}.zip
+
+  publish:
+    name: Publish the release
+    needs: desktop
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: aven-*
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
+          body: |
+            ## Download
+
+            | | |
+            |---|---|
+            | Windows | `aven-*-windows-x64.zip` |
+            | macOS (Apple silicon) | `aven-*-macos-arm64.zip` |
+            | Linux | `aven-*-linux-x64.zip` |
+
+            Unzip it and open **aven-editor**. `START HERE.txt` in the zip explains the first run on each
+            system (Windows SmartScreen and macOS may ask about an app from the internet).
