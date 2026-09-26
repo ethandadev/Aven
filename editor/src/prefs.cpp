@@ -73,6 +73,7 @@ const std::vector<KeyAction>& keyActions() {
         {"cut", "Cut objects", ImGuiMod_Ctrl | ImGuiKey_X, false},
         {"paste", "Paste objects", ImGuiMod_Ctrl | ImGuiKey_V, false},
         {"duplicate", "Duplicate", ImGuiMod_Ctrl | ImGuiKey_D, false},
+        {"group", "Group into a folder", ImGuiMod_Ctrl | ImGuiKey_G, false},
         {"delete", "Delete", ImGuiKey_Delete, false},
         {"select_all", "Select all", ImGuiMod_Ctrl | ImGuiKey_A, false},
         {"rename", "Rename", ImGuiKey_F2, false},

@@ -28,7 +28,7 @@
     },
     {
       "title": "Challenge",
-      "text": "Add a heart pickup that gives back health: copy a gem, change its image to a heart shape, and write a script that does game.health += 1 when the player touches it."
+      "text": "Add a heart pickup that gives back health: copy a gem (in the Gems folder), change its image to a heart shape, and write a script that does game.health += 1 when the player touches it."
     }
   ]
 }

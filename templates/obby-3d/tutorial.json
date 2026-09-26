@@ -24,7 +24,7 @@
     },
     {
       "title": "Add a stage",
-      "text": "Select a Jump platform, press Ctrl+D and drag the copy with the gizmo. Duplicate a Lava brick to make new danger. Move the Finish Platform, Trophy and Finish further away to make room."
+      "text": "Open the Course folder in the Hierarchy, select a Jump platform, press Ctrl+D and drag the copy with the gizmo. Duplicate a Lava brick (in Hazards) to make new danger. Move the Finish Platform, Trophy and Finish further away to make room."
     },
     {
       "title": "Challenge",

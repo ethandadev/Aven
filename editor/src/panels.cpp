@@ -190,6 +190,25 @@ ImU32 entityColor(Registry& reg, Entity e) {
     return IM_COL32(150, 155, 165, 255);
 }
 
+// A folder: an object that only holds other objects (nothing but a Transform of its own).
+bool isFolder(Registry& reg, Entity e, bool hasChildren) {
+    if (!hasChildren && reg.get<EntityInfo>(e).name != "Folder") // a new, still empty folder counts too
+        return false;
+    for (auto& info : ComponentRegistry::all())
+        if (info.name != "Transform" && info.get(reg, e))
+            return false;
+    return true;
+}
+
+void drawFolderIcon(ImDrawList* dl, ImVec2 c, bool open, ImU32 col) {
+    float w = 7, h = 5;
+    dl->AddRectFilled({c.x - w, c.y - h - 2}, {c.x - 1, c.y - h + 1}, col, 1.5f); // tab
+    if (open)
+        dl->AddQuadFilled({c.x - w, c.y - h}, {c.x + w, c.y - h}, {c.x + w - 2, c.y + h}, {c.x - w - 2, c.y + h}, col);
+    else
+        dl->AddRectFilled({c.x - w, c.y - h}, {c.x + w, c.y + h}, col, 1.5f);
+}
+
 } // namespace
 
 // ---------------------------------------------------------------- hierarchy
@@ -225,14 +244,34 @@ void Editor::drawEntityNode(Entity e) {
         hierarchyOrder_.push_back(info.uuid);
         ImVec2 p = ImGui::GetCursorScreenPos();
         bool renaming = renaming_ == info.uuid;
+        if (revealIds_.count(info.uuid.value))
+            ImGui::SetNextItemOpen(true); // a folder holding the object selected elsewhere (scene view, Find...)
+        bool folder = isFolder(reg, e, !kids.empty());
         open = ImGui::TreeNodeEx("##node", flags, "     %s", renaming ? "" : info.name.c_str());
         ImVec2 rowMin = ImGui::GetItemRectMin(), rowMax = ImGui::GetItemRectMax();
         float h = ImGui::GetFrameHeight();
         ImVec2 dot{p.x + ImGui::GetTreeNodeToLabelSpacing() + 6, p.y + h * 0.5f};
-        ImGui::GetWindowDrawList()->AddCircleFilled(dot, 4.5f, entityColor(reg, e));
-        // A thin ring keeps white or pale objects visible on light themes.
-        ImGui::GetWindowDrawList()->AddCircle(dot, 4.5f, ImGui::GetColorU32(ImGuiCol_TextDisabled, 0.45f), 0, 1.0f);
+        ImDrawList* rowDl = ImGui::GetWindowDrawList();
+        if (folder) {
+            drawFolderIcon(rowDl, dot, open, IM_COL32(234, 179, 8, 255));
+            // How many objects are inside, while it's closed.
+            if (!open && !renaming) {
+                std::string count = std::to_string(kids.size());
+                float labelEnd = rowMin.x + ImGui::GetTreeNodeToLabelSpacing() + ImGui::CalcTextSize(("     " + info.name).c_str()).x;
+                rowDl->AddText({labelEnd + 8, rowMin.y + (h - ImGui::GetFontSize()) * 0.5f},
+                               ImGui::GetColorU32(ImGuiCol_TextDisabled), count.c_str());
+            }
+        } else {
+            rowDl->AddCircleFilled(dot, 4.5f, entityColor(reg, e));
+            // A thin ring keeps white or pale objects visible on light themes.
+            rowDl->AddCircle(dot, 4.5f, ImGui::GetColorU32(ImGuiCol_TextDisabled, 0.45f), 0, 1.0f);
+        }
+        if (scrollToSelected_ && !selection_.empty() && selection_.back() == info.uuid) {
+            ImGui::SetScrollHereY(0.35f);
+            scrollToSelected_ = false;
+        }
         if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
+            revealedFor_ = info.uuid; // already visible: no need to open or scroll
             ImGuiIO& io = ImGui::GetIO();
             if (io.KeyCtrl) {
                 toggleSelection(e);
@@ -382,8 +421,10 @@ void Editor::drawEntityNode(Entity e) {
             }
             if (!deleted) {
                 ImGui::Separator();
+                if (ImGui::MenuItem("Group into a folder", chordName(prefs.chord("group")).c_str()))
+                    groupSelection();
                 if (ImGui::BeginMenu("Add child")) {
-                    for (const char* k : {"Entity", "Square", "Circle", "Text", "Cube", "Sphere", "Point Light", "Particles", "UI Text", "UI Button"})
+                    for (const char* k : {"Folder", "Entity", "Square", "Circle", "Text", "Cube", "Sphere", "Point Light", "Particles", "UI Text", "UI Button"})
                         if (ImGui::MenuItem(k))
                             createEntity(k, e);
                     ImGui::EndMenu();
@@ -470,6 +511,11 @@ void Editor::drawHierarchy() {
                     createEntity(k);
         ImGui::Separator();
         ImGui::TextDisabled("Other");
+        if (ImGui::MenuItem("Folder"))
+            createEntity("Folder");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("An empty object that holds others, to keep the Hierarchy tidy.\n"
+                              "Drag objects onto it, or select some and press %s.", chordName(prefs.chord("group")).c_str());
         for (const char* k : {"Camera", "Entity"})
             if (ImGui::MenuItem(k))
                 createEntity(k);
@@ -487,6 +533,16 @@ void Editor::drawHierarchy() {
     ImGui::BeginChild("##tree");
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {4, 3});
     Scene& s = scene();
+    // When something gets selected outside the Hierarchy, open the folders it's in and scroll to it.
+    revealIds_.clear();
+    if (!selection_.empty() && selection_.back() != revealedFor_) {
+        revealedFor_ = selection_.back();
+        if (Entity e = s.findByUUID(revealedFor_)) {
+            for (Entity p = s.parent(e); p; p = s.parent(p))
+                revealIds_.insert(s.info(p).uuid.value);
+            scrollToSelected_ = true;
+        }
+    }
     lastHierarchyOrder_ = std::move(hierarchyOrder_);
     hierarchyOrder_.clear();
     std::vector<Entity> roots = s.roots();
@@ -514,6 +570,8 @@ void Editor::drawHierarchy() {
             pasteClipboard();
         if (ImGui::MenuItem("New empty object"))
             createEntity("Entity");
+        if (ImGui::MenuItem("New folder"))
+            createEntity("Folder");
         ImGui::EndPopup();
     }
     if (s.roots().empty())

@@ -147,6 +147,7 @@ public:
     Entity instantiatePrefab(const std::string& path, Vec3 position);
     void savePrefab(Entity e);
     void copySelection(bool cut);
+    void groupSelection(); // puts the selected objects in a new folder object (Ctrl+G)
     // A setting changed while playing, which can be copied back into the edited scene.
     struct LiveChange {
         UUID id;
@@ -390,6 +391,9 @@ private:
     std::string hierarchyFilter_;
     std::vector<UUID> hierarchyOrder_, lastHierarchyOrder_; // visible rows, for Shift-click ranges
     UUID hierarchyAnchor_;
+    UUID revealedFor_;                       // the selection the Hierarchy last opened its folders for
+    std::unordered_set<uint64_t> revealIds_; // folders to open so the selected object shows
+    bool scrollToSelected_ = false;
     UUID renaming_;
     std::string renameEntityBuffer_;
     bool renameFocus_ = false;

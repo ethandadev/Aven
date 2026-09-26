@@ -163,8 +163,22 @@
       }
     },
     {
+      "id": "00000000000000b8",
+      "name": "Forest",
+      "components": {
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
       "id": "0000000000000006",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -248,6 +262,7 @@
     {
       "id": "0000000000000009",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -331,6 +346,7 @@
     {
       "id": "000000000000000c",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -414,6 +430,7 @@
     {
       "id": "000000000000000f",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -497,6 +514,7 @@
     {
       "id": "0000000000000012",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -580,6 +598,7 @@
     {
       "id": "0000000000000015",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -663,6 +682,7 @@
     {
       "id": "0000000000000018",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -746,6 +766,7 @@
     {
       "id": "000000000000001b",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -829,6 +850,7 @@
     {
       "id": "000000000000001e",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -912,6 +934,7 @@
     {
       "id": "0000000000000021",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -995,6 +1018,7 @@
     {
       "id": "0000000000000024",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -1078,6 +1102,7 @@
     {
       "id": "0000000000000027",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -1161,6 +1186,7 @@
     {
       "id": "000000000000002a",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -1244,6 +1270,7 @@
     {
       "id": "000000000000002d",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -1327,6 +1354,7 @@
     {
       "id": "0000000000000030",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -1410,6 +1438,7 @@
     {
       "id": "0000000000000033",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -1493,6 +1522,7 @@
     {
       "id": "0000000000000036",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -1576,6 +1606,7 @@
     {
       "id": "0000000000000039",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -1659,6 +1690,7 @@
     {
       "id": "000000000000003c",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -1742,6 +1774,7 @@
     {
       "id": "000000000000003f",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -1825,6 +1858,7 @@
     {
       "id": "0000000000000042",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -1908,6 +1942,7 @@
     {
       "id": "0000000000000045",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -1991,6 +2026,7 @@
     {
       "id": "0000000000000048",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -2074,6 +2110,7 @@
     {
       "id": "000000000000004b",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -2157,6 +2194,7 @@
     {
       "id": "000000000000004e",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -2240,6 +2278,7 @@
     {
       "id": "0000000000000051",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -2323,6 +2362,7 @@
     {
       "id": "0000000000000054",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -2406,6 +2446,7 @@
     {
       "id": "0000000000000057",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -2489,6 +2530,7 @@
     {
       "id": "000000000000005a",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -2572,6 +2614,7 @@
     {
       "id": "000000000000005d",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -2655,6 +2698,7 @@
     {
       "id": "0000000000000060",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -2738,6 +2782,7 @@
     {
       "id": "0000000000000063",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -2821,6 +2866,7 @@
     {
       "id": "0000000000000066",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -2904,6 +2950,7 @@
     {
       "id": "0000000000000069",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -2987,6 +3034,7 @@
     {
       "id": "000000000000006c",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -3070,6 +3118,7 @@
     {
       "id": "000000000000006f",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -3153,6 +3202,7 @@
     {
       "id": "0000000000000072",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -3236,6 +3286,7 @@
     {
       "id": "0000000000000075",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -3319,6 +3370,7 @@
     {
       "id": "0000000000000078",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -3402,6 +3454,7 @@
     {
       "id": "000000000000007b",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -3485,6 +3538,7 @@
     {
       "id": "000000000000007e",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -3568,6 +3622,7 @@
     {
       "id": "0000000000000081",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -3651,6 +3706,7 @@
     {
       "id": "0000000000000084",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -3734,6 +3790,7 @@
     {
       "id": "0000000000000087",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -3817,6 +3874,7 @@
     {
       "id": "000000000000008a",
       "name": "Tree",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -3900,6 +3958,7 @@
     {
       "id": "000000000000008d",
       "name": "Rock",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -3931,6 +3990,7 @@
     {
       "id": "000000000000008e",
       "name": "Rock",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -3962,6 +4022,7 @@
     {
       "id": "000000000000008f",
       "name": "Rock",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -3993,6 +4054,7 @@
     {
       "id": "0000000000000090",
       "name": "Rock",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -4024,6 +4086,7 @@
     {
       "id": "0000000000000091",
       "name": "Rock",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -4055,6 +4118,7 @@
     {
       "id": "0000000000000092",
       "name": "Rock",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -4086,6 +4150,7 @@
     {
       "id": "0000000000000093",
       "name": "Rock",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -4117,6 +4182,7 @@
     {
       "id": "0000000000000094",
       "name": "Rock",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -4148,6 +4214,7 @@
     {
       "id": "0000000000000095",
       "name": "Rock",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -4179,6 +4246,7 @@
     {
       "id": "0000000000000096",
       "name": "Rock",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -4210,6 +4278,7 @@
     {
       "id": "0000000000000097",
       "name": "Rock",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -4241,6 +4310,7 @@
     {
       "id": "0000000000000098",
       "name": "Rock",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -4272,6 +4342,7 @@
     {
       "id": "0000000000000099",
       "name": "Rock",
+      "parent": "00000000000000b8",
       "components": {
         "Transform": {
           "position": [
@@ -4301,9 +4372,23 @@
       }
     },
     {
+      "id": "00000000000000b9",
+      "name": "Collectibles",
+      "components": {
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
       "id": "000000000000009a",
       "name": "Crystal",
       "tag": "crystal",
+      "parent": "00000000000000b9",
       "components": {
         "Transform": {
           "position": [
@@ -4388,6 +4473,7 @@
       "id": "000000000000009d",
       "name": "Crystal",
       "tag": "crystal",
+      "parent": "00000000000000b9",
       "components": {
         "Transform": {
           "position": [
@@ -4472,6 +4558,7 @@
       "id": "00000000000000a0",
       "name": "Crystal",
       "tag": "crystal",
+      "parent": "00000000000000b9",
       "components": {
         "Transform": {
           "position": [
@@ -4556,6 +4643,7 @@
       "id": "00000000000000a3",
       "name": "Crystal",
       "tag": "crystal",
+      "parent": "00000000000000b9",
       "components": {
         "Transform": {
           "position": [
@@ -4640,6 +4728,7 @@
       "id": "00000000000000a6",
       "name": "Crystal",
       "tag": "crystal",
+      "parent": "00000000000000b9",
       "components": {
         "Transform": {
           "position": [
@@ -4724,6 +4813,7 @@
       "id": "00000000000000a9",
       "name": "Crystal",
       "tag": "crystal",
+      "parent": "00000000000000b9",
       "components": {
         "Transform": {
           "position": [
@@ -5072,8 +5162,22 @@
       }
     },
     {
+      "id": "00000000000000ba",
+      "name": "UI",
+      "components": {
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
       "id": "00000000000000b4",
       "name": "Crosshair",
+      "parent": "00000000000000ba",
       "components": {
         "UIElement": {
           "anchor": "Center",
@@ -5103,6 +5207,7 @@
     {
       "id": "00000000000000b5",
       "name": "Crystals",
+      "parent": "00000000000000ba",
       "components": {
         "UIElement": {
           "anchor": "TopLeft",
@@ -5141,6 +5246,7 @@
     {
       "id": "00000000000000b6",
       "name": "Message",
+      "parent": "00000000000000ba",
       "components": {
         "UIElement": {
           "anchor": "Center",
@@ -5172,6 +5278,7 @@
     {
       "id": "00000000000000b7",
       "name": "Help",
+      "parent": "00000000000000ba",
       "components": {
         "UIElement": {
           "anchor": "Bottom",

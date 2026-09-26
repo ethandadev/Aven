@@ -24,7 +24,7 @@
     },
     {
       "title": "Build more level",
-      "text": "Select a Platform and press Ctrl+D to duplicate it, then drag the copy somewhere new. Duplicate coins and slimes the same way. Everything with the 'hazard' tag hurts the player.",
+      "text": "Select a Platform (they're in the Level folder in the Hierarchy) and press Ctrl+D to duplicate it, then drag the copy somewhere new. Duplicate coins and slimes the same way: the copy stays in the same folder. Everything with the 'hazard' tag hurts the player.",
       "select": "Platform"
     },
     {

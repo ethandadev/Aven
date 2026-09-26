@@ -270,6 +270,14 @@ def top_down(root):
     s.add("Message", {"UIElement": {"anchor": "Center", "offset": [0, 120], "size": [1000, 90]},
                       "UIText": {"text": "Collect all the gems!", "font_size": 48},
                       "Script": {"path": "scripts/message.es"}})
+    # A tidy Hierarchy: scenery, pickups and enemies in folders, the player at the top level.
+    s.organize([
+        ("Scenery", ["Grass", "Path", "Pond", "Hedge", "Tree", "Rock"]),
+        ("Flowers", ["Flower"]),
+        ("Gems", ["Gem"]),
+        ("Enemies", ["Slime"]),
+        ("UI", ["Hearts", "Gem Count", "Message"]),
+    ])
     t.scene("scenes/main.scene", s)
 
     t.script("scripts/player.es", '''
@@ -455,7 +463,7 @@ def on_update(dt):
                  "on_message(name, data), so they react to it.",
          "code": "def on_message(name, data):\n    if name == \"all_gems\":\n        self.show()"},
         {"title": "Challenge",
-         "text": "Add a heart pickup that gives back health: copy a gem, change its image to a heart shape, and write a "
+         "text": "Add a heart pickup that gives back health: copy a gem (in the Gems folder), change its image to a heart shape, and write a "
                  "script that does game.health += 1 when the player touches it."},
     ])
 

@@ -179,6 +179,14 @@ def platformer(root):
         "UIText": {"text": "You win!", "font_size": 96, "color": rgba("#fde047")},
         "Script": {"path": "scripts/win_text.es"},
     })
+    # A tidy Hierarchy: open a folder (the arrow) to see what's inside.
+    s.organize([
+        ("Background", ["Hill", "Cloud"]),
+        ("Level", ["Ground", "Platform"]),
+        ("Coins", ["Coin"]),
+        ("Dangers", ["Spikes", "Slime"]),
+        ("UI", ["Score", "Help", "WinText"]),
+    ])
     t.scene("scenes/main.scene", s)
 
     speed = {"type": "var", "inputs": {"var": "speed"}}
@@ -300,8 +308,9 @@ def on_message(name, data):
          "open": "scripts/coin.es",
          "code": "def on_trigger(other):\n    if other.tag == \"player\":\n        game.coins += 1\n        self.destroy()"},
         {"title": "Build more level",
-         "text": "Select a Platform and press Ctrl+D to duplicate it, then drag the copy somewhere new. Duplicate coins and "
-                 "slimes the same way. Everything with the 'hazard' tag hurts the player.",
+         "text": "Select a Platform (they're in the Level folder in the Hierarchy) and press Ctrl+D to duplicate it, then "
+                 "drag the copy somewhere new. Duplicate coins and slimes the same way: the copy stays in the same "
+                 "folder. Everything with the 'hazard' tag hurts the player.",
          "select": "Platform"},
         {"title": "Challenge",
          "text": "Make a second level: right-click main.scene in the Assets panel and choose Duplicate, rename the copy "

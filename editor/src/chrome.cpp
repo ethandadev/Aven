@@ -618,6 +618,8 @@ void Editor::handleShortcuts() {
         for (Entity c : copies)
             addToSelection(c);
     }
+    if (!sel.empty() && shortcut("group") && sceneFocus)
+        groupSelection();
     if (!sel.empty() && shortcut("delete") && sceneFocus) {
         recordUndo("Delete");
         for (Entity e : sel)

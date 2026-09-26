@@ -189,6 +189,25 @@ class Scene:
         self.entities.append(e)
         return eid
 
+    def organize(self, groups):
+        """Tidies the Hierarchy: moves top-level objects into group objects (plain folders at the origin).
+
+        groups: list of (group name, [object names]). Each group appears where its first object was.
+        Only ids of the new groups are added, so references between objects stay valid.
+        """
+        for group, names in groups:
+            members = [e for e in self.entities if "parent" not in e and e["name"] in names]
+            if not members:
+                continue
+            gid = self.reserve()
+            folder = {"id": gid, "name": group, "components": {"Transform": T()}}
+            self.entities.insert(self.entities.index(members[0]), folder)
+            for e in members:
+                # Keep the key order of the other files: id, name, (tag), (active), parent, components.
+                comps = e.pop("components")
+                e["parent"] = gid
+                e["components"] = comps
+
     def data(self):
         return {"aven": "scene", "version": 1, "name": self.name, "entities": self.entities}
 

@@ -36,8 +36,22 @@
       }
     },
     {
+      "id": "0000000000000041",
+      "name": "Background",
+      "components": {
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
       "id": "0000000000000003",
       "name": "Hill",
+      "parent": "0000000000000041",
       "components": {
         "Transform": {
           "position": [
@@ -65,6 +79,7 @@
     {
       "id": "0000000000000004",
       "name": "Hill",
+      "parent": "0000000000000041",
       "components": {
         "Transform": {
           "position": [
@@ -92,6 +107,7 @@
     {
       "id": "0000000000000005",
       "name": "Hill",
+      "parent": "0000000000000041",
       "components": {
         "Transform": {
           "position": [
@@ -119,6 +135,7 @@
     {
       "id": "0000000000000006",
       "name": "Hill",
+      "parent": "0000000000000041",
       "components": {
         "Transform": {
           "position": [
@@ -146,6 +163,7 @@
     {
       "id": "0000000000000007",
       "name": "Hill",
+      "parent": "0000000000000041",
       "components": {
         "Transform": {
           "position": [
@@ -173,6 +191,7 @@
     {
       "id": "0000000000000008",
       "name": "Hill",
+      "parent": "0000000000000041",
       "components": {
         "Transform": {
           "position": [
@@ -200,6 +219,7 @@
     {
       "id": "0000000000000009",
       "name": "Cloud",
+      "parent": "0000000000000041",
       "components": {
         "Transform": {
           "position": [
@@ -283,6 +303,7 @@
     {
       "id": "000000000000000c",
       "name": "Cloud",
+      "parent": "0000000000000041",
       "components": {
         "Transform": {
           "position": [
@@ -366,6 +387,7 @@
     {
       "id": "000000000000000f",
       "name": "Cloud",
+      "parent": "0000000000000041",
       "components": {
         "Transform": {
           "position": [
@@ -449,6 +471,7 @@
     {
       "id": "0000000000000012",
       "name": "Cloud",
+      "parent": "0000000000000041",
       "components": {
         "Transform": {
           "position": [
@@ -532,6 +555,7 @@
     {
       "id": "0000000000000015",
       "name": "Cloud",
+      "parent": "0000000000000041",
       "components": {
         "Transform": {
           "position": [
@@ -615,6 +639,7 @@
     {
       "id": "0000000000000018",
       "name": "Cloud",
+      "parent": "0000000000000041",
       "components": {
         "Transform": {
           "position": [
@@ -696,8 +721,22 @@
       }
     },
     {
+      "id": "0000000000000042",
+      "name": "Level",
+      "components": {
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
       "id": "000000000000001b",
       "name": "Ground",
+      "parent": "0000000000000042",
       "components": {
         "Transform": {
           "position": [
@@ -757,6 +796,7 @@
     {
       "id": "000000000000001d",
       "name": "Ground",
+      "parent": "0000000000000042",
       "components": {
         "Transform": {
           "position": [
@@ -816,6 +856,7 @@
     {
       "id": "000000000000001f",
       "name": "Ground",
+      "parent": "0000000000000042",
       "components": {
         "Transform": {
           "position": [
@@ -875,6 +916,7 @@
     {
       "id": "0000000000000021",
       "name": "Platform",
+      "parent": "0000000000000042",
       "components": {
         "Transform": {
           "position": [
@@ -935,6 +977,7 @@
     {
       "id": "0000000000000023",
       "name": "Platform",
+      "parent": "0000000000000042",
       "components": {
         "Transform": {
           "position": [
@@ -995,6 +1038,7 @@
     {
       "id": "0000000000000025",
       "name": "Platform",
+      "parent": "0000000000000042",
       "components": {
         "Transform": {
           "position": [
@@ -1055,6 +1099,7 @@
     {
       "id": "0000000000000027",
       "name": "Platform",
+      "parent": "0000000000000042",
       "components": {
         "Transform": {
           "position": [
@@ -1115,6 +1160,7 @@
     {
       "id": "0000000000000029",
       "name": "Platform",
+      "parent": "0000000000000042",
       "components": {
         "Transform": {
           "position": [
@@ -1175,6 +1221,7 @@
     {
       "id": "000000000000002b",
       "name": "Platform",
+      "parent": "0000000000000042",
       "components": {
         "Transform": {
           "position": [
@@ -1233,9 +1280,23 @@
       }
     },
     {
+      "id": "0000000000000043",
+      "name": "Coins",
+      "components": {
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
       "id": "000000000000002d",
       "name": "Coin",
       "tag": "coin",
+      "parent": "0000000000000043",
       "components": {
         "Transform": {
           "position": [
@@ -1265,6 +1326,7 @@
       "id": "000000000000002e",
       "name": "Coin",
       "tag": "coin",
+      "parent": "0000000000000043",
       "components": {
         "Transform": {
           "position": [
@@ -1294,6 +1356,7 @@
       "id": "000000000000002f",
       "name": "Coin",
       "tag": "coin",
+      "parent": "0000000000000043",
       "components": {
         "Transform": {
           "position": [
@@ -1323,6 +1386,7 @@
       "id": "0000000000000030",
       "name": "Coin",
       "tag": "coin",
+      "parent": "0000000000000043",
       "components": {
         "Transform": {
           "position": [
@@ -1352,6 +1416,7 @@
       "id": "0000000000000031",
       "name": "Coin",
       "tag": "coin",
+      "parent": "0000000000000043",
       "components": {
         "Transform": {
           "position": [
@@ -1381,6 +1446,7 @@
       "id": "0000000000000032",
       "name": "Coin",
       "tag": "coin",
+      "parent": "0000000000000043",
       "components": {
         "Transform": {
           "position": [
@@ -1410,6 +1476,7 @@
       "id": "0000000000000033",
       "name": "Coin",
       "tag": "coin",
+      "parent": "0000000000000043",
       "components": {
         "Transform": {
           "position": [
@@ -1439,6 +1506,7 @@
       "id": "0000000000000034",
       "name": "Coin",
       "tag": "coin",
+      "parent": "0000000000000043",
       "components": {
         "Transform": {
           "position": [
@@ -1468,6 +1536,7 @@
       "id": "0000000000000035",
       "name": "Coin",
       "tag": "coin",
+      "parent": "0000000000000043",
       "components": {
         "Transform": {
           "position": [
@@ -1497,6 +1566,7 @@
       "id": "0000000000000036",
       "name": "Coin",
       "tag": "coin",
+      "parent": "0000000000000043",
       "components": {
         "Transform": {
           "position": [
@@ -1526,6 +1596,7 @@
       "id": "0000000000000037",
       "name": "Coin",
       "tag": "coin",
+      "parent": "0000000000000043",
       "components": {
         "Transform": {
           "position": [
@@ -1552,9 +1623,23 @@
       }
     },
     {
+      "id": "0000000000000044",
+      "name": "Dangers",
+      "components": {
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
       "id": "0000000000000038",
       "name": "Spikes",
       "tag": "hazard",
+      "parent": "0000000000000044",
       "components": {
         "Transform": {
           "position": [
@@ -1588,6 +1673,7 @@
       "id": "0000000000000039",
       "name": "Spikes",
       "tag": "hazard",
+      "parent": "0000000000000044",
       "components": {
         "Transform": {
           "position": [
@@ -1621,6 +1707,7 @@
       "id": "000000000000003a",
       "name": "Spikes",
       "tag": "hazard",
+      "parent": "0000000000000044",
       "components": {
         "Transform": {
           "position": [
@@ -1654,6 +1741,7 @@
       "id": "000000000000003b",
       "name": "Slime",
       "tag": "enemy",
+      "parent": "0000000000000044",
       "components": {
         "Transform": {
           "position": [
@@ -1693,6 +1781,7 @@
       "id": "000000000000003c",
       "name": "Slime",
       "tag": "enemy",
+      "parent": "0000000000000044",
       "components": {
         "Transform": {
           "position": [
@@ -1856,8 +1945,22 @@
       }
     },
     {
+      "id": "0000000000000045",
+      "name": "UI",
+      "components": {
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
       "id": "000000000000003e",
       "name": "Score",
+      "parent": "0000000000000045",
       "components": {
         "UIElement": {
           "anchor": "TopLeft",
@@ -1890,6 +1993,7 @@
     {
       "id": "000000000000003f",
       "name": "Help",
+      "parent": "0000000000000045",
       "components": {
         "UIElement": {
           "anchor": "Bottom",
@@ -1927,6 +2031,7 @@
     {
       "id": "0000000000000040",
       "name": "WinText",
+      "parent": "0000000000000045",
       "components": {
         "UIElement": {
           "anchor": "Center",

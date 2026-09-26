@@ -889,7 +889,10 @@ Entity Editor::createEntity(const std::string& kind, Entity parent) {
         s.transform(e).position.y = 1.5f;
     } else if (kind == "Environment")
         reg.emplace<Environment>(e);
-    else if (kind == "Tilemap") {
+    else if (kind == "Folder") {
+        // Folders only hold other objects, so they sit at their parent's origin.
+        s.transform(e).position = {0, 0, 0};
+    } else if (kind == "Tilemap") {
         // At the origin, so tiles line up with the grid.
         reg.emplace<Tilemap>(e);
         if (!parent)
@@ -915,6 +918,41 @@ Entity Editor::instantiatePrefab(const std::string& path, Vec3 position) {
     scene_->setWorldPosition(roots[0], position);
     select(roots[0]);
     return roots[0];
+}
+
+void Editor::groupSelection() {
+    Scene& s = *scene_;
+    // Objects whose parent is also selected move along with it.
+    std::vector<Entity> sel;
+    for (Entity e : selectedEntities()) {
+        bool underSelected = false;
+        for (Entity p = s.parent(e); p; p = s.parent(p))
+            underSelected = underSelected || isSelected(p);
+        if (!underSelected)
+            sel.push_back(e);
+    }
+    if (sel.empty())
+        return;
+    // The folder goes where the first of them was, under their shared parent (or at the top).
+    Entity parent = s.parent(sel.front());
+    for (Entity e : sel)
+        if (s.parent(e) != parent)
+            parent = {};
+    std::sort(sel.begin(), sel.end(), [&](Entity a, Entity b) {
+        return s.parent(a) == s.parent(b) ? s.siblingIndex(a) < s.siblingIndex(b) : false;
+    });
+    int index = s.parent(sel.front()) == parent ? s.siblingIndex(sel.front()) : -1;
+    recordUndo("Group into a folder");
+    Entity folder = s.create("Folder", parent);
+    s.setParent(folder, parent, false, index);
+    for (Entity e : sel)
+        s.setParent(e, folder);
+    select(folder);
+    // Name it straight away.
+    renaming_ = s.info(folder).uuid;
+    renameEntityBuffer_ = "Folder";
+    renameFocus_ = true;
+    notify("Grouped " + plural(sel.size(), "object") + " into a folder. Type a name for it.");
 }
 
 void Editor::copySelection(bool cut) {

@@ -164,6 +164,13 @@ def obby_3d(root):
     s.add("Help", {"UIElement": {"anchor": "Bottom", "offset": [0, 16], "size": [1000, 40]},
                    "UIText": {"text": "WASD or arrow keys to move, Space to jump. Don't touch the lava!", "font_size": 26},
                    "Script": {"path": "scripts/fade_out.es"}})
+    # A tidy Hierarchy: the course, its dangers and checkpoints in folders.
+    s.organize([
+        ("Course", ["Spawn", "Jump", "Platform", "Lava Run", "Moving Platform", "Spinner Base", "Finish Platform"]),
+        ("Hazards", ["Lava", "Spinning Lava"]),
+        ("Checkpoints", ["Checkpoint 1", "Checkpoint 2"]),
+        ("UI", ["HUD", "Win", "Help"]),
+    ])
     t.scene("scenes/main.scene", s)
 
     t.script("scripts/player.es", '''
@@ -287,8 +294,9 @@ def on_start():
                  "scripts move them, and physics makes things standing on them ride along.",
          "open": "scripts/mover.es"},
         {"title": "Add a stage",
-         "text": "Select a Jump platform, press Ctrl+D and drag the copy with the gizmo. Duplicate a Lava brick to make "
-                 "new danger. Move the Finish Platform, Trophy and Finish further away to make room."},
+         "text": "Open the Course folder in the Hierarchy, select a Jump platform, press Ctrl+D and drag the copy with the "
+                 "gizmo. Duplicate a Lava brick (in Hazards) to make new danger. Move the Finish Platform, Trophy and "
+                 "Finish further away to make room."},
         {"title": "Challenge",
          "text": "Make a disappearing platform: a script that waits 1 second after the player touches it, then hides it "
                  "and removes its BoxCollider with self.remove_component(\"BoxCollider\")."},
@@ -389,6 +397,12 @@ def explorer_3d(root):
                    "UIText": {"text": "WASD to walk, mouse to look, Space to jump, F for the flashlight, Esc to free the mouse",
                               "font_size": 24, "color": rgba("#e2e8f0")},
                    "Script": {"path": "scripts/fade_out.es"}})
+    # A tidy Hierarchy: scenery and pickups in folders, the things you'll select most at the top.
+    s.organize([
+        ("Forest", ["Tree", "Rock"]),
+        ("Collectibles", ["Crystal"]),
+        ("UI", ["Crosshair", "Crystals", "Message", "Help"]),
+    ])
     t.scene("scenes/main.scene", s)
 
     t.script("scripts/player.es", '''

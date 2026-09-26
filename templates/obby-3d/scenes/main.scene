@@ -112,8 +112,22 @@
       }
     },
     {
+      "id": "000000000000001d",
+      "name": "Course",
+      "components": {
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
       "id": "0000000000000005",
       "name": "Spawn",
+      "parent": "000000000000001d",
       "components": {
         "Transform": {
           "position": [
@@ -151,6 +165,7 @@
     {
       "id": "0000000000000006",
       "name": "Jump",
+      "parent": "000000000000001d",
       "components": {
         "Transform": {
           "position": [
@@ -188,6 +203,7 @@
     {
       "id": "0000000000000007",
       "name": "Jump",
+      "parent": "000000000000001d",
       "components": {
         "Transform": {
           "position": [
@@ -225,6 +241,7 @@
     {
       "id": "0000000000000008",
       "name": "Jump",
+      "parent": "000000000000001d",
       "components": {
         "Transform": {
           "position": [
@@ -262,6 +279,7 @@
     {
       "id": "0000000000000009",
       "name": "Platform",
+      "parent": "000000000000001d",
       "components": {
         "Transform": {
           "position": [
@@ -299,6 +317,7 @@
     {
       "id": "000000000000000a",
       "name": "Lava Run",
+      "parent": "000000000000001d",
       "components": {
         "Transform": {
           "position": [
@@ -334,9 +353,23 @@
       }
     },
     {
+      "id": "000000000000001e",
+      "name": "Hazards",
+      "components": {
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
       "id": "000000000000000b",
       "name": "Lava",
       "tag": "lava",
+      "parent": "000000000000001e",
       "components": {
         "Transform": {
           "position": [
@@ -382,6 +415,7 @@
       "id": "000000000000000c",
       "name": "Lava",
       "tag": "lava",
+      "parent": "000000000000001e",
       "components": {
         "Transform": {
           "position": [
@@ -427,6 +461,7 @@
       "id": "000000000000000d",
       "name": "Lava",
       "tag": "lava",
+      "parent": "000000000000001e",
       "components": {
         "Transform": {
           "position": [
@@ -471,6 +506,7 @@
     {
       "id": "000000000000000e",
       "name": "Platform",
+      "parent": "000000000000001d",
       "components": {
         "Transform": {
           "position": [
@@ -508,6 +544,7 @@
     {
       "id": "000000000000000f",
       "name": "Moving Platform",
+      "parent": "000000000000001d",
       "components": {
         "Transform": {
           "position": [
@@ -551,6 +588,7 @@
     {
       "id": "0000000000000010",
       "name": "Moving Platform",
+      "parent": "000000000000001d",
       "components": {
         "Transform": {
           "position": [
@@ -594,6 +632,7 @@
     {
       "id": "0000000000000011",
       "name": "Spinner Base",
+      "parent": "000000000000001d",
       "components": {
         "Transform": {
           "position": [
@@ -629,6 +668,7 @@
       "id": "0000000000000012",
       "name": "Spinning Lava",
       "tag": "lava",
+      "parent": "000000000000001e",
       "components": {
         "Transform": {
           "position": [
@@ -679,6 +719,7 @@
     {
       "id": "0000000000000013",
       "name": "Finish Platform",
+      "parent": "000000000000001d",
       "components": {
         "Transform": {
           "position": [
@@ -809,9 +850,23 @@
       }
     },
     {
+      "id": "000000000000001f",
+      "name": "Checkpoints",
+      "components": {
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
       "id": "0000000000000016",
       "name": "Checkpoint 1",
       "tag": "checkpoint",
+      "parent": "000000000000001f",
       "components": {
         "Transform": {
           "position": [
@@ -858,6 +913,7 @@
       "id": "0000000000000017",
       "name": "Checkpoint 2",
       "tag": "checkpoint",
+      "parent": "000000000000001f",
       "components": {
         "Transform": {
           "position": [
@@ -996,8 +1052,22 @@
       }
     },
     {
+      "id": "0000000000000020",
+      "name": "UI",
+      "components": {
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
       "id": "000000000000001a",
       "name": "HUD",
+      "parent": "0000000000000020",
       "components": {
         "UIElement": {
           "anchor": "TopLeft",
@@ -1030,6 +1100,7 @@
     {
       "id": "000000000000001b",
       "name": "Win",
+      "parent": "0000000000000020",
       "components": {
         "UIElement": {
           "anchor": "Center",
@@ -1067,6 +1138,7 @@
     {
       "id": "000000000000001c",
       "name": "Help",
+      "parent": "0000000000000020",
       "components": {
         "UIElement": {
           "anchor": "Bottom",
