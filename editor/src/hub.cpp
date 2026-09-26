@@ -8,6 +8,7 @@
 #include <imgui_stdlib.h>
 
 #include <algorithm>
+#include <cfloat>
 
 namespace aven::editor {
 
@@ -51,6 +52,32 @@ void badge(ImDrawList* dl, ImVec2& cursor, const char* text, ImU32 bg, ImU32 fg)
     dl->AddRectFilled(cursor, {cursor.x + ts.x + pad.x * 2, cursor.y + ts.y + pad.y * 2}, bg, 4);
     dl->AddText({cursor.x + pad.x, cursor.y + pad.y}, fg, text);
     cursor.x += ts.x + pad.x * 2 + 5;
+}
+
+// Word-wrapped text of at most `maxLines` lines; the last one ends in "..." if the text doesn't fit.
+void clampedText(ImDrawList* dl, ImVec2 pos, float size, float width, int maxLines, ImU32 color, const std::string& text) {
+    ImFont* font = ImGui::GetFont();
+    auto measure = [&](const std::string& t) { return font->CalcTextSizeA(size, FLT_MAX, 0, t.c_str()).x; };
+    std::vector<std::string> words;
+    for (size_t i = 0; i < text.size();) {
+        size_t sp = text.find(' ', i);
+        words.push_back(text.substr(i, sp == std::string::npos ? std::string::npos : sp - i));
+        i = sp == std::string::npos ? text.size() : sp + 1;
+    }
+    size_t w = 0;
+    for (int line = 0; line < maxLines && w < words.size(); ++line) {
+        std::string cur = words[w++];
+        while (w < words.size() && measure(cur + " " + words[w]) <= width)
+            cur += " " + words[w++];
+        if (line == maxLines - 1 && w < words.size()) {
+            while (!cur.empty() && measure(cur + "...") > width)
+                cur.pop_back();
+            while (!cur.empty() && (cur.back() == ' ' || cur.back() == ',' || cur.back() == '.'))
+                cur.pop_back();
+            cur += "...";
+        }
+        dl->AddText(font, size, {pos.x, pos.y + line * size * 1.15f}, color, cur.c_str());
+    }
 }
 
 } // namespace
@@ -298,8 +325,6 @@ void Editor::drawHub() {
             dl->AddRectFilled(p, q, ImGui::GetColorU32(hovered ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg), 8);
             dl->AddRectFilledMultiColor(p, {q.x, p.y + headerH}, IM_COL32(56, 189, 248, 255), IM_COL32(168, 85, 247, 255),
                                         IM_COL32(244, 114, 182, 255), IM_COL32(251, 191, 36, 255));
-            const char* icons[] = {"platformer", "shooter", "clicker"};
-            (void)icons;
             if (fonts.big)
                 dl->AddText(fonts.big, fonts.big->FontSize * 1.1f, {p.x + em * 0.8f, p.y + headerH * 0.5f - fonts.big->FontSize * 0.6f},
                             IM_COL32(255, 255, 255, 235), "Recipe");
@@ -307,9 +332,8 @@ void Editor::drawHub() {
             if (fonts.bold)
                 dl->AddText(fonts.bold, fonts.bold->FontSize, {x, y}, ImGui::GetColorU32(ImGuiCol_Text), "Cook from a recipe");
             y += em * 1.4f;
-            dl->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 0.92f, {x, y}, ImGui::GetColorU32(ImGuiCol_TextDisabled),
-                        "Say what you want (platformer, shooter, clicker...), pick the parts, and get a game with every part explained.",
-                        nullptr, cardW - em * 1.6f);
+            clampedText(dl, {x, y}, ImGui::GetFontSize() * 0.92f, cardW - em * 1.6f, 3, ImGui::GetColorU32(ImGuiCol_TextDisabled),
+                        "Say what you want (platformer, shooter, clicker...), pick the parts, and get a game with every part explained.");
             ImVec2 tagPos{x, q.y - em * 1.6f};
             badge(dl, tagPos, "Guided", ImGui::GetColorU32(ImGuiCol_SliderGrab, 0.25f), ImGui::GetColorU32(ImGuiCol_Text));
             if (recipeChosen)
@@ -355,12 +379,18 @@ void Editor::drawHub() {
                 dl->AddRectFilled(p, {q.x, p.y + headerH}, toU32(t.color), 8, ImDrawFlags_RoundCornersTop);
                 dl->AddRectFilledMultiColor({p.x, p.y + headerH * 0.4f}, {q.x, p.y + headerH}, IM_COL32(0, 0, 0, 0),
                                             IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 60), IM_COL32(0, 0, 0, 60));
-                if (fonts.big) {
-                    std::string initial = t.name.substr(0, 1);
-                    dl->AddText(fonts.big, fonts.big->FontSize * 1.3f,
-                                {p.x + em * 0.8f, p.y + headerH * 0.5f - fonts.big->FontSize * 0.65f}, IM_COL32(255, 255, 255, 200),
-                                initial.c_str());
-                }
+                // No picture (the blank templates): an empty grid with a "+", for "start from nothing".
+                float cell = em * 1.6f;
+                for (float gx = p.x + cell; gx < q.x; gx += cell)
+                    dl->AddLine({gx, p.y}, {gx, p.y + headerH}, IM_COL32(255, 255, 255, 28));
+                for (float gy = p.y + cell; gy < p.y + headerH; gy += cell)
+                    dl->AddLine({p.x, gy}, {q.x, gy}, IM_COL32(255, 255, 255, 28));
+                ImVec2 c{(p.x + q.x) * 0.5f, p.y + headerH * 0.5f};
+                float r = headerH * 0.26f;
+                dl->AddCircleFilled(c, r, IM_COL32(255, 255, 255, 40), 40);
+                dl->AddCircle(c, r, IM_COL32(255, 255, 255, 170), 40, 2.0f);
+                dl->AddLine({c.x - r * 0.45f, c.y}, {c.x + r * 0.45f, c.y}, IM_COL32(255, 255, 255, 230), 3.0f);
+                dl->AddLine({c.x, c.y - r * 0.45f}, {c.x, c.y + r * 0.45f}, IM_COL32(255, 255, 255, 230), 3.0f);
             }
             dl->AddRectFilled({p.x, p.y + headerH - 3}, {q.x, p.y + headerH}, toU32(t.color));
             ImVec2 badgePos{q.x - em * 4.2f, p.y + em * 0.6f};
@@ -370,12 +400,9 @@ void Editor::drawHub() {
             if (fonts.bold)
                 dl->AddText(fonts.bold, fonts.bold->FontSize, {x, y}, ImGui::GetColorU32(ImGuiCol_Text), t.name.c_str());
             y += em * 1.4f;
-            // Two lines of description; the tooltip shows all of it.
-            float lineH = ImGui::GetFontSize() * 0.92f;
-            dl->PushClipRect({x, y}, {q.x - em * 0.6f, y + lineH * 2.05f}, true);
-            dl->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 0.92f, {x, y}, ImGui::GetColorU32(ImGuiCol_TextDisabled), t.description.c_str(),
-                        nullptr, cardW - em * 1.6f);
-            dl->PopClipRect();
+            // Up to three lines of description; the tooltip shows all of it.
+            clampedText(dl, {x, y}, ImGui::GetFontSize() * 0.92f, cardW - em * 1.6f, 3, ImGui::GetColorU32(ImGuiCol_TextDisabled),
+                        t.description);
             ImVec2 tagPos{x, q.y - em * 1.6f};
             badge(dl, tagPos, t.style.c_str(), ImGui::GetColorU32(ImGuiCol_SliderGrab, 0.25f), ImGui::GetColorU32(ImGuiCol_Text));
             badge(dl, tagPos, t.difficulty.c_str(), ImGui::GetColorU32(ImGuiCol_Border), ImGui::GetColorU32(ImGuiCol_Text));

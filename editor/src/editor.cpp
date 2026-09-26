@@ -1235,7 +1235,7 @@ void Editor::openBlocks(const std::string& path) {
         });
         scanAssets();
         openScript(newPath);
-        notify("Made " + newPath + (switched ? " and switched " + std::to_string(switched) + " object(s) to it." : "."));
+        notify("Made " + newPath + (switched ? " and switched " + plural(static_cast<size_t>(switched), "object") + " to it." : "."));
     };
     tab->focus = true;
     tabs_.push_back(std::move(tab));
@@ -1331,7 +1331,7 @@ void Editor::onFilesDropped(const std::vector<std::string>& files) {
             ++copied;
     }
     scanAssets();
-    notify(copied ? "Added " + std::to_string(copied) + " file(s) to the project." : "Couldn't copy those files.", copied == 0);
+    notify(copied ? "Added " + plural(static_cast<size_t>(copied), "file") + " to the project." : "Couldn't copy those files.", copied == 0);
 }
 
 // docs/easyscript-api.md is made from the same list the Reference panel shows (tools/docs/make_api_reference.sh).

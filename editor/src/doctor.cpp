@@ -600,7 +600,7 @@ std::vector<Editor::Diagnosis> Editor::checkup() {
                             return true;
                         });
                         if (!same.empty())
-                            d.fixes.push_back({"Tag the " + std::to_string(same.size()) + " object(s) named '" + t + "'", [same, t](Editor& ed) {
+                            d.fixes.push_back({"Tag the " + plural(same.size(), "object") + " named '" + t + "'", [same, t](Editor& ed) {
                                                    ed.recordUndo("Doctor fix");
                                                    for (UUID u : same)
                                                        if (Entity x = ed.editScene().findByUUID(u))

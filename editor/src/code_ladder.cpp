@@ -179,7 +179,7 @@ std::string Editor::blocksToScript(const std::string& blocksPath) {
     scanAssets();
     openScript(path);
     milestone("code_saved");
-    notify("Made " + path + (switched ? " and switched " + std::to_string(switched) + " object(s) to it." : ".") +
+    notify("Made " + path + (switched ? " and switched " + plural(static_cast<size_t>(switched), "object") + " to it." : ".") +
            " The blocks file is still there if you want to go back.");
     return path;
 }

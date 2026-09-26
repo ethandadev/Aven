@@ -108,12 +108,17 @@ void Editor::drawSoundMaker() {
         }
         char info[64];
         std::snprintf(info, sizeof info, "%.2f s", static_cast<double>(n) / kSfxSampleRate);
+        ImVec2 ts = ImGui::CalcTextSize(info);
+        dl->AddRectFilled({p.x + 4, p.y + 4}, {p.x + 12 + ts.x, p.y + 8 + ts.y}, ImGui::GetColorU32(ImGuiCol_FrameBg, 0.85f), 4);
         dl->AddText({p.x + 8, p.y + 6}, ImGui::GetColorU32(ImGuiCol_TextDisabled), info);
     }
     ImGui::Dummy({w, h});
 
     // Settings.
-    ImGui::BeginChild("##sfxsettings", {0, -ImGui::GetFrameHeightWithSpacing() * 3.4f});
+    // Leave room below for the save row, plus the "use it on..." row once there's a sound to use.
+    bool useRow = !sfxLastSaved_.empty() && selected() && !playing_;
+    float footer = ImGui::GetFrameHeightWithSpacing() * (useRow ? 2.0f : 1.0f) + ImGui::GetStyle().ItemSpacing.y * 2 + 2;
+    ImGui::BeginChild("##sfxsettings", {0, -footer});
     const char* waves[] = {"Square", "Sawtooth", "Sine", "Noise", "Triangle"};
     for (int i = 0; i < 5; ++i) {
         if (i)

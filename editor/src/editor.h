@@ -683,6 +683,8 @@ stdfs::path editorDataDir();
 stdfs::path sourceDir(); // Aven's source code, when the editor was built from it (else empty)
 stdfs::path sdkDir();    // aven.h and the native module template
 void openExternal(const std::string& target); // a file, folder or link in the system's app
+// "1 object", "3 objects"
+inline std::string plural(size_t n, const std::string& word) { return std::to_string(n) + " " + word + (n == 1 ? "" : "s"); }
 const Json& editorData(const std::string& name);
 
 // Small shared UI helpers.

@@ -228,8 +228,10 @@ void Editor::drawEntityNode(Entity e) {
         open = ImGui::TreeNodeEx("##node", flags, "     %s", renaming ? "" : info.name.c_str());
         ImVec2 rowMin = ImGui::GetItemRectMin(), rowMax = ImGui::GetItemRectMax();
         float h = ImGui::GetFrameHeight();
-        ImGui::GetWindowDrawList()->AddCircleFilled({p.x + ImGui::GetTreeNodeToLabelSpacing() + 6, p.y + h * 0.5f}, 4.5f,
-                                                    entityColor(reg, e));
+        ImVec2 dot{p.x + ImGui::GetTreeNodeToLabelSpacing() + 6, p.y + h * 0.5f};
+        ImGui::GetWindowDrawList()->AddCircleFilled(dot, 4.5f, entityColor(reg, e));
+        // A thin ring keeps white or pale objects visible on light themes.
+        ImGui::GetWindowDrawList()->AddCircle(dot, 4.5f, ImGui::GetColorU32(ImGuiCol_TextDisabled, 0.45f), 0, 1.0f);
         if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
             ImGuiIO& io = ImGui::GetIO();
             if (io.KeyCtrl) {
@@ -1057,8 +1059,11 @@ void Editor::drawAssets() {
     ImGui::SetNextItemWidth(170);
     ImGui::InputTextWithHint("##assetsearch", "Search files", &assetSearch_);
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(90);
-    ImGui::SliderFloat("##cell", &assetCell_, 64, 160, "Size");
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("Size");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(70);
+    ImGui::SliderFloat("##cell", &assetCell_, 64, 160, "");
     ImGui::SameLine();
     if (ImGui::SmallButton("+ Create"))
         ImGui::OpenPopup("create_asset");

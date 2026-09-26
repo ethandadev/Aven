@@ -209,7 +209,7 @@ std::vector<Editor::ExplainSection> Editor::explainEntity(Entity e) {
     if (Entity p = s.parent(e))
         what.lines.push_back("It's inside " + s.info(p).name + ", so it moves along with it.");
     if (!s.children(e).empty())
-        what.lines.push_back("It has " + std::to_string(s.children(e).size()) + " object(s) inside it.");
+        what.lines.push_back("It has " + plural(s.children(e).size(), "object") + " inside it.");
     if (!info.active)
         what.lines.push_back("It's turned off right now (the eye in the Hierarchy).");
     out.push_back(std::move(what));
@@ -324,8 +324,12 @@ std::vector<Editor::ExplainSection> Editor::explainEntity(Entity e) {
         for (auto& n : f.findsNames)
             if (n != info.name)
                 links.lines.push_back("It looks for the object called " + n + ".");
-        for (auto& k : f.keys)
-            links.lines.push_back("It listens to the key: " + k + ".");
+        if (!f.keys.empty()) {
+            std::string keys;
+            for (auto& k : f.keys)
+                keys += (keys.empty() ? "" : ", ") + k;
+            links.lines.push_back(std::string(f.keys.size() == 1 ? "It listens to the key: " : "It listens to the keys: ") + keys + ".");
+        }
     }
     // Who else refers to this object?
     std::vector<std::string> watchers;
@@ -380,7 +384,7 @@ std::vector<Editor::ExplainSection> Editor::explainGame() {
         return true;
     });
     ExplainSection overview{"Overview", {}};
-    overview.lines.push_back("\"" + settings_.name + "\" has " + std::to_string(projectFiles({".scene"}).size()) + " scene(s). This one (" +
+    overview.lines.push_back("\"" + settings_.name + "\" has " + plural(projectFiles({".scene"}).size(), "scene") + ". This one (" +
                              (scenePath_.empty() ? "unsaved" : scenePath_) + ") has " + std::to_string(objects) + " objects.");
     bool threeD = reg.count<MeshRenderer>() > 0;
     overview.lines.push_back(threeD ? "It's a 3D game." : "It's a 2D game.");
