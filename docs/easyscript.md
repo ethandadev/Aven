@@ -185,6 +185,30 @@ def on_update(dt):
         spawn("prefabs/spark.prefab", mouse_x(), mouse_y())
 ```
 
+## The code editor
+
+Aven's editor is built for EasyScript (and for C in native modules), so you don't need another
+program:
+
+- **Suggestions as you type.** After `self.` you get the object's properties and actions, after
+  `game.` the game values your scripts use, and inside quotes the right kind of name: sound files
+  in `play_sound("`, key names in `key_pressed("`, tags after `other.tag == "`, scenes, prefabs,
+  components and more. Your own variables and functions come first. Typing the first letters of
+  each word works too: `kp` finds `key_pressed`. Press **Ctrl+Space** to see suggestions at any
+  time, and **Tab** or **Enter** to pick one.
+- **Hints and help.** While you type inside `( )`, the values the function needs are shown, with
+  the one you're typing highlighted. Rest the mouse on any name to see what it does.
+- **Problems as you type.** A wavy underline marks likely mistakes, like a misspelled name
+  ("I don't know 'spd'. Did you mean 'speed'?"), a sound file that isn't in the project, or
+  `def update(dt):` where Aven expects `on_update`. Red means the script can't run; yellow means
+  it probably won't do what you want. The count at the bottom lists them all.
+- **Moving around.** **F12** or **Ctrl+click** jumps to where a variable or function is made,
+  **Go to...** lists the file's functions, **Ctrl+F** finds, **Ctrl+H** replaces and **Ctrl+G** goes
+  to a line.
+- **Editing.** **Alt+Up/Down** moves lines, **Shift+Alt+Up/Down** copies them, **Ctrl+Shift+K**
+  deletes them, **Ctrl+/** comments them out and **Tab** / **Shift+Tab** indents. `else:` lines
+  up with its `if` by itself. **Ctrl+wheel** (or **Ctrl+=** and **Ctrl+-**) changes the text size.
+
 ## Mistakes
 
 When a script has an error, Aven pauses the game and the **Error Doctor** explains it: what went
@@ -193,7 +217,8 @@ wrong, on which line, and usually a one-click fix. Common ones:
 - **Indentation:** the lines inside `if`, `for`, `while` and `def` must be indented the same
   amount. The editor does it for you when you press Enter after `:`.
 - **Names:** `Speed` and `speed` are different names.
-- **Text vs numbers:** `"Score: " + 5` doesn't work; use `f"Score: {5}"` or `str(5)`.
+- **Text vs numbers:** `"Score: " + 5` gives `"Score: 5"`, but `"5" + 1` gives `"51"`, not 6,
+  because text that looks like a number is still text. Use `int("5") + 1`.
 
 ## Where next
 

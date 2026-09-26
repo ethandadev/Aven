@@ -1447,10 +1447,31 @@ void Editor::drawScriptTabs() {
                         ImGui::SetTooltip("See this script in C (Aven native code), C# (Unity), GDScript (Godot), Luau (Roblox) and C++ (Unreal)");
                 }
                 }
+                // Jump to a function or variable.
+                auto items = tab.code->outline();
+                if (!items.empty()) {
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 11);
+                    if (ImGui::BeginCombo("##outline", "Go to...", ImGuiComboFlags_HeightLarge)) {
+                        for (size_t i = 0; i < items.size(); ++i) {
+                            ImGui::PushID(static_cast<int>(i));
+                            std::string label = (items[i].function ? "def " : "") + items[i].name;
+                            if (ImGui::Selectable(label.c_str()))
+                                tab.code->gotoPosition(items[i].line, 0);
+                            ImGui::SameLine(ImGui::GetFontSize() * 12);
+                            ImGui::TextDisabled("line %d", items[i].line + 1);
+                            ImGui::PopID();
+                        }
+                        ImGui::EndCombo();
+                    }
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("Jump to a function or variable in this file");
+                }
                 ImVec2 avail = ImGui::GetContentRegionAvail();
                 if (tab.code->draw("##code", avail)) {
                     tab.modified = true;
-                    checkScript(tab);
+                    if (!tab.code->intel)
+                        checkScript(tab); // with code intelligence, problems are checked as you type
                 }
             } else if (tab.blocks) {
                 if (ImGui::Button("Save (Ctrl+S)")) {
@@ -1672,7 +1693,7 @@ void Editor::drawReference() {
         for (auto& e : api_) {
             if (e.group != g)
                 continue;
-            std::string hay = e.name + " " + e.signature;
+            std::string hay = e.name + " " + e.signature + " " + e.help;
             std::transform(hay.begin(), hay.end(), hay.begin(), ::tolower);
             if (!filter.empty() && hay.find(filter) == std::string::npos)
                 continue;
@@ -1686,6 +1707,15 @@ void Editor::drawReference() {
                 header = true;
             }
             ImGui::BulletText("%s", e.signature.c_str());
+            if (!e.help.empty()) {
+                ImGui::PopFont();
+                ImGui::Indent(ImGui::GetTreeNodeToLabelSpacing());
+                ImGui::PushTextWrapPos(0);
+                ImGui::TextDisabled("%s", e.help.c_str());
+                ImGui::PopTextWrapPos();
+                ImGui::Unindent(ImGui::GetTreeNodeToLabelSpacing());
+                ImGui::PushFont(fonts.code);
+            }
         }
     }
     ImGui::PopFont();

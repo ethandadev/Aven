@@ -1,5 +1,7 @@
 #pragma once
 
+#include "aven/script/intel.h"
+
 #include <imgui.h>
 
 #include <string>
@@ -20,8 +22,10 @@ struct CodePalette {
 // Which language a code view colors (the Code ladder shows other engines' code).
 enum class CodeLanguage { EasyScript, CSharp, GDScript, Luau, Cpp };
 
-// A code editor built for EasyScript: syntax colors, line numbers, auto-indent,
-// bracket pairing, error markers and autocomplete.
+// A code editor built for EasyScript (and C for native modules): syntax colors, line numbers,
+// auto-indent, bracket pairing and matching, indent guides, line moving, zoom, and with a
+// CodeIntel attached: suggestions by context, parameter hints, hover help, live problem
+// underlines and go to definition.
 class CodeEditor {
 public:
     struct Completion {
@@ -40,7 +44,13 @@ public:
     void openGoto();             // Ctrl+G
     bool readOnly = false;
     CodeLanguage language = CodeLanguage::EasyScript;
+    const script::CodeIntel* intel = nullptr; // null: simple word completion only
     static CodePalette palette; // shared by every code view
+    static float zoom;          // text size, shared by every code view (Ctrl+wheel, Ctrl+= and Ctrl+-)
+    const std::vector<script::Diagnostic>& problems() const { return diags_; }
+    std::vector<script::OutlineItem> outline() const;
+    void gotoPosition(int line, int col); // 0-based
+    void recheck() { diagTimer_ = 0.01f; }
     ImFont* font = nullptr;
     std::vector<Completion> completions;
     std::unordered_set<std::string> highlightWords; // functions to color (engine API)
@@ -57,6 +67,21 @@ private:
         std::vector<std::string> lines;
         Pos cursor;
     };
+    // Code intelligence state.
+    std::vector<script::Suggestion> suggestions_;
+    int suggestFrom_ = 0, suggestScroll_ = 0;
+    ImVec2 popupMin_{0, 0}, popupMax_{0, 0}; // last frame's suggestion list, for the mouse
+    script::SignatureHelp sig_;
+    bool sigOpen_ = false;
+    std::vector<script::Diagnostic> diags_;
+    float diagTimer_ = -1;
+    ImVec2 lastMouse_{0, 0};
+    float mouseStill_ = 0;
+    float fontSize_ = 16;
+    bool problemsOpen_ = false;
+    Pos sigCursor_{-1, -1}; // where parameter hints were last worked out
+    int pendingScrollLine_ = -1;
+    ImFont* uiFont_ = nullptr; // the editor's normal font, for help text next to the code
 
     std::vector<std::string> lines_{""};
     Pos cursor_, anchor_;
@@ -100,6 +125,17 @@ private:
     void indentSelection(bool outdent);
     void toggleComment();
     void updateCompletions();
+    void openSuggestions(bool manual);
+    void acceptSuggestion();
+    void updateSignature();
+    void moveLines(int dir);
+    void duplicateLines(bool up);
+    void deleteLines();
+    void goToDefinition(Pos at);
+    bool matchingBracket(Pos& a, Pos& b) const;
+    void drawSuggestions(ImVec2 cursorScreen);
+    void drawSignature(ImVec2 cursorScreen);
+    void drawStatusBar();
     std::string currentWord() const;
     float columnX(int line, int col) const;
     int columnAt(int line, float x) const;

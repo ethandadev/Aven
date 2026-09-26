@@ -417,7 +417,7 @@ void add(std::vector<Suggestion>& out, std::set<std::string>& seen, const std::s
     if (m < 0)
         return;
     if (!typed.empty() && s.label == typed)
-        m -= 2000; // already fully typed: don't offer it again first
+        m += 5000; // typed in full: it's the one (and the editor closes the list for it)
     s.score = m + bonus;
     if (s.insert.empty())
         s.insert = s.label;
@@ -484,7 +484,7 @@ int matchScore(const std::string& candidate, const std::string& typed) {
     for (size_t i = 1; i < c.size(); ++i)
         if ((c[i - 1] == '_' || c[i - 1] == '/' || c[i - 1] == '.') && c.compare(i, t.size(), t) == 0)
             return 600 - static_cast<int>(candidate.size());
-    if (t.size() >= 2) {
+    if (t.size() >= 3) {
         size_t j = 0;
         for (size_t i = 0; i < c.size() && j < t.size(); ++i)
             if (c[i] == t[j])

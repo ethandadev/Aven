@@ -64,6 +64,7 @@ bool Editor::init(const EditorOptions& options) {
     window_.onFileDrop = [this](const std::vector<std::string>& files) { onFilesDropped(files); };
     loadRecent();
     buildApiReference();
+    setupCodeIntel();
     browsePath_ = fs::userDataDir("Projects").parent_path().parent_path();
     if (const char* home = std::getenv("HOME"))
         browsePath_ = stdfs::path(home);
@@ -100,8 +101,8 @@ bool Editor::init(const EditorOptions& options) {
         if (!options.openFile.empty()) {
             if (fs::extension(options.openFile) == ".blocks")
                 openBlocks(options.openFile);
-            else if (fs::extension(options.openFile) == ".es")
-                openScript(options.openFile);
+            else
+                openScript(options.openFile); // EasyScript, or C/C++ native code
         }
         if (!options.select.empty())
             select(scene_->findByName(options.select));
@@ -230,6 +231,16 @@ void Editor::openPanels(const std::string& list) {
         else if (p == "spritesheet") openSpriteSheet();
         else if (p == "tiles") openTilePainter();
         else if (p == "savescene") saveScene();
+        else if (p.rfind("codeat:", 0) == 0) { // codeat:LINE:COL puts the cursor in the open code tab (automated tests)
+            int line = 1, col = 1;
+            std::sscanf(p.c_str() + 7, "%d:%d", &line, &col);
+            for (auto& t : tabs_)
+                if (t->code) {
+                    t->code->gotoPosition(line - 1, col - 1);
+                    t->focus = true;
+                }
+        }
+        else if (p.rfind("type:", 0) == 0) ImGui::GetIO().AddInputCharactersUTF8(p.c_str() + 5); // typed as if on the keyboard
         else if (p == "unsavedtest") { dirty_ = true; pendingSwitch_ = [] {}; confirmSwitch_ = true; } // the "Save changes?" question
         else if (p.rfind("reference-md:", 0) == 0) writeApiReference(p.substr(13));
         else if (p == "native") openNativeCode();
@@ -1219,9 +1230,11 @@ void Editor::openScript(const std::string& path, int line) {
     tab->code->font = fonts.code;
     if (isNativeSource(path)) {
         tab->code->language = CodeLanguage::Cpp;
+        tab->code->intel = cIntel_.get();
     } else {
         tab->code->completions = completions_;
         tab->code->highlightWords = apiWords_;
+        tab->code->intel = easyIntel_.get();
     }
     if (line > 0)
         tab->code->gotoLine(line);
@@ -1342,6 +1355,7 @@ void Editor::scanAssets() {
             assetFiles_.push_back(fs::relativePath(it->path(), projectDir_));
     }
     std::sort(assetFiles_.begin(), assetFiles_.end());
+    refreshCodeIndex();
 }
 
 void Editor::onFilesDropped(const std::vector<std::string>& files) {
@@ -1370,6 +1384,67 @@ void Editor::onFilesDropped(const std::vector<std::string>& files) {
     }
     scanAssets();
     notify(copied ? "Added " + plural(static_cast<size_t>(copied), "file") + " to the project." : "Couldn't copy those files.", copied == 0);
+}
+
+void Editor::setupCodeIntel() {
+    codeIndex_.fillFromEngine();
+    const Json& docs = editorData("api_docs.json");
+    for (auto& m : docs.members())
+        if (m.key[0] != '_')
+            codeIndex_.docs[m.key] = m.value.asString();
+    if (auto header = fs::readText(sdkDir() / "include" / "aven.h"))
+        codeIndex_.readCApi(*header);
+    engineKeyNames_ = codeIndex_.keyNames;
+    easyIntel_ = std::make_unique<script::CodeIntel>(codeIndex_, script::CodeKind::EasyScript);
+    cIntel_ = std::make_unique<script::CodeIntel>(codeIndex_, script::CodeKind::C);
+    // The Scripting Reference shows the same explanations.
+    for (auto& e : api_) {
+        std::string key = e.name;
+        if (key.rfind("self.", 0) != 0 && e.group == "self actions")
+            key = "self." + key;
+        e.help = codeIndex_.doc(key);
+    }
+}
+
+// Keeps the code editor's suggestions in step with the project: its files, the objects and tags in
+// the open scene and its prefabs, and the messages, game values and functions used in its scripts.
+void Editor::refreshCodeIndex() {
+    script::ProjectIndex& ix = codeIndex_;
+    ix.files = assetFiles_;
+    ix.objectNames.clear();
+    ix.tags.clear();
+    auto addUnique = [](std::vector<std::string>& list, const std::string& v) {
+        if (!v.empty() && std::find(list.begin(), list.end(), v) == list.end())
+            list.push_back(v);
+    };
+    Scene& s = *scene_;
+    s.walk([&](Entity e, int) {
+        addUnique(ix.objectNames, s.info(e).name);
+        addUnique(ix.tags, s.info(e).tag);
+        return true;
+    });
+    ix.messages.clear();
+    ix.gameValues.clear();
+    ix.savedKeys.clear();
+    ix.scriptFunctions.clear();
+    for (auto& f : assetFiles_) {
+        std::string ext = fs::extension(f);
+        if (ext == ".prefab") {
+            if (auto text = fs::readText(projectDir_ / f)) {
+                Json prefab = Json::parse(*text);
+                for (auto& e : prefab["entities"].elements())
+                    addUnique(ix.tags, e["tag"].asString(""));
+            }
+        } else if (ext == ".es" || ext == ".blocks") {
+            if (auto text = fs::readText(projectDir_ / f))
+                ix.scanScript(ext == ".es" ? *text : blocks::compileFile(*text, nullptr));
+        }
+    }
+    std::sort(ix.objectNames.begin(), ix.objectNames.end());
+    std::sort(ix.tags.begin(), ix.tags.end());
+    ix.keyNames = engineKeyNames_;
+    for (auto& a : window_.input().actions())
+        addUnique(ix.keyNames, a.name);
 }
 
 // docs/easyscript-api.md is made from the same list the Reference panel shows (tools/docs/make_api_reference.sh).

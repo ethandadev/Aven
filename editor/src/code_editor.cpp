@@ -90,6 +90,7 @@ const CodePalette& CodePalette::find(const std::string& name) {
 }
 
 CodePalette CodeEditor::palette = CodePalette::presets().front();
+float CodeEditor::zoom = 1.0f;
 
 CodeEditor::CodeEditor() = default;
 
@@ -118,6 +119,9 @@ void CodeEditor::setText(const std::string& text) {
     cursor_ = anchor_ = {};
     undo_.clear();
     redo_.clear();
+    diags_.clear();
+    diagTimer_ = 0.01f; // check it straight away
+    completionOpen_ = sigOpen_ = false;
 }
 
 std::string CodeEditor::text() const {
@@ -346,6 +350,10 @@ std::string CodeEditor::currentWord() const {
 }
 
 void CodeEditor::updateCompletions() {
+    if (intel) {
+        openSuggestions(false);
+        return;
+    }
     matches_.clear();
     std::string word = currentWord();
     if (word.size() < 2) {
@@ -380,17 +388,31 @@ void CodeEditor::handleKeys(bool& changed) {
     bool ctrl = io.KeyCtrl || io.KeySuper, shift = io.KeyShift;
     auto pressed = [](ImGuiKey k) { return ImGui::IsKeyPressed(k, true); };
 
-    if (completionOpen_) {
+    int count = static_cast<int>(intel ? suggestions_.size() : matches_.size());
+    if (completionOpen_ && count > 0) {
         if (pressed(ImGuiKey_DownArrow)) {
-            completionIndex_ = (completionIndex_ + 1) % static_cast<int>(matches_.size());
+            completionIndex_ = (completionIndex_ + 1) % count;
             return;
         }
         if (pressed(ImGuiKey_UpArrow)) {
-            completionIndex_ = (completionIndex_ + static_cast<int>(matches_.size()) - 1) % static_cast<int>(matches_.size());
+            completionIndex_ = (completionIndex_ + count - 1) % count;
+            return;
+        }
+        if (pressed(ImGuiKey_PageDown)) {
+            completionIndex_ = std::min(count - 1, completionIndex_ + 9);
+            return;
+        }
+        if (pressed(ImGuiKey_PageUp)) {
+            completionIndex_ = std::max(0, completionIndex_ - 9);
             return;
         }
         if (pressed(ImGuiKey_Escape)) {
             completionOpen_ = false;
+            return;
+        }
+        if ((pressed(ImGuiKey_Tab) || pressed(ImGuiKey_Enter)) && !readOnly && intel) {
+            acceptSuggestion();
+            changed = true;
             return;
         }
         if ((pressed(ImGuiKey_Tab) || pressed(ImGuiKey_Enter)) && !readOnly) {
@@ -404,6 +426,72 @@ void CodeEditor::handleKeys(bool& changed) {
         }
     }
 
+    if (sigOpen_ && pressed(ImGuiKey_Escape)) {
+        sigOpen_ = false;
+        return;
+    }
+    if (ctrl && pressed(ImGuiKey_Space)) {
+        if (intel)
+            openSuggestions(true);
+        else
+            updateCompletions();
+        return;
+    }
+    // Zoom: Ctrl+= / Ctrl+- / Ctrl+0
+    if (ctrl && (pressed(ImGuiKey_Equal) || pressed(ImGuiKey_KeypadAdd))) {
+        zoom = std::min(2.5f, zoom + 0.1f);
+        return;
+    }
+    if (ctrl && (pressed(ImGuiKey_Minus) || pressed(ImGuiKey_KeypadSubtract))) {
+        zoom = std::max(0.6f, zoom - 0.1f);
+        return;
+    }
+    if (ctrl && pressed(ImGuiKey_0)) {
+        zoom = 1.0f;
+        return;
+    }
+    if (pressed(ImGuiKey_F12)) {
+        goToDefinition(cursor_);
+        return;
+    }
+    if (ctrl && pressed(ImGuiKey_L)) { // select the whole line
+        anchor_ = {cursor_.line, 0};
+        cursor_ = cursor_.line + 1 < static_cast<int>(lines_.size()) ? Pos{cursor_.line + 1, 0}
+                                                                     : Pos{cursor_.line, static_cast<int>(lines_[static_cast<size_t>(cursor_.line)].size())};
+        return;
+    }
+    if (!readOnly && io.KeyAlt && !ctrl && (pressed(ImGuiKey_UpArrow) || pressed(ImGuiKey_DownArrow))) {
+        bool up = ImGui::IsKeyPressed(ImGuiKey_UpArrow, true);
+        if (shift)
+            duplicateLines(up); // Shift+Alt+Up/Down
+        else
+            moveLines(up ? -1 : 1); // Alt+Up/Down
+        changed = true;
+        completionOpen_ = false;
+        return;
+    }
+    if (!readOnly && ctrl && shift && pressed(ImGuiKey_K)) {
+        deleteLines();
+        changed = true;
+        return;
+    }
+    if (!readOnly && ctrl && (pressed(ImGuiKey_Enter) || pressed(ImGuiKey_KeypadEnter))) {
+        // A new line below (or above with Shift), wherever the cursor is in this one.
+        pushUndo();
+        if (shift) {
+            cursor_ = anchor_ = {cursor_.line, 0};
+            std::string indent(static_cast<size_t>(std::min(lines_[static_cast<size_t>(cursor_.line)].find_first_not_of(' '),
+                                                            lines_[static_cast<size_t>(cursor_.line)].size())), ' ');
+            insert(indent + "\n");
+            cursor_ = anchor_ = {cursor_.line - 1, static_cast<int>(indent.size())};
+        } else {
+            cursor_ = anchor_ = {cursor_.line, static_cast<int>(lines_[static_cast<size_t>(cursor_.line)].size())};
+            newline();
+        }
+        changed = true;
+        completionOpen_ = false;
+        return;
+    }
     if (ctrl && pressed(ImGuiKey_F)) {
         openFind(false);
         return;
@@ -603,14 +691,52 @@ void CodeEditor::handleTyping(bool& changed) {
         }
         changed = true;
     }
-    if (changed && !io.InputQueueCharacters.empty())
-        updateCompletions();
+    if (changed && !io.InputQueueCharacters.empty()) {
+        ImWchar last = io.InputQueueCharacters.back();
+        const std::string& line = lines_[static_cast<size_t>(cursor_.line)];
+        std::string before = line.substr(0, static_cast<size_t>(cursor_.col));
+        // "else:" and "elif ...:" line up with their "if" as soon as the ':' is typed.
+        if (last == ':' && language == CodeLanguage::EasyScript) {
+            size_t first = before.find_first_not_of(' ');
+            std::string t = first == std::string::npos ? "" : before.substr(first);
+            if (t == "else:" || (t.rfind("elif ", 0) == 0 && t.back() == ':')) {
+                int indent = static_cast<int>(first);
+                for (int l = cursor_.line - 1; l >= 0; --l) {
+                    const std::string& p = lines_[static_cast<size_t>(l)];
+                    size_t pf = p.find_first_not_of(' ');
+                    if (pf == std::string::npos || static_cast<int>(pf) >= indent)
+                        continue;
+                    std::string pt = p.substr(pf);
+                    if (pt.rfind("if ", 0) == 0 || pt.rfind("elif ", 0) == 0)
+                        {
+                            int target = static_cast<int>(pf);
+                            lines_[static_cast<size_t>(cursor_.line)].erase(0, static_cast<size_t>(indent - target));
+                            cursor_.col -= indent - target;
+                            anchor_ = cursor_;
+                        }
+                    break;
+                }
+            }
+        }
+        if (intel) {
+            bool word = isWordChar(static_cast<char>(last));
+            if (word || last == '.' || last == '"' || last == '\'' || last == '>')
+                openSuggestions(false);
+            else if (last == ' ' && before.size() >= 4 && before.compare(before.size() - 4, 4, "def ") == 0)
+                openSuggestions(true); // the events Aven calls
+            else
+                completionOpen_ = false;
+            updateSignature();
+        } else {
+            updateCompletions();
+        }
+    }
 }
 
 float CodeEditor::columnX(int line, int col) const {
     const std::string& s = lines_[static_cast<size_t>(line)];
     ImFont* f = font ? font : ImGui::GetFont();
-    return f->CalcTextSizeA(f->FontSize, FLT_MAX, 0, s.c_str(), s.c_str() + std::min<size_t>(static_cast<size_t>(col), s.size())).x;
+    return f->CalcTextSizeA(fontSize_, FLT_MAX, 0, s.c_str(), s.c_str() + std::min<size_t>(static_cast<size_t>(col), s.size())).x;
 }
 
 int CodeEditor::columnAt(int line, float x) const {
@@ -629,7 +755,7 @@ int CodeEditor::columnAt(int line, float x) const {
 void CodeEditor::drawLine(ImDrawList* dl, int index, ImVec2 pos, bool& inTriple) const {
     const std::string& s = lines_[static_cast<size_t>(index)];
     ImFont* f = font ? font : ImGui::GetFont();
-    float size = f->FontSize;
+    float size = fontSize_;
     float x = pos.x;
     auto emit = [&](size_t from, size_t to, ImU32 color) {
         if (to <= from)
@@ -906,6 +1032,218 @@ bool CodeEditor::drawFindBar() {
     return changed;
 }
 
+
+// ---------------------------------------------------------------- code intelligence
+
+namespace {
+
+int indentWidth(const std::string& s) {
+    int n = 0;
+    while (n < static_cast<int>(s.size()) && s[static_cast<size_t>(n)] == ' ')
+        ++n;
+    return n;
+}
+
+// A letter and a color for each kind of suggestion.
+std::pair<const char*, ImU32> kindBadge(script::SuggestionKind k) {
+    using K = script::SuggestionKind;
+    switch (k) {
+    case K::Keyword: return {"k", IM_COL32(148, 163, 184, 255)};
+    case K::Function: return {"f", IM_COL32(96, 165, 250, 255)};
+    case K::Method: return {"m", IM_COL32(167, 139, 250, 255)};
+    case K::Property: return {"p", IM_COL32(45, 212, 191, 255)};
+    case K::Variable: return {"v", IM_COL32(251, 146, 60, 255)};
+    case K::Event: return {"e", IM_COL32(244, 114, 182, 255)};
+    case K::Snippet: return {"s", IM_COL32(74, 222, 128, 255)};
+    case K::File: return {"F", IM_COL32(250, 204, 21, 255)};
+    case K::Text: return {"T", IM_COL32(163, 230, 53, 255)};
+    case K::Component: return {"C", IM_COL32(56, 189, 248, 255)};
+    }
+    return {"?", IM_COL32(150, 150, 150, 255)};
+}
+
+} // namespace
+
+std::vector<script::OutlineItem> CodeEditor::outline() const {
+    return intel ? intel->outline(lines_) : std::vector<script::OutlineItem>{};
+}
+
+void CodeEditor::gotoPosition(int line, int col) {
+    cursor_ = anchor_ = clamp({line, col});
+    focused_ = true;
+    scrollToCursor_ = true;
+    gotoLine_ = -1;
+    pendingScrollLine_ = line;
+}
+
+void CodeEditor::openSuggestions(bool manual) {
+    if (!intel || readOnly) {
+        completionOpen_ = false;
+        return;
+    }
+    int from = cursor_.col;
+    suggestions_ = intel->suggest(lines_, cursor_.line, cursor_.col, from, manual);
+    suggestFrom_ = std::clamp(from, 0, cursor_.col);
+    const std::string& line = lines_[static_cast<size_t>(cursor_.line)];
+    std::string typed = line.substr(static_cast<size_t>(suggestFrom_), static_cast<size_t>(cursor_.col - suggestFrom_));
+    // Already typed in full: nothing to offer (Ctrl+Space still shows the list).
+    if (!manual && !suggestions_.empty() && suggestions_.front().label == typed)
+        suggestions_.clear();
+    completionOpen_ = !suggestions_.empty();
+    completionIndex_ = 0;
+    suggestScroll_ = 0;
+}
+
+void CodeEditor::acceptSuggestion() {
+    if (completionIndex_ < 0 || completionIndex_ >= static_cast<int>(suggestions_.size()))
+        return;
+    script::Suggestion sug = suggestions_[static_cast<size_t>(completionIndex_)];
+    pushUndo();
+    anchor_ = {cursor_.line, std::clamp(suggestFrom_, 0, cursor_.col)};
+    deleteSelection();
+    std::string indent(static_cast<size_t>(indentWidth(lines_[static_cast<size_t>(cursor_.line)])), ' ');
+    std::string text;
+    for (size_t i = 0; i < sug.insert.size(); ++i) {
+        if (sug.insert[i] == '\n') {
+            text += "\n" + indent;
+            if (i + 1 < sug.insert.size() && sug.insert[i + 1] == '\t') {
+                text += "    ";
+                ++i;
+            }
+        } else {
+            text += sug.insert[i];
+        }
+    }
+    // Parentheses that are already there aren't added again.
+    const std::string& now = lines_[static_cast<size_t>(cursor_.line)];
+    char next = cursor_.col < static_cast<int>(now.size()) ? now[static_cast<size_t>(cursor_.col)] : 0;
+    size_t paren = text.find("($0)");
+    if (next == '(' && paren != std::string::npos)
+        text = text.substr(0, paren);
+    else if (next == '(' && text.size() > 2 && text.compare(text.size() - 2, 2, "()") == 0)
+        text.resize(text.size() - 2);
+    size_t mark = text.find("$0");
+    if (mark == std::string::npos) {
+        insert(text);
+    } else {
+        insert(text.substr(0, mark));
+        Pos at = cursor_;
+        insert(text.substr(mark + 2));
+        cursor_ = anchor_ = at;
+    }
+    completionOpen_ = false;
+    updateSignature();
+    // After picking a function, show what goes in the brackets.
+    if (sug.kind == script::SuggestionKind::Event)
+        sigOpen_ = false;
+}
+
+void CodeEditor::updateSignature() {
+    sigCursor_ = cursor_;
+    sigOpen_ = intel && !readOnly && intel->signature(lines_, cursor_.line, cursor_.col, sig_);
+}
+
+void CodeEditor::moveLines(int dir) {
+    int a = selStart().line, b = selEnd().line;
+    if (hasSelection() && selEnd().col == 0 && b > a)
+        --b;
+    if ((dir < 0 && a == 0) || (dir > 0 && b + 1 >= static_cast<int>(lines_.size())))
+        return;
+    pushUndo();
+    if (dir < 0)
+        std::rotate(lines_.begin() + a - 1, lines_.begin() + a, lines_.begin() + b + 1);
+    else
+        std::rotate(lines_.begin() + a, lines_.begin() + b + 1, lines_.begin() + b + 2);
+    cursor_.line += dir;
+    anchor_.line += dir;
+    scrollToCursor_ = true;
+}
+
+void CodeEditor::duplicateLines(bool up) {
+    int a = selStart().line, b = selEnd().line;
+    if (hasSelection() && selEnd().col == 0 && b > a)
+        --b;
+    pushUndo();
+    std::vector<std::string> copy(lines_.begin() + a, lines_.begin() + b + 1);
+    lines_.insert(lines_.begin() + b + 1, copy.begin(), copy.end());
+    if (!up) {
+        cursor_.line += b - a + 1;
+        anchor_.line += b - a + 1;
+    }
+    scrollToCursor_ = true;
+}
+
+void CodeEditor::deleteLines() {
+    int a = selStart().line, b = selEnd().line;
+    if (hasSelection() && selEnd().col == 0 && b > a)
+        --b;
+    pushUndo();
+    lines_.erase(lines_.begin() + a, lines_.begin() + b + 1);
+    if (lines_.empty())
+        lines_.push_back("");
+    cursor_ = anchor_ = clamp({a, cursor_.col});
+    scrollToCursor_ = true;
+}
+
+void CodeEditor::goToDefinition(Pos at) {
+    int l = 0, c = 0;
+    if (intel && intel->definition(lines_, at.line, at.col, l, c))
+        gotoPosition(l, c);
+}
+
+bool CodeEditor::matchingBracket(Pos& a, Pos& b) const {
+    auto charAt = [&](Pos p) -> char {
+        const std::string& s = lines_[static_cast<size_t>(p.line)];
+        return p.col >= 0 && p.col < static_cast<int>(s.size()) ? s[static_cast<size_t>(p.col)] : 0;
+    };
+    const char* opens = "([{";
+    const char* closes = ")]}";
+    Pos candidates[2] = {cursor_, {cursor_.line, cursor_.col - 1}};
+    for (Pos p : candidates) {
+        char c = charAt(p);
+        if (!c)
+            continue;
+        const char* o = std::strchr(opens, c);
+        const char* cl = std::strchr(closes, c);
+        if (!o && !cl)
+            continue;
+        char open = o ? c : opens[cl - closes], close = o ? closes[o - opens] : c;
+        int dir = o ? 1 : -1, depth = 0, budget = 5000;
+        Pos q = p;
+        while (budget-- > 0) {
+            char x = charAt(q);
+            if (x == open)
+                depth += dir;
+            else if (x == close)
+                depth -= dir;
+            if (depth == 0 && (x == open || x == close) && q != p) {
+                a = p;
+                b = q;
+                return true;
+            }
+            // step
+            if (dir > 0) {
+                if (q.col + 1 < static_cast<int>(lines_[static_cast<size_t>(q.line)].size()))
+                    ++q.col;
+                else if (q.line + 1 < static_cast<int>(lines_.size()))
+                    q = {q.line + 1, 0};
+                else
+                    break;
+            } else {
+                if (q.col > 0)
+                    --q.col;
+                else if (q.line > 0)
+                    q = {q.line - 1, std::max(0, static_cast<int>(lines_[static_cast<size_t>(q.line - 1)].size()) - 1)};
+                else
+                    break;
+            }
+        }
+    }
+    return false;
+}
+
+// ---------------------------------------------------------------- drawing
+
 bool CodeEditor::draw(const char* id, ImVec2 size) {
     bool changed = false;
     if (findOpen_ || gotoOpen_) {
@@ -913,12 +1251,19 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
         changed |= drawFindBar();
         size.y -= ImGui::GetCursorPosY() - before;
     }
+    ImGuiIO& io = ImGui::GetIO();
+    uiFont_ = ImGui::GetFont();
     ImFont* f = font ? font : ImGui::GetFont();
+    float statusH = ImGui::GetFrameHeight() + 2;
     ImGui::PushFont(f);
-    charWidth_ = f->CalcTextSizeA(f->FontSize, FLT_MAX, 0, "M").x;
-    lineHeight_ = f->FontSize + 3.0f;
+    fontSize_ = f->FontSize * zoom;
+    charWidth_ = f->CalcTextSizeA(fontSize_, FLT_MAX, 0, "M").x;
+    lineHeight_ = std::round(fontSize_ + 3.0f * zoom);
+    float spaceWidth = f->CalcTextSizeA(fontSize_, FLT_MAX, 0, " ").x;
     ImGui::PushStyleColor(ImGuiCol_ChildBg, palette.background);
-    ImGui::BeginChild(id, size, ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoNav);
+    ImGui::BeginChild(id, {size.x, size.y - statusH}, ImGuiChildFlags_None,
+                      ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoNav |
+                          (io.KeyCtrl ? ImGuiWindowFlags_NoScrollWithMouse : 0));
     ImDrawList* dl = ImGui::GetWindowDrawList();
     float gutter = charWidth_ * (std::to_string(lines_.size()).size() + 2) + 8;
     ImVec2 origin = ImGui::GetCursorScreenPos();
@@ -926,6 +1271,9 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
     for (size_t l = 0; l < lines_.size(); ++l)
         maxWidth = std::max(maxWidth, static_cast<float>(lines_[l].size()));
     ImVec2 contentSize{gutter + maxWidth * charWidth_ + 200, lines_.size() * lineHeight_ + ImGui::GetWindowHeight() * 0.5f};
+    // The suggestion list is drawn over the text: clicks there pick a suggestion.
+    bool overPopup = completionOpen_ && intel && ImGui::IsMouseHoveringRect(popupMin_, popupMax_, false) &&
+                     ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
     ImGui::InvisibleButton("##text", contentSize, ImGuiButtonFlags_MouseButtonLeft);
     bool hovered = ImGui::IsItemHovered();
     if (hovered)
@@ -943,13 +1291,27 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
         p.col = columnAt(p.line, m.x - origin.x - gutter);
         return p;
     };
-    if (ImGui::IsItemActivated()) {
+    if (overPopup) {
+        int row = static_cast<int>((ImGui::GetMousePos().y - popupMin_.y - 4) / lineHeight_);
+        int index = suggestScroll_ + row;
+        if (index >= 0 && index < static_cast<int>(suggestions_.size()))
+            completionIndex_ = index;
+        if (io.MouseWheel != 0)
+            suggestScroll_ = std::clamp(suggestScroll_ - static_cast<int>(io.MouseWheel), 0,
+                                        std::max(0, static_cast<int>(suggestions_.size()) - 10));
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !readOnly) {
+            acceptSuggestion();
+            changed = true;
+        }
+    } else if (ImGui::IsItemActivated()) {
         Pos p = mouseToPos();
-        if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+        if (io.KeyCtrl && intel) {
+            goToDefinition(p); // Ctrl+click
+        } else if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
             anchor_ = {p.line, wordStart(p.line, p.col)};
             cursor_ = {p.line, wordEnd(p.line, p.col)};
         } else {
-            moveCursor(p, ImGui::GetIO().KeyShift);
+            moveCursor(p, io.KeyShift);
             dragging_ = true;
         }
         completionOpen_ = false;
@@ -958,18 +1320,38 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
         cursor_ = mouseToPos();
     if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
         dragging_ = false;
+    // Ctrl+wheel zooms.
+    if (hovered && io.KeyCtrl && io.MouseWheel != 0)
+        zoom = std::clamp(zoom + io.MouseWheel * 0.1f, 0.6f, 2.5f);
 
     if (focused_ && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
         ImGui::SetNextFrameWantCaptureKeyboard(true);
         handleKeys(changed);
         handleTyping(changed);
     }
+    if (intel && focused_ && cursor_ != sigCursor_)
+        updateSignature();
     if (gotoLine_ > 0) {
         cursor_ = anchor_ = clamp({gotoLine_ - 1, 0});
         focused_ = true;
         scrollToCursor_ = true;
+        pendingScrollLine_ = gotoLine_ - 1;
         gotoLine_ = -1;
-        ImGui::SetScrollY(std::max(0.0f, cursor_.line * lineHeight_ - ImGui::GetWindowHeight() * 0.4f));
+    }
+    if (pendingScrollLine_ >= 0) {
+        ImGui::SetScrollY(std::max(0.0f, pendingScrollLine_ * lineHeight_ - ImGui::GetWindowHeight() * 0.4f));
+        pendingScrollLine_ = -1;
+    }
+
+    // Problems are checked a moment after typing stops.
+    if (changed && intel)
+        diagTimer_ = 0.5f;
+    if (diagTimer_ > 0) {
+        diagTimer_ -= io.DeltaTime;
+        if (diagTimer_ <= 0 && intel) {
+            diags_ = intel->diagnose(text());
+            diagTimer_ = -1;
+        }
     }
 
     // Visible range
@@ -978,6 +1360,7 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
     int last = std::min(static_cast<int>(lines_.size()), first + static_cast<int>(ImGui::GetWindowHeight() / lineHeight_) + 3);
     ImVec2 winPos = ImGui::GetWindowPos();
     float winW = ImGui::GetWindowWidth();
+    float textX = origin.x + gutter;
 
     Pos a = selStart(), b = selEnd();
     bool inTriple = false;
@@ -992,40 +1375,111 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
         if (count % 2)
             inTriple = !inTriple;
     }
+    // The word under the cursor is highlighted wherever else it appears.
+    std::string cursorWord;
+    if (focused_ && !hasSelection()) {
+        int ws = wordStart(cursor_.line, cursor_.col), we = wordEnd(cursor_.line, cursor_.col);
+        if (we - ws >= 2)
+            cursorWord = lines_[static_cast<size_t>(cursor_.line)].substr(static_cast<size_t>(ws), static_cast<size_t>(we - ws));
+        if (!cursorWord.empty() && std::isdigit(static_cast<unsigned char>(cursorWord[0])))
+            cursorWord.clear();
+    }
+    Pos bracketA, bracketB;
+    bool bracket = focused_ && matchingBracket(bracketA, bracketB);
+    ImU32 guideColor = (palette.gutterLine & 0x00FFFFFF) | (static_cast<ImU32>(150) << 24);
+
     for (int l = first; l < last; ++l) {
         float y = origin.y + l * lineHeight_;
+        const std::string& line = lines_[static_cast<size_t>(l)];
         if (l == cursor_.line && focused_ && !hasSelection())
             dl->AddRectFilled({winPos.x, y}, {winPos.x + winW, y + lineHeight_}, palette.currentLine);
         if (l + 1 == errorLine_) {
             dl->AddRectFilled({winPos.x, y}, {winPos.x + winW, y + lineHeight_}, IM_COL32(224, 70, 70, 55));
             dl->AddCircleFilled({origin.x + 6, y + lineHeight_ * 0.5f}, 4, IM_COL32(240, 80, 80, 255));
         }
+        // Indent guides: a faint line for each level of indentation.
+        int indent = indentWidth(line);
+        if (indent == static_cast<int>(line.size())) { // blank: follow the lines around it
+            int above = 0, below = 0;
+            for (int k = l - 1; k >= 0; --k)
+                if (lines_[static_cast<size_t>(k)].find_first_not_of(' ') != std::string::npos) {
+                    above = indentWidth(lines_[static_cast<size_t>(k)]);
+                    break;
+                }
+            for (int k = l + 1; k < static_cast<int>(lines_.size()); ++k)
+                if (lines_[static_cast<size_t>(k)].find_first_not_of(' ') != std::string::npos) {
+                    below = indentWidth(lines_[static_cast<size_t>(k)]);
+                    break;
+                }
+            indent = std::min(above, below);
+        }
+        for (int k = 4; k <= indent; k += 4) {
+            float gx = std::round(textX + (k - 4) * spaceWidth) + 0.5f;
+            dl->AddLine({gx, y}, {gx, y + lineHeight_}, guideColor);
+        }
         if (findOpen_ && !findText_.empty()) {
-            const std::string& line = lines_[static_cast<size_t>(l)];
             for (size_t c = 0; c + findText_.size() <= line.size(); ++c)
                 if (matchesAt(line, c))
-                    dl->AddRect({origin.x + gutter + columnX(l, static_cast<int>(c)), y},
-                                {origin.x + gutter + columnX(l, static_cast<int>(c + findText_.size())), y + lineHeight_},
+                    dl->AddRect({textX + columnX(l, static_cast<int>(c)), y},
+                                {textX + columnX(l, static_cast<int>(c + findText_.size())), y + lineHeight_},
                                 IM_COL32(250, 200, 60, 200), 2);
+        } else if (!cursorWord.empty()) {
+            for (size_t at = line.find(cursorWord); at != std::string::npos; at = line.find(cursorWord, at + 1)) {
+                bool left = at == 0 || !isWordChar(line[at - 1]);
+                bool right = at + cursorWord.size() >= line.size() || !isWordChar(line[at + cursorWord.size()]);
+                if (left && right)
+                    dl->AddRectFilled({textX + columnX(l, static_cast<int>(at)), y},
+                                      {textX + columnX(l, static_cast<int>(at + cursorWord.size())), y + lineHeight_},
+                                      (palette.selection & 0x00FFFFFF) | (static_cast<ImU32>(55) << 24), 2);
+            }
         }
         if (hasSelection() && l >= a.line && l <= b.line) {
             float x0 = l == a.line ? columnX(l, a.col) : 0;
-            float x1 = l == b.line ? columnX(l, b.col) : columnX(l, static_cast<int>(lines_[static_cast<size_t>(l)].size())) + charWidth_;
-            dl->AddRectFilled({origin.x + gutter + x0, y}, {origin.x + gutter + x1, y + lineHeight_}, palette.selection);
+            float x1 = l == b.line ? columnX(l, b.col) : columnX(l, static_cast<int>(line.size())) + charWidth_;
+            dl->AddRectFilled({textX + x0, y}, {textX + x1, y + lineHeight_}, palette.selection);
         }
+        if (bracket)
+            for (Pos p : {bracketA, bracketB})
+                if (p.line == l)
+                    dl->AddRect({textX + columnX(l, p.col), y}, {textX + columnX(l, p.col + 1), y + lineHeight_},
+                                (palette.text & 0x00FFFFFF) | (static_cast<ImU32>(130) << 24), 2);
         char num[16];
         std::snprintf(num, sizeof num, "%d", l + 1);
-        float numW = f->CalcTextSizeA(f->FontSize, FLT_MAX, 0, num).x;
-        dl->AddText(f, f->FontSize, {origin.x + gutter - numW - 10, y + 1},
+        float numW = f->CalcTextSizeA(fontSize_, FLT_MAX, 0, num).x;
+        dl->AddText(f, fontSize_, {origin.x + gutter - numW - 10, y + 1},
                     l == cursor_.line ? palette.currentLineNumber : palette.lineNumber, num);
-        drawLine(dl, l, {origin.x + gutter, y + 1}, inTriple);
+        drawLine(dl, l, {textX, y + 1}, inTriple);
+    }
+    // Problems: a wavy underline and a mark in the margin.
+    for (auto& d : diags_) {
+        if (d.line < first || d.line >= last || d.line >= static_cast<int>(lines_.size()))
+            continue;
+        ImU32 col = d.error ? IM_COL32(248, 81, 73, 255) : IM_COL32(234, 179, 8, 255);
+        float y = origin.y + d.line * lineHeight_ + lineHeight_ - 2;
+        int c0 = std::clamp(d.col, 0, static_cast<int>(lines_[static_cast<size_t>(d.line)].size()));
+        int c1 = std::max(c0 + 1, d.endCol);
+        float x0 = textX + columnX(d.line, c0);
+        float x1 = std::max(x0 + charWidth_, textX + columnX(d.line, c1));
+        float amp = 1.5f * zoom, step = 2.5f * zoom;
+        ImVec2 pts[400];
+        int n = 0;
+        bool up = true;
+        for (float x = x0; x < x1 && n < 399; x += step, up = !up)
+            pts[n++] = {x, y + (up ? -amp : amp)};
+        pts[n++] = {x1, y + (up ? -amp : amp)};
+        dl->AddPolyline(pts, n, col, 0, 1.3f);
+        float my = origin.y + d.line * lineHeight_ + lineHeight_ * 0.5f;
+        if (d.error)
+            dl->AddCircleFilled({origin.x + 6, my}, 3.5f * zoom, col);
+        else
+            dl->AddTriangleFilled({origin.x + 6, my - 4 * zoom}, {origin.x + 2, my + 3 * zoom}, {origin.x + 10, my + 3 * zoom}, col);
     }
     dl->AddLine({origin.x + gutter - 5, winPos.y}, {origin.x + gutter - 5, winPos.y + ImGui::GetWindowHeight()},
                 palette.gutterLine);
 
     // Cursor
-    blink_ += ImGui::GetIO().DeltaTime;
-    ImVec2 cursorScreen{origin.x + gutter + columnX(cursor_.line, cursor_.col), origin.y + cursor_.line * lineHeight_};
+    blink_ += io.DeltaTime;
+    ImVec2 cursorScreen{textX + columnX(cursor_.line, cursor_.col), origin.y + cursor_.line * lineHeight_};
     if (focused_ && !readOnly && std::fmod(blink_, 1.0f) < 0.6f)
         dl->AddRectFilled(cursorScreen, {cursorScreen.x + 2, cursorScreen.y + lineHeight_}, palette.cursor);
     if (scrollToCursor_) {
@@ -1042,28 +1496,75 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
         scrollToCursor_ = false;
     }
 
-    // Error tooltip when hovering the error line.
-    if (errorLine_ > 0 && hovered) {
-        ImVec2 m = ImGui::GetMousePos();
-        int hoverLine = static_cast<int>((m.y - origin.y) / lineHeight_);
-        if (hoverLine + 1 == errorLine_) {
+    // Help while hovering: the problem under the mouse, or what the word means.
+    ImVec2 mouse = ImGui::GetMousePos();
+    if (mouse.x == lastMouse_.x && mouse.y == lastMouse_.y)
+        mouseStill_ += io.DeltaTime;
+    else
+        mouseStill_ = 0;
+    lastMouse_ = mouse;
+    if (hovered && !overPopup && !ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+        int hoverLine = static_cast<int>((mouse.y - origin.y) / lineHeight_);
+        bool onText = hoverLine >= 0 && hoverLine < static_cast<int>(lines_.size()) && mouse.x >= textX &&
+                      mouse.x <= textX + columnX(hoverLine, static_cast<int>(lines_[static_cast<size_t>(hoverLine)].size())) + charWidth_;
+        std::string problem;
+        bool problemIsError = false;
+        if (onText) {
+            int col = columnAt(hoverLine, mouse.x - textX);
+            for (auto& d : diags_)
+                if (d.line == hoverLine && col >= d.col && col <= std::max(d.col + 1, d.endCol)) {
+                    problem = d.message;
+                    problemIsError = d.error;
+                }
+        }
+        if (hoverLine + 1 == errorLine_ && problem.empty()) {
+            problem = errorMessage_;
+            problemIsError = true;
+        }
+        if (!problem.empty() && mouseStill_ > 0.25f) {
             ImGui::BeginTooltip();
-            ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 150, 150, 255));
-            ImGui::PushTextWrapPos(420);
-            ImGui::TextUnformatted(errorMessage_.c_str());
+            ImGui::PushFont(uiFont_);
+            ImGui::PushStyleColor(ImGuiCol_Text, problemIsError ? IM_COL32(255, 150, 150, 255) : IM_COL32(250, 210, 110, 255));
+            ImGui::PushTextWrapPos(ImGui::GetFontSize() * 28);
+            ImGui::TextUnformatted(problem.c_str());
             ImGui::PopTextWrapPos();
             ImGui::PopStyleColor();
+            ImGui::PopFont();
             ImGui::EndTooltip();
+        } else if (onText && intel && mouseStill_ > 0.5f) {
+            int from = 0, to = 0;
+            std::string help = intel->hover(lines_, hoverLine, columnAt(hoverLine, mouse.x - textX), from, to);
+            if (!help.empty()) {
+                size_t nl = help.find('\n');
+                ImGui::BeginTooltip();
+                ImGui::PushFont(f);
+                ImGui::TextColored(ImColor(palette.function), "%s", help.substr(0, nl).c_str());
+                ImGui::PopFont();
+                if (nl != std::string::npos) {
+                    ImGui::PushFont(uiFont_);
+                    ImGui::PushTextWrapPos(ImGui::GetFontSize() * 28);
+                    ImGui::TextUnformatted(help.c_str() + nl + 1);
+                    ImGui::PopTextWrapPos();
+                    ImGui::PopFont();
+                }
+                ImGui::EndTooltip();
+            }
         }
     }
 
-    // Autocomplete popup
-    if (completionOpen_ && focused_ && !matches_.empty()) {
+    // Autocomplete and parameter hints
+    if (completionOpen_ && focused_ && intel)
+        drawSuggestions(cursorScreen);
+    else
+        popupMin_ = popupMax_ = {0, 0};
+    if (sigOpen_ && focused_)
+        drawSignature(cursorScreen);
+    if (completionOpen_ && focused_ && !intel && !matches_.empty()) {
         ImVec2 at{cursorScreen.x, cursorScreen.y + lineHeight_ + 2};
         ImDrawList* fg = ImGui::GetForegroundDrawList();
         float w = 0;
         for (auto* m : matches_)
-            w = std::max(w, f->CalcTextSizeA(f->FontSize, FLT_MAX, 0, (m->word + "   " + m->detail).c_str()).x);
+            w = std::max(w, f->CalcTextSizeA(fontSize_, FLT_MAX, 0, (m->word + "   " + m->detail).c_str()).x);
         w = std::min(w + 16, 520.0f);
         float h = matches_.size() * lineHeight_ + 8;
         fg->AddRectFilled(at, {at.x + w, at.y + h}, IM_COL32(40, 44, 52, 245), 4);
@@ -1072,10 +1573,10 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
             float y = at.y + 4 + i * lineHeight_;
             if (static_cast<int>(i) == completionIndex_)
                 fg->AddRectFilled({at.x + 2, y}, {at.x + w - 2, y + lineHeight_}, IM_COL32(60, 100, 170, 255), 3);
-            fg->AddText(f, f->FontSize, {at.x + 8, y + 1}, IM_COL32(230, 230, 235, 255), matches_[i]->word.c_str());
-            float ww = f->CalcTextSizeA(f->FontSize, FLT_MAX, 0, matches_[i]->word.c_str()).x;
+            fg->AddText(f, fontSize_, {at.x + 8, y + 1}, IM_COL32(230, 230, 235, 255), matches_[i]->word.c_str());
+            float ww = f->CalcTextSizeA(fontSize_, FLT_MAX, 0, matches_[i]->word.c_str()).x;
             fg->PushClipRect(at, {at.x + w - 4, at.y + h});
-            fg->AddText(f, f->FontSize, {at.x + 8 + ww + 12, y + 1}, IM_COL32(140, 150, 165, 255), matches_[i]->detail.c_str());
+            fg->AddText(f, fontSize_, {at.x + 8 + ww + 12, y + 1}, IM_COL32(140, 150, 165, 255), matches_[i]->detail.c_str());
             fg->PopClipRect();
         }
     }
@@ -1083,9 +1584,176 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
     ImGui::EndChild();
     ImGui::PopStyleColor();
     ImGui::PopFont();
+    drawStatusBar();
     if (changed && errorLine_ > 0)
-        errorLine_ = 0; // the error may be fixed; it's re-checked when saved
+        errorLine_ = 0; // the error may be fixed; it's checked again as you type
     return changed;
+}
+
+void CodeEditor::drawSuggestions(ImVec2 cursorScreen) {
+    ImFont* f = font ? font : ImGui::GetFont();
+    ImDrawList* fg = ImGui::GetForegroundDrawList();
+    const int visible = std::min(10, static_cast<int>(suggestions_.size()));
+    if (completionIndex_ < suggestScroll_)
+        suggestScroll_ = completionIndex_;
+    if (completionIndex_ >= suggestScroll_ + visible)
+        suggestScroll_ = completionIndex_ - visible + 1;
+    float badge = lineHeight_ - 4;
+    float w = 0;
+    for (auto& s : suggestions_)
+        w = std::max(w, f->CalcTextSizeA(fontSize_, FLT_MAX, 0, s.label.c_str()).x +
+                            std::min(220.0f, f->CalcTextSizeA(fontSize_ * 0.9f, FLT_MAX, 0, s.detail.c_str()).x));
+    w = std::clamp(w + badge + 40, 220.0f, 620.0f);
+    float h = visible * lineHeight_ + 8;
+    ImVec2 display = ImGui::GetIO().DisplaySize;
+    ImVec2 at{cursorScreen.x - badge - 12, cursorScreen.y + lineHeight_ + 2};
+    if (at.y + h > display.y - 4)
+        at.y = cursorScreen.y - h - 2; // not enough room below: open upward
+    at.x = std::clamp(at.x, 4.0f, std::max(4.0f, display.x - w - 4));
+    popupMin_ = at;
+    popupMax_ = {at.x + w, at.y + h};
+    fg->AddRectFilled(at, popupMax_, IM_COL32(34, 38, 46, 250), 6);
+    fg->AddRect(at, popupMax_, IM_COL32(80, 90, 110, 255), 6);
+    for (int i = 0; i < visible; ++i) {
+        int index = suggestScroll_ + i;
+        const script::Suggestion& s = suggestions_[static_cast<size_t>(index)];
+        float y = at.y + 4 + i * lineHeight_;
+        if (index == completionIndex_)
+            fg->AddRectFilled({at.x + 3, y}, {at.x + w - 3, y + lineHeight_}, IM_COL32(52, 92, 160, 255), 4);
+        auto [letter, color] = kindBadge(s.kind);
+        ImVec2 b0{at.x + 8, y + 2}, b1{at.x + 8 + badge, y + 2 + badge};
+        fg->AddRectFilled(b0, b1, (color & 0x00FFFFFF) | (static_cast<ImU32>(60) << 24), 3);
+        ImVec2 ls = f->CalcTextSizeA(fontSize_ * 0.8f, FLT_MAX, 0, letter);
+        fg->AddText(f, fontSize_ * 0.8f, {b0.x + (badge - ls.x) * 0.5f, b0.y + (badge - ls.y) * 0.5f}, color, letter);
+        float lx = b1.x + 8;
+        fg->AddText(f, fontSize_, {lx, y + 1}, IM_COL32(232, 234, 240, 255), s.label.c_str());
+        float lw = f->CalcTextSizeA(fontSize_, FLT_MAX, 0, s.label.c_str()).x;
+        float dw = f->CalcTextSizeA(fontSize_ * 0.9f, FLT_MAX, 0, s.detail.c_str()).x;
+        fg->PushClipRect({lx + lw + 12, y}, {at.x + w - 8, y + lineHeight_}, true);
+        fg->AddText(f, fontSize_ * 0.9f, {std::max(lx + lw + 16, at.x + w - 10 - dw), y + 2}, IM_COL32(140, 150, 168, 255),
+                    s.detail.c_str());
+        fg->PopClipRect();
+    }
+    if (static_cast<int>(suggestions_.size()) > visible) {
+        // A scroll bar showing where in the list we are.
+        float trackH = h - 8, thumbH = std::max(12.0f, trackH * visible / suggestions_.size());
+        float thumbY = at.y + 4 + (trackH - thumbH) * suggestScroll_ / std::max<size_t>(1, suggestions_.size() - static_cast<size_t>(visible));
+        fg->AddRectFilled({at.x + w - 5, thumbY}, {at.x + w - 2, thumbY + thumbH}, IM_COL32(120, 130, 150, 200), 2);
+    }
+    // What the chosen suggestion does.
+    const script::Suggestion& sel = suggestions_[static_cast<size_t>(completionIndex_)];
+    std::string doc = sel.doc;
+    if (sel.kind == script::SuggestionKind::Function || sel.kind == script::SuggestionKind::Method ||
+        sel.kind == script::SuggestionKind::Event)
+        doc = sel.detail + (doc.empty() ? "" : "\n" + doc);
+    if (!doc.empty()) {
+        ImFont* ui = uiFont_ ? uiFont_ : ImGui::GetFont();
+        float wrap = 300;
+        ImVec2 ts = ui->CalcTextSizeA(ui->FontSize, FLT_MAX, wrap, doc.c_str());
+        ImVec2 d0{popupMax_.x + 4, at.y};
+        if (d0.x + wrap + 20 > display.x)
+            d0.x = at.x - wrap - 24;
+        ImVec2 d1{d0.x + ts.x + 20, d0.y + ts.y + 16};
+        fg->AddRectFilled(d0, d1, IM_COL32(34, 38, 46, 250), 6);
+        fg->AddRect(d0, d1, IM_COL32(80, 90, 110, 255), 6);
+        fg->AddText(ui, ui->FontSize, {d0.x + 10, d0.y + 8}, IM_COL32(215, 220, 230, 255), doc.c_str(), nullptr, wrap);
+    }
+}
+
+void CodeEditor::drawSignature(ImVec2 cursorScreen) {
+    ImFont* f = font ? font : ImGui::GetFont();
+    ImFont* ui = uiFont_ ? uiFont_ : ImGui::GetFont();
+    ImDrawList* fg = ImGui::GetForegroundDrawList();
+    const std::string& label = sig_.label;
+    float wrap = 460;
+    ImVec2 labelSize = f->CalcTextSizeA(fontSize_, FLT_MAX, 0, label.c_str());
+    ImVec2 docSize = sig_.doc.empty() ? ImVec2{0, 0} : ui->CalcTextSizeA(ui->FontSize, FLT_MAX, wrap, sig_.doc.c_str());
+    float w = std::max(labelSize.x, docSize.x) + 20;
+    float h = labelSize.y + (sig_.doc.empty() ? 0 : docSize.y + 6) + 12;
+    ImVec2 at{cursorScreen.x - 10, cursorScreen.y - h - 4};
+    if (at.y < 4)
+        at.y = cursorScreen.y + lineHeight_ + 4 + (completionOpen_ ? popupMax_.y - popupMin_.y + 4 : 0);
+    at.x = std::clamp(at.x, 4.0f, std::max(4.0f, ImGui::GetIO().DisplaySize.x - w - 4));
+    fg->AddRectFilled(at, {at.x + w, at.y + h}, IM_COL32(34, 38, 46, 250), 6);
+    fg->AddRect(at, {at.x + w, at.y + h}, IM_COL32(80, 90, 110, 255), 6);
+    // The value being typed stands out.
+    int a = -1, b = -1;
+    if (sig_.active >= 0 && sig_.active < static_cast<int>(sig_.params.size())) {
+        a = sig_.params[static_cast<size_t>(sig_.active)].first;
+        b = sig_.params[static_cast<size_t>(sig_.active)].second;
+    }
+    float x = at.x + 10, y = at.y + 6;
+    auto part = [&](int from, int to, ImU32 col) {
+        if (to <= from)
+            return;
+        fg->AddText(f, fontSize_, {x, y}, col, label.c_str() + from, label.c_str() + to);
+        float pw = f->CalcTextSizeA(fontSize_, FLT_MAX, 0, label.c_str() + from, label.c_str() + to).x;
+        if (col != IM_COL32(200, 205, 215, 255))
+            fg->AddLine({x, y + labelSize.y}, {x + pw, y + labelSize.y}, col, 1.5f);
+        x += pw;
+    };
+    int n = static_cast<int>(label.size());
+    if (a < 0) {
+        part(0, n, IM_COL32(200, 205, 215, 255));
+    } else {
+        part(0, a, IM_COL32(200, 205, 215, 255));
+        part(a, b, IM_COL32(250, 204, 21, 255));
+        part(b, n, IM_COL32(200, 205, 215, 255));
+    }
+    if (!sig_.doc.empty())
+        fg->AddText(ui, ui->FontSize, {at.x + 10, y + labelSize.y + 6}, IM_COL32(170, 178, 192, 255), sig_.doc.c_str(), nullptr, wrap);
+}
+
+void CodeEditor::drawStatusBar() {
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("Ln %d, Col %d", cursor_.line + 1, cursor_.col + 1);
+    if (intel && language == CodeLanguage::Cpp) {
+        ImGui::SameLine(0, 18);
+        ImGui::TextDisabled("The compiler checks C and C++ when you build");
+    } else if (intel) {
+        int errors = 0, warnings = 0;
+        for (auto& d : diags_)
+            (d.error ? errors : warnings)++;
+        ImGui::SameLine(0, 18);
+        if (errors + warnings == 0) {
+            ImGui::TextColored({0.45f, 0.8f, 0.55f, 1}, "No problems");
+        } else {
+            std::string label = (errors ? std::to_string(errors) + (errors == 1 ? " error" : " errors") : "") +
+                                (errors && warnings ? ", " : "") +
+                                (warnings ? std::to_string(warnings) + (warnings == 1 ? " warning" : " warnings") : "");
+            ImGui::PushStyleColor(ImGuiCol_Text, errors ? IM_COL32(248, 113, 113, 255) : IM_COL32(234, 179, 8, 255));
+            if (ImGui::SmallButton((label + "##problems").c_str()))
+                ImGui::OpenPopup("##problemlist");
+            ImGui::PopStyleColor();
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Show the problems and jump to them");
+        }
+        if (ImGui::BeginPopup("##problemlist")) {
+            for (size_t i = 0; i < diags_.size(); ++i) {
+                const auto& d = diags_[i];
+                ImGui::PushID(static_cast<int>(i));
+                ImGui::PushStyleColor(ImGuiCol_Text, d.error ? IM_COL32(248, 113, 113, 255) : IM_COL32(234, 179, 8, 255));
+                std::string row = "Line " + std::to_string(d.line + 1) + ":  " + d.message;
+                if (ImGui::Selectable(row.c_str()))
+                    gotoPosition(d.line, d.col);
+                ImGui::PopStyleColor();
+                ImGui::PopID();
+            }
+            ImGui::EndPopup();
+        }
+    }
+    const char* lang = language == CodeLanguage::Cpp ? "C / C++" : language == CodeLanguage::CSharp ? "C#"
+                       : language == CodeLanguage::GDScript ? "GDScript" : language == CodeLanguage::Luau ? "Luau" : "EasyScript";
+    char right[64];
+    std::snprintf(right, sizeof right, zoom != 1.0f ? "%s   %d%%" : "%s", lang, static_cast<int>(std::round(zoom * 100)));
+    float rw = ImGui::CalcTextSize(right).x;
+    ImGui::SameLine(std::max(ImGui::GetCursorPosX() + 20, ImGui::GetWindowContentRegionMax().x - rw - 4));
+    ImGui::TextDisabled("%s", right);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Ctrl+Space: suggestions   F12 or Ctrl+click: go to where it's made\n"
+                          "Alt+Up/Down: move lines   Shift+Alt+Up/Down: copy lines   Ctrl+Shift+K: delete lines\n"
+                          "Ctrl+/: comment   Ctrl+F: find   Ctrl+H: replace   Ctrl+G: go to line\n"
+                          "Ctrl+wheel or Ctrl+=/-: text size (Ctrl+0 resets)");
 }
 
 } // namespace aven::editor

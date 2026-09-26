@@ -337,6 +337,12 @@ private:
     bool editInProgress_ = false;
     bool gizmoWasUsing_ = false;
     std::vector<CodeEditor::Completion> completions_;
+    // What the code editor knows: the engine's API and this project's files, objects, tags...
+    script::ProjectIndex codeIndex_;
+    std::vector<std::string> engineKeyNames_;
+    std::unique_ptr<script::CodeIntel> easyIntel_, cIntel_;
+    void setupCodeIntel();
+    void refreshCodeIndex();
     std::unordered_set<std::string> apiWords_;
     struct ApiEntry {
         std::string group, name, signature, help;
