@@ -345,7 +345,7 @@ void Editor::drawCommandPalette() {
         showSettings_ = true;
         settingsSection_ = "layers";
     });
-    if (selectedEntities().size() >= 2) {
+    if (selectedEntities().size() >= 2 && !playing_) {
         const char* axes[3] = {"X", "Y", "Z"};
         for (int axis = 0; axis < (view3D_ ? 3 : 2); ++axis) {
             add(std::string("Align selection: min ") + axes[axis], "command", [this, axis] { alignSelection(axis, 0); });
@@ -365,7 +365,8 @@ void Editor::drawCommandPalette() {
     for (const char* k : {"Square", "Circle", "Sprite", "Text", "Tilemap", "Cube", "Sphere", "Player 3D", "Camera", "Particles",
                           "Sound", "UI Text", "UI Button", "UI Image", "Score Text", "Health Bar", "Start Menu", "Pause Menu",
                           "Folder", "Sun", "Point Light", "Terrain"})
-        add(std::string("Create ") + k, "create", [this, k] { createEntity(k); });
+        if (!playing_) // (like the Create menu: stop the game to add things)
+            add(std::string("Create ") + k, "create", [this, k] { createEntity(k); });
     int objects = 0;
     scene().walk([&](Entity e, int) {
         if (++objects > 400)

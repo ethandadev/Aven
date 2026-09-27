@@ -99,6 +99,11 @@ Press **Build & Share**:
 - **Share:** a game card picture with a QR code, a link anyone on the same Wi-Fi can open, and a
   zip ready to upload to itch.io.
 
+To share the project itself (so someone can open and change it in Aven), use **File > Export
+Project as .zip**. They open the zip from **Open a game** in the start screen, or drop it on the
+Aven window; Aven unpacks it next to the zip and opens it. Compiled native code isn't included:
+it's rebuilt, and Aven asks before running native code from someone else's project.
+
 Aven doesn't host games on the internet itself. For a public link, upload the web build or the
 itch.io zip to a free host such as itch.io or GitHub Pages.
 

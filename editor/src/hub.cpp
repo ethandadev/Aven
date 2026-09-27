@@ -106,19 +106,24 @@ bool Editor::drawFolderBrowser(bool projectsOnly, stdfs::path* picked) {
     struct Entry {
         std::string name;
         bool project;
+        bool zip = false; // a .zip that might hold a game (Open a game only)
     };
     std::vector<Entry> entries;
     for (auto& e : stdfs::directory_iterator(browsePath_, stdfs::directory_options::skip_permission_denied, ec)) {
         std::error_code ec2;
-        if (!e.is_directory(ec2))
-            continue;
         std::string name = e.path().filename().string();
         if (name.empty() || name[0] == '.')
+            continue;
+        if (projectsOnly && e.is_regular_file(ec2) && fs::extension(name) == ".zip")
+            entries.push_back({name, false, true});
+        if (!e.is_directory(ec2))
             continue;
         entries.push_back({name, ProjectSettings::isProject(e.path())});
     }
     std::sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) {
-        return a.project != b.project ? a.project : a.name < b.name;
+        if (a.project != b.project)
+            return a.project;
+        return a.zip != b.zip ? b.zip : a.name < b.name;
     });
 
     float footer = ImGui::GetFrameHeightWithSpacing() + 6;
@@ -129,7 +134,7 @@ bool Editor::drawFolderBrowser(bool projectsOnly, stdfs::path* picked) {
         ImGui::TextDisabled("No folders here.");
     for (auto& e : entries) {
         ImGui::PushID(e.name.c_str());
-        std::string label = (e.project ? "[game]  " : "[folder]  ") + e.name;
+        std::string label = (e.project ? "[game]  " : e.zip ? "[zip]  " : "[folder]  ") + e.name;
         if (e.project)
             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SliderGrab));
         bool clicked = ImGui::Selectable(label.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick);
@@ -137,7 +142,10 @@ bool Editor::drawFolderBrowser(bool projectsOnly, stdfs::path* picked) {
             ImGui::PopStyleColor();
         if (clicked) {
             stdfs::path full = browsePath_ / e.name;
-            if (projectsOnly && e.project) {
+            if (e.zip) {
+                *picked = full; // the caller unpacks it
+                result = true;
+            } else if (projectsOnly && e.project) {
                 *picked = full;
                 result = true;
             } else if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) || projectsOnly) {
@@ -146,6 +154,8 @@ bool Editor::drawFolderBrowser(bool projectsOnly, stdfs::path* picked) {
         }
         if (ImGui::IsItemHovered() && !e.project && !projectsOnly)
             ImGui::SetTooltip("Double-click to go inside");
+        if (ImGui::IsItemHovered() && e.zip)
+            ImGui::SetTooltip("A game in a zip? Click to unpack it next to the zip and open it.");
         ImGui::PopID();
     }
     ImGui::EndChild();
@@ -158,7 +168,7 @@ bool Editor::drawFolderBrowser(bool projectsOnly, stdfs::path* picked) {
         }
         ImGui::EndDisabled();
         ImGui::SameLine();
-        ImGui::TextDisabled("Pick a folder marked [game], or any folder with a project.aven file.");
+        ImGui::TextDisabled("Pick a folder marked [game] (or a [zip] someone sent you).");
     } else {
         if (accentButton("Use this folder", {160, 0})) {
             *picked = browsePath_;
@@ -495,7 +505,7 @@ void Editor::drawHub() {
         ImGui::Dummy({0, em * 0.4f});
         stdfs::path picked;
         if (drawFolderBrowser(true, &picked))
-            openProject(picked);
+            fs::extension(picked) == ".zip" ? (void)importProjectZip(picked) : (void)openProject(picked);
     }
     ImGui::EndChild();
     ImGui::End();

@@ -216,6 +216,9 @@ public:
     bool makeGameCard(const stdfs::path& png, const std::string& shareUrl, std::string& message);
     void writeWebAppFiles(const stdfs::path& out, const std::string& color, const std::string& orientation);
     bool makeItchZip(std::string& message);
+    // A whole project in one .zip, to send to someone or keep; and back again.
+    bool exportProjectZip(std::string& message);
+    bool importProjectZip(const stdfs::path& zipPath);
     bool startSharing(std::string& message);
     void stopSharing();
     std::string gameControls();         // "Arrow keys to run · Space to jump", from the start scene

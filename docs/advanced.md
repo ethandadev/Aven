@@ -30,6 +30,13 @@ to hide the Ask Aven box, the Doctor buttons and the tips.
 - **Snapping**: hold **Ctrl** while dragging a gizmo, or turn on the magnet. Step sizes are in
   **Preferences > Scene view**.
 - **Right-click an object > Copy as code** copies `find("Name")`.
+- **Keyboard in the Hierarchy**: the arrow keys move through the list (Shift extends the
+  selection), Left and Right close and open folders, Home and End jump to the ends, Esc selects
+  nothing. Right-click actions (move up or down, out of the parent, save as prefab, add a script)
+  and Add Component apply to every selected object.
+- **Accessibility**: **Preferences > Look** has a High Contrast theme, text and UI size, and
+  colorblind-friendly axis colors (orange, sky blue and pink instead of red, green and blue, for
+  the move handles, X/Y/Z fields and grid lines).
 
 ## Physics: collision layers
 

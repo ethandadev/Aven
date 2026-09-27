@@ -147,6 +147,16 @@ void Editor::drawMenuBar() {
         ImGui::Separator();
         if ((unlocked(Feature::Export) || unlocked(Feature::Share)) && ImGui::MenuItem("Build & Share Game..."))
             showExport_ = true;
+        if (ImGui::MenuItem("Export Project as .zip")) {
+            std::string message;
+            bool ok = exportProjectZip(message);
+            notify(message, !ok);
+            if (ok)
+                openExternal(projectDir_.parent_path().string());
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("The whole game (scenes, scripts, pictures, sounds) in one file, to send to someone\n"
+                              "or keep. Open it in Aven's Open a game list, or drop it on Aven.");
         if (unlocked(Feature::ProjectSettings) && ImGui::MenuItem("Project Settings..."))
             showSettings_ = true;
         if (ImGui::MenuItem("Preferences...", key("preferences")))

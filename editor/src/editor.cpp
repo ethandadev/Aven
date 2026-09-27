@@ -4,6 +4,7 @@
 
 #include "aven/blocks/blocks.h"
 #include "aven/core/fs.h"
+#include "aven/core/zip.h"
 #include "aven/core/log.h"
 #include "aven/runtime/script_system.h"
 #include "aven/scene/reflection.h"
@@ -215,6 +216,7 @@ void Editor::openPanels(const std::string& list) {
         else if (p.rfind("import:", 0) == 0) { selectedAssets_ = {p.substr(7)}; showImport_ = focusImport_ = true; } // Import Settings for a file
         else if (p.rfind("tool:", 0) == 0) runEditorTool(p.substr(5)); // run an editor tool
         else if (p.rfind("drop:", 0) == 0) onFilesDropped({p.substr(5)}); // as if dragged in from the desktop
+        else if (p == "projectzip") { std::string m; exportProjectZip(m); Log::info(m); } // File > Export Project as .zip
         else if (p == "dump") { // for tests: the hierarchy, with * on selected objects
             scene_->walk([&](Entity e, int depth) {
                 Vec3 p = scene_->transform(e).position;
@@ -720,7 +722,7 @@ Entity Editor::selected() {
 
 void Editor::select(Entity e) {
     selection_.clear();
-    if (e)
+    if (e && scene().valid(e))
         selection_.push_back(scene().info(e).uuid);
 }
 
@@ -743,7 +745,7 @@ void Editor::toggleSelection(Entity e) {
 }
 
 bool Editor::isSelected(Entity e) {
-    if (!e)
+    if (!e || !scene().valid(e))
         return false;
     UUID id = scene().info(e).uuid;
     return std::find(selection_.begin(), selection_.end(), id) != selection_.end();
@@ -1006,7 +1008,9 @@ Entity Editor::createEntity(const std::string& kind, Entity parent) {
     }
     if (kind != "Start Menu" && kind != "Pause Menu")
         s.info(e).name = kind == "Rounded Square" ? "RoundedSquare" : kind;
-    select(e);
+    // (While the game runs, the selection belongs to the running copy, where this object isn't.)
+    if (!playing_)
+        select(e);
     if (kind == "Tilemap")
         openTilePainter();
     if (kind == "Terrain") {
@@ -1187,6 +1191,8 @@ float axisOf(Vec3 v, int axis) { return axis == 0 ? v.x : axis == 1 ? v.y : v.z;
 } // namespace
 
 void Editor::alignSelection(int axis, int mode) {
+    if (playing_)
+        return; // the selection is the running copy's; this edits the saved scene
     auto items = movableSelection();
     if (items.size() < 2)
         return;
@@ -1206,6 +1212,8 @@ void Editor::alignSelection(int axis, int mode) {
 }
 
 void Editor::distributeSelection(int axis) {
+    if (playing_)
+        return;
     auto items = movableSelection();
     if (items.size() < 3)
         return;
@@ -1762,6 +1770,20 @@ void Editor::scanAssets() {
 }
 
 void Editor::onFilesDropped(const std::vector<std::string>& files) {
+    // A game in a .zip (File > Export Project as .zip, or zipped by hand) opens as a project.
+    if (files.size() == 1 && fs::extension(files[0]) == ".zip") {
+        std::string error;
+        std::vector<zip::Entry> entries;
+        auto bytes = fs::readBinary(files[0]);
+        bool hasGame = false;
+        if (bytes && zip::read(*bytes, entries, error))
+            for (auto& e : entries)
+                hasGame = hasGame || e.name == "project.aven" || (e.name.find('/') == e.name.rfind('/') && e.name.ends_with("/project.aven"));
+        if (hasGame || !hasProject()) {
+            importProjectZip(files[0]);
+            return;
+        }
+    }
     if (!hasProject())
         return;
     int copied = 0, renamed = 0;

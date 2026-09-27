@@ -11,6 +11,7 @@
 
 #include "aven/core/embedded.h"
 #include "aven/core/fs.h"
+#include "aven/core/zip.h"
 #include "aven/render/scene_renderer.h"
 
 #include <imgui.h>
@@ -201,94 +202,6 @@ private:
     const unsigned char* data_ = nullptr;
     bool ok_ = false;
 };
-
-// ---------------------------------------------------------------- zip (stored, no compression)
-
-uint32_t crc32(const std::string& data) {
-    static uint32_t table[256];
-    static bool ready = false;
-    if (!ready) {
-        for (uint32_t i = 0; i < 256; ++i) {
-            uint32_t c = i;
-            for (int k = 0; k < 8; ++k)
-                c = (c & 1) ? 0xEDB88320u ^ (c >> 1) : c >> 1;
-            table[i] = c;
-        }
-        ready = true;
-    }
-    uint32_t crc = 0xFFFFFFFFu;
-    for (unsigned char b : data)
-        crc = table[(crc ^ b) & 0xFF] ^ (crc >> 8);
-    return crc ^ 0xFFFFFFFFu;
-}
-
-void put16(std::string& s, uint16_t v) {
-    s += static_cast<char>(v & 0xFF);
-    s += static_cast<char>(v >> 8);
-}
-void put32(std::string& s, uint32_t v) {
-    put16(s, static_cast<uint16_t>(v & 0xFFFF));
-    put16(s, static_cast<uint16_t>(v >> 16));
-}
-
-bool writeZip(const stdfs::path& zipPath, const stdfs::path& folder) {
-    std::string out, central;
-    uint16_t count = 0;
-    std::error_code ec;
-    for (auto it = stdfs::recursive_directory_iterator(folder, ec); !ec && it != stdfs::recursive_directory_iterator(); it.increment(ec)) {
-        if (!it->is_regular_file())
-            continue;
-        std::string name = stdfs::relative(it->path(), folder, ec).generic_string();
-        auto data = fs::readBinary(it->path());
-        if (!data)
-            return false;
-        std::string bytes(reinterpret_cast<const char*>(data->data()), data->size());
-        uint32_t crc = crc32(bytes), size = static_cast<uint32_t>(bytes.size()), offset = static_cast<uint32_t>(out.size());
-        std::string header;
-        put32(header, 0x04034b50);
-        put16(header, 20);
-        put16(header, 0x0800); // UTF-8 names
-        put16(header, 0);      // stored
-        put16(header, 0);
-        put16(header, 0x21);   // 1980-01-01
-        put32(header, crc);
-        put32(header, size);
-        put32(header, size);
-        put16(header, static_cast<uint16_t>(name.size()));
-        put16(header, 0);
-        out += header + name + bytes;
-        put32(central, 0x02014b50);
-        put16(central, 20);
-        put16(central, 20);
-        put16(central, 0x0800);
-        put16(central, 0);
-        put16(central, 0);
-        put16(central, 0x21);
-        put32(central, crc);
-        put32(central, size);
-        put32(central, size);
-        put16(central, static_cast<uint16_t>(name.size()));
-        put16(central, 0);
-        put16(central, 0);
-        put16(central, 0);
-        put16(central, 0);
-        put32(central, 0);
-        put32(central, offset);
-        central += name;
-        ++count;
-    }
-    uint32_t centralOffset = static_cast<uint32_t>(out.size());
-    out += central;
-    put32(out, 0x06054b50);
-    put16(out, 0);
-    put16(out, 0);
-    put16(out, count);
-    put16(out, count);
-    put32(out, static_cast<uint32_t>(central.size()));
-    put32(out, centralOffset);
-    put16(out, 0);
-    return fs::writeText(zipPath, out);
-}
 
 std::string mimeType(const std::string& ext) {
     if (ext == ".html") return "text/html; charset=utf-8";
@@ -845,13 +758,63 @@ bool Editor::makeItchZip(std::string& message) {
         exportFolder_ = (projectDir_ / "exports").string();
     if (webExportDir_.empty() && !exportWeb(exportFolder_, message))
         return false;
-    stdfs::path zip = stdfs::path(webExportDir_).parent_path() / (safeGameName() + "-web.zip");
-    if (!writeZip(zip, webExportDir_)) {
-        message = "Couldn't write " + zip.string();
+    stdfs::path zipPath = stdfs::path(webExportDir_).parent_path() / (safeGameName() + "-web.zip");
+    if (!zip::write(zipPath, webExportDir_)) {
+        message = "Couldn't write " + zipPath.string();
         return false;
     }
-    message = "Made " + zip.string() + ". On itch.io: create a new project, set 'Kind of project' to HTML, upload this zip and "
+    message = "Made " + zipPath.string() + ". On itch.io: create a new project, set 'Kind of project' to HTML, upload this zip and "
                                        "tick 'This file will be played in the browser'.";
+    return true;
+}
+
+// ---------------------------------------------------------------- project zips
+
+bool Editor::exportProjectZip(std::string& message) {
+    if (!hasProject())
+        return false;
+    saveScene();
+    saveAllScripts();
+    std::error_code ec;
+    stdfs::path zipPath = projectDir_.parent_path() / (safeGameName() + ".zip");
+    for (int n = 2; stdfs::exists(zipPath, ec); ++n)
+        zipPath = projectDir_.parent_path() / (safeGameName() + " " + std::to_string(n) + ".zip");
+    // Everything that makes the game; not exports, captures, replays, the trash or other hidden
+    // folders, or compiled native code (it's rebuilt, and trusted, on the other computer).
+    auto include = [](const std::string& f) {
+        std::string first = f.substr(0, f.find('/'));
+        if (first.empty() || first[0] == '.' || first == "exports" || first == "captures" || first == "bug_reports")
+            return false;
+        return f.rfind("native/build/", 0) != 0 && f.rfind("native/bin/", 0) != 0;
+    };
+    if (!zip::write(zipPath, projectDir_, include)) {
+        message = "Couldn't write " + zipPath.string() + ".";
+        return false;
+    }
+    message = "Made " + zipPath.string() + ". To open it, pick it in Aven's Open a game list (or drop it on Aven).";
+    return true;
+}
+
+bool Editor::importProjectZip(const stdfs::path& zipPath) {
+    std::error_code ec;
+    stdfs::path base = zipPath.parent_path() / zipPath.stem();
+    stdfs::path folder = base;
+    for (int n = 2; stdfs::exists(folder, ec); ++n)
+        folder = base.string() + " " + std::to_string(n);
+    std::string error;
+    if (!zip::extract(zipPath, folder, error)) {
+        stdfs::remove_all(folder, ec);
+        notify("Couldn't open " + zipPath.filename().string() + ": " + error + ".", true);
+        return false;
+    }
+    if (!ProjectSettings::isProject(folder)) {
+        stdfs::remove_all(folder, ec);
+        notify(zipPath.filename().string() + " doesn't have an Aven game in it (there's no project.aven).", true);
+        return false;
+    }
+    Log::info("Unpacked ", zipPath.filename().string(), " into ", folder.string());
+    notify("Unpacked into " + folder.string() + ".");
+    openProject(folder); // (after "Save changes?" if the open game has unsaved ones)
     return true;
 }
 
