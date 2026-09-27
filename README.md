@@ -40,8 +40,8 @@ know how the bigger engines think.
     `aven_get(self, "x")` does what `self.x` does.
 - **Behaviors** give an object gameplay with settings instead of code: platformer and top-down
   controllers, collectibles, hazards, health, spawners, scene links and more.
-- **Runs on:** Linux and in browsers (WebGL2), both played by hand. Windows and macOS builds
-  compile and pass every test in CI, but nobody has play-tested them yet.
+- **Runs on:** Linux, Windows and in browsers (WebGL2), all used by hand. macOS builds compile
+  and pass every test in CI, but haven't been play-tested yet.
 
 **The editor**, a full editor rather than a viewer:
 - **Scene work:** a hierarchy with folders, an Inspector (multi-object editing, prefab overrides,
@@ -51,7 +51,7 @@ know how the bigger engines think.
   working without code.
 - **Code:** a built-in code editor with colors, autocomplete, parameter hints, live problem checks
   and go to definition, and a block editor.
-- **Sharing:** export to desktop, the web and itch.io.
+- **Sharing:** export to desktop, the web and itch.io, or send the whole project as a .zip.
 - **Asset Library:** 69 ready-made, free-to-use (CC0) assets: pixel-art sprites and animations,
   parallax backgrounds, 19 low-poly 3D models (trees, rocks, houses, props, a stand-in character)
   and 18 tileable 3D textures (grass, stone, bricks, wood, metal, prototype grids...). Click to
@@ -63,11 +63,12 @@ know how the bigger engines think.
   - An sfxr-style Sound Maker.
   - Particle presets.
   - Screenshot and GIF capture.
-- **Personalization:** themes, accent colors, font sizes and UI scale, rebindable shortcuts and
-  layouts.
+- **Personalization and accessibility:** themes (including High Contrast), accent colors, font
+  sizes and UI scale, colorblind-friendly axis colors, rebindable shortcuts and layouts.
 - **For experienced developers:** collision layers, script debug drawing, Inspector hints in
   comments (`# @range(0, 10)`), Hierarchy filters (`t:RigidBody2D tag:enemy`), align and select
-  tools, your own code editor, and `aven-editor --check` for CI. See
+  tools, editor tools written in EasyScript (Tools > Editor tools), per-file import settings,
+  your own code editor, and `aven-editor --check` for CI. See
   [docs/advanced.md](docs/advanced.md).
 
 **Features built for beginners**
