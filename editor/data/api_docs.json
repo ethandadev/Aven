@@ -130,6 +130,10 @@
 
   "self.name": "The object's name, as shown in the Hierarchy.",
   "self.tag": "A label for finding groups of objects, like \"enemy\" or \"coin\".",
+  "self.anim_state": "The Animator's current state, like \"Run\". Read it; use play_state() to change it.",
+  "self.set_param": "Sets an Animator parameter: set_param(\"running\", True) or set_param(\"speed\", 3).",
+  "self.trigger": "Fires an Animator trigger parameter once, like trigger(\"attack\").",
+  "self.play_state": "Jumps the Animator straight to a state, like play_state(\"Hurt\").",
   "self.layer": "The collision layer (Project Settings > Collision layers). Setting it changes what the object collides with.",
   "self.active": "False turns the object off: it disappears and its scripts stop.",
   "self.visible": "False hides the object, but its scripts keep running.",

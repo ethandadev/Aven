@@ -139,6 +139,10 @@ public:
     void updateBehaviors(float dt);
     void onBehaviorCollision(Entity a, Entity b, bool begin);
     void onBehaviorClick(Entity e);
+    // Animator state machines (gameplay.cpp).
+    void updateAnimators(float dt);
+    void enterAnimState(Entity e, Animator& a, const std::string& state);
+    float animParam(Entity e, Animator& a, const std::string& name);
     void runClickStep(Entity self, const ClickStep& step);
     void damage(Entity victim, int amount, Vec3 from, float knockback);
     void sparkle(Vec3 at, Color color);

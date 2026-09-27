@@ -436,3 +436,100 @@ AVEN_TEST(audio_mixer_buses) {
     CHECK(!catcher.errors.empty() && catcher.errors[0].find("no audio bus called \"Radio\"") != std::string::npos);
     game.stop();
 }
+
+// Animator: a platformer state machine picks Idle / Run / Jump from the built-in parameters,
+// scripts drive it with set_param / trigger / play_state, and it survives saving.
+AVEN_TEST(animator_state_machine) {
+    Animator a;
+    a.startState = "Idle";
+    a.states = {{"Idle", 0, 1, 4, true, "", 1}, {"Run", 2, 5, 10, true, "", 1}, {"Jump", 6, 6, 8, true, "", 1},
+                {"Attack", 7, 8, 12, false, "", 1}};
+    a.params = {{"attack", true, 0}, {"hurt", false, 0}};
+    a.transitions = {{"*", "Jump", "on_ground", AnimCondition::IsFalse, 0},
+                     {"*", "Attack", "attack", AnimCondition::Triggered, 0},
+                     {"Attack", "Idle", "", AnimCondition::Finished, 0},
+                     {"Jump", "Idle", "on_ground", AnimCondition::IsTrue, 0},
+                     {"Idle", "Run", "speed", AnimCondition::Greater, 0.5f},
+                     {"Run", "Idle", "speed", AnimCondition::Less, 0.5f}};
+
+    // Save and load.
+    const ComponentInfo* ci = ComponentRegistry::find("Animator");
+    CHECK(ci != nullptr);
+    Registry r;
+    Entity e0 = r.create();
+    r.emplace<Animator>(e0) = a;
+    Json saved = saveComponent(*ci, ci->get(r, e0));
+    Entity e1 = r.create();
+    ci->add(r, e1);
+    loadComponent(*ci, ci->get(r, e1), saved);
+    auto& b = r.get<Animator>(e1);
+    CHECK_EQ(b.states.size(), size_t(4));
+    CHECK_EQ(b.states[1].lastFrame, 5);
+    CHECK(!b.states[3].loop);
+    CHECK_EQ(b.transitions.size(), size_t(6));
+    CHECK(b.transitions[1].when == AnimCondition::Triggered);
+    CHECK_EQ(b.transitions[4].value, 0.5f);
+    CHECK(b.params[0].trigger);
+
+    namespace stdfs = std::filesystem;
+    stdfs::path dir = stdfs::temp_directory_path() / "aven_animator_test";
+    std::error_code ec;
+    stdfs::remove_all(dir, ec);
+    stdfs::create_directories(dir / "scripts", ec);
+    fs::writeText(dir / "scripts/p.es", "def on_message(m, data):\n"
+                                        "    if m == \"attack\":\n        self.trigger(\"attack\")\n"
+                                        "    if m == \"hurt\":\n        self.play_state(\"Jump\")\n        game.s = self.anim_state\n"
+                                        "    if m == \"bad\":\n        self.set_param(\"runing\", True)\n");
+    ErrorCatcher catcher;
+    Assets assets;
+    assets.setRoot(dir);
+    Input input;
+    Game game(assets, input);
+    auto scene = std::make_unique<Scene>();
+    auto& reg = scene->registry();
+    Entity ground = scene->create("Ground");
+    scene->transform(ground).position = {0, -1, 0};
+    reg.emplace<BoxCollider2D>(ground).size = {100, 1};
+    Entity hero = scene->create("Hero");
+    scene->transform(hero).position = {0, 0.1f, 0};
+    reg.emplace<SpriteRenderer>(hero);
+    reg.emplace<RigidBody2D>(hero).fixedRotation = true;
+    reg.emplace<BoxCollider2D>(hero);
+    reg.emplace<Script>(hero).path = "scripts/p.es";
+    reg.emplace<Animator>(hero) = a;
+    game.start(std::move(scene), "test.scene");
+    auto step = [&](int n) {
+        for (int i = 0; i < n; ++i)
+            game.update(1.0f / 60.0f);
+    };
+    Entity h = game.scene().findByName("Hero");
+    auto state = [&] { return game.scene().registry().get<Animator>(h).current; };
+    step(40); // lands
+    CHECK_EQ(state(), std::string("Idle"));
+    CHECK(game.scene().registry().has<SpriteAnimator>(h)); // added for it
+    game.physics2D().setVelocity(h, {4, 0});
+    step(2);
+    CHECK_EQ(state(), std::string("Run"));
+    CHECK(game.scene().registry().get<SpriteRenderer>(h).frame >= 2);
+    game.physics2D().setVelocity(h, {0, 0});
+    step(20);
+    CHECK_EQ(state(), std::string("Idle"));
+    game.physics2D().setVelocity(h, {0, 6});
+    step(3);
+    CHECK_EQ(state(), std::string("Jump"));
+    step(90);
+    CHECK_EQ(state(), std::string("Idle"));
+    game.scripts().broadcast("attack", {});
+    step(2);
+    CHECK_EQ(state(), std::string("Attack"));
+    step(30); // 2 frames at 12 fps, doesn't loop, then back to Idle
+    CHECK_EQ(state(), std::string("Idle"));
+    CHECK_EQ(game.scene().registry().get<Animator>(h).params[0].value, 0.0f); // trigger used up
+    CHECK(catcher.errors.empty());
+    game.scripts().broadcast("hurt", {});
+    CHECK(game.scripts().gameValue("s").isString() && game.scripts().gameValue("s").string() == "Jump");
+    game.scripts().broadcast("bad", {});
+    CHECK_EQ(catcher.errors.size(), size_t(1));
+    CHECK(!catcher.errors.empty() && catcher.errors[0].find("attack, hurt") != std::string::npos);
+    game.stop();
+}

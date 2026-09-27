@@ -23,6 +23,7 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `float(value)`
 - `floor(x)`
 - `game.anything = value` (shared by all scripts and scenes)
+- `get_bus_volume("Music")`
 - `get_game("score", 0)`
 - `int(value)`
 - `len(list_or_text)`
@@ -32,6 +33,7 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `max(a, b, ...) or max(my_list)`
 - `min(a, b, ...) or min(my_list)`
 - `move_toward(current, target, step)`
+- `mute_bus("Music", True)`
 - `pi`
 - `pow(x, power)`
 - `print(value, ...)`
@@ -39,6 +41,7 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `range(stop) or range(start, stop) or range(start, stop, step)`
 - `reversed(my_list)`
 - `round(x) or round(x, digits)`
+- `set_bus_volume("Music", 0.5)`
 - `sign(x)`
 - `sin(x)`
 - `sorted(my_list, key=None, reverse=False)`
@@ -142,7 +145,7 @@ Everything scripts can use, generated from the engine itself (the same list as t
 ## Audio
 
 - `play_music("music/theme.ogg", volume=1, loop=True)`
-- `play_sound("sounds/jump.wav", volume=1, pitch=1)`
+- `play_sound("sounds/jump.wav", volume=1, pitch=1, bus="Effects")`
 - `set_volume(0.5)`
 - `stop_music()`
 
@@ -160,6 +163,7 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `self.name`
 - `self.tag`
 - `self.layer`
+- `self.anim_state`
 - `self.active`
 - `self.visible`
 - `self.id`
@@ -210,6 +214,9 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `self.destroy()`
 - `self.damage(amount)`
 - `self.heal(amount)`
+- `self.set_param("running", True)`
+- `self.trigger("attack")`
+- `self.play_state("Hurt")`
 - `self.move(dx, dy) or self.move(dx, dy, dz)`
 - `self.move_forward(distance)`
 - `self.turn(degrees)`

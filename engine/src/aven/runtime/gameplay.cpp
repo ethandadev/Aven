@@ -104,9 +104,110 @@ void GameplaySystems::updateParticles(Entity e, ParticleEmitter& emitter, float 
     simulateParticles(game_.scene(), e, emitter, dt, rng_);
 }
 
+// Animator: picks the state from its parameters, then drives the SpriteAnimator or ModelAnimator.
+void GameplaySystems::enterAnimState(Entity e, Animator& a, const std::string& name) {
+    auto it = std::find_if(a.states.begin(), a.states.end(), [&](const AnimState& s) { return s.name == name; });
+    if (it == a.states.end())
+        return;
+    auto& reg = game_.scene().registry();
+    a.current = name;
+    a.time = 0;
+    if (reg.has<SpriteRenderer>(e)) {
+        auto& sa = reg.getOrEmplace<SpriteAnimator>(e);
+        sa.firstFrame = it->firstFrame;
+        sa.lastFrame = std::max(it->firstFrame, it->lastFrame);
+        sa.fps = it->fps;
+        sa.loop = it->loop;
+        sa.playing = true;
+        sa.time = 0;
+        reg.get<SpriteRenderer>(e).frame = sa.firstFrame;
+    }
+    if (auto* mr = reg.tryGet<MeshRenderer>(e); mr && mr->mesh == MeshShape::Model) {
+        auto& ma = reg.getOrEmplace<ModelAnimator>(e);
+        ma.clip = it->clip;
+        ma.speed = it->speed;
+        ma.mode = it->loop ? ModelAnimationMode::Loop : ModelAnimationMode::Once;
+        ma.playing = true;
+        ma.time = 0;
+    }
+}
+
+float GameplaySystems::animParam(Entity e, Animator& a, const std::string& name) {
+    for (auto& p : a.params)
+        if (p.name == name)
+            return p.value;
+    if (name == "time_in_state")
+        return a.time;
+    script::Value v;
+    ScriptSystem& scripts = game_.scripts();
+    if (name == "speed") {
+        // How fast it moves sideways (2D) or along the ground (3D).
+        Vec3 vel;
+        if (scripts.getProperty(e, "velocity", v) && v.isVec())
+            vel = ScriptSystem::toVec3(v, "speed");
+        bool threeD = game_.scene().registry().has<MeshRenderer>(e) || game_.scene().registry().has<CharacterController>(e);
+        return threeD ? std::sqrt(vel.x * vel.x + vel.z * vel.z) : std::abs(vel.x);
+    }
+    if (name == "vertical_speed")
+        return scripts.getProperty(e, "velocity_y", v) && v.isNumber() ? static_cast<float>(v.number()) : 0.0f;
+    if (name == "on_ground")
+        return scripts.getProperty(e, "on_ground", v) && v.truthy() ? 1.0f : 0.0f;
+    return 0.0f;
+}
+
+void GameplaySystems::updateAnimators(float dt) {
+    Scene& scene = game_.scene();
+    auto& reg = scene.registry();
+    for (Entity e : reg.entitiesWith<Animator>()) {
+        if (!scene.isActive(e))
+            continue;
+        auto& a = reg.get<Animator>(e);
+        if (a.states.empty())
+            continue;
+        if (a.current.empty())
+            enterAnimState(e, a, a.startState.empty() ? a.states.front().name : a.startState);
+        a.time += dt;
+        auto state = std::find_if(a.states.begin(), a.states.end(), [&](const AnimState& s) { return s.name == a.current; });
+        bool finished = false;
+        if (state != a.states.end()) {
+            auto* sa = reg.tryGet<SpriteAnimator>(e);
+            if (!state->loop && sa)
+                finished = !sa->playing;
+        }
+        // The first transition whose condition holds, from this state or from any state.
+        for (auto& t : a.transitions) {
+            if ((t.from != "*" && t.from != a.current) || t.to == a.current || t.to.empty())
+                continue;
+            bool go = false;
+            switch (t.when) {
+            case AnimCondition::IsTrue: go = animParam(e, a, t.param) > 0.5f; break;
+            case AnimCondition::IsFalse: go = animParam(e, a, t.param) <= 0.5f; break;
+            case AnimCondition::Greater: go = animParam(e, a, t.param) > t.value; break;
+            case AnimCondition::Less: go = animParam(e, a, t.param) < t.value; break;
+            case AnimCondition::Triggered:
+                for (auto& p : a.params)
+                    if (p.name == t.param && p.value > 0.5f) {
+                        go = true;
+                        p.value = 0; // a trigger is used up
+                    }
+                break;
+            case AnimCondition::Finished: go = finished || (t.value > 0 && a.time >= t.value); break;
+            case AnimCondition::Always: go = true; break;
+            case AnimCondition::Count: break;
+            }
+            if (go) {
+                enterAnimState(e, a, t.to);
+                break;
+            }
+        }
+    }
+}
+
 void GameplaySystems::update(float dt) {
     Scene& scene = game_.scene();
     auto& reg = scene.registry();
+
+    updateAnimators(dt);
 
     reg.each<SpriteAnimator>([&](Entity e, SpriteAnimator& anim) {
         auto* sr = reg.tryGet<SpriteRenderer>(e);

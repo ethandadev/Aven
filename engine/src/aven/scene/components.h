@@ -228,6 +228,47 @@ struct ModelAnimator {
     float time = 0.0f; // runtime
 };
 
+// ---------------------------------------------------------------- Animator (state machine)
+
+// When a transition fires. Parameters are numbers; true/false ones are 1/0.
+enum class AnimCondition : int32_t { IsTrue, IsFalse, Greater, Less, Triggered, Finished, Always, Count };
+const std::vector<std::string>& animConditionNames();  // "is_true"...
+const std::vector<std::string>& animConditionLabels(); // "is true"...
+
+struct AnimState {
+    std::string name = "Idle";
+    int firstFrame = 0, lastFrame = 0; // sprite sheet frames (2D)
+    float fps = 8.0f;
+    bool loop = true;
+    std::string clip; // model animation (3D); empty = the model's first
+    float speed = 1.0f;
+};
+
+struct AnimTransition {
+    std::string from = "*"; // a state, or "*" for any state
+    std::string to;
+    std::string param;      // a parameter, or speed / vertical_speed / on_ground / time_in_state
+    AnimCondition when = AnimCondition::IsTrue;
+    float value = 0.0f;     // for Greater/Less; for Finished, seconds to wait if the state loops
+};
+
+struct AnimParam {
+    std::string name;
+    bool trigger = false; // a trigger is on until a transition uses it
+    float value = 0.0f;
+};
+
+// Picks which animation plays from parameters, like Unity's Animator Controller. Drives the
+// object's SpriteAnimator (2D) or ModelAnimator (3D); adds one if missing.
+struct Animator {
+    std::string startState;
+    std::vector<AnimState> states;
+    std::vector<AnimTransition> transitions;
+    std::vector<AnimParam> params;
+    std::string current;  // runtime
+    float time = 0.0f;    // runtime: seconds in the current state
+};
+
 // ---------------------------------------------------------------- Scripting
 
 // Attach an EasyScript (.es) or block (.blocks) script. `overrides` holds

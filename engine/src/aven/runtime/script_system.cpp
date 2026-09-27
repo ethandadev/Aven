@@ -462,6 +462,20 @@ std::string requireKeyName(ScriptSystem& sys, CallArgs& a, size_t i) {
     return name;
 }
 
+Animator& requireAnimator(ScriptSystem& s, Entity e, const char* context) {
+    auto* a = s.game().scene().registry().tryGet<Animator>(e);
+    if (!a)
+        raise(std::string(context) + " needs an Animator on the object (Add Component > Animator).");
+    return *a;
+}
+
+std::string animParamNames(const Animator& a) {
+    std::string out;
+    for (auto& p : a.params)
+        out += (out.empty() ? "" : ", ") + p.name;
+    return out.empty() ? "none yet" : out;
+}
+
 const std::vector<MethodDef>& entityMethods() {
     static const std::vector<MethodDef> methods = {
         {"destroy", "self.destroy()", 0, 0,
@@ -479,6 +493,46 @@ const std::vector<MethodDef>& entityMethods() {
          [](ScriptSystem& s, Entity e, CallArgs& a) {
              if (auto* h = s.game().scene().registry().tryGet<Health>(e))
                  h->current = std::min(h->maxHealth, h->current + static_cast<int>(a.number(0, "amount")));
+             return Value();
+         }},
+        // The Animator: set_param("running", True), trigger("attack"), play_state("Hurt").
+        {"set_param", "self.set_param(\"running\", True)", 2, 2,
+         [](ScriptSystem& s, Entity e, CallArgs& a) {
+             Animator& anim = requireAnimator(s, e, "set_param()");
+             std::string name = a.string(0, "parameter");
+             float v = a[1].isNumber() ? static_cast<float>(a[1].number()) : (a[1].truthy() ? 1.0f : 0.0f);
+             for (auto& p : anim.params)
+                 if (p.name == name) {
+                     p.value = v;
+                     return Value();
+                 }
+             raise("set_param(): this Animator has no parameter called \"" + name + "\". Its parameters are: " +
+                   animParamNames(anim) + " (add one in the Inspector).");
+         }},
+        {"trigger", "self.trigger(\"attack\")", 1, 1,
+         [](ScriptSystem& s, Entity e, CallArgs& a) {
+             Animator& anim = requireAnimator(s, e, "trigger()");
+             std::string name = a.string(0, "trigger");
+             for (auto& p : anim.params)
+                 if (p.name == name) {
+                     p.value = 1;
+                     return Value();
+                 }
+             raise("trigger(): this Animator has no parameter called \"" + name + "\". Its parameters are: " +
+                   animParamNames(anim) + ".");
+         }},
+        {"play_state", "self.play_state(\"Hurt\")", 1, 1,
+         [](ScriptSystem& s, Entity e, CallArgs& a) {
+             Animator& anim = requireAnimator(s, e, "play_state()");
+             std::string name = a.string(0, "state");
+             bool known = std::any_of(anim.states.begin(), anim.states.end(), [&](const AnimState& st) { return st.name == name; });
+             if (!known) {
+                 std::string list;
+                 for (auto& st : anim.states)
+                     list += (list.empty() ? "" : ", ") + st.name;
+                 raise("play_state(): this Animator has no state called \"" + name + "\". Its states are: " + list + ".");
+             }
+             s.game().gameplay().enterAnimState(e, anim, name);
              return Value();
          }},
         {"move", "self.move(dx, dy) or self.move(dx, dy, dz)", 1, 3,
@@ -825,7 +879,7 @@ const std::vector<MethodDef>& entityMethods() {
 // ---------------------------------------------------------------- properties
 
 std::vector<std::string> ScriptSystem::propertyNames() {
-    return {"name",     "tag",      "layer",    "active",   "visible",  "id",        "exists",    "x",          "y",
+    return {"name",     "tag",      "layer",    "anim_state", "active",   "visible",  "id",        "exists",    "x",          "y",
             "z",        "position", "world_x",  "world_y",  "world_z",   "world_position", "angle", "rotation",
             "rotation_x", "rotation_y", "rotation_z", "scale", "scale_x", "scale_y", "scale_z", "size",
             "width",    "height",   "color",    "alpha",    "text",      "image",     "shape",      "frame",
@@ -934,6 +988,7 @@ bool ScriptSystem::getProperty(Entity e, const std::string& name, Value& out) {
     int comps = three ? 3 : 2;
     if (name == "name") out = Value(info.name);
     else if (name == "tag") out = Value(info.tag);
+    else if (name == "anim_state") out = Value(reg.has<Animator>(e) ? reg.get<Animator>(e).current : std::string());
     else if (name == "layer") out = Value(info.layer.empty() ? std::string("Default") : info.layer);
     else if (name == "active") out = Value(info.active);
     else if (name == "visible") out = Value(!reg.has<Hidden>(e));

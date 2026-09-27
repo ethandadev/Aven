@@ -55,11 +55,12 @@ Where Aven stands, including what's missing. If you'd like to help with any of i
   yourself.
 
 **Engine**
-- **Animation:** sprite frames and glTF clips play, but there are no animation state machines,
+- **Animation:** sprite frames and glTF clips, switched by an Animator state machine, but no
   blend trees or IK.
 - **Not built yet:** terrain, navigation meshes and pathfinding, LODs, occlusion culling, and
   baked lighting or global illumination.
-- **Audio:** volume, pitch and 3D placement, but no mixer, buses or effects.
+- **Audio:** volume, pitch, 3D placement and a mixer with buses (volume, mute, low-pass, echo),
+  but no reverb zones or other effects.
 
 **Editor**
 - **Assets:** read straight from the project folder, with no import pipeline, compression
@@ -86,6 +87,5 @@ Where Aven stands, including what's missing. If you'd like to help with any of i
 3. `aven_find_child`, `aven_parent` and text arguments for `aven_call` in the C API (API
    version 2).
 4. Pathfinding on tilemaps and navigation meshes.
-5. An animation state machine, driven by blocks and EasyScript.
-6. A Vulkan or Metal backend behind `rhi.h`.
-7. Translations of the editor.
+5. A Vulkan or Metal backend behind `rhi.h`.
+6. Translations of the editor.

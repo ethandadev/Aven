@@ -49,6 +49,47 @@ def on_update(dt):
 
 `raycast(..., layers=["Ground", "Enemy"])` takes a list too.
 
+## Animation: state machines
+
+**Add Component > Animator** picks which animation plays from parameters, like Unity's Animator
+Controller. It drives the object's Sprite Animator (a range of sprite-sheet frames) or, on a 3D
+model, its Model Animator (a clip by name), and adds one if it's missing.
+
+- **Presets** set up a platformer character (idle, run, jump, fall), a top-down one (idle, walk)
+  or a 3D character (picks clips named idle, walk/run, jump).
+- **States** list their frames and speed (or clip), and whether they loop.
+- **Transitions** are checked from the top every frame; the first one that holds switches state.
+  "From" can be any state. Conditions: is true, is false, greater than, less than, triggered,
+  animation finished (or after N seconds), always.
+- **Parameters** are values scripts set. These are always there, read from the object:
+  `speed` (sideways in 2D, along the ground in 3D), `vertical_speed`, `on_ground`, `time_in_state`.
+- The picture at the top lights up the playing state while the game runs.
+
+```easyscript
+def on_key_pressed(key):
+    if key == "x":
+        self.trigger("attack")           # a trigger is used up by the transition it fires
+
+def on_collide(other):
+    if other.tag == "enemy":
+        self.play_state("Hurt")          # jump straight to a state
+    self.set_param("armed", True)
+    print(self.anim_state)               # the state playing now
+```
+
+## Audio: the mixer
+
+**Project Settings > Audio mixer** has buses: Music, Effects and Voice to start with, plus any you
+add. Each has a volume, mute, a low-pass filter (muffled, as if underwater or behind a wall) and
+an echo. Changes apply live while the game runs. Every Audio Source picks a bus; music plays on
+Music.
+
+```easyscript
+set_bus_volume("Music", 0.3)             # e.g. from an options menu
+mute_bus("Effects", True)
+play_sound("sounds/radio.wav", bus="Voice")
+```
+
 ## Scripting
 
 - **Inspector hints** in comments, like Unity's `[Range]` and `[Header]`:

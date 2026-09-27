@@ -205,6 +205,88 @@ std::vector<ComponentInfo> buildRegistry() {
             .field(F(castShadows));
     }
     {
+        using Type = Animator;
+        r.add<Type>("Animator", "Animation", "Switches between animations (idle, run, jump...) from parameters, with no code.")
+            .field(F(current), {.runtime = true});
+        auto& info = r.list.back();
+        info.extraKeys = {"start_state", "states", "transitions", "params"};
+        info.saveExtra = [](const void* c, Json& j) {
+            auto& a = *static_cast<const Animator*>(c);
+            Json states = Json::array(), transitions = Json::array(), params = Json::array();
+            for (auto& st : a.states) {
+                Json s2 = Json::object();
+                s2["name"] = st.name;
+                if (st.firstFrame || st.lastFrame) {
+                    s2["first_frame"] = st.firstFrame;
+                    s2["last_frame"] = st.lastFrame;
+                }
+                s2["fps"] = st.fps;
+                s2["loop"] = st.loop;
+                if (!st.clip.empty())
+                    s2["clip"] = st.clip;
+                if (st.speed != 1.0f)
+                    s2["speed"] = st.speed;
+                states.push(std::move(s2));
+            }
+            for (auto& t : a.transitions) {
+                Json t2 = Json::object();
+                t2["from"] = t.from;
+                t2["to"] = t.to;
+                if (!t.param.empty())
+                    t2["param"] = t.param;
+                t2["when"] = animConditionNames()[static_cast<size_t>(t.when)];
+                if (t.value != 0)
+                    t2["value"] = t.value;
+                transitions.push(std::move(t2));
+            }
+            for (auto& p : a.params) {
+                Json p2 = Json::object();
+                p2["name"] = p.name;
+                if (p.trigger)
+                    p2["trigger"] = true;
+                else
+                    p2["value"] = p.value;
+                params.push(std::move(p2));
+            }
+            if (!a.startState.empty())
+                j["start_state"] = a.startState;
+            j["states"] = std::move(states);
+            j["transitions"] = std::move(transitions);
+            j["params"] = std::move(params);
+        };
+        info.loadExtra = [](void* c, const Json& j) {
+            auto& a = *static_cast<Animator*>(c);
+            a.states.clear();
+            a.transitions.clear();
+            a.params.clear();
+            a.startState = j["start_state"].asString("");
+            for (auto& s2 : j["states"].elements()) {
+                AnimState st;
+                st.name = s2["name"].asString("State");
+                st.firstFrame = s2["first_frame"].asInt(0);
+                st.lastFrame = s2["last_frame"].asInt(st.firstFrame);
+                st.fps = s2["fps"].asFloat(8.0f);
+                st.loop = s2["loop"].asBool(true);
+                st.clip = s2["clip"].asString("");
+                st.speed = s2["speed"].asFloat(1.0f);
+                a.states.push_back(std::move(st));
+            }
+            for (auto& t2 : j["transitions"].elements()) {
+                AnimTransition t;
+                t.from = t2["from"].asString("*");
+                t.to = t2["to"].asString("");
+                t.param = t2["param"].asString("");
+                auto& names = animConditionNames();
+                auto it = std::find(names.begin(), names.end(), t2["when"].asString("is_true"));
+                t.when = it == names.end() ? AnimCondition::IsTrue : static_cast<AnimCondition>(it - names.begin());
+                t.value = t2["value"].asFloat(0.0f);
+                a.transitions.push_back(std::move(t));
+            }
+            for (auto& p2 : j["params"].elements())
+                a.params.push_back({p2["name"].asString("param"), p2["trigger"].asBool(false), p2["value"].asFloat(0.0f)});
+        };
+    }
+    {
         using Type = ModelAnimator;
         r.add<Type>("ModelAnimator", "Rendering 3D", "Plays animations stored in a 3D model.", true, false, true)
             .field(F(clip))
@@ -610,6 +692,17 @@ std::vector<ComponentInfo> buildRegistry() {
 } // namespace
 
 #undef F
+
+const std::vector<std::string>& animConditionNames() {
+    static const std::vector<std::string> names = {"is_true", "is_false", "greater", "less", "triggered", "finished", "always"};
+    return names;
+}
+
+const std::vector<std::string>& animConditionLabels() {
+    static const std::vector<std::string> labels = {"is true", "is false", "is more than", "is less than", "is triggered",
+                                                    "animation finished", "right away"};
+    return labels;
+}
 
 const std::vector<std::string>& clickDoNames() {
     static const std::vector<std::string> names = {"load_scene", "restart_scene", "quit",       "pause",      "show",

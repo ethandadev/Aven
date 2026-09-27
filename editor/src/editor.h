@@ -504,6 +504,7 @@ private:
     void drawNativeScriptInspector(Entity e);
     void drawClickActions(Entity e, const std::vector<Entity>& selection);
     void drawValueBarHint(Entity e);
+    void drawAnimator(Entity e, const std::vector<Entity>& selection); // animator_editor.cpp
     // Asset Library (asset_library.cpp)
     const Json& library();
     void openAssetLibrary();

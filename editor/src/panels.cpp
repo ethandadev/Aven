@@ -1426,7 +1426,7 @@ bool Editor::componentUnlocked(const ComponentInfo& info) const {
         return unlocked(Feature::Lighting);
     if (info.name == "PostProcessing")
         return unlocked(Feature::PostProcessing);
-    if (info.name == "SpriteAnimator")
+    if (info.name == "SpriteAnimator" || info.name == "Animator")
         return unlocked(Feature::Animation);
     if (info.name == "Tilemap")
         return unlocked(Feature::Tilemap);
@@ -1740,7 +1740,9 @@ void Editor::drawInspector() {
             }
             if (ci.name == "ValueBar")
                 drawValueBarHint(e);
-            if (ci.name == "ClickActions") {
+            if (ci.name == "Animator") {
+                drawAnimator(e, selection);
+            } else if (ci.name == "ClickActions") {
                 drawClickActions(e, selection);
             } else if (ci.name == "NativeScript") {
                 drawNativeScriptInspector(e);

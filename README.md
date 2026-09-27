@@ -21,7 +21,9 @@ know how the bigger engines think.
 - **Post-processing:** bloom, tonemapping, color grading, vignette, SSAO and FXAA.
 - **Game UI:** text, buttons, panels, images, value bars (health, energy) and anchors. Buttons
   work without code: **Click Actions** list what a click does, like Unity's On Click list.
-- **Audio:** 2D and 3D sound and music.
+- **Animation:** an **Animator** state machine (idle, run, jump...) switches sprite-sheet frames
+  or model clips from parameters, with presets and no code needed.
+- **Audio:** 2D and 3D sound and music, and a mixer with buses (volume, mute, low-pass, echo).
 - **Saving:** save data for games.
 - **The rest:** scenes, prefabs, an object hierarchy, and an ECS with reflection, so every
   component shows up in the Inspector and in scripts.
