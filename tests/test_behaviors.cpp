@@ -860,7 +860,7 @@ AVEN_TEST(multiplayer_two_games_on_localhost) {
         auto& reg = scene->registry();
         reg.emplace<Script>(scene->create("Brain")).path = script;
         Entity box = scene->create("Box");
-        scene->info(box).uuid = UUID{0x1234}; // the same object in both copies of the scene
+        scene->setUUID(box, UUID{0x1234}); // the same object in both copies of the scene
         reg.emplace<NetworkSync>(box);
         return scene;
     };

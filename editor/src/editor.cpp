@@ -1506,9 +1506,9 @@ void Editor::revertToPrefab(Entity instance) {
         return;
     Transform keep = scene_->transform(instance);
     std::string name = scene_->info(instance).name;
+    UUID id = scene_->info(instance).uuid; // kept, so what points at this object (and the selection) still does
     Entity parent = scene_->parent(instance);
     int index = scene_->siblingIndex(instance);
-    bool wasSelected = isSelected(instance);
     scene_->destroy(instance);
     auto roots = scene_->instantiate(Json::parse(*text), parent);
     if (roots.empty())
@@ -1521,8 +1521,7 @@ void Editor::revertToPrefab(Entity instance) {
     t.scale = keep.scale;
     scene_->info(e).name = name;
     scene_->registry().getOrEmplace<PrefabInstance>(e).path = path;
-    if (wasSelected)
-        addToSelection(e);
+    scene_->setUUID(e, id);
 }
 
 void Editor::drawPrefabBar() {

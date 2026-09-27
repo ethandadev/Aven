@@ -50,6 +50,8 @@ public:
     // --- Lookup
     Entity findByName(std::string_view name) const;
     Entity findByUUID(UUID id) const;
+    // Gives an object a different id, keeping findByUUID right. False if another object has it.
+    bool setUUID(Entity e, UUID id);
     std::vector<Entity> findAllWithTag(std::string_view tag) const;
 
     // --- Transforms

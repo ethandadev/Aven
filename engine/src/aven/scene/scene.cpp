@@ -144,6 +144,20 @@ Entity Scene::findByName(std::string_view entityName) const {
     return found;
 }
 
+bool Scene::setUUID(Entity e, UUID id) {
+    if (!registry_.valid(e) || !id)
+        return false;
+    auto& info = registry_.get<EntityInfo>(e);
+    if (info.uuid == id)
+        return true;
+    if (findByUUID(id))
+        return false;
+    byUUID_.erase(info.uuid);
+    info.uuid = id;
+    byUUID_[id] = e;
+    return true;
+}
+
 Entity Scene::findByUUID(UUID id) const {
     auto it = byUUID_.find(id);
     return it != byUUID_.end() && registry_.valid(it->second) ? it->second : Entity{};

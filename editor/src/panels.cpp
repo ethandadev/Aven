@@ -1820,11 +1820,19 @@ void Editor::drawInspector() {
             if (ImGui::SmallButton("Apply"))
                 applyToPrefab(e);
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Save this object's changes into the prefab (all copies update).");
+                ImGui::SetTooltip(selection.size() > 1 ? "Save %s's changes into the prefab (all copies update)."
+                                                       : "Save this object's changes into the prefab (all copies update).%s",
+                                  selection.size() > 1 ? info.name.c_str() : "");
             ImGui::SameLine();
             if (ImGui::SmallButton("Revert")) {
+                // Every selected copy goes back to the prefab (ids are kept, so the selection stays).
                 recordUndo("Revert to prefab");
-                revertToPrefab(e);
+                std::vector<UUID> ids;
+                for (Entity other : selection)
+                    if (s.registry().has<PrefabInstance>(other))
+                        ids.push_back(s.info(other).uuid);
+                for (UUID id : ids)
+                    revertToPrefab(s.findByUUID(id));
                 ImGui::End();
                 return;
             }
