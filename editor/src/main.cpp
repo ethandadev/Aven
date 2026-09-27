@@ -68,6 +68,12 @@ ImGuiKey keyNamed(const std::string& n) {
     if (n == "Tab") return ImGuiKey_Tab;
     if (n == "Backspace") return ImGuiKey_Backspace;
     if (n == "F2") return ImGuiKey_F2;
+    if (n == "Up") return ImGuiKey_UpArrow;
+    if (n == "Down") return ImGuiKey_DownArrow;
+    if (n == "Left") return ImGuiKey_LeftArrow;
+    if (n == "Right") return ImGuiKey_RightArrow;
+    if (n == "Home") return ImGuiKey_Home;
+    if (n == "End") return ImGuiKey_End;
     if (n.size() == 1 && std::isalpha(static_cast<unsigned char>(n[0])))
         return static_cast<ImGuiKey>(ImGuiKey_A + (std::toupper(static_cast<unsigned char>(n[0])) - 'A'));
     return ImGuiKey_None;

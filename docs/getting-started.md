@@ -40,6 +40,12 @@ Press **Play** (or Ctrl+P) to play it inside the editor. Now change something:
    press **Ask**.
 4. Not sure what something does? Select it and open the **Explain** tab.
 
+Working with several objects: Ctrl+click adds one to the selection, Shift+click (or Shift and the
+arrow keys in the Hierarchy) selects a range, and dragging in an empty part of the scene box-selects.
+Whatever you then do (move, drag into a folder, delete, duplicate, Add Component, change a setting in
+the Inspector) happens to all of them, as one undo step. In the Hierarchy the arrow keys move
+through the list, Left and Right close and open folders, and Esc selects nothing.
+
 ## 3. Add behavior
 
 - **Behaviors** need no code. Add Component > Behaviors has a platformer controller,

@@ -408,6 +408,12 @@ private:
     std::string hierarchyFilter_;
     std::vector<UUID> hierarchyOrder_, lastHierarchyOrder_; // visible rows, for Shift-click ranges
     UUID hierarchyAnchor_;
+    struct HierarchyRow {
+        unsigned int nodeId = 0; // the tree node's ImGui id, to open or close it from the keyboard
+        bool open = false, hasChildren = false;
+    };
+    std::unordered_map<uint64_t, HierarchyRow> hierarchyRows_;
+    void hierarchyKeys(); // arrows move through the rows, Shift extends, Left/Right close/open, Esc clears
     UUID pendingSelect_; // a click on one of several selected rows: select it alone unless it becomes a drag
     std::vector<Entity> draggedEntities(Entity dragged);
     std::vector<Entity> topSelection();

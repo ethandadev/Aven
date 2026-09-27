@@ -450,6 +450,7 @@ void Editor::drawEntityNode(Entity e) {
         bool folder = isFolder(reg, e, !kids.empty());
         open = ImGui::TreeNodeEx("##node", flags, "     %s", renaming ? "" : info.name.c_str());
         const ImGuiID nodeId = ImGui::GetItemID();
+        hierarchyRows_[info.uuid.value] = {nodeId, open && !kids.empty(), !kids.empty()}; // leaves count as open to ImGui
         ImVec2 rowMin = ImGui::GetItemRectMin(), rowMax = ImGui::GetItemRectMax();
         float h = ImGui::GetFrameHeight();
         ImVec2 dot{p.x + ImGui::GetTreeNodeToLabelSpacing() + 6, p.y + h * 0.5f};
@@ -702,6 +703,66 @@ void Editor::drawEntityNode(Entity e) {
     ImGui::PopID();
 }
 
+void Editor::hierarchyKeys() {
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantTextInput || keyboardClaimed() || renaming_ || ImGui::IsAnyItemActive() || hierarchyOrder_.empty())
+        return;
+    Scene& s = scene();
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
+        selection_.clear();
+        return;
+    }
+    const UUID current = selection_.empty() ? UUID{} : selection_.back();
+    auto at = std::find(hierarchyOrder_.begin(), hierarchyOrder_.end(), current);
+    // Picks a row: on its own, or (with Shift) everything from the anchor to it.
+    auto pick = [&](UUID id) {
+        if (io.KeyShift && hierarchyAnchor_) {
+            auto a = std::find(hierarchyOrder_.begin(), hierarchyOrder_.end(), hierarchyAnchor_);
+            auto b = std::find(hierarchyOrder_.begin(), hierarchyOrder_.end(), id);
+            if (a != hierarchyOrder_.end() && b != hierarchyOrder_.end()) {
+                auto lo = std::min(a, b), hi = std::max(a, b);
+                selection_.assign(lo, hi + 1);
+                std::erase(selection_, id);
+                selection_.push_back(id); // the one the arrows move from next
+                return;
+            }
+        }
+        selection_ = {id};
+        hierarchyAnchor_ = id;
+    };
+    if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
+        if (at == hierarchyOrder_.end())
+            pick(hierarchyOrder_.front());
+        else if (at + 1 != hierarchyOrder_.end())
+            pick(*(at + 1));
+    } else if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) {
+        if (at == hierarchyOrder_.end())
+            pick(hierarchyOrder_.back());
+        else if (at != hierarchyOrder_.begin())
+            pick(*(at - 1));
+    } else if (ImGui::IsKeyPressed(ImGuiKey_Home)) {
+        pick(hierarchyOrder_.front());
+    } else if (ImGui::IsKeyPressed(ImGuiKey_End)) {
+        pick(hierarchyOrder_.back());
+    } else if (at != hierarchyOrder_.end() && (ImGui::IsKeyPressed(ImGuiKey_RightArrow) || ImGui::IsKeyPressed(ImGuiKey_LeftArrow))) {
+        auto row = hierarchyRows_.find(current.value);
+        if (row == hierarchyRows_.end())
+            return;
+        ImGuiStorage* storage = ImGui::GetStateStorage();
+        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow)) {
+            if (row->second.hasChildren && !row->second.open)
+                storage->SetInt(row->second.nodeId, 1); // open it
+            else if (row->second.open && at + 1 != hierarchyOrder_.end())
+                pick(*(at + 1)); // already open: into its first child
+        } else {
+            if (row->second.open)
+                storage->SetInt(row->second.nodeId, 0); // close it
+            else if (Entity e = s.findByUUID(current); e && s.parent(e))
+                pick(s.info(s.parent(e)).uuid); // closed or empty: up to its parent
+        }
+    }
+}
+
 void Editor::drawHierarchy() {
     ui::panelClass();
     ImGui::Begin("Hierarchy", &showHierarchy_);
@@ -755,7 +816,8 @@ void Editor::drawHierarchy() {
         ImGui::EndPopup();
     }
     ImGui::Separator();
-    ImGui::BeginChild("##tree");
+    // The arrow keys pick rows (hierarchyKeys), so ImGui's own keyboard navigation stays out of the tree.
+    ImGui::BeginChild("##tree", {0, 0}, 0, ImGuiWindowFlags_NoNavInputs);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {4, 3});
     Scene& s = scene();
     // When something gets selected outside the Hierarchy, open the folders it's in and scroll to it.
@@ -770,6 +832,7 @@ void Editor::drawHierarchy() {
     }
     lastHierarchyOrder_ = std::move(hierarchyOrder_);
     hierarchyOrder_.clear();
+    hierarchyRows_.clear();
     if (!hierarchyFilter_.empty()) {
         drawHierarchySearch();
     } else {
@@ -779,6 +842,8 @@ void Editor::drawHierarchy() {
                 drawEntityNode(e);
     }
     ImGui::PopStyleVar();
+    if (hierarchyFocused_)
+        hierarchyKeys();
     // Dropping on empty space moves objects to the top level.
     ImGui::Dummy(ImGui::GetContentRegionAvail());
     if (!playing_ && ImGui::BeginDragDropTarget()) {
