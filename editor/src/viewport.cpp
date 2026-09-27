@@ -456,7 +456,12 @@ void Editor::drawGizmo(const CameraView& cam, ImVec2 pos, ImVec2 size, bool& usi
         edited(label);
     // Other selected objects move by the same amount.
     Mat4 delta = world * inverse(before);
-    s.setWorldMatrix(sel, world);
+    bool selNested = false;
+    for (Entity p = s.parent(sel); p; p = s.parent(p))
+        selNested = selNested || isSelected(p);
+    if (!selNested) // otherwise it moves with its selected parent, below
+        s.setWorldMatrix(sel, world);
+    const char* part = gizmoOp_ == 0 ? "position" : gizmoOp_ == 1 ? "rotation" : "scale";
     for (Entity other : selectedEntities()) {
         if (other == sel || s.registry().has<UIElement>(other))
             continue;
@@ -477,7 +482,7 @@ void Editor::drawGizmo(const CameraView& cam, ImVec2 pos, ImVec2 size, bool& usi
             s.setWorldMatrix(other, delta * s.worldMatrix(other));
         }
         if (playing_)
-            noteLiveChange(other, std::string("Transform/") + (gizmoOp_ == 0 ? "position" : "rotation"));
+            noteLiveChange(other, std::string("Transform/") + part);
     }
     if (cam.orthographic) {
         // Keep 2D objects flat.

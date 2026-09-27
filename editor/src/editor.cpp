@@ -211,9 +211,14 @@ void Editor::openPanels(const std::string& list) {
         if (p == "settings") showSettings_ = true;
         else if (p.rfind("settings:", 0) == 0) { showSettings_ = true; settingsSection_ = p.substr(9); }
         else if (p == "inspector") focusInspector_ = true;
+        else if (p.rfind("drop:", 0) == 0) onFilesDropped({p.substr(5)}); // as if dragged in from the desktop
         else if (p == "dump") { // for tests: the hierarchy, with * on selected objects
             scene_->walk([&](Entity e, int depth) {
-                Log::info("dump: ", std::string(static_cast<size_t>(depth) * 2, ' '), isSelected(e) ? "*" : "", scene_->info(e).name);
+                Vec3 p = scene_->transform(e).position;
+                char pos[64];
+                std::snprintf(pos, sizeof pos, " (%.2f, %.2f, %.2f)", p.x, p.y, p.z);
+                Log::info("dump: ", std::string(static_cast<size_t>(depth) * 2, ' '), isSelected(e) ? "*" : "", scene_->info(e).name,
+                          pos, scene_->info(e).active ? "" : " [off]", scene_->info(e).tag.empty() ? "" : " #" + scene_->info(e).tag);
                 return true;
             });
         }
@@ -1671,9 +1676,61 @@ void Editor::scanAssets() {
 void Editor::onFilesDropped(const std::vector<std::string>& files) {
     if (!hasProject())
         return;
-    int copied = 0;
+    int copied = 0, renamed = 0;
+    std::error_code ec;
+    // A free name in the project: "hero.png", or "hero_2.png" if that's taken by a different file.
+    auto destination = [&](const std::string& folder, const stdfs::path& src) -> std::string {
+        std::string rel = (folder.empty() ? "" : folder + "/") + src.filename().string();
+        if (!stdfs::exists(projectDir_ / rel, ec))
+            return rel;
+        auto a = fs::readBinary(src), b = fs::readBinary(projectDir_ / rel);
+        if (a && b && *a == *b)
+            return ""; // the same file is already there
+        ++renamed;
+        return uniqueName(folder, src.stem().string(), src.extension().string());
+    };
+    auto copyOne = [&](const stdfs::path& src, const std::string& folder) {
+        if (stdfs::exists(src, ec) && stdfs::weakly_canonical(src, ec).string().rfind(stdfs::weakly_canonical(projectDir_, ec).string(), 0) == 0)
+            return; // already in the project
+        std::string rel = destination(folder, src);
+        if (rel.empty()) {
+            ++copied;
+            return;
+        }
+        stdfs::create_directories((projectDir_ / rel).parent_path(), ec);
+        stdfs::copy_file(src, projectDir_ / rel, ec);
+        if (ec)
+            return;
+        ++copied;
+        // A .gltf keeps its data and textures in files beside it: bring those too.
+        if (fs::extension(src) == ".gltf")
+            if (auto text = fs::readText(src)) {
+                Json doc = Json::parse(*text);
+                for (const char* key : {"buffers", "images"})
+                    for (auto& item : doc[key].elements()) {
+                        std::string uri = item["uri"].asString("");
+                        if (uri.empty() || uri.rfind("data:", 0) == 0 || uri.find("..") != std::string::npos)
+                            continue;
+                        stdfs::path extra = src.parent_path() / uri;
+                        stdfs::path to = (projectDir_ / rel).parent_path() / uri;
+                        stdfs::create_directories(to.parent_path(), ec);
+                        if (!stdfs::exists(to, ec))
+                            stdfs::copy_file(extra, to, ec);
+                    }
+            }
+    };
     for (auto& f : files) {
         stdfs::path src(f);
+        if (stdfs::is_directory(src, ec)) {
+            // A whole folder: copied as it is, into the folder being shown.
+            std::string rel = (assetFolder_.empty() ? "" : assetFolder_ + "/") + src.filename().string();
+            if (stdfs::exists(projectDir_ / rel, ec))
+                rel = uniqueName(assetFolder_, src.filename().string(), "");
+            stdfs::copy(src, projectDir_ / rel, stdfs::copy_options::recursive, ec);
+            if (!ec)
+                ++copied;
+            continue;
+        }
         std::string ext = fs::extension(src);
         std::string folder = assetFolder_;
         if (folder.empty()) {
@@ -1685,15 +1742,16 @@ void Editor::onFilesDropped(const std::vector<std::string>& files) {
                 folder = "models";
             else if (ext == ".ttf" || ext == ".otf")
                 folder = "fonts";
+            else if (ext == ".es" || ext == ".blocks")
+                folder = "scripts";
         }
-        std::error_code ec;
-        stdfs::create_directories(projectDir_ / folder, ec);
-        stdfs::copy_file(src, projectDir_ / folder / src.filename(), stdfs::copy_options::overwrite_existing, ec);
-        if (!ec)
-            ++copied;
+        copyOne(src, folder);
     }
     scanAssets();
-    notify(copied ? "Added " + plural(static_cast<size_t>(copied), "file") + " to the project." : "Couldn't copy those files.", copied == 0);
+    std::string message = copied ? "Added " + plural(static_cast<size_t>(copied), "item") + " to the project." : "Couldn't copy those files.";
+    if (renamed)
+        message += " " + plural(static_cast<size_t>(renamed), "file") + " got a new name, so nothing was replaced.";
+    notify(message, copied == 0);
 }
 
 void Editor::setupCodeIntel() {

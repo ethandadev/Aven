@@ -1010,13 +1010,24 @@ bool Editor::drawComponent(Entity e, const ComponentInfo& info, void* data) {
                 edited("Change " + f.label);
             else
                 noteLiveChange(e, info.name + "/" + f.name);
-            // With several objects selected, the change applies to all of them.
+            // With several objects selected, the change applies to all of them. For vectors and
+            // colors, only the parts that changed: dragging X moves them all along X, keeping
+            // each one's own Y and Z.
             Json value = saveField(f, data);
             for (Entity other : inspected_) {
                 if (other == e)
                     continue;
                 if (void* od = info.get(scene().registry(), other)) {
-                    loadField(f, od, value);
+                    Json theirs = saveField(f, od);
+                    if (value.isArray() && current.isArray() && theirs.isArray() && value.size() == current.size() &&
+                        theirs.size() == value.size()) {
+                        for (size_t k = 0; k < value.size(); ++k)
+                            if (!jsonNear(value[k], current[k]))
+                                theirs[k] = value[k];
+                        loadField(f, od, theirs);
+                    } else {
+                        loadField(f, od, value);
+                    }
                     if (playing_)
                         noteLiveChange(other, info.name + "/" + f.name);
                 }
@@ -1547,20 +1558,26 @@ void Editor::drawInspector() {
         ImGui::BeginChild("##multi", {0, ImGui::GetFrameHeight() * 1.3f}, ImGuiChildFlags_AlwaysUseWindowPadding);
         ImGui::Text("%d objects selected", static_cast<int>(selection.size()));
         ImGui::SameLine();
-        ImGui::TextDisabled("- changes apply to all of them");
+        ImGui::TextDisabled("- edits change all of them");
         ImGui::EndChild();
         ImGui::PopStyleColor();
     }
-    if (ImGui::Checkbox("##active", &info.active))
+    if (ImGui::Checkbox("##active", &info.active)) {
         edited("Toggle active");
+        for (Entity other : selection)
+            s.info(other).active = info.active;
+    }
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Active: turn off to hide this object and stop its scripts.");
     ImGui::SameLine();
     float small = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x;
     ImGui::SetNextItemWidth(-small);
     ImGui::PushFont(fonts.bold);
-    if (ImGui::InputText("##name", &info.name))
+    if (ImGui::InputText("##name", &info.name)) {
         edited("Rename");
+        for (Entity other : selection)
+            s.info(other).name = info.name;
+    }
     ImGui::PopFont();
     ImGui::SameLine();
     {
@@ -1589,8 +1606,11 @@ void Editor::drawInspector() {
     ImGui::TextDisabled("Tag");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(-small);
-    if (ImGui::InputTextWithHint("##tag", "e.g. enemy, coin, player", &info.tag))
+    if (ImGui::InputTextWithHint("##tag", "e.g. enemy, coin, player", &info.tag)) {
         edited("Change tag");
+        for (Entity other : selection)
+            s.info(other).tag = info.tag;
+    }
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Tags group objects: find_all(\"enemy\"), is_touching(\"coin\")...");
     ImGui::SameLine();
@@ -1606,12 +1626,12 @@ void Editor::drawInspector() {
             return true;
         });
         if (ImGui::Selectable("(no tag)", info.tag.empty())) {
-            info.tag.clear();
             edited("Change tag");
+            for (Entity other : selection)
+                s.info(other).tag.clear();
         }
         for (auto& t : tags)
             if (ImGui::Selectable(t.c_str(), t == info.tag)) {
-                info.tag = t;
                 edited("Change tag");
                 for (Entity other : selection)
                     s.info(other).tag = t;
