@@ -804,6 +804,7 @@ stdfs::path editorDataDir();
 stdfs::path sourceDir(); // Aven's source code, when the editor was built from it (else empty)
 stdfs::path sdkDir();    // aven.h and the native module template
 void openExternal(const std::string& target); // a file, folder or link in the system's app
+std::string displayName(const std::string& componentName); // "RigidBody2D" -> "Rigid Body 2D"
 bool launchCommand(const std::string& commandLine); // runs a program with arguments (no shell)
 // "1 object", "3 objects"
 inline std::string plural(size_t n, const std::string& word) { return std::to_string(n) + " " + word + (n == 1 ? "" : "s"); }

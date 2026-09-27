@@ -92,14 +92,21 @@ One `Editor` class, split into files by area:
 |---|---|
 | `editor.cpp` | project and scene management, play mode, undo, command-line automation |
 | `chrome.cpp` | menus, toolbar, docking layouts, shortcuts |
-| `panels.cpp` | Hierarchy, Inspector, Assets, Console, script tabs, settings, Reference |
+| `panels.cpp` | Hierarchy, Console, script tabs, Project Settings (mixer, layers), Learn, Reference |
+| `inspector.cpp` | the Inspector: components, script variables, click actions, Add Component |
+| `assets_panel.cpp` | the Assets panel: selecting, moving, renaming and deleting files |
+| `windows.cpp` | undo history, profiler, find in project, command palette, lighting presets |
 | `viewport.cpp` | the scene view: cameras, gizmos, picking, overlays |
+| `animator_editor.cpp`, `terrain_editor.cpp` | the Animator's state machine and the terrain brushes |
+| `editor_tools.cpp` | editor tools: EasyScript that edits the open scene |
+| `asset_library.cpp` | ready-made sprites, textures and models |
 | `hub.cpp` | the project hub and templates |
 | `code_editor.cpp`, `block_editor.cpp` | the code and block editors |
 | `learn_mode.cpp` | editor levels and the lessons panel |
 | `assistant.cpp`, `explain.cpp`, `doctor.cpp` | Ask Aven, Explain, and the Error Doctor |
-| `recipes.cpp`, `code_ladder.cpp`, `play_edit.cpp`, `bug_replay.cpp`, `share.cpp`, `quests.cpp` | the other beginner features |
+| `recipes.cpp`, `code_ladder.cpp`, `play_edit.cpp`, `bug_replay.cpp`, `quests.cpp` | the other beginner features |
 | `pixel_editor.cpp`, `sprite_sheet.cpp`, `tile_painter.cpp`, `sound_maker.cpp`, `particle_tools.cpp`, `capture.cpp` | creator tools |
+| `share.cpp` | web export, installable phone web app, game cards, project zips |
 | `native_code.cpp` | the native (C/C++) module window and build |
 
 Things contributors can change without C++ live in `editor/data/`: the Error Doctor's
