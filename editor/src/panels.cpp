@@ -1429,12 +1429,23 @@ void Editor::drawScriptVariables(Entity e) {
     auto text = fs::readText(projectDir_ / sc->path);
     if (!text)
         return;
-    std::string source = *text;
-    if (fs::extension(sc->path) == ".blocks")
-        source = blocks::compileFile(source);
-    script::VM vm;
-    vm.onError = [](const script::ScriptError&) {};
-    auto mod = vm.compile(source, sc->path);
+    // Compiled once per change of the file, not every frame.
+    ScriptVarsCache& cache = scriptVarsCache_[sc->path];
+    if (!cache.vm || cache.source != *text) {
+        cache.source = *text;
+        std::string source = fs::extension(sc->path) == ".blocks" ? blocks::compileFile(*text) : *text;
+        cache.vm = std::make_shared<script::VM>();
+        cache.vm->onError = [](const script::ScriptError&) {};
+        cache.module = cache.vm->compile(source, sc->path);
+    }
+    auto mod = cache.module;
+    // With several objects selected, a change goes to each one that has this script.
+    std::vector<Entity> sharing;
+    for (Entity other : inspected_.empty() ? std::vector<Entity>{e} : inspected_)
+        if (auto* o = scene().registry().tryGet<Script>(other); o && o->path == sc->path)
+            sharing.push_back(other);
+    if (sharing.empty())
+        sharing.push_back(e);
     if (!mod) {
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(1);
@@ -1467,7 +1478,8 @@ void Editor::drawScriptVariables(Entity e) {
         if (overridden && ImGui::BeginPopupContextItem("##reset_var")) {
             if (ImGui::MenuItem("Reset to the script's value")) {
                 edited("Reset variable");
-                sc->overrides.erase(ex.name);
+                for (Entity other : sharing)
+                    scene().registry().get<Script>(other).overrides.erase(ex.name);
             }
             ImGui::EndPopup();
         }
@@ -1527,12 +1539,17 @@ void Editor::drawScriptVariables(Entity e) {
             ImGui::TextDisabled("%s", value.repr().c_str());
         }
         if (c) {
-            if (live) {
-                live->set(script::intern(ex.name), result);
-                noteLiveChange(e, "script/" + ex.name);
-            } else {
+            if (!live)
                 edited("Change " + ex.name);
-                sc->overrides[ex.name] = script::VM::toJson(result);
+            for (Entity other : sharing) {
+                if (live) {
+                    if (auto inst = game_->scripts().instanceOf(other)) {
+                        inst->set(script::intern(ex.name), result);
+                        noteLiveChange(other, "script/" + ex.name);
+                    }
+                } else {
+                    scene().registry().get<Script>(other).overrides[ex.name] = script::VM::toJson(result);
+                }
             }
         }
         ImGui::PopID();

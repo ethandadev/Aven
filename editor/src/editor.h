@@ -31,6 +31,11 @@
 
 #include <imgui.h>
 
+namespace aven::script {
+class VM;
+struct Module;
+} // namespace aven::script
+
 
 namespace aven::editor {
 
@@ -762,6 +767,12 @@ private:
     void drawEntityNode(Entity e);
     bool drawComponent(Entity e, const ComponentInfo& info, void* data);
     void drawScriptVariables(Entity e);
+    struct ScriptVarsCache { // a script compiled for the Inspector, until its text changes
+        std::string source;
+        std::shared_ptr<script::VM> vm;
+        std::shared_ptr<script::Module> module;
+    };
+    std::unordered_map<std::string, ScriptVarsCache> scriptVarsCache_;
     void drawAddComponent(Entity e);
     void drawAssistant();
     void drawExplain();
