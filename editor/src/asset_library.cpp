@@ -246,14 +246,18 @@ void Editor::drawAssetLibrary() {
             ImGui::TextDisabled("%s", name.c_str());
             if (ImGui::MenuItem("Place in the scene", nullptr, false, canPlace))
                 placeLibraryItem(i, {viewportSize_.x * 0.5f, viewportSize_.y * 0.5f});
-            Entity sel = selected();
-            bool texturable = sel && scene_->registry().has<MeshRenderer>(sel) &&
-                              scene_->registry().get<MeshRenderer>(sel).mesh != MeshShape::Model;
-            if (kind == "texture" && ImGui::MenuItem("Apply to the selected object", nullptr, false, canPlace && texturable)) {
+            // Every selected shape (3D mesh, not an imported model) takes the texture.
+            std::vector<Entity> texturable;
+            for (Entity x : selectedEntities())
+                if (auto* mr = scene_->registry().tryGet<MeshRenderer>(x); mr && mr->mesh != MeshShape::Model)
+                    texturable.push_back(x);
+            const char* applyLabel = texturable.size() > 1 ? "Apply to the selected objects" : "Apply to the selected object";
+            if (kind == "texture" && ImGui::MenuItem(applyLabel, nullptr, false, canPlace && !texturable.empty())) {
                 std::string path = addLibraryItem(i);
                 if (!path.empty()) {
                     recordUndo("Apply texture");
-                    applyLibraryTexture(sel, i, path);
+                    for (Entity x : texturable)
+                        applyLibraryTexture(x, i, path);
                 }
             }
             if (ImGui::MenuItem("Add to the project only", nullptr, false, canPlace)) {

@@ -730,7 +730,8 @@ private:
     void newEditorTool();
     void drawEditorToolsMenu();
     bool runningTool_ = false; // the whole run is one undo step
-    bool undoPaused_ = false;  // a group of changes already recorded as one undo step
+    bool undoPaused_ = false;
+    bool uiDrag_ = false;      // dragging UI elements in the scene view  // a group of changes already recorded as one undo step
     // Terrain tools (terrain_editor.cpp)
     int terrainTool_ = -1; // a TerrainTool, or -1 for none
     float brushRadius_ = 4.0f, brushStrength_ = 0.5f, flattenLevel_ = 0.3f, hillsAmount_ = 0.35f;

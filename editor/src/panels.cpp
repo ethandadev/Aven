@@ -529,11 +529,12 @@ void Editor::drawEntityNode(Entity e) {
                     fg->AddRect(rowMin, rowMax, accent, 3, 0, 2);
                 if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("ENTITY", ImGuiDragDropFlags_AcceptNoDrawDefaultRect)) {
                     std::vector<Entity> moving = draggedEntities(s.findByUUID({*static_cast<const uint64_t*>(pl->Data)}));
-                    recordUndo(zone == 0 ? "Change parent" : "Reorder");
+                    // An object can't go into (or beside) itself or its own children.
+                    std::erase_if(moving, [&](Entity m) { return m == e || s.isAncestor(m, e); });
+                    if (!moving.empty())
+                        recordUndo(zone == 0 ? "Change parent" : "Reorder");
                     Entity last; // "after": each one goes after the one before, keeping their order
                     for (Entity m : moving) {
-                        if (m == e || s.isAncestor(m, e))
-                            continue;
                         if (zone == 0) {
                             s.setParent(m, e);
                         } else {
@@ -546,7 +547,7 @@ void Editor::drawEntityNode(Entity e) {
                             last = m;
                         }
                     }
-                    if (zone == 0)
+                    if (zone == 0 && !moving.empty())
                         ImGui::GetStateStorage()->SetInt(nodeId, 1); // open the folder they went into
                 }
                 if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("ASSET_PATH")) {

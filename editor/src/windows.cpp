@@ -386,15 +386,23 @@ void Editor::drawCommandPalette() {
         else if (ext == ".prefab")
             add(f, "prefab", [this, f] { openPrefab(f); });
     }
-    if (Entity sel = selected(); sel && !playing_)
-        for (auto& ci : ComponentRegistry::all())
-            if (!ci.get(scene_->registry(), sel) && componentUnlocked(ci) && (!ci.advanced || advanced()))
+    if (auto sel = selectedEntities(); !sel.empty() && !playing_)
+        for (auto& ci : ComponentRegistry::all()) {
+            // Offered when any selected object lacks it; added to each one that does.
+            bool someLack = std::any_of(sel.begin(), sel.end(), [&](Entity e) { return !ci.get(scene_->registry(), e); });
+            if (someLack && componentUnlocked(ci) && (!ci.advanced || advanced()))
                 add("Add component: " + ci.name, "component", [this, &ci] {
-                    if (Entity e = selected()) {
-                        recordUndo("Add " + ci.name);
-                        ci.add(scene_->registry(), e);
-                    }
+                    auto targets = selectedEntities();
+                    if (targets.empty())
+                        return;
+                    recordUndo("Add " + ci.name);
+                    for (Entity e : targets)
+                        if (!ci.get(scene_->registry(), e)) {
+                            ci.add(scene_->registry(), e);
+                            ensureRequirements(e, ci.name);
+                        }
                 });
+        }
     std::stable_sort(items.begin(), items.end(), [](const Item& a, const Item& b) { return a.score > b.score; });
     if (items.size() > 12)
         items.resize(12);

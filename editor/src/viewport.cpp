@@ -733,21 +733,46 @@ void Editor::drawViewport(float dt) {
             (void)rot;
         }
 
-        // Dragging a selected UI element moves it on screen.
-        Entity sel = selected();
-        if (sel && scene().registry().has<UIElement>(sel) && viewportHovered_ &&
-            ImGui::IsMouseDragging(ImGuiMouseButton_Left, 2) && !ImGui::GetIO().KeyAlt) {
-            UIRect r = computeUIRect(scene(), sel, viewportSize_.x, viewportSize_.y);
+        // Dragging a selected UI element moves it on screen (with every other selected one).
+        auto selectedUI = [&] {
+            std::vector<Entity> ui;
+            for (Entity x : selectedEntities()) {
+                if (!scene().registry().has<UIElement>(x))
+                    continue;
+                bool nested = false; // a selected parent carries it along
+                for (Entity p = scene().parent(x); p && !nested; p = scene().parent(p))
+                    nested = isSelected(p) && scene().registry().has<UIElement>(p);
+                if (!nested)
+                    ui.push_back(x);
+            }
+            return ui;
+        };
+        auto uiUnder = [&](Vec2 local) {
+            for (Entity x : selectedUI())
+                if (computeUIRect(scene(), x, viewportSize_.x, viewportSize_.y).contains({local.x, viewportSize_.y - local.y}))
+                    return true;
+            return false;
+        };
+        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            uiDrag_ = false;
+        if (selected() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 2) && !ImGui::GetIO().KeyAlt) {
             ImVec2 m = ImGui::GetIO().MouseClickedPos[0];
-            Vec2 start{m.x - viewportPos_.x, viewportSize_.y - (m.y - viewportPos_.y)};
-            if (r.contains(start) || gizmoWasUsing_) {
-                if (playing_)
-                    noteLiveChange(sel, "UIElement/offset");
-                else
+            // Grabbed on a selected UI element: it follows the mouse until the button goes up.
+            if (!uiDrag_ && viewportHovered_ && !gizmoWasUsing_ && uiUnder({m.x - viewportPos_.x, m.y - viewportPos_.y}))
+                uiDrag_ = true;
+            if (uiDrag_) {
+                auto moving = selectedUI();
+                if (!playing_ && !moving.empty())
                     edited("Move UI");
                 ImVec2 d = ImGui::GetIO().MouseDelta;
-                scene().registry().get<UIElement>(sel).offset += Vec2(d.x, -d.y) / r.scale;
-                gizmoWasUsing_ = true;
+                for (Entity x : moving) {
+                    if (playing_)
+                        noteLiveChange(x, "UIElement/offset");
+                    UIRect r = computeUIRect(scene(), x, viewportSize_.x, viewportSize_.y);
+                    scene().registry().get<UIElement>(x).offset += Vec2(d.x, -d.y) / r.scale;
+                }
+                if (!moving.empty())
+                    gizmoWasUsing_ = true; // keeps the whole drag one undo step
             }
         }
 
@@ -763,11 +788,7 @@ void Editor::drawViewport(float dt) {
             !ImGuizmo::IsViewManipulateHovered()) {
             Vec2 local{io.MousePos.x - viewportPos_.x, io.MousePos.y - viewportPos_.y};
             // In 2D a drag draws a selection box (even over a big background sprite); a click picks.
-            bool onSelectedUI = false;
-            if (Entity sel = selected(); sel && scene().registry().has<UIElement>(sel))
-                onSelectedUI = computeUIRect(scene(), sel, viewportSize_.x, viewportSize_.y)
-                                   .contains({local.x, viewportSize_.y - local.y});
-            boxSelecting_ = cam.orthographic && !onSelectedUI;
+            boxSelecting_ = cam.orthographic && !uiUnder(local);
             boxStart_ = {io.MousePos.x, io.MousePos.y};
         }
         if (boxSelecting_) {
