@@ -412,6 +412,9 @@ private:
     std::vector<Entity> draggedEntities(Entity dragged);
     std::vector<Entity> topSelection();
     void duplicateSelection();
+    void reorderSelection(int step); // -1 = up, 1 = down, among their siblings
+    void unparentSelection();        // out to the top level
+    void prefabSelection(const std::string& folder = ""); // each selected object becomes a prefab
     UUID revealedFor_;                       // the selection the Hierarchy last opened its folders for
     std::unordered_set<uint64_t> revealIds_; // folders to open so the selected object shows
     bool scrollToSelected_ = false;

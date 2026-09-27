@@ -1288,6 +1288,58 @@ std::vector<Entity> Editor::topSelection() {
     return out;
 }
 
+void Editor::reorderSelection(int step) {
+    auto sel = topSelection(); // in hierarchy order
+    if (sel.empty() || playing_)
+        return;
+    Scene& s = *scene_;
+    std::unordered_set<uint32_t> moving;
+    for (Entity e : sel)
+        moving.insert(e.index);
+    // Moving up, the first goes first; moving down, the last. One blocked by the edge (or by another
+    // selected object that couldn't move) stays put, so the group keeps its order.
+    if (step > 0)
+        std::reverse(sel.begin(), sel.end());
+    bool changed = false;
+    for (Entity e : sel) {
+        Entity parent = s.parent(e);
+        const auto& siblings = parent ? s.children(parent) : s.roots();
+        int index = s.siblingIndex(e), to = index + step;
+        if (to < 0 || to >= static_cast<int>(siblings.size()) || moving.count(siblings[static_cast<size_t>(to)].index))
+            continue;
+        if (!changed)
+            recordUndo(step < 0 ? "Move up" : "Move down");
+        changed = true;
+        s.setParent(e, parent, false, to);
+    }
+}
+
+void Editor::unparentSelection() {
+    auto sel = topSelection();
+    std::erase_if(sel, [&](Entity e) { return !scene_->parent(e); });
+    if (sel.empty() || playing_)
+        return;
+    recordUndo("Change parent");
+    for (Entity e : sel)
+        scene_->setParent(e, {});
+}
+
+void Editor::prefabSelection(const std::string& folder) {
+    auto sel = topSelection();
+    if (sel.empty() || playing_)
+        return;
+    if (sel.size() == 1) {
+        savePrefab(sel[0], folder.empty() ? "prefabs" : folder);
+        return;
+    }
+    recordUndo("Make " + std::to_string(sel.size()) + " prefabs");
+    undoPaused_ = true;
+    for (Entity e : sel)
+        savePrefab(e, folder.empty() ? "prefabs" : folder);
+    undoPaused_ = false;
+    notify("Saved " + std::to_string(sel.size()) + " prefabs in " + (folder.empty() ? "prefabs" : folder) + ".");
+}
+
 void Editor::duplicateSelection() {
     auto sel = topSelection();
     if (sel.empty() || playing_)

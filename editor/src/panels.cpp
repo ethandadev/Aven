@@ -645,18 +645,12 @@ void Editor::drawEntityNode(Entity e) {
                             createEntity(k, e);
                     ImGui::EndMenu();
                 }
-                if (ImGui::MenuItem("Move up") && s.siblingIndex(e) > 0) {
-                    recordUndo("Reorder");
-                    s.setParent(e, s.parent(e), false, s.siblingIndex(e) - 1);
-                }
-                if (ImGui::MenuItem("Move down")) {
-                    recordUndo("Reorder");
-                    s.setParent(e, s.parent(e), false, s.siblingIndex(e) + 1);
-                }
-                if (s.parent(e) && ImGui::MenuItem("Move out of parent")) {
-                    recordUndo("Change parent");
-                    s.setParent(e, {});
-                }
+                if (ImGui::MenuItem("Move up"))
+                    reorderSelection(-1);
+                if (ImGui::MenuItem("Move down"))
+                    reorderSelection(1);
+                if (s.parent(e) && ImGui::MenuItem("Move out of parent"))
+                    unparentSelection();
                 if (ImGui::BeginMenu("Select")) {
                     drawSelectMenu(e);
                     ImGui::EndMenu();
@@ -666,18 +660,23 @@ void Editor::drawEntityNode(Entity e) {
                     ImGui::EndMenu();
                 }
                 ImGui::Separator();
-                if (unlocked(Feature::Prefabs) && ImGui::MenuItem("Save as Prefab"))
-                    savePrefab(e);
-                if (ImGui::MenuItem("Add blocks script")) {
-                    std::string path = newScriptFile(info.name, true);
-                    attachScript(e, path);
-                    openBlocks(path);
-                }
-                if (unlocked(Feature::Code) && ImGui::MenuItem("Add EasyScript")) {
-                    std::string path = newScriptFile(info.name, false);
-                    attachScript(e, path);
-                    openScript(path);
-                }
+                size_t count = selectedEntities().size();
+                if (unlocked(Feature::Prefabs) && ImGui::MenuItem(count > 1 ? "Save each as a Prefab" : "Save as Prefab"))
+                    prefabSelection();
+                // With several selected, they all get the same new script.
+                auto addScript = [&](bool blocks) {
+                    std::string path = newScriptFile(info.name, blocks);
+                    recordUndo("Attach script");
+                    undoPaused_ = true;
+                    for (Entity x : selectedEntities())
+                        attachScript(x, path);
+                    undoPaused_ = false;
+                    blocks ? openBlocks(path) : openScript(path);
+                };
+                if (ImGui::MenuItem("Add blocks script"))
+                    addScript(true);
+                if (unlocked(Feature::Code) && ImGui::MenuItem("Add EasyScript"))
+                    addScript(false);
             }
             ImGui::EndPopup();
             if (deleted) {

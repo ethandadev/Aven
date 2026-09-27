@@ -265,17 +265,11 @@ void Editor::drawAssets() {
                 dropped = true;
             }
         if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("ENTITY"); pl && !playing_) {
-            // Every dragged object becomes its own prefab, all in one undo step.
-            auto objects = draggedEntities(scene().findByUUID({*static_cast<const uint64_t*>(pl->Data)}));
-            if (objects.size() > 1) {
-                recordUndo("Make " + std::to_string(objects.size()) + " prefabs");
-                undoPaused_ = true;
-            }
-            for (Entity e : objects)
-                savePrefab(e, folder.empty() ? "prefabs" : folder);
-            undoPaused_ = false;
-            if (objects.size() > 1)
-                notify("Saved " + std::to_string(objects.size()) + " prefabs in " + (folder.empty() ? "prefabs" : folder) + ".");
+            // Every dragged object becomes its own prefab.
+            Entity grabbed = scene().findByUUID({*static_cast<const uint64_t*>(pl->Data)});
+            if (grabbed && !isSelected(grabbed))
+                select(grabbed);
+            prefabSelection(folder);
         }
         ImGui::EndDragDropTarget();
     };

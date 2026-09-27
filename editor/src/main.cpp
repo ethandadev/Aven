@@ -93,7 +93,7 @@ struct InputPlayer {
             if (st.command == "move" && st.args.size() >= 2) {
                 toX = std::stof(st.args[0]);
                 toY = std::stof(st.args[1]);
-                int over = st.args.size() >= 3 ? std::stoi(st.args[2]) : 0;
+                int over = st.args.size() >= 3 ? std::atoi(st.args[2].c_str()) : 0;
                 if (over > 0) {
                     fromX = x;
                     fromY = y;
@@ -104,7 +104,10 @@ struct InputPlayer {
                     y = toY;
                 }
             } else if (st.command == "down" || st.command == "up") {
-                io.AddMouseButtonEvent(st.args.empty() ? 0 : std::stoi(st.args[0]), st.command == "down");
+                int button = 0; // down [left|right|middle|0|1|2]
+                if (!st.args.empty())
+                    button = st.args[0] == "right" ? 1 : st.args[0] == "middle" ? 2 : std::atoi(st.args[0].c_str());
+                io.AddMouseButtonEvent(button, st.command == "down");
             } else if (st.command == "key" && st.args.size() >= 2) {
                 bool down = st.args[1] == "down";
                 const std::string& k = st.args[0];
