@@ -12,7 +12,9 @@
 #include "aven/scene/terrain.h"
 #include "aven/runtime/network.h"
 
+#include <chrono>
 #include <filesystem>
+#include <thread>
 
 using namespace aven;
 
@@ -821,6 +823,20 @@ AVEN_TEST(touch_controls_press_keys) {
     CHECK(q.touch.mode == TouchMode::Always && q.touch.buttons.size() == 1);
 }
 
+// Network tests run frames until something has happened, up to a time limit: messages need real
+// time to cross the (local) network, and a slow CI machine may need many frames.
+template <class Step, class Done>
+bool pumpUntil(Step&& step, Done&& done, double seconds = 10.0) {
+    auto until = std::chrono::steady_clock::now() + std::chrono::duration<double>(seconds);
+    while (!done()) {
+        if (std::chrono::steady_clock::now() > until)
+            return false;
+        step();
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    return true;
+}
+
 // Multiplayer: two games on this computer. The second joins the first, messages get through,
 // networked spawns show up on both, synced objects follow their owner, and leaving tidies up.
 AVEN_TEST(multiplayer_two_games_on_localhost) {
@@ -857,11 +873,9 @@ AVEN_TEST(multiplayer_two_games_on_localhost) {
     host.update(1.0f / 60.0f);
     CHECK(host.scripts().gameValue("ok").truthy());
     client.start(makeScene("scripts/client.es"), "test.scene");
-    auto pump = [&](int frames) {
-        for (int i = 0; i < frames; ++i) {
-            host.update(1.0f / 60.0f);
-            client.update(1.0f / 60.0f);
-        }
+    auto frame = [&] {
+        host.update(1.0f / 60.0f);
+        client.update(1.0f / 60.0f);
     };
     auto avatars = [](Game& g) {
         int n = 0;
@@ -871,7 +885,16 @@ AVEN_TEST(multiplayer_two_games_on_localhost) {
         });
         return n;
     };
-    pump(30);
+    // Connected, the greeting arrived, and both avatars are in both games.
+    bool connected = pumpUntil(frame, [&] {
+        return client.scripts().gameNumber("got") == 42.0 && avatars(host) == 2 && avatars(client) == 2;
+    });
+    CHECK(connected);
+    if (!connected) {
+        host.stop();
+        client.stop();
+        return;
+    }
     CHECK_EQ(host.scripts().gameNumber("joined"), 1.0);
     CHECK_EQ(client.scripts().gameNumber("me"), 1.0);
     CHECK_EQ(client.scripts().gameNumber("got"), 42.0);
@@ -888,21 +911,31 @@ AVEN_TEST(multiplayer_two_games_on_localhost) {
         return true;
     });
     CHECK(static_cast<bool>(mine));
+    if (!mine) {
+        host.stop();
+        client.stop();
+        return;
+    }
     client.scene().transform(mine).position = {-3, 4, 0};
-    pump(40);
-    Vec3 box = client.scene().transform(client.scene().findByName("Box")).position;
-    CHECK(length(box - Vec3{5, 2, 0}) < 0.05f);
+    auto boxArrived = [&] {
+        return length(client.scene().transform(client.scene().findByName("Box")).position - Vec3{5, 2, 0}) < 0.05f;
+    };
+    auto avatarArrived = [&] {
+        bool seen = false;
+        host.scene().walk([&](Entity e, int) {
+            if (host.scene().info(e).name == "Avatar" && isRemote(host.scene().registry(), e))
+                seen = length(host.scene().transform(e).position - Vec3{-3, 4, 0}) < 0.05f;
+            return true;
+        });
+        return seen;
+    };
+    pumpUntil(frame, [&] { return boxArrived() && avatarArrived(); });
+    CHECK(boxArrived());
     CHECK(isRemote(client.scene().registry(), client.scene().findByName("Box")));
-    bool seen = false;
-    host.scene().walk([&](Entity e, int) {
-        if (host.scene().info(e).name == "Avatar" && isRemote(host.scene().registry(), e))
-            seen = length(host.scene().transform(e).position - Vec3{-3, 4, 0}) < 0.05f;
-        return true;
-    });
-    CHECK(seen);
+    CHECK(avatarArrived());
     // The client leaves: its avatar goes from the host's game.
     client.stop();
-    pump(10);
+    pumpUntil([&] { host.update(1.0f / 60.0f); }, [&] { return host.scripts().gameNumber("left") == 1.0 && avatars(host) == 1; });
     CHECK_EQ(host.scripts().gameNumber("left"), 1.0);
     CHECK_EQ(avatars(host), 1);
     host.stop();
@@ -925,10 +958,12 @@ AVEN_TEST(multiplayer_find_games) {
         return;
     }
     finder.network().findGames();
-    for (int i = 0; i < 20 && finder.network().gamesFound().empty(); ++i) {
-        host.update(1.0f / 60.0f);
-        finder.update(1.0f / 60.0f);
-    }
+    pumpUntil(
+        [&] {
+            host.update(1.0f / 60.0f);
+            finder.update(1.0f / 60.0f);
+        },
+        [&] { return !finder.network().gamesFound().empty(); }, 3.0);
     CHECK(!finder.network().gamesFound().empty());
     if (!finder.network().gamesFound().empty()) {
         CHECK_EQ(finder.network().gamesFound()[0].name, std::string("Finder Test"));
