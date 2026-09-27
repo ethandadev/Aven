@@ -997,7 +997,7 @@ void Editor::drawExport() {
     }
     if (exportFolder_.empty())
         exportFolder_ = (projectDir_ / "exports").string();
-    if (ImGui::BeginTabBar("##exporttabs")) {
+    if (ImGui::BeginTabBar("##exporttabs", ImGuiTabBarFlags_DrawSelectedOverline)) {
         bool desktop = unlocked(Feature::Export);
         if (desktop && ImGui::BeginTabItem("This computer", nullptr, exportTab_ == 0 ? ImGuiTabItemFlags_SetSelected : 0)) {
             if (exportTab_ == 0)

@@ -2069,163 +2069,182 @@ void Editor::drawSettings() {
         return;
     }
     bool changed = false;
-    ui::sectionHeader("Game");
-    changed |= ImGui::InputText("Name", &settings_.name);
-    changed |= ImGui::InputText("Version", &settings_.version);
-    changed |= ImGui::InputTextMultiline("Description", &settings_.description, {0, ImGui::GetTextLineHeight() * 3.5f});
-    ui::helpMarker("One or two sentences about your game, shown on its web page and game card.");
-    if (ImGui::BeginCombo("Start scene", settings_.startScene.c_str())) {
-        for (auto& s : projectFiles({".scene"}))
-            if (ImGui::Selectable(s.c_str(), s == settings_.startScene)) {
-                settings_.startScene = s;
-                changed = true;
+    // Tabs; a link to a part of the settings ("settings:mixer") opens its tab.
+    auto tab = [&](const char* label, std::initializer_list<const char*> sections) {
+        ImGuiTabItemFlags flags = 0;
+        for (const char* section : sections)
+            if (settingsSection_ == section) {
+                flags = ImGuiTabItemFlags_SetSelected;
+                settingsSection_.clear();
             }
-        ImGui::EndCombo();
-    }
-    ui::sectionHeader("Window");
-    changed |= ImGui::InputInt("Width", &settings_.width);
-    changed |= ImGui::InputInt("Height", &settings_.height);
-    changed |= ImGui::Checkbox("Resizable", &settings_.resizable);
-    changed |= ImGui::Checkbox("Start fullscreen", &settings_.fullscreen);
-    changed |= ImGui::Checkbox("VSync (smooth, no tearing)", &settings_.vsync);
-    changed |= ImGui::Checkbox("Advanced mode in the editor", &settings_.advancedMode);
-
-    ui::sectionHeader("Controls");
-    ImGui::TextWrapped("Actions let players change controls. Scripts use them like key_pressed(\"jump\"). "
-                       "List keys separated by commas.");
-    Input& input = window_.input();
-    input.loadActions(settings_.inputActions);
-    auto actions = input.actions();
-    bool actionsChanged = false;
-    if (ImGui::BeginTable("##actions", 2, ImGuiTableFlags_BordersInnerH)) {
-        ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthFixed, 90);
-        ImGui::TableSetupColumn("Keys");
-        for (auto& a : actions) {
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted(a.name.c_str());
-            ImGui::TableSetColumnIndex(1);
-            std::string keys;
-            for (auto& b : a.bindings)
-                keys += (keys.empty() ? "" : ", ") + b;
-            ImGui::SetNextItemWidth(-1);
-            ImGui::PushID(a.name.c_str());
-            if (ImGui::InputText("##keys", &keys, ImGuiInputTextFlags_EnterReturnsTrue) || ImGui::IsItemDeactivatedAfterEdit()) {
-                a.bindings.clear();
-                size_t start = 0;
-                while (start <= keys.size()) {
-                    size_t comma = keys.find(',', start);
-                    std::string k = keys.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
-                    k.erase(0, k.find_first_not_of(' '));
-                    k.erase(k.find_last_not_of(' ') + 1);
-                    if (!k.empty()) {
-                        if (!Input::isValidName(k))
-                            notify("\"" + k + "\" isn't a key name I know.", true);
-                        a.bindings.push_back(k);
-                    }
-                    if (comma == std::string::npos)
-                        break;
-                    start = comma + 1;
-                }
-                actionsChanged = true;
-            }
-            ImGui::PopID();
-        }
-        ImGui::EndTable();
-    }
-    if (actionsChanged) {
-        input.setActions(actions);
-        settings_.inputActions = input.saveActions();
-        changed = true;
-    }
-    if (ImGui::Button("Reset controls to defaults")) {
-        settings_.inputActions = Json::object();
-        changed = true;
-    }
-
-    if (settingsSection_ == "touch") {
-        ImGui::SetScrollHereY(0);
-        settingsSection_.clear();
-    }
-    ui::sectionHeader("Touch controls");
-    ImGui::TextWrapped("For phones and tablets: a stick that presses the arrow keys and buttons that press keys, "
-                       "drawn over the game. Taps anywhere else still work like clicks.");
-    {
-        TouchSettings& t = settings_.touch;
-        int mode = static_cast<int>(t.mode);
-        ImGui::SetNextItemWidth(260);
-        if (ImGui::Combo("Show them", &mode, "When the screen is touched\0Always (try them with the mouse)\0Never\0")) {
-            t.mode = static_cast<TouchMode>(mode);
-            changed = true;
-        }
-        changed |= ImGui::Checkbox("Stick (arrow keys)", &t.stick);
-        int remove = -1;
-        for (size_t i = 0; i < t.buttons.size(); ++i) {
-            ImGui::PushID(static_cast<int>(i) + 7000);
-            ImGui::SetNextItemWidth(120);
-            changed |= ImGui::InputTextWithHint("##label", "label", &t.buttons[i].label);
-            ImGui::SameLine();
-            ImGui::TextDisabled("presses");
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(120);
-            std::string& key = t.buttons[i].key;
-            if (ImGui::BeginCombo("##key", key.c_str())) {
-                for (const char* k : {"space", "enter", "x", "z", "c", "e", "f", "q", "r", "shift", "up", "escape"})
-                    if (ImGui::Selectable(k, key == k)) {
-                        key = k;
+        return ImGui::BeginTabItem(label, nullptr, flags);
+    };
+    if (ImGui::BeginTabBar("##settings_tabs", ImGuiTabBarFlags_DrawSelectedOverline)) {
+        if (tab("Game", {"game", "window"})) {
+            ui::sectionHeader("Game");
+            changed |= ImGui::InputText("Name", &settings_.name);
+            changed |= ImGui::InputText("Version", &settings_.version);
+            changed |= ImGui::InputTextMultiline("Description", &settings_.description,
+                                                 {0, ImGui::GetTextLineHeight() * 3.5f});
+            ui::helpMarker("One or two sentences about your game, shown on its web page and game card.");
+            if (ImGui::BeginCombo("Start scene", settings_.startScene.c_str())) {
+                for (auto& s : projectFiles({".scene"}))
+                    if (ImGui::Selectable(s.c_str(), s == settings_.startScene)) {
+                        settings_.startScene = s;
                         changed = true;
                     }
                 ImGui::EndCombo();
             }
-            if (Input::keyFromName(key) < 0) {
-                ImGui::SameLine();
-                ImGui::TextColored({1, 0.6f, 0.4f, 1}, "not a key");
-            }
-            ImGui::SameLine();
-            if (ImGui::SmallButton("x"))
-                remove = static_cast<int>(i);
-            ImGui::PopID();
-        }
-        if (remove >= 0) {
-            t.buttons.erase(t.buttons.begin() + remove);
-            changed = true;
-        }
-        ImGui::BeginDisabled(t.buttons.size() >= 4);
-        if (ImGui::SmallButton("+ Button")) {
-            const char* labels[] = {"A", "B", "C", "D"};
-            const char* keys[] = {"space", "x", "z", "c"};
-            t.buttons.push_back({labels[t.buttons.size()], keys[t.buttons.size()]});
-            changed = true;
-        }
-        ImGui::EndDisabled();
-        if (changed && game_)
-            game_->touchControls().configure(t);
-    }
+            ui::sectionHeader("Window");
+            changed |= ImGui::InputInt("Width", &settings_.width);
+            changed |= ImGui::InputInt("Height", &settings_.height);
+            changed |= ImGui::Checkbox("Resizable", &settings_.resizable);
+            changed |= ImGui::Checkbox("Start fullscreen", &settings_.fullscreen);
+            changed |= ImGui::Checkbox("VSync (smooth, no tearing)", &settings_.vsync);
+            changed |= ImGui::Checkbox("Advanced mode in the editor", &settings_.advancedMode);
 
-    if (settingsSection_ == "mixer") {
-        ImGui::SetScrollHereY(0);
-        settingsSection_.clear();
+            ImGui::EndTabItem();
+        }
+        if (tab("Controls", {"controls", "input", "touch"})) {
+            ui::sectionHeader("Controls");
+            ImGui::TextWrapped(
+                "Actions let players change controls. Scripts use them like key_pressed(\"jump\"). "
+                "List keys separated by commas.");
+            Input& input = window_.input();
+            input.loadActions(settings_.inputActions);
+            auto actions = input.actions();
+            bool actionsChanged = false;
+            if (ImGui::BeginTable("##actions", 2, ImGuiTableFlags_BordersInnerH)) {
+                ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthFixed, 90);
+                ImGui::TableSetupColumn("Keys");
+                for (auto& a : actions) {
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::TextUnformatted(a.name.c_str());
+                    ImGui::TableSetColumnIndex(1);
+                    std::string keys;
+                    for (auto& b : a.bindings)
+                        keys += (keys.empty() ? "" : ", ") + b;
+                    ImGui::SetNextItemWidth(-1);
+                    ImGui::PushID(a.name.c_str());
+                    if (ImGui::InputText("##keys", &keys, ImGuiInputTextFlags_EnterReturnsTrue) ||
+                        ImGui::IsItemDeactivatedAfterEdit()) {
+                        a.bindings.clear();
+                        size_t start = 0;
+                        while (start <= keys.size()) {
+                            size_t comma = keys.find(',', start);
+                            std::string k = keys.substr(start, comma == std::string::npos ? std::string::npos
+                                                                                          : comma - start);
+                            k.erase(0, k.find_first_not_of(' '));
+                            k.erase(k.find_last_not_of(' ') + 1);
+                            if (!k.empty()) {
+                                if (!Input::isValidName(k))
+                                    notify("\"" + k + "\" isn't a key name I know.", true);
+                                a.bindings.push_back(k);
+                            }
+                            if (comma == std::string::npos) break;
+                            start = comma + 1;
+                        }
+                        actionsChanged = true;
+                    }
+                    ImGui::PopID();
+                }
+                ImGui::EndTable();
+            }
+            if (actionsChanged) {
+                input.setActions(actions);
+                settings_.inputActions = input.saveActions();
+                changed = true;
+            }
+            if (ImGui::Button("Reset controls to defaults")) {
+                settings_.inputActions = Json::object();
+                changed = true;
+            }
+
+            ui::sectionHeader("Touch controls");
+            ImGui::TextWrapped(
+                "For phones and tablets: a stick that presses the arrow keys and buttons that press keys, "
+                "drawn over the game. Taps anywhere else still work like clicks.");
+            {
+                TouchSettings& t = settings_.touch;
+                int mode = static_cast<int>(t.mode);
+                ImGui::SetNextItemWidth(260);
+                if (ImGui::Combo("Show them", &mode,
+                                 "When the screen is touched\0Always (try them with the mouse)\0Never\0")) {
+                    t.mode = static_cast<TouchMode>(mode);
+                    changed = true;
+                }
+                changed |= ImGui::Checkbox("Stick (arrow keys)", &t.stick);
+                int remove = -1;
+                for (size_t i = 0; i < t.buttons.size(); ++i) {
+                    ImGui::PushID(static_cast<int>(i) + 7000);
+                    ImGui::SetNextItemWidth(120);
+                    changed |= ImGui::InputTextWithHint("##label", "label", &t.buttons[i].label);
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("presses");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(120);
+                    std::string& key = t.buttons[i].key;
+                    if (ImGui::BeginCombo("##key", key.c_str())) {
+                        for (const char* k :
+                             {"space", "enter", "x", "z", "c", "e", "f", "q", "r", "shift", "up", "escape"})
+                            if (ImGui::Selectable(k, key == k)) {
+                                key = k;
+                                changed = true;
+                            }
+                        ImGui::EndCombo();
+                    }
+                    if (Input::keyFromName(key) < 0) {
+                        ImGui::SameLine();
+                        ImGui::TextColored({1, 0.6f, 0.4f, 1}, "not a key");
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("x")) remove = static_cast<int>(i);
+                    ImGui::PopID();
+                }
+                if (remove >= 0) {
+                    t.buttons.erase(t.buttons.begin() + remove);
+                    changed = true;
+                }
+                ImGui::BeginDisabled(t.buttons.size() >= 4);
+                if (ImGui::SmallButton("+ Button")) {
+                    const char* labels[] = {"A", "B", "C", "D"};
+                    const char* keys[] = {"space", "x", "z", "c"};
+                    t.buttons.push_back({labels[t.buttons.size()], keys[t.buttons.size()]});
+                    changed = true;
+                }
+                ImGui::EndDisabled();
+                if (changed && game_) game_->touchControls().configure(t);
+            }
+
+            ImGui::EndTabItem();
+        }
+        if (tab("Audio", {"mixer", "audio"})) {
+            ui::sectionHeader("Audio mixer");
+            ImGui::TextWrapped(
+                "Sounds play through buses: music through Music, play_sound() and Audio Sources through "
+                "Effects unless you pick another. Changes are heard right away while playing.");
+            changed |= drawMixer();
+            ImGui::EndTabItem();
+        }
+        if (tab("Physics", {"layers", "physics"})) {
+            ui::sectionHeader("Collision layers");
+            ImGui::TextWrapped(
+                "Put objects on layers (Inspector, under Tag) and choose which layers collide. "
+                "Bullets that fly through their shooter, pickups only the player touches, "
+                "raycast(a, b, layers=\"Ground\")...");
+            changed |= drawLayerSettings();
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
     }
-    ui::sectionHeader("Audio mixer");
-    ImGui::TextWrapped("Sounds play through buses: music through Music, play_sound() and Audio Sources through "
-                       "Effects unless you pick another. Changes are heard right away while playing.");
-    changed |= drawMixer();
-    if (settingsSection_ == "layers") {
-        ImGui::SetScrollHereY(0);
-        settingsSection_.clear();
-    }
-    ui::sectionHeader("Collision layers");
-    ImGui::TextWrapped("Put objects on layers (Inspector, under Tag) and choose which layers collide. "
-                       "Bullets that fly through their shooter, pickups only the player touches, "
-                       "raycast(a, b, layers=\"Ground\")...");
-    changed |= drawLayerSettings();
-    if (changed)
-        settings_.save(projectDir_);
+    if (changed) settings_.save(projectDir_);
     ImGui::End();
 }
 
-// Renames a collision layer in every scene and prefab of the project ("" removes it: objects go back to Default).
+// Renames a collision layer in every scene and prefab of the project ("" removes it: objects go back to
+// Default).
 void Editor::renameLayer(const std::string& from, const std::string& to) {
     auto fix = [&](Json& data) {
         bool touched = false;

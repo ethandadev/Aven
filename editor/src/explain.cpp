@@ -557,7 +557,7 @@ void Editor::drawExplain() {
         ImGui::End();
         return;
     }
-    if (ImGui::BeginTabBar("##explaintabs")) {
+    if (ImGui::BeginTabBar("##explaintabs", ImGuiTabBarFlags_DrawSelectedOverline)) {
         auto drawSections = [&](const std::vector<ExplainSection>& sections) {
             for (auto& sec : sections) {
                 ImGui::PushFont(fonts.bold);
