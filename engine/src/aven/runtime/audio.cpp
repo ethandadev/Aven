@@ -1,3 +1,4 @@
+#include "aven/core/fs.h"
 #include "aven/core/log.h"
 #include "aven/render/scene_renderer.h"
 #include "aven/runtime/game.h"
@@ -122,6 +123,13 @@ struct AudioSystem::Impl {
         if (!ensure() || path.empty())
             return nullptr;
         std::string full = game.assets().resolve(path).string();
+        // A missing file is the usual failure: catch it here. (miniaudio 0.11.25 reads memory it
+        // has just freed when a file fails to load, so it's best not to ask it to.)
+        if (!fs::exists(full)) {
+            if (warned.insert(path).second)
+                Log::warn("Couldn't play the sound '", path, "': there's no such file in the project.");
+            return nullptr;
+        }
         // Import settings: stream long files from disk instead of decoding them up front.
         if (game.assets().importFor(path).stream && (flags & MA_SOUND_FLAG_DECODE))
             flags = (flags & ~static_cast<ma_uint32>(MA_SOUND_FLAG_DECODE)) | MA_SOUND_FLAG_STREAM;

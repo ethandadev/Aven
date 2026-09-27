@@ -55,8 +55,12 @@ rhi::TextureHandle loadImage(rhi::Device* device, const cgltf_image* image, cons
         uri.resize(std::strlen(uri.c_str()));
         pixels = stbi_load((base / uri).string().c_str(), &w, &h, &channels, 4);
     }
-    if (!pixels || !device)
+    if (!pixels)
         return {};
+    if (!device) {
+        stbi_image_free(pixels);
+        return {};
+    }
     rhi::TextureDesc d;
     d.width = w;
     d.height = h;

@@ -69,6 +69,37 @@ jobs:
             editor.png
             player.png
 
+  sanitizers:
+    # Memory errors and undefined behavior in the VM, parsers, physics glue...: every test runs
+    # under AddressSanitizer (with leak checking) and UndefinedBehaviorSanitizer. (vptr checks are
+    # off: Jolt is built without RTTI.)
+    name: Sanitizers (Linux)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
+            libgl-dev libwayland-dev libxkbcommon-dev wayland-protocols
+      - name: Cache downloaded libraries
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: deps-sanitizers-${{ hashFiles('cmake/AvenDependencies.cmake') }}
+      - name: Configure
+        run: |
+          flags="-fsanitize=address,undefined -fno-sanitize=vptr -fno-sanitize-recover=undefined -fno-omit-frame-pointer"
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="$flags" -DCMAKE_CXX_FLAGS="$flags" \
+            -DCMAKE_EXE_LINKER_FLAGS="$flags" -DCMAKE_SHARED_LINKER_FLAGS="$flags"
+      - name: Build the tests
+        run: cmake --build build --target aven_tests aven_test_module --parallel
+      - name: Test
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+          UBSAN_OPTIONS: print_stacktrace=1
+        run: build/bin/aven_tests
+
   web:
     name: Web player
     runs-on: ubuntu-24.04
