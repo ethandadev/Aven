@@ -336,11 +336,25 @@ void Editor::drawCommandPalette() {
     add("Lighting presets", "window", [this] { showLighting_ = true; });
     add("Scripting reference", "window", [this] { showReference_ = true; });
     add("Project settings", "window", [this] { showSettings_ = true; });
+    add("Collision layers", "window", [this] {
+        showSettings_ = true;
+        settingsSection_ = "layers";
+    });
+    if (selectedEntities().size() >= 2) {
+        const char* axes[3] = {"X", "Y", "Z"};
+        for (int axis = 0; axis < (view3D_ ? 3 : 2); ++axis) {
+            add(std::string("Align selection: min ") + axes[axis], "command", [this, axis] { alignSelection(axis, 0); });
+            add(std::string("Align selection: center ") + axes[axis], "command", [this, axis] { alignSelection(axis, 1); });
+            add(std::string("Align selection: max ") + axes[axis], "command", [this, axis] { alignSelection(axis, 2); });
+            add(std::string("Space selection evenly along ") + axes[axis], "command", [this, axis] { distributeSelection(axis); });
+        }
+    }
     add("Build & export", "window", [this] { showExport_ = true; });
     for (auto& t : extraCommands_)
         add(t.first, "tool", t.second);
     for (const char* k : {"Square", "Circle", "Sprite", "Text", "Tilemap", "Cube", "Sphere", "Player 3D", "Camera", "Particles",
-                          "Sound", "UI Text", "UI Button", "Sun", "Point Light"})
+                          "Sound", "UI Text", "UI Button", "UI Image", "Score Text", "Health Bar", "Start Menu", "Pause Menu",
+                          "Folder", "Sun", "Point Light"})
         add(std::string("Create ") + k, "create", [this, k] { createEntity(k); });
     int objects = 0;
     scene().walk([&](Entity e, int) {

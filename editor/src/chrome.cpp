@@ -847,6 +847,23 @@ void Editor::drawPreferences() {
         ui::sectionHeader("Editing");
         label("Ask before deleting");
         changed |= ImGui::Checkbox("##confirmdel", &prefs.confirmDelete);
+        ui::sectionHeader("External code editor");
+        ImGui::TextWrapped("Use another editor (VS Code, Sublime, Vim...) for scripts. {file} and {line} are filled in. "
+                           "Saved changes reload while the game runs.");
+        label("Command");
+        ImGui::SetNextItemWidth(-1);
+        changed |= ImGui::InputTextWithHint("##exteditor", "code -g {file}:{line}", &prefs.externalEditor);
+        label("Open scripts there", "Double-clicking a script, or an error in the Console, opens it in that editor. "
+                                    "Blocks still open in Aven.");
+        changed |= ImGui::Checkbox("##useext", &prefs.useExternalEditor);
+        ImGui::SameLine();
+        ImGui::BeginDisabled(prefs.externalEditor.empty() || !hasProject());
+        if (ImGui::SmallButton("Open the project folder there")) {
+            std::string cmd = prefs.externalEditor;
+            size_t at = cmd.find(' ');
+            launchCommand((at == std::string::npos ? cmd : cmd.substr(0, at)) + " \"" + projectDir_.string() + "\"");
+        }
+        ImGui::EndDisabled();
     } else if (prefsSection_ == "Learning") {
         ui::sectionHeader("Learn mode");
         ImGui::TextWrapped("The editor starts simple and shows more as you learn. You're at the %s level.", levelName(prefs.level));
@@ -862,6 +879,10 @@ void Editor::drawPreferences() {
         }
         label("Level up automatically", "When you've practiced enough, Aven offers to show more features.");
         changed |= ImGui::Checkbox("##autolevel", &prefs.autoLevelUp);
+        ui::sectionHeader("Helpers");
+        label("Beginner helpers", "The Ask Aven box in the Inspector, Doctor buttons in the Console and tips in empty panels. "
+                                  "Turn them off for a quieter editor.");
+        changed |= ImGui::Checkbox("##helpers", &prefs.beginnerHelpers);
         ui::sectionHeader("Tips");
         if (ImGui::Button("Show all tips again")) {
             prefs.seenTips.clear();

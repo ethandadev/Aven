@@ -13,6 +13,10 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `ceil(x)`
 - `clamp(value, low, high)`
 - `cos(x)`
+- `debug_box(center, size, color="yellow", seconds=0)`
+- `debug_circle(center, radius, color="yellow", seconds=0)`
+- `debug_line(from, to, color="yellow", seconds=0)`
+- `debug_text(position, text, color="white", seconds=0)`
 - `degrees(x)`
 - `dict()`
 - `exp(x)`
@@ -144,7 +148,7 @@ Everything scripts can use, generated from the engine itself (the same list as t
 
 ## Physics
 
-- `raycast(from, to)`
+- `raycast(from, to, layers=None)`
 - `set_gravity(x, y) or set_gravity(x, y, z)`
 
 ## Animation
@@ -155,6 +159,7 @@ Everything scripts can use, generated from the engine itself (the same list as t
 
 - `self.name`
 - `self.tag`
+- `self.layer`
 - `self.active`
 - `self.visible`
 - `self.id`

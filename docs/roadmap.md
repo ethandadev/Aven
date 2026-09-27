@@ -9,16 +9,20 @@ Where Aven stands, including what's missing. If you'd like to help with any of i
   - 2D: sprites, sprite sheets and animation, tilemaps, text, particles, and Box2D physics.
   - 3D: a PBR renderer with shadows, sky and fog; glTF models with skeletal animation; Jolt
     physics and a character controller.
-  - Shared: post-processing (bloom, tonemapping, grading, vignette, SSAO, FXAA), screen UI, 2D
-    and 3D audio, save data, prefabs and scenes.
+  - Shared: post-processing (bloom, tonemapping, grading, vignette, SSAO, FXAA), screen UI with
+    no-code buttons (Click Actions) and value bars, 2D and 3D audio, save data, prefabs and
+    scenes, and collision layers for 2D and 3D physics.
 - **Coding:**
   - Behaviors, blocks and EasyScript.
   - Native C/C++ modules through a versioned C API.
   - The Code Ladder: C, C#, GDScript, Luau and C++.
 - **Editor:**
-  - Scene work: Hierarchy, Inspector, scene view with gizmos, assets, console, undo history,
-    find, command palette and profiler.
-  - Code and block editors.
+  - Scene work: Hierarchy (with folders and `t:`/`tag:`/`layer:` search), Inspector (prefab
+    overrides, per-setting reset/copy/paste, lock), scene view with gizmos, align and select
+    tools, assets, console, undo history, find, command palette and profiler.
+  - Code and block editors; the code editor has suggestions, hints and live checks, and any
+    external editor can be used instead.
+  - Script debug drawing, Inspector hints in comments, and `aven-editor --check` for CI.
   - Build and export for desktop, web and itch.io.
   - Themes, layouts, shortcuts and editor levels.
 - **Creator tools:** Pixel Editor, Sprite Sheet, Tile Painter, Sound Maker, particle presets, and

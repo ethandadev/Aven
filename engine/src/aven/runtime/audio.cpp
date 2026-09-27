@@ -22,11 +22,23 @@ struct AudioSystem::Impl {
     std::unordered_map<Entity, std::unique_ptr<ma_sound>> sources;
     std::unordered_set<std::string> warned;
 
-    explicit Impl(Game& g) : game(g) {
+    bool tried = false;
+
+    explicit Impl(Game& g) : game(g) {}
+
+    // The sound device opens when a game first starts, so tools that only need a Game to look
+    // things up (the code editor's index, --check) don't open one.
+    bool ensure() {
+        if (tried)
+            return ok;
+        tried = true;
         ma_engine_config config = ma_engine_config_init();
         ok = ma_engine_init(&config, &engine) == MA_SUCCESS;
-        if (!ok)
+        if (ok)
+            ma_engine_set_volume(&engine, master);
+        else
             Log::info("No audio device was found, so the game will run without sound.");
+        return ok;
     }
 
     ~Impl() {
@@ -40,7 +52,7 @@ struct AudioSystem::Impl {
     }
 
     std::unique_ptr<ma_sound> load(const std::string& path, ma_uint32 flags) {
-        if (!ok || path.empty())
+        if (!ensure() || path.empty())
             return nullptr;
         std::string full = game.assets().resolve(path).string();
         auto sound = std::make_unique<ma_sound>();
@@ -72,6 +84,7 @@ AudioSystem::~AudioSystem() {
 bool AudioSystem::available() const { return impl_->ok; }
 
 void AudioSystem::start() {
+    impl_->ensure();
     Scene& scene = impl_->game.scene();
     for (Entity e : scene.registry().entitiesWith<AudioSource>())
         if (scene.isActive(e) && scene.registry().get<AudioSource>(e).playOnStart)

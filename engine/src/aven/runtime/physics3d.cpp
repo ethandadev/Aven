@@ -40,7 +40,6 @@ namespace {
 // A Jolt object layer holds two things: bit 0 says static (0) or moving (1), the other bits are
 // the collision layer from Project Settings > Layers.
 namespace Layers {
-constexpr JPH::ObjectLayer Static = 0;
 constexpr JPH::ObjectLayer Moving = 1;
 inline JPH::ObjectLayer make(bool moving, int layer) { return static_cast<JPH::ObjectLayer>((layer << 1) | (moving ? 1 : 0)); }
 inline bool moving(JPH::ObjectLayer l) { return (l & 1) != 0; }

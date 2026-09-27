@@ -329,6 +329,71 @@ std::string lanAddress() {
 
 } // namespace
 
+// Runs a program with arguments, without a shell: "code -g \"my file.es\":3" runs code with two
+// arguments. Quotes group words. Returns false if the program couldn't be started.
+bool launchCommand(const std::string& commandLine) {
+    std::vector<std::string> args;
+    std::string current;
+    bool quoted = false, any = false;
+    for (char c : commandLine) {
+        if (c == '"') {
+            quoted = !quoted;
+            any = true;
+        } else if ((c == ' ' || c == '\t') && !quoted) {
+            if (any || !current.empty())
+                args.push_back(current);
+            current.clear();
+            any = false;
+        } else {
+            current += c;
+        }
+    }
+    if (any || !current.empty())
+        args.push_back(current);
+    if (args.empty())
+        return false;
+#ifdef _WIN32
+    // CreateProcess takes one command line; rebuild it with each argument quoted.
+    std::string line;
+    for (auto& a : args)
+        line += (line.empty() ? "" : " ") + ("\"" + a + "\"");
+    int n = MultiByteToWideChar(CP_UTF8, 0, line.c_str(), -1, nullptr, 0);
+    std::wstring wide(static_cast<size_t>(n > 0 ? n : 1), L'\0');
+    if (n > 0)
+        MultiByteToWideChar(CP_UTF8, 0, line.c_str(), -1, wide.data(), n);
+    STARTUPINFOW si{};
+    si.cb = sizeof si;
+    PROCESS_INFORMATION pi{};
+    if (!CreateProcessW(nullptr, wide.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
+        // "code" is really code.cmd on Windows; let the shell find it.
+        std::wstring program = wide.substr(1, wide.find(L'"', 1) - 1);
+        std::wstring rest = wide.size() > program.size() + 2 ? wide.substr(program.size() + 3) : L"";
+        return reinterpret_cast<intptr_t>(ShellExecuteW(nullptr, L"open", program.c_str(), rest.c_str(), nullptr, SW_SHOWNORMAL)) > 32;
+    }
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    return true;
+#else
+    std::vector<char*> argv;
+    for (auto& a : args)
+        argv.push_back(a.data());
+    argv.push_back(nullptr);
+    posix_spawn_file_actions_t quiet;
+    posix_spawn_file_actions_init(&quiet);
+    posix_spawn_file_actions_addopen(&quiet, STDOUT_FILENO, "/dev/null", O_WRONLY, 0);
+    posix_spawn_file_actions_addopen(&quiet, STDERR_FILENO, "/dev/null", O_WRONLY, 0);
+    pid_t pid = 0;
+    bool ok = posix_spawnp(&pid, argv[0], &quiet, nullptr, argv.data(), environ) == 0;
+    if (ok)
+        std::thread([pid] {
+            int status = 0;
+            waitpid(pid, &status, 0);
+        }).detach();
+    posix_spawn_file_actions_destroy(&quiet);
+    return ok;
+#endif
+}
+
 void openExternal(const std::string& target) {
     // No shell in between, so folder names with quotes or $ can't turn into commands.
 #ifdef _WIN32

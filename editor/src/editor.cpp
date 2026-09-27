@@ -210,6 +210,7 @@ void Editor::openPanels(const std::string& list) {
         if (p == "settings") showSettings_ = true;
         else if (p.rfind("settings:", 0) == 0) { showSettings_ = true; settingsSection_ = p.substr(9); }
         else if (p == "inspector") focusInspector_ = true;
+        else if (p.rfind("search:", 0) == 0) hierarchyFilter_ = p.substr(7); // the Hierarchy's search box
         else if (p == "reference") showReference_ = true;
         else if (p == "prefs") showPrefs_ = true;
         else if (p.rfind("prefs:", 0) == 0) { showPrefs_ = true; prefsSection_ = p.substr(6); }
@@ -467,6 +468,10 @@ bool Editor::createProject(const stdfs::path& dir, const std::string& name, cons
     s.save(dir);
     for (const char* folder : {"scenes", "scripts", "images", "sounds", "prefabs"})
         stdfs::create_directories(dir / folder, ec);
+    // Ready for Git: everything Aven makes from the project stays out of version control.
+    if (!stdfs::exists(dir / ".gitignore", ec))
+        fs::writeText(dir / ".gitignore", "# Made by Aven from the project; no need to keep them in version control.\n"
+                                          ".aven/\nexports/\ncaptures/\nbug_reports/\nnative/build/\nimgui.ini\n");
     if (!openProject(dir))
         return false;
     if (!fs::exists(dir / s.startScene)) {
@@ -1021,6 +1026,138 @@ void Editor::buildMenu(Entity root, bool pause) {
     }
 }
 
+// Right-click > Select: grow the selection by what objects have in common.
+void Editor::drawSelectMenu(Entity e) {
+    Scene& s = *scene_;
+    auto& reg = s.registry();
+    const EntityInfo& info = s.info(e);
+    auto selectWhere = [&](const std::function<bool(Entity)>& pred) {
+        selection_.clear();
+        s.walk([&](Entity x, int) {
+            if (pred(x))
+                addToSelection(x);
+            return true;
+        });
+    };
+    const auto& kids = s.children(e);
+    if (ImGui::MenuItem("Children", nullptr, false, !kids.empty()))
+        for (Entity c : kids)
+            addToSelection(c);
+    if (ImGui::MenuItem("Everything inside", nullptr, false, !kids.empty())) {
+        std::function<void(Entity)> add = [&](Entity p) {
+            for (Entity c : s.children(p)) {
+                addToSelection(c);
+                add(c);
+            }
+        };
+        add(e);
+    }
+    std::string tag = info.tag;
+    if (ImGui::MenuItem(("Same tag" + (tag.empty() ? std::string() : " (" + tag + ")")).c_str(), nullptr, false, !tag.empty()))
+        selectWhere([&](Entity x) { return s.info(x).tag == tag; });
+    std::string layer = info.layer;
+    if (!settings_.layers.empty() &&
+        ImGui::MenuItem(("Same layer (" + (layer.empty() ? std::string("Default") : layer) + ")").c_str()))
+        selectWhere([&](Entity x) { return s.info(x).layer == layer; });
+    if (auto* pi = reg.tryGet<PrefabInstance>(e)) {
+        std::string path = pi->path;
+        if (ImGui::MenuItem("Same prefab"))
+            selectWhere([&](Entity x) {
+                auto* o = reg.tryGet<PrefabInstance>(x);
+                return o && o->path == path;
+            });
+    }
+    if (auto* sc = reg.tryGet<Script>(e); sc && !sc->path.empty()) {
+        std::string path = sc->path;
+        if (ImGui::MenuItem("Same script"))
+            selectWhere([&](Entity x) {
+                auto* o = reg.tryGet<Script>(x);
+                return o && o->path == path;
+            });
+    }
+    // Same kind: the same set of components.
+    auto kind = [&](Entity x) {
+        std::string k;
+        for (auto& ci : ComponentRegistry::all())
+            if (ci.name != "PrefabInstance" && ci.get(reg, x))
+                k += ci.name + ",";
+        return k;
+    };
+    std::string mine = kind(e);
+    if (ImGui::MenuItem("Same kind (same components)"))
+        selectWhere([&](Entity x) { return kind(x) == mine; });
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", mine.empty() ? "(no components)" : mine.substr(0, mine.size() - 1).c_str());
+}
+
+// Right-click > Align with two or more objects selected: line them up or space them evenly.
+void Editor::drawAlignMenu() {
+    const char* axes[3] = {"X", "Y", "Z"};
+    int count = view3D_ ? 3 : 2;
+    for (int axis = 0; axis < count; ++axis) {
+        const char* names[3][3] = {{"Left", "Center", "Right"}, {"Bottom", "Middle", "Top"}, {"Back", "Center", "Front"}};
+        for (int mode = 0; mode < 3; ++mode)
+            if (ImGui::MenuItem((std::string(names[axis][mode]) + "  (" + axes[axis] + ")").c_str()))
+                alignSelection(axis, mode);
+        ImGui::Separator();
+    }
+    for (int axis = 0; axis < count; ++axis)
+        if (ImGui::MenuItem((std::string("Space evenly along ") + axes[axis]).c_str(), nullptr, false, selectedEntities().size() >= 3))
+            distributeSelection(axis);
+}
+
+// Top-level selected objects only: children move with their parents already.
+std::vector<Entity> Editor::movableSelection() {
+    std::vector<Entity> out;
+    for (Entity e : selectedEntities()) {
+        bool nested = false;
+        for (Entity p = scene_->parent(e); p; p = scene_->parent(p))
+            nested |= isSelected(p);
+        if (!nested && !scene_->registry().has<UIElement>(e))
+            out.push_back(e);
+    }
+    return out;
+}
+
+namespace {
+float axisOf(Vec3 v, int axis) { return axis == 0 ? v.x : axis == 1 ? v.y : v.z; }
+} // namespace
+
+void Editor::alignSelection(int axis, int mode) {
+    auto items = movableSelection();
+    if (items.size() < 2)
+        return;
+    float lo = 1e30f, hi = -1e30f;
+    for (Entity e : items) {
+        float v = axisOf(scene_->worldPosition(e), axis);
+        lo = std::min(lo, v);
+        hi = std::max(hi, v);
+    }
+    float target = mode == 0 ? lo : mode == 2 ? hi : (lo + hi) * 0.5f;
+    recordUndo("Align");
+    for (Entity e : items) {
+        Vec3 p = scene_->worldPosition(e);
+        (&p.x)[axis] = target;
+        scene_->setWorldPosition(e, p);
+    }
+}
+
+void Editor::distributeSelection(int axis) {
+    auto items = movableSelection();
+    if (items.size() < 3)
+        return;
+    std::sort(items.begin(), items.end(), [&](Entity a, Entity b) {
+        return axisOf(scene_->worldPosition(a), axis) < axisOf(scene_->worldPosition(b), axis);
+    });
+    float lo = axisOf(scene_->worldPosition(items.front()), axis), hi = axisOf(scene_->worldPosition(items.back()), axis);
+    recordUndo("Space evenly");
+    for (size_t i = 1; i + 1 < items.size(); ++i) {
+        Vec3 p = scene_->worldPosition(items[i]);
+        (&p.x)[axis] = lo + (hi - lo) * static_cast<float>(i) / static_cast<float>(items.size() - 1);
+        scene_->setWorldPosition(items[i], p);
+    }
+}
+
 Entity Editor::instantiatePrefab(const std::string& path, Vec3 position) {
     auto text = fs::readText(projectDir_ / path);
     if (!text)
@@ -1321,6 +1458,21 @@ void Editor::openScript(const std::string& path, int line) {
     if (fs::extension(path) == ".blocks") {
         openBlocks(path);
         return;
+    }
+    if (prefs.useExternalEditor && !prefs.externalEditor.empty()) {
+        std::string cmd = prefs.externalEditor;
+        auto fill = [&](const std::string& key, const std::string& value) {
+            for (size_t at = cmd.find(key); at != std::string::npos; at = cmd.find(key, at + value.size()))
+                cmd.replace(at, key.size(), value);
+        };
+        bool hasFile = cmd.find("{file}") != std::string::npos;
+        fill("{file}", "\"" + (projectDir_ / path).string() + "\"");
+        fill("{line}", std::to_string(std::max(line, 1)));
+        if (!hasFile)
+            cmd += " \"" + (projectDir_ / path).string() + "\"";
+        if (launchCommand(cmd))
+            return;
+        notify("Couldn't start the external editor (" + prefs.externalEditor + "). Opening it here instead.", true);
     }
     auto text = fs::readText(projectDir_ / path);
     if (!text) {

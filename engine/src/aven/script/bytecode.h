@@ -90,8 +90,17 @@ struct FunctionProto {
 struct ExportedVar {
     std::string name;
     Value defaultValue;
-    std::string comment; // trailing "# ..." comment, used as a tooltip
+    std::string comment; // trailing "# ..." comment, used as a tooltip (without the @hints)
     int line = 0;
+    // Inspector hints written in the comments, like Unity's [Range] and [Header]:
+    //   speed = 5  # @range(0, 20) how fast        -> a slider
+    //   # @header Movement                         -> (on the line above) starts a group
+    //   secret = 3  # @hide                        -> not shown in the Inspector
+    //   hit = "sounds/hit.wav"  # @sound           -> a file picker (@sound @image @prefab @scene)
+    double rangeMin = 0, rangeMax = 0; // a slider when rangeMax > rangeMin
+    std::string header;
+    std::string fileKind; // "sound", "image", "prefab", "scene" or ""
+    bool hidden = false;
 };
 
 struct Module {

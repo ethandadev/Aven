@@ -215,6 +215,26 @@ AVEN_TEST(script_exports_for_inspector) {
     CHECK_EQ(m->exports[2].name, std::string("tint"));
 }
 
+AVEN_TEST(script_inspector_hints) {
+    VM vm;
+    auto m = vm.compile("# @header Movement\nspeed = 5  # @range(0, 20) how fast\nlives = 3  # @range(1, 9)\n"
+                        "hit = \"sounds/hit.wav\"  # @sound when hit\nsecret = 1  # @hide\nlink = \"#tag\"  # a # inside text\n",
+                        "h.es");
+    CHECK(m != nullptr);
+    CHECK_EQ(m->exports.size(), size_t(5));
+    auto& speed = m->exports[0];
+    CHECK_EQ(speed.header, std::string("Movement"));
+    CHECK_EQ(speed.rangeMin, 0.0);
+    CHECK_EQ(speed.rangeMax, 20.0);
+    CHECK_EQ(speed.comment, std::string("how fast")); // the hint isn't part of the tooltip
+    CHECK(m->exports[1].header.empty());
+    CHECK_EQ(m->exports[1].rangeMax, 9.0);
+    CHECK_EQ(m->exports[2].fileKind, std::string("sound"));
+    CHECK_EQ(m->exports[2].comment, std::string("when hit"));
+    CHECK(m->exports[3].hidden);
+    CHECK_EQ(m->exports[4].comment, std::string("a # inside text"));
+}
+
 AVEN_TEST(script_errors_are_friendly) {
     struct Case {
         const char* src;

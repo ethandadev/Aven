@@ -1766,7 +1766,7 @@ void ScriptSystem::registerApi() {
     });
 
     // --- debug drawing (shown in the editor while playing; see DebugDraw)
-    auto debugColor = [this](CallArgs& a, size_t index, const char* context) {
+    auto debugColor = [](CallArgs& a, size_t index, const char* context) {
         const Value* c = a.has(index) ? &a[index] : a.keyword("color");
         return c ? toColor(*c, context) : Color{1, 0.9f, 0.2f, 1};
     };

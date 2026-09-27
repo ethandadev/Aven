@@ -49,6 +49,11 @@ jobs:
           tests=$(find build -name 'aven_tests' -o -name 'aven_tests.exe' | head -n 1)
           "$tests"
 
+      - name: Check every template (aven-editor --check)
+        if: runner.os == 'Linux'
+        run: |
+          for t in templates/*/; do build/bin/aven-editor "$t" --check --strict; done
+
       - name: Editor smoke test (screenshot)
         if: runner.os == 'Linux'
         run: |

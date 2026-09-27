@@ -210,6 +210,24 @@ bool anchorGrid(int32_t& anchor) {
 
 namespace {
 
+// "RigidBody2D" -> "Rigid Body 2D", "UIElement" -> "UI Element": easier to read in the Inspector.
+std::string displayName(const std::string& name) {
+    auto at = [&](size_t i) { return i < name.size() ? static_cast<unsigned char>(name[i]) : ' '; };
+    std::string out;
+    for (size_t i = 0; i < name.size(); ++i) {
+        if (i) {
+            unsigned char c = at(i), prev = at(i - 1);
+            bool wordStart = std::isupper(c) && (std::islower(prev) || (std::isupper(prev) && std::islower(at(i + 1))));
+            bool numberStart = std::isdigit(c) && std::isalpha(prev);
+            if (wordStart || numberStart)
+                out += ' ';
+        }
+        out += name[i];
+    }
+    return out;
+}
+
+
 std::vector<std::string> extensionsFor(AssetKind kind) {
     switch (kind) {
     case AssetKind::Image: return {".png", ".jpg", ".jpeg", ".bmp", ".tga"};
@@ -274,33 +292,115 @@ void drawFolderIcon(ImDrawList* dl, ImVec2 c, bool open, ImU32 col) {
 
 // ---------------------------------------------------------------- hierarchy
 
+// Does an object match a Hierarchy search? Words must all match: plain words search names,
+// t:Component, tag:name and layer:name filter (all ignoring case).
+bool Editor::matchesSearch(Entity e, const std::string& query) {
+    auto lower = [](std::string t) {
+        std::transform(t.begin(), t.end(), t.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return t;
+    };
+    Scene& s = scene();
+    auto& reg = s.registry();
+    const EntityInfo& info = s.info(e);
+    std::string q = lower(query);
+    size_t start = 0;
+    while (start < q.size()) {
+        size_t space = q.find(' ', start);
+        std::string term = q.substr(start, space == std::string::npos ? std::string::npos : space - start);
+        start = space == std::string::npos ? q.size() : space + 1;
+        if (term.empty())
+            continue;
+        auto after = [&](const char* prefix) { return term.rfind(prefix, 0) == 0 ? term.substr(std::strlen(prefix)) : std::string("\x01"); };
+        if (std::string want = after("t:"); want != "\x01") {
+            bool found = false;
+            if (want == "prefab")
+                found = reg.has<PrefabInstance>(e);
+            for (auto& ci : ComponentRegistry::all()) {
+                if (found || !ci.get(reg, e))
+                    continue;
+                std::string name = lower(ci.name), spaced = lower(displayName(ci.name));
+                found = name.find(want) != std::string::npos || spaced.find(want) != std::string::npos;
+            }
+            if (!found)
+                return false;
+        } else if (std::string want = after("tag:"); want != "\x01") {
+            if (lower(info.tag).find(want) == std::string::npos || (want.empty() && !info.tag.empty()))
+                return false;
+        } else if (std::string want = after("layer:"); want != "\x01") {
+            if (lower(info.layer.empty() ? "Default" : info.layer).find(want) == std::string::npos)
+                return false;
+        } else if (lower(info.name).find(term) == std::string::npos) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// With a search typed in, the Hierarchy lists the matches flat, each with where it sits.
+void Editor::drawHierarchySearch() {
+    Scene& s = scene();
+    auto& reg = s.registry();
+    std::vector<Entity> found;
+    s.walk([&](Entity e, int) {
+        if (matchesSearch(e, hierarchyFilter_))
+            found.push_back(e);
+        return true;
+    });
+    ImGui::TextDisabled("%d found", static_cast<int>(found.size()));
+    if (!found.empty()) {
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Select all")) {
+            selection_.clear();
+            for (Entity e : found)
+                addToSelection(e);
+        }
+    }
+    for (Entity e : found) {
+        const EntityInfo& info = s.info(e);
+        hierarchyOrder_.push_back(info.uuid);
+        ImGui::PushID(static_cast<int>(e.index));
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        std::string path;
+        for (Entity parent = s.parent(e); parent; parent = s.parent(parent))
+            path = s.info(parent).name + (path.empty() ? "" : " / " + path);
+        if (ImGui::Selectable(("     " + info.name).c_str(), isSelected(e), ImGuiSelectableFlags_AllowDoubleClick)) {
+            if (ImGui::GetIO().KeyCtrl)
+                toggleSelection(e);
+            else
+                select(e);
+            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                focusSelected();
+        }
+        float h = ImGui::GetItemRectSize().y;
+        ImGui::GetWindowDrawList()->AddCircleFilled({p.x + 8, p.y + h * 0.5f}, 4.5f, entityColor(reg, e));
+        if (!path.empty()) {
+            float x = p.x + ImGui::CalcTextSize(("     " + info.name).c_str()).x + 12;
+            ImGui::GetWindowDrawList()->AddText({x, p.y + (h - ImGui::GetFontSize()) * 0.5f},
+                                                ImGui::GetColorU32(ImGuiCol_TextDisabled), ("in " + path).c_str());
+        }
+        ImGui::PopID();
+    }
+    if (found.empty())
+        ImGui::TextDisabled("Nothing matches. Try part of a name,\nor t:Sprite, tag:enemy, layer:Bullet.");
+}
+
 void Editor::drawEntityNode(Entity e) {
     Scene& s = scene();
     auto& reg = s.registry();
     EntityInfo& info = s.info(e);
     const auto& kids = s.children(e);
-    std::string filter = hierarchyFilter_;
-    bool matches = filter.empty();
-    if (!matches) {
-        std::string a = info.name, b = filter;
-        std::transform(a.begin(), a.end(), a.begin(), ::tolower);
-        std::transform(b.begin(), b.end(), b.begin(), ::tolower);
-        matches = a.find(b) != std::string::npos;
-    }
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth |
                                ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_AllowOverlap;
     if (kids.empty())
         flags |= ImGuiTreeNodeFlags_Leaf;
     if (isSelected(e))
         flags |= ImGuiTreeNodeFlags_Selected;
-    if (!filter.empty())
-        flags |= ImGuiTreeNodeFlags_DefaultOpen;
     ImGui::PushID(static_cast<int>(e.index));
     bool dim = !s.isActive(e);
     if (dim)
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     bool open = true;
-    bool shown = matches || !filter.empty();
+    bool shown = true;
     if (shown) {
         hierarchyOrder_.push_back(info.uuid);
         ImVec2 p = ImGui::GetCursorScreenPos();
@@ -469,6 +569,11 @@ void Editor::drawEntityNode(Entity e) {
             }
             if (ImGui::MenuItem("Copy", chordName(prefs.chord("copy")).c_str()))
                 copySelection(false);
+            if (unlocked(Feature::Code) && ImGui::MenuItem("Copy as code")) {
+                std::string code = "find(\"" + info.name + "\")";
+                ImGui::SetClipboardText(code.c_str());
+                notify("Copied " + code);
+            }
             if (ImGui::MenuItem("Paste", chordName(prefs.chord("paste")).c_str(), false, !clipboard_.isNull()))
                 pasteClipboard();
             bool deleted = false;
@@ -502,9 +607,14 @@ void Editor::drawEntityNode(Entity e) {
                     recordUndo("Change parent");
                     s.setParent(e, {});
                 }
-                if (!kids.empty() && ImGui::MenuItem("Select children"))
-                    for (Entity c : kids)
-                        addToSelection(c);
+                if (ImGui::BeginMenu("Select")) {
+                    drawSelectMenu(e);
+                    ImGui::EndMenu();
+                }
+                if (selectedEntities().size() >= 2 && ImGui::BeginMenu("Align")) {
+                    drawAlignMenu();
+                    ImGui::EndMenu();
+                }
                 ImGui::Separator();
                 if (unlocked(Feature::Prefabs) && ImGui::MenuItem("Save as Prefab"))
                     savePrefab(e);
@@ -549,6 +659,9 @@ void Editor::drawHierarchy() {
     hierarchyFocused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
     ImGui::SetNextItemWidth(-60);
     ImGui::InputTextWithHint("##filter", "Search...", &hierarchyFilter_);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Search by name, or filter:\n  t:RigidBody2D   objects with a component\n  tag:enemy   by tag\n"
+                          "  layer:Bullet   by collision layer\n  t:prefab   prefab copies\nCombine them: tag:enemy t:script");
     ImGui::SameLine();
     ImGui::BeginDisabled(playing_);
     if (ImGui::Button("+ Add"))
@@ -608,10 +721,14 @@ void Editor::drawHierarchy() {
     }
     lastHierarchyOrder_ = std::move(hierarchyOrder_);
     hierarchyOrder_.clear();
-    std::vector<Entity> roots = s.roots();
-    for (Entity e : roots)
-        if (s.valid(e))
-            drawEntityNode(e);
+    if (!hierarchyFilter_.empty()) {
+        drawHierarchySearch();
+    } else {
+        std::vector<Entity> roots = s.roots();
+        for (Entity e : roots)
+            if (s.valid(e))
+                drawEntityNode(e);
+    }
     ImGui::PopStyleVar();
     // Dropping on empty space moves objects to the top level.
     ImGui::Dummy(ImGui::GetContentRegionAvail());
@@ -655,23 +772,6 @@ void Editor::drawHierarchy() {
 // ---------------------------------------------------------------- inspector
 
 namespace {
-
-// "RigidBody2D" -> "Rigid Body 2D", "UIElement" -> "UI Element": easier to read in the Inspector.
-std::string displayName(const std::string& name) {
-    auto at = [&](size_t i) { return i < name.size() ? static_cast<unsigned char>(name[i]) : ' '; };
-    std::string out;
-    for (size_t i = 0; i < name.size(); ++i) {
-        if (i) {
-            unsigned char c = at(i), prev = at(i - 1);
-            bool wordStart = std::isupper(c) && (std::islower(prev) || (std::isupper(prev) && std::islower(at(i + 1))));
-            bool numberStart = std::isdigit(c) && std::isalpha(prev);
-            if (wordStart || numberStart)
-                out += ' ';
-        }
-        out += name[i];
-    }
-    return out;
-}
 
 // What a component's settings are when it's first added.
 const Json& componentDefaults(const ComponentInfo& info) {
@@ -1199,9 +1299,18 @@ void Editor::drawScriptVariables(Entity e) {
     // While playing, show the live values of this object's variables.
     std::shared_ptr<script::Instance> live = playing_ ? game_->scripts().instanceOf(e) : nullptr;
     for (auto& ex : mod->exports) {
-        if (ex.name == "is_clone") // set by clone(), not something to edit
+        if (ex.name == "is_clone" || ex.hidden) // set by clone(), or hidden with # @hide
             continue;
         ImGui::PushID(ex.name.c_str());
+        if (!ex.header.empty()) {
+            // "# @header Movement" above the variable.
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Dummy({0, 2});
+            ImGui::PushFont(fonts.bold);
+            ImGui::TextUnformatted(ex.header.c_str());
+            ImGui::PopFont();
+        }
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
         ImGui::AlignTextToFramePadding();
@@ -1225,10 +1334,32 @@ void Editor::drawScriptVariables(Entity e) {
                 value = *v;
         bool c = false;
         script::Value result = value;
-        if (value.isNumber()) {
+        if (value.isNumber() && ex.rangeMax > ex.rangeMin) {
+            // # @range(min, max): a slider. Whole-number ranges step in whole numbers.
+            bool whole = ex.rangeMin == std::floor(ex.rangeMin) && ex.rangeMax == std::floor(ex.rangeMax) &&
+                         value.number() == std::floor(value.number());
+            if (whole) {
+                int i = static_cast<int>(value.number());
+                if ((c = ImGui::SliderInt("##v", &i, static_cast<int>(ex.rangeMin), static_cast<int>(ex.rangeMax))))
+                    result = script::Value(static_cast<double>(i));
+            } else {
+                float f = static_cast<float>(value.number());
+                if ((c = ImGui::SliderFloat("##v", &f, static_cast<float>(ex.rangeMin), static_cast<float>(ex.rangeMax), "%.2f")))
+                    result = script::Value(static_cast<double>(f));
+            }
+        } else if (value.isNumber()) {
             float f = static_cast<float>(value.number());
             if ((c = ImGui::DragFloat("##v", &f, 0.1f)))
                 result = script::Value(static_cast<double>(f));
+        } else if (value.isString() && !ex.fileKind.empty()) {
+            // # @sound, @image, @prefab or @scene: pick a file.
+            AssetKind kind = ex.fileKind == "sound"   ? AssetKind::Audio
+                           : ex.fileKind == "image"   ? AssetKind::Image
+                           : ex.fileKind == "prefab"  ? AssetKind::Prefab
+                                                      : AssetKind::Scene;
+            std::string file = value.string();
+            if ((c = ui::assetField("##v", file, projectFiles(extensionsFor(kind)), "ASSET_PATH")))
+                result = script::Value(file);
         } else if (value.isBool()) {
             bool b = value.boolean();
             if ((c = ImGui::Checkbox("##v", &b)))
@@ -1368,7 +1499,8 @@ void Editor::drawInspector() {
     if (!e) {
         ImGui::TextDisabled("Select an object to see and change its settings.");
         ImGui::Spacing();
-        ImGui::TextWrapped("Tip: click objects in the Scene view or the Hierarchy. Every object is made of components: "
+        if (prefs.beginnerHelpers)
+            ImGui::TextWrapped("Tip: click objects in the Scene view or the Hierarchy. Every object is made of components: "
                            "a Transform (where it is), plus things like a SpriteRenderer (how it looks) or a Script "
                            "(what it does).");
         ImGui::End();
@@ -1478,7 +1610,7 @@ void Editor::drawInspector() {
             ImGui::SetTooltip(unknown ? "This layer isn't in Project Settings > Collision layers, so the object acts as Default."
                                       : "Collision layer: which other objects this one collides with (Project Settings).");
     }
-    if (!playing_)
+    if (!playing_ && prefs.beginnerHelpers)
         drawAssistant();
     if (auto* pi = s.registry().tryGet<PrefabInstance>(e)) {
         ImGui::AlignTextToFramePadding();
@@ -1913,7 +2045,7 @@ void Editor::drawConsole() {
         }
         ImVec4 color = l.level == LogLevel::Error ? ImVec4(1.0f, 0.45f, 0.45f, 1) : l.level == LogLevel::Warning ? ImVec4(1.0f, 0.8f, 0.35f, 1) : ImVec4(0.85f, 0.87f, 0.9f, 1);
         ImGui::PushID(index++);
-        if (l.level != LogLevel::Info && unlocked(Feature::Doctor)) {
+        if (l.level != LogLevel::Info && unlocked(Feature::Doctor) && prefs.beginnerHelpers) {
             if (ImGui::SmallButton("Doctor"))
                 openDoctorFor(l.text, l.file, l.line);
             if (ImGui::IsItemHovered())

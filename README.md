@@ -52,6 +52,10 @@ know how the bigger engines think.
   - Screenshot and GIF capture.
 - **Personalization:** themes, accent colors, font sizes and UI scale, rebindable shortcuts and
   layouts.
+- **For experienced developers:** collision layers, script debug drawing, Inspector hints in
+  comments (`# @range(0, 10)`), Hierarchy filters (`t:RigidBody2D tag:enemy`), align and select
+  tools, your own code editor, and `aven-editor --check` for CI. See
+  [docs/advanced.md](docs/advanced.md).
 
 **Features built for beginners**
 - **Learn mode** reveals the editor a level at a time: Starter, Explorer, Creator, then Pro.
@@ -116,6 +120,8 @@ uses Emscripten: `tools/web/build_web_player.sh`.
 - [EasyScript API](docs/easyscript-api.md): every function and property, generated from the
   engine.
 - [Native code (C/C++)](docs/native-code.md): the C API and building modules.
+- [For experienced developers](docs/advanced.md): collision layers, debug drawing, Inspector
+  hints, search filters, an external code editor, `--check` for CI.
 - [Learning path](docs/learning-path.md): from blocks to C, and on to other engines.
 - [Moving to other engines](docs/migrating.md): Unity, Godot, Roblox and Unreal, side by side.
 - [Architecture](docs/architecture.md): how the code is organized.

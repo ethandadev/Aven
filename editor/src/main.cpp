@@ -6,6 +6,7 @@
 //        aven-editor --new folder [--template id]
 //        aven-editor project_folder --export folder
 
+#include "check.h"
 #include "editor.h"
 
 #include "aven/core/fs.h"
@@ -29,6 +30,7 @@ namespace {
 struct Args {
     EditorOptions editor;
     int width = 0, height = 0;
+    bool check = false, strict = false;
 };
 
 bool parseArgs(int argc, char** argv, Args& a) {
@@ -59,6 +61,10 @@ bool parseArgs(int argc, char** argv, Args& a) {
             a.editor.level = std::atoi(next().c_str());
         else if (s == "--theme")
             a.editor.theme = next();
+        else if (s == "--check")
+            a.check = true;
+        else if (s == "--strict")
+            a.strict = true;
         else if (s == "--size") {
             std::string v = next();
             std::sscanf(v.c_str(), "%dx%d", &a.width, &a.height);
@@ -66,7 +72,10 @@ bool parseArgs(int argc, char** argv, Args& a) {
             std::printf("usage: aven-editor [project_folder] [--open file] [--select name] [--panel hub|settings|reference]\n"
                         "                   [--play] [--screenshot out.png --frames N] [--size WxH]\n"
                         "       aven-editor --new folder [--template id]     create a game from a template\n"
-                        "       aven-editor project_folder --export folder   build a playable copy of a game\n");
+                        "       aven-editor project_folder --export folder   build a playable copy of a game\n"
+                        "       aven-editor project_folder --check [--strict]\n"
+                        "                   check scripts, scenes and files without a window (for CI); exit code 1 on errors\n"
+                        "                   (--strict: on warnings too)\n");
             return false;
         } else if (!s.empty() && s[0] != '-') {
             a.editor.project = s;
@@ -81,6 +90,9 @@ int main(int argc, char** argv) {
     Args args;
     if (!parseArgs(argc, argv, args))
         return 0;
+    if (args.check)
+        return runProjectCheck(args.editor.project.empty() ? std::filesystem::current_path() : std::filesystem::path(args.editor.project),
+                               args.strict);
     bool screenshotMode = !args.editor.screenshot.empty();
 
     WindowDesc wd;

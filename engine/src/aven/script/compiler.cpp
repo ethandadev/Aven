@@ -3,6 +3,7 @@
 #include "aven/script/errors.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <unordered_map>
 
 namespace aven::script {
@@ -562,6 +563,63 @@ std::string trailingComment(std::string_view source, int line) {
     return {};
 }
 
+// The text of a line (1-based), or "" past the end.
+std::string_view lineText(std::string_view source, int line) {
+    size_t start = 0;
+    for (int current = 1; current < line; ++current) {
+        size_t nl = source.find('\n', start);
+        if (nl == std::string_view::npos)
+            return {};
+        start = nl + 1;
+    }
+    size_t end = source.find('\n', start);
+    return source.substr(start, end == std::string_view::npos ? source.size() - start : end - start);
+}
+
+// Reads the @hints out of a variable's comments; what's left of the comment stays as its tooltip.
+void readHints(std::string_view source, ExportedVar& var) {
+    std::string& c = var.comment;
+    auto take = [&](const std::string& tag) {
+        size_t at = c.find(tag);
+        if (at == std::string::npos)
+            return std::string::npos;
+        c.erase(at, tag.size());
+        return at;
+    };
+    size_t range = c.find("@range(");
+    if (range != std::string::npos) {
+        size_t close = c.find(')', range);
+        if (close != std::string::npos) {
+            double lo = 0, hi = 0;
+            if (std::sscanf(c.c_str() + range + 7, "%lf , %lf", &lo, &hi) == 2 && hi > lo) {
+                var.rangeMin = lo;
+                var.rangeMax = hi;
+            }
+            c.erase(range, close - range + 1);
+        }
+    }
+    if (take("@hide") != std::string::npos)
+        var.hidden = true;
+    for (const char* kind : {"sound", "image", "prefab", "scene"})
+        if (take(std::string("@") + kind) != std::string::npos)
+            var.fileKind = kind;
+    size_t first = c.find_first_not_of(" \t");
+    size_t last = c.find_last_not_of(" \t");
+    c = first == std::string::npos ? "" : c.substr(first, last - first + 1);
+    // "# @header Movement" on the line just above.
+    std::string_view above = lineText(source, var.line - 1);
+    size_t hash = above.find_first_not_of(" \t");
+    if (hash != std::string_view::npos && above[hash] == '#') {
+        std::string_view rest = above.substr(hash + 1);
+        size_t h = rest.find("@header");
+        if (h != std::string_view::npos) {
+            std::string title(rest.substr(h + 7));
+            size_t a = title.find_first_not_of(" \t"), b = title.find_last_not_of(" \t\r");
+            var.header = a == std::string::npos ? "" : title.substr(a, b - a + 1);
+        }
+    }
+}
+
 } // namespace
 
 std::shared_ptr<Module> compileModule(std::string_view source, const std::string& path) {
@@ -586,7 +644,9 @@ std::shared_ptr<Module> compileModule(std::string_view source, const std::string
                                          [&](const ExportedVar& x) { return x.name == name; });
             if (existing != module->exports.end())
                 continue;
-            module->exports.push_back({name, v, trailingComment(source, s->line), s->line});
+            ExportedVar var{name, v, trailingComment(source, s->line), s->line};
+            readHints(source, var);
+            module->exports.push_back(std::move(var));
         }
     } catch (ScriptError& e) {
         e.file = path;

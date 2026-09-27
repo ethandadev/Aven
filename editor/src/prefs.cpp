@@ -164,6 +164,9 @@ Json Prefs::toJson() const {
     j["record_replays"] = recordReplays;
     j["level"] = level;
     j["auto_level_up"] = autoLevelUp;
+    j["beginner_helpers"] = beginnerHelpers;
+    j["external_editor"] = externalEditor;
+    j["use_external_editor"] = useExternalEditor;
     Json counts = Json::object();
     for (auto& [k, v] : counters)
         counts[k] = v;
@@ -221,6 +224,9 @@ void Prefs::fromJson(const Json& j) {
     recordReplays = j["record_replays"].asBool(d.recordReplays);
     level = std::clamp(j["level"].asInt(d.level), 1, 4);
     autoLevelUp = j["auto_level_up"].asBool(d.autoLevelUp);
+    beginnerHelpers = j["beginner_helpers"].asBool(d.beginnerHelpers);
+    externalEditor = j["external_editor"].asString("");
+    useExternalEditor = j["use_external_editor"].asBool(d.useExternalEditor);
     counters.clear();
     for (auto& m : j["counters"].members())
         counters[m.key] = m.value.asInt();

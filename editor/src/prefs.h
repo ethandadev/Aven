@@ -67,10 +67,14 @@ struct Prefs {
     bool confirmDelete = false;
     bool uiSounds = false;
     bool recordReplays = true;
+    // Opening scripts in another code editor: {file} and {line} are filled in, e.g. "code -g {file}:{line}".
+    std::string externalEditor;
+    bool useExternalEditor = false;
 
     // Learning
     int level = 1; // 1 Starter, 2 Explorer, 3 Creator, 4 Pro
     bool autoLevelUp = true;
+    bool beginnerHelpers = true; // Ask Aven box, Doctor buttons, tips in empty panels
     std::map<std::string, int> counters; // milestones: plays, objects added, scripts edited...
     std::set<std::string> seenTips;
     std::map<std::string, int> questSteps; // contributor quests progress

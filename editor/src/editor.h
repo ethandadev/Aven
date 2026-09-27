@@ -499,6 +499,13 @@ private:
     void drawNativeScriptInspector(Entity e);
     void drawClickActions(Entity e, const std::vector<Entity>& selection);
     void drawValueBarHint(Entity e);
+    bool matchesSearch(Entity e, const std::string& query); // Hierarchy search: names, t:, tag:, layer:
+    void drawHierarchySearch();
+    void drawSelectMenu(Entity e); // right-click > Select (same tag, prefab, script...)
+    void drawAlignMenu();          // right-click > Align (two or more selected)
+    std::vector<Entity> movableSelection();
+    void alignSelection(int axis, int mode); // mode: 0 min, 1 center, 2 max
+    void distributeSelection(int axis);
     bool drawLayerSettings();                                   // Project Settings > Collision layers
     void renameLayer(const std::string& from, const std::string& to); // in every scene and prefab
     void buildMenu(Entity root, bool pause); // Create > UI > Start/Pause Menu
@@ -712,6 +719,7 @@ stdfs::path editorDataDir();
 stdfs::path sourceDir(); // Aven's source code, when the editor was built from it (else empty)
 stdfs::path sdkDir();    // aven.h and the native module template
 void openExternal(const std::string& target); // a file, folder or link in the system's app
+bool launchCommand(const std::string& commandLine); // runs a program with arguments (no shell)
 // "1 object", "3 objects"
 inline std::string plural(size_t n, const std::string& word) { return std::to_string(n) + " " + word + (n == 1 ? "" : "s"); }
 const Json& editorData(const std::string& name);

@@ -209,6 +209,24 @@ program:
   deletes them, **Ctrl+/** comments them out and **Tab** / **Shift+Tab** indents. `else:` lines
   up with its `if` by itself. **Ctrl+wheel** (or **Ctrl+=** and **Ctrl+-**) changes the text size.
 
+## Seeing what code does
+
+Draw over the game while it runs, to check a raycast, a range or a path:
+
+```easyscript
+def on_update(dt):
+    debug_circle(self, 3, "red")                        # how far it can see
+    debug_text(self, f"speed {self.velocity_x:.1f}")    # a label that follows it
+    debug_line(self, find("Player"), "yellow", seconds=0.5)
+```
+
+They last one frame, or `seconds`. They show in the editor while playing (untick **Debug**
+above the game to hide them), not in exported games.
+
+Comments can also shape how a variable looks in the Inspector:
+`speed = 5  # @range(0, 20)` gives a slider, and `# @header Movement` on the line above starts a
+group. More in [For experienced developers](advanced.md#scripting).
+
 ## Mistakes
 
 When a script has an error, Aven pauses the game and the **Error Doctor** explains it: what went
