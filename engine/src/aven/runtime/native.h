@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -43,7 +44,15 @@ public:
         std::string file;
         std::string error; // why it didn't load
         int behaviors = 0;
+        bool blocked = false; // not approved (see approve)
     };
+
+    // Compiled code can do anything a program can, so the editor decides which libraries may load
+    // (ones it built, or that the user allowed). Unset, as in the player: everything loads.
+    std::function<bool(const std::filesystem::path& library)> approve;
+    int blockedCount() const;
+    // A fingerprint of a library's contents, for remembering which ones were allowed.
+    static std::string fileHash(const std::filesystem::path& file);
 
     // Loads the libraries in <projectDir>/native/bin when the project or any library changed since
     // the last call. Libraries are copied before loading, so they can be rebuilt while loaded.

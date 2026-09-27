@@ -72,6 +72,13 @@
       arguments: [],
       preRun: [function () {
         const FS = Module.FS;
+        // Save data lives in the browser's IndexedDB, so high scores survive a reload.
+        try {
+          FS.mkdir('/saves');
+          FS.mount(FS.filesystems.IDBFS, {}, '/saves');
+          Module.addRunDependency('saves');
+          FS.syncfs(true, () => Module.removeRunDependency('saves'));
+        } catch (e) { console.warn('Save data will not be kept:', e); }
         FS.mkdir('/game');
         for (const [name, data] of Object.entries(files)) {
           const parts = name.split('/');

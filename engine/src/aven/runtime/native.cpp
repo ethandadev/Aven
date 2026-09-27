@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <map>
 #include <set>
@@ -405,6 +406,29 @@ const char* NativeModules::libraryExtension() {
 #endif
 }
 
+int NativeModules::blockedCount() const {
+    return static_cast<int>(std::count_if(modules_.begin(), modules_.end(), [](const Module& m) { return m.blocked; }));
+}
+
+std::string NativeModules::fileHash(const stdfs::path& file) {
+    // FNV-1a over the whole file (64-bit), plus its size.
+    std::FILE* f = std::fopen(file.string().c_str(), "rb");
+    if (!f)
+        return {};
+    uint64_t h = 1469598103934665603ull, size = 0;
+    unsigned char buf[65536];
+    size_t n;
+    while ((n = std::fread(buf, 1, sizeof buf, f)) > 0) {
+        for (size_t i = 0; i < n; ++i)
+            h = (h ^ buf[i]) * 1099511628211ull;
+        size += n;
+    }
+    std::fclose(f);
+    char out[48];
+    std::snprintf(out, sizeof out, "%016llx-%llu", static_cast<unsigned long long>(h), static_cast<unsigned long long>(size));
+    return out;
+}
+
 bool NativeModules::changedOnDisk(const stdfs::path& projectDir) const {
     return !loadedOnce_ || projectDir != projectDir_ || libraryFiles(projectDir) != seen_;
 }
@@ -452,6 +476,14 @@ void NativeModules::loadAll(const stdfs::path& projectDir) {
         stdfs::path source(file);
         Module m;
         m.file = "native/bin/" + source.filename().string();
+        if (approve && !approve(source)) {
+            m.blocked = true;
+            m.error = "not allowed yet: compiled code only loads once you build it here or allow it";
+            Log::warn("Didn't load ", m.file, ": compiled code only loads once you build it in Aven or allow it "
+                      "(Native Code window).");
+            modules_.push_back(std::move(m));
+            continue;
+        }
         Library lib;
         lib.source = source;
         lib.modified = modified;

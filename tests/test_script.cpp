@@ -379,3 +379,35 @@ AVEN_TEST(script_json_roundtrip) {
     Value back = VM::fromJson(j);
     CHECK_EQ(back.repr(), std::string("[1, \"a\", rgb(255, 0, 0, 1)]"));
 }
+
+// Lists and dicts that only refer to each other are freed; anything still used is left alone.
+AVEN_TEST(script_cycles_are_collected) {
+    collectCycles(); // start clean
+    size_t before = trackedContainers();
+    {
+        Harness h;
+        auto inst = h.load(R"(
+kept = {"items": [1, 2]}
+kept["self"] = kept
+def make_garbage():
+    for i in range(50):
+        a = []
+        b = {"other": a}
+        a.append(b)
+        a.append(a)
+make_garbage()
+)");
+        CHECK(inst != nullptr);
+        CHECK(trackedContainers() >= before + 100);
+        size_t freed = collectCycles();
+        CHECK(freed >= 100);
+        // `kept` is still reachable from the script: untouched.
+        Value kept = h.var(inst, "kept");
+        CHECK(kept.isDict());
+        CHECK(kept.dictObj().find(Value("items")) && kept.dictObj().find(Value("items"))->listObj().items.size() == 2);
+        CHECK(kept.dictObj().find(Value("self")) != nullptr);
+        CHECK(h.errors.empty());
+    }
+    collectCycles(); // the script is gone, so its self-referencing dict goes too
+    CHECK_EQ(trackedContainers(), before);
+}

@@ -66,7 +66,105 @@ void copyIfMissing(const stdfs::path& from, const stdfs::path& to) {
         stdfs::copy_file(from, to, ec);
 }
 
+stdfs::path trustFile() { return fs::userDataDir("Aven Editor") / "trusted_native.json"; }
+
+std::map<std::string, int64_t> nativeLibraries(const stdfs::path& projectDir) {
+    std::map<std::string, int64_t> out;
+    std::error_code ec;
+    for (auto& f : stdfs::directory_iterator(NativeModules::binDir(projectDir), ec))
+        if (f.is_regular_file(ec) && f.path().extension() == NativeModules::libraryExtension())
+            out[f.path().string()] = fs::modifiedTime(f.path());
+    return out;
+}
+
 } // namespace
+
+void Editor::loadNativeTrust() {
+    trustedNative_.clear();
+    if (auto text = fs::readText(trustFile())) {
+        Json j = Json::parse(*text);
+        for (auto& h : j["allowed"].elements())
+            trustedNative_.insert(h.asString());
+    }
+    NativeModules::get().approve = [this](const stdfs::path& library) {
+        return trustedNative_.count(NativeModules::fileHash(library)) > 0;
+    };
+}
+
+void Editor::trustNative(const std::vector<stdfs::path>& libraries) {
+    for (auto& lib : libraries) {
+        std::string h = NativeModules::fileHash(lib);
+        if (!h.empty())
+            trustedNative_.insert(h);
+    }
+    Json j = Json::object();
+    Json list = Json::array();
+    for (auto& h : trustedNative_)
+        list.push(h);
+    j["about"] = "Compiled libraries Aven may load: ones built in the editor or allowed by you (content fingerprints).";
+    j["allowed"] = list;
+    fs::writeText(trustFile(), j.dump(1));
+    if (!playing_) {
+        NativeModules::get().unloadAll(); // load again with the new list
+        NativeModules::get().refresh(projectDir_);
+    }
+}
+
+void Editor::drawNativeTrustPrompt() {
+    NativeModules& modules = NativeModules::get();
+    if (playing_ || nativeBuild_ || projectDir_.empty())
+        return;
+    if (modules.blockedCount() > 0 && !nativePromptDismissed_ && !ImGui::IsPopupOpen("Compiled code in this project"))
+        ImGui::OpenPopup("Compiled code in this project");
+    ImGui::SetNextWindowSize({560, 0});
+    if (!ImGui::BeginPopupModal("Compiled code in this project", nullptr, ImGuiWindowFlags_NoResize))
+        return;
+    ImGui::PushTextWrapPos(0);
+    ImGui::TextUnformatted("This project has C/C++ code that was compiled somewhere else:");
+    std::vector<stdfs::path> blocked;
+    for (auto& m : modules.modules())
+        if (m.blocked) {
+            ImGui::BulletText("%s", m.file.c_str());
+            blocked.push_back(projectDir_ / m.file);
+        }
+    ImGui::Spacing();
+    ImGui::TextUnformatted("Compiled code can do anything a program on your computer can, like reading or deleting your "
+                           "files. Aven loads it by itself only when it was built here.");
+    ImGui::Spacing();
+    ImGui::TextColored({1, 0.8f, 0.35f, 1}, "If this project came from someone else (a zip, a download, a friend), keep it off "
+                                             "unless you trust them.");
+    ImGui::Spacing();
+    ImGui::TextDisabled("Everything else (scenes, EasyScript, blocks) works either way; objects that use these native "
+                        "behaviors just won't run them. You can also read the code in native/src and build it yourself "
+                        "in the Native Code window.");
+    ImGui::PopTextWrapPos();
+    ImGui::Spacing();
+    float w = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2) / 3;
+    if (ImGui::Button("Keep it off", {w, 32})) {
+        nativePromptDismissed_ = true;
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::SameLine();
+    std::error_code ec;
+    ImGui::BeginDisabled(!stdfs::exists(projectDir_ / "native" / "src", ec));
+    if (ImGui::Button("Look at the code", {w, 32})) {
+        nativePromptDismissed_ = true;
+        openNativeCode();
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.55f, 0.3f, 0.2f, 1));
+    if (ImGui::Button("I trust it: load it", {w, 32})) {
+        nativePromptDismissed_ = true;
+        ImGui::CloseCurrentPopup();
+        trustNative(blocked);
+        int n = static_cast<int>(modules.behaviors().size());
+        notify("Loaded native code: " + std::to_string(n) + (n == 1 ? " behavior" : " behaviors"));
+    }
+    ImGui::PopStyleColor();
+    ImGui::EndPopup();
+}
 
 bool Editor::isNativeSource(const std::string& path) const {
     std::string ext = fs::extension(path);
@@ -114,6 +212,7 @@ void Editor::buildNativeModule() {
                      stdfs::copy_options::overwrite_existing, ec);
     if (nativeThread_.joinable())
         nativeThread_.join();
+    nativeBeforeBuild_ = nativeLibraries(projectDir_);
     auto build = std::make_shared<NativeBuild>();
     nativeBuild_ = build;
     nativeOutput_.clear();
@@ -180,8 +279,14 @@ void Editor::updateNativeCode(float dt) {
             if (nativeThread_.joinable())
                 nativeThread_.join();
             if (nativeBuildOk_) {
-                if (!playing_)
-                    NativeModules::get().refresh(projectDir_);
+                // What this build wrote is trusted: the user built it from the source they can see.
+                std::vector<stdfs::path> built;
+                for (auto& [file, time] : nativeLibraries(projectDir_)) {
+                    auto before = nativeBeforeBuild_.find(file);
+                    if (before == nativeBeforeBuild_.end() || before->second != time)
+                        built.push_back(file);
+                }
+                trustNative(built);
                 int n = static_cast<int>(NativeModules::get().behaviors().size());
                 notify("Native code built" + std::string(playing_ ? " (it loads when the game stops)" : "") + ": " +
                        std::to_string(n) + (n == 1 ? " behavior" : " behaviors"));
@@ -200,7 +305,7 @@ void Editor::updateNativeCode(float dt) {
     }
     // Pick up libraries built outside the editor too (only while editing: running code can't be swapped).
     nativeRefreshTimer_ += dt;
-    if (!playing_ && nativeRefreshTimer_ > 1.0f && !projectDir_.empty()) {
+    if (!playing_ && !nativeBuild_ && nativeRefreshTimer_ > 1.0f && !projectDir_.empty()) {
         nativeRefreshTimer_ = 0;
         NativeModules::get().refresh(projectDir_);
     }
@@ -298,6 +403,13 @@ void Editor::drawNativeCode() {
     for (auto& m : modules.modules())
         if (!m.error.empty())
             ImGui::TextColored({1, 0.45f, 0.45f, 1}, "%s didn't load: %s", m.file.c_str(), m.error.c_str());
+    if (modules.blockedCount() > 0) {
+        if (ImGui::SmallButton("Build it from native/src"))
+            buildNativeModule();
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Allow what's there..."))
+            nativePromptDismissed_ = false;
+    }
     if (behaviors.empty()) {
         ImGui::TextDisabled(modules.modules().empty() ? "Nothing built yet. Press Build." : "The module has no behaviors.");
     } else if (ImGui::BeginTable("##native", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp)) {

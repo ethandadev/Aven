@@ -94,14 +94,136 @@ Value::Value(const char* s) : type_(Type::String), n_(0), obj_(std::make_shared<
 Value::Value(std::string s) : type_(Type::String), n_(0), obj_(std::make_shared<StringObj>(std::move(s))) {}
 Value::Value(std::string_view s) : type_(Type::String), n_(0), obj_(std::make_shared<StringObj>(std::string(s))) {}
 
+// ---------------------------------------------------------------- cycle collection
+//
+// Values are reference counted, so `a = []; a.append(a)` would never be freed. Lists and dicts are
+// tracked; now and then, the ones only reachable from each other are emptied, which frees them.
+
+namespace {
+
+struct Tracked {
+    std::weak_ptr<Obj> obj;
+    Obj* raw;
+    bool isList;
+};
+
+std::mutex gcMutex;
+std::vector<Tracked> gcTracked;
+size_t gcSinceCollect = 0, gcSurvivors = 0;
+
+void track(const std::shared_ptr<Obj>& o, bool isList) {
+    std::lock_guard lock(gcMutex);
+    gcTracked.push_back({o, o.get(), isList});
+    ++gcSinceCollect;
+}
+
+} // namespace
+
+bool cycleCollectionDue() {
+    std::lock_guard lock(gcMutex);
+    return gcSinceCollect > std::max<size_t>(20000, gcSurvivors * 2);
+}
+
+size_t collectCycles() {
+    std::vector<std::shared_ptr<Obj>> live;
+    std::vector<bool> isList;
+    {
+        std::lock_guard lock(gcMutex);
+        std::vector<Tracked> kept;
+        kept.reserve(gcTracked.size());
+        for (auto& t : gcTracked)
+            if (auto o = t.obj.lock()) {
+                live.push_back(std::move(o));
+                isList.push_back(t.isList);
+                kept.push_back(t);
+            }
+        gcTracked.swap(kept);
+        gcSinceCollect = 0;
+    }
+    std::unordered_map<const Obj*, size_t> slot;
+    slot.reserve(live.size());
+    for (size_t i = 0; i < live.size(); ++i)
+        slot[live[i].get()] = i;
+    auto eachChild = [&](size_t i, auto&& fn) {
+        if (isList[i]) {
+            for (auto& v : static_cast<ListObj*>(live[i].get())->items)
+                fn(v);
+        } else {
+            for (auto& [k, v] : static_cast<DictObj*>(live[i].get())->entries) {
+                fn(k);
+                fn(v);
+            }
+        }
+    };
+    // References from outside the tracked containers = all references - those from inside.
+    std::vector<long> outside(live.size());
+    for (size_t i = 0; i < live.size(); ++i)
+        outside[i] = live[i].use_count() - 1; // minus the one in `live`
+    for (size_t i = 0; i < live.size(); ++i)
+        eachChild(i, [&](const Value& v) {
+            if (auto it = slot.find(v.obj().get()); it != slot.end())
+                --outside[it->second];
+        });
+    // Anything referenced from outside is reachable, and so is everything it holds.
+    std::vector<bool> reachable(live.size(), false);
+    std::vector<size_t> todo;
+    for (size_t i = 0; i < live.size(); ++i)
+        if (outside[i] > 0) {
+            reachable[i] = true;
+            todo.push_back(i);
+        }
+    while (!todo.empty()) {
+        size_t i = todo.back();
+        todo.pop_back();
+        eachChild(i, [&](const Value& v) {
+            if (auto it = slot.find(v.obj().get()); it != slot.end() && !reachable[it->second]) {
+                reachable[it->second] = true;
+                todo.push_back(it->second);
+            }
+        });
+    }
+    // The rest are garbage kept alive by cycles: empty them (`live` holds them until the end).
+    size_t freed = 0;
+    for (size_t i = 0; i < live.size(); ++i) {
+        if (reachable[i])
+            continue;
+        ++freed;
+        if (isList[i]) {
+            std::vector<Value> gone;
+            gone.swap(static_cast<ListObj*>(live[i].get())->items);
+        } else {
+            auto* d = static_cast<DictObj*>(live[i].get());
+            std::vector<std::pair<Value, Value>> gone;
+            gone.swap(d->entries);
+            d->index.clear();
+        }
+    }
+    {
+        std::lock_guard lock(gcMutex);
+        gcSurvivors = live.size() - freed;
+    }
+    return freed;
+}
+
+size_t trackedContainers() {
+    std::lock_guard lock(gcMutex);
+    size_t n = 0;
+    for (auto& t : gcTracked)
+        n += !t.obj.expired();
+    return n;
+}
+
 Value Value::list(std::vector<Value> items) {
     auto l = std::make_shared<ListObj>();
     l->items = std::move(items);
+    track(l, true);
     return Value(Type::List, std::move(l));
 }
 
 Value Value::dict() {
-    return Value(Type::Dict, std::make_shared<DictObj>());
+    auto d = std::make_shared<DictObj>();
+    track(d, false);
+    return Value(Type::Dict, std::move(d));
 }
 
 Value Value::vec(double x, double y, double z, int components) {

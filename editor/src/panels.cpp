@@ -385,6 +385,25 @@ void Editor::drawHierarchySearch() {
         ImGui::TextDisabled("Nothing matches. Try part of a name,\nor t:Sprite, tag:enemy, layer:Bullet.");
 }
 
+// What a drag from the Hierarchy moves: the whole selection if the dragged object is part of it,
+// without objects whose parent is also moving (they come along), in the order they're listed.
+std::vector<Entity> Editor::draggedEntities(Entity dragged) {
+    Scene& s = scene();
+    if (!dragged)
+        return {};
+    if (!isSelected(dragged))
+        return {dragged};
+    std::vector<Entity> sel = selectedEntities(), out;
+    auto moving = [&](Entity x) { return std::find(sel.begin(), sel.end(), x) != sel.end(); };
+    s.walk([&](Entity x, int) {
+        if (!moving(x))
+            return true;
+        out.push_back(x);
+        return false; // its children move with it
+    });
+    return out;
+}
+
 void Editor::drawEntityNode(Entity e) {
     Scene& s = scene();
     auto& reg = s.registry();
@@ -410,6 +429,7 @@ void Editor::drawEntityNode(Entity e) {
             ImGui::SetNextItemOpen(true); // a folder holding the object selected elsewhere (scene view, Find...)
         bool folder = isFolder(reg, e, !kids.empty());
         open = ImGui::TreeNodeEx("##node", flags, "     %s", renaming ? "" : info.name.c_str());
+        const ImGuiID nodeId = ImGui::GetItemID();
         ImVec2 rowMin = ImGui::GetItemRectMin(), rowMax = ImGui::GetItemRectMax();
         float h = ImGui::GetFrameHeight();
         ImVec2 dot{p.x + ImGui::GetTreeNodeToLabelSpacing() + 6, p.y + h * 0.5f};
@@ -448,11 +468,18 @@ void Editor::drawEntityNode(Entity e) {
                     std::erase(selection_, info.uuid);
                     selection_.push_back(info.uuid);
                 }
+            } else if (isSelected(e) && selection_.size() > 1) {
+                pendingSelect_ = info.uuid; // decided on release: dragging moves the whole selection
             } else {
                 select(e);
             }
             if (!io.KeyShift)
                 hierarchyAnchor_ = info.uuid;
+        }
+        if (pendingSelect_ == info.uuid && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+            if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDragMaxDistanceSqr[0] < 16.0f)
+                select(e); // a plain click on one of several selected objects: just that one
+            pendingSelect_ = {};
         }
         if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
             focusSelected();
@@ -480,22 +507,26 @@ void Editor::drawEntityNode(Entity e) {
                 else
                     fg->AddRect(rowMin, rowMax, accent, 3, 0, 2);
                 if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("ENTITY", ImGuiDragDropFlags_AcceptNoDrawDefaultRect)) {
-                    Entity dragged = s.findByUUID({*static_cast<const uint64_t*>(pl->Data)});
-                    std::vector<Entity> moving = isSelected(dragged) ? selectedEntities() : std::vector<Entity>{dragged};
+                    std::vector<Entity> moving = draggedEntities(s.findByUUID({*static_cast<const uint64_t*>(pl->Data)}));
                     recordUndo(zone == 0 ? "Change parent" : "Reorder");
+                    Entity last; // "after": each one goes after the one before, keeping their order
                     for (Entity m : moving) {
-                        if (!m || m == e || s.isAncestor(m, e))
+                        if (m == e || s.isAncestor(m, e))
                             continue;
                         if (zone == 0) {
                             s.setParent(m, e);
                         } else {
                             Entity parent = s.parent(e);
-                            int index = s.siblingIndex(e) + (zone == 1 ? 1 : 0);
+                            Entity ref = zone == 1 && last ? last : e;
+                            int index = s.siblingIndex(ref) + (zone == 1 ? 1 : 0);
                             if (s.parent(m) == parent && s.siblingIndex(m) < index)
                                 --index;
                             s.setParent(m, parent, true, index);
+                            last = m;
                         }
                     }
+                    if (zone == 0)
+                        ImGui::GetStateStorage()->SetInt(nodeId, 1); // open the folder they went into
                 }
                 if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("ASSET_PATH")) {
                     std::string path(static_cast<const char*>(pl->Data), static_cast<size_t>(pl->DataSize));
@@ -735,12 +766,10 @@ void Editor::drawHierarchy() {
     ImGui::Dummy(ImGui::GetContentRegionAvail());
     if (!playing_ && ImGui::BeginDragDropTarget()) {
         if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("ENTITY")) {
-            Entity dragged = s.findByUUID({*static_cast<const uint64_t*>(pl->Data)});
-            std::vector<Entity> moving = isSelected(dragged) ? selectedEntities() : std::vector<Entity>{dragged};
+            std::vector<Entity> moving = draggedEntities(s.findByUUID({*static_cast<const uint64_t*>(pl->Data)}));
             recordUndo("Change parent");
             for (Entity m : moving)
-                if (m)
-                    s.setParent(m, {});
+                s.setParent(m, {});
         }
         ImGui::EndDragDropTarget();
     }

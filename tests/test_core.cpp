@@ -1,8 +1,11 @@
 #include "test_framework.h"
 
+#include "aven/core/fs.h"
 #include "aven/core/json.h"
 #include "aven/core/uuid.h"
 #include "aven/math/math.h"
+
+#include <filesystem>
 
 using namespace aven;
 
@@ -112,4 +115,27 @@ AVEN_TEST(uuid_string_roundtrip) {
     UUID id = UUID::generate();
     CHECK(static_cast<bool>(id));
     CHECK(UUID::fromString(id.toString()) == id);
+}
+
+// Paths from games and web requests stay inside their folder (the share server and scripts use this).
+AVEN_TEST(fs_inside_folder_blocks_escapes) {
+    namespace stdfs = std::filesystem;
+    stdfs::path root = stdfs::temp_directory_path() / "aven_inside_test";
+    std::error_code ec;
+    stdfs::remove_all(root, ec);
+    stdfs::create_directories(root / "images", ec);
+    fs::writeText(root / "images/a.png", "x");
+    CHECK(!fs::insideFolder(root, "images/a.png").empty());
+    CHECK(!fs::insideFolder(root, "sounds/missing.wav").empty()); // missing is fine, just inside
+    CHECK(!fs::insideFolder(root, "images/./a.png").empty());
+    for (const char* bad : {"../secret.txt", "images/../../x", "/etc/passwd", "C:/Windows/win.ini", "images\\..\\..\\x",
+                            "..", "", "/C:/x"})
+        CHECK(fs::insideFolder(root, bad).empty());
+    std::string withNul("images/a.png\0../../x", 20);
+    CHECK(fs::insideFolder(root, withNul).empty());
+#ifndef _WIN32
+    stdfs::create_directory_symlink(stdfs::temp_directory_path(), root / "link", ec);
+    if (!ec)
+        CHECK(fs::insideFolder(root, "link/anything").empty()); // a link that leads out
+#endif
 }

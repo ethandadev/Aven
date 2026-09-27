@@ -397,6 +397,8 @@ private:
     std::string hierarchyFilter_;
     std::vector<UUID> hierarchyOrder_, lastHierarchyOrder_; // visible rows, for Shift-click ranges
     UUID hierarchyAnchor_;
+    UUID pendingSelect_; // a click on one of several selected rows: select it alone unless it becomes a drag
+    std::vector<Entity> draggedEntities(Entity dragged);
     UUID revealedFor_;                       // the selection the Hierarchy last opened its folders for
     std::unordered_set<uint64_t> revealIds_; // folders to open so the selected object shows
     bool scrollToSelected_ = false;
@@ -502,6 +504,13 @@ private:
     void createNativeModule();
     void updateNativeCode(float dt); // every frame: build output, reloading
     void drawNativeScriptInspector(Entity e);
+    // Compiled code only loads if it was built here or the user allowed it (by content hash).
+    std::set<std::string> trustedNative_;
+    std::map<std::string, int64_t> nativeBeforeBuild_; // native/bin as it was when the build started
+    bool nativePromptDismissed_ = false;
+    void loadNativeTrust();
+    void trustNative(const std::vector<stdfs::path>& libraries);
+    void drawNativeTrustPrompt();
     void drawClickActions(Entity e, const std::vector<Entity>& selection);
     void drawValueBarHint(Entity e);
     void drawAnimator(Entity e, const std::vector<Entity>& selection); // animator_editor.cpp

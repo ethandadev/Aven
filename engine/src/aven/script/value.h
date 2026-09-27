@@ -112,6 +112,12 @@ private:
 
 std::string formatNumber(double n);
 
+// Frees lists and dicts that only hold each other (reference counting alone can't). Returns how
+// many were emptied. Call between script runs; cycleCollectionDue() says when it's worth it.
+size_t collectCycles();
+bool cycleCollectionDue();
+size_t trackedContainers(); // lists and dicts alive (for tests)
+
 struct StringObj : Obj {
     std::string value;
     explicit StringObj(std::string s) : value(std::move(s)) {}

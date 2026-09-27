@@ -76,7 +76,9 @@ Where Aven stands, including what's missing. If you'd like to help with any of i
 - **C API gaps:**
   - `aven_call` passes numbers only.
   - There's no way yet to get an object's parent or children, or to read other components.
-  - Native code isn't sandboxed and doesn't run on the web.
+  - Native code isn't sandboxed and doesn't run on the web. The editor only loads compiled
+    libraries it built itself or that you allowed, so opening someone else's project can't run
+    their code without asking.
 - **Code Ladder output for other engines** is meant for reading and learning. It's close to
   working code, but it expects that engine's scene setup (components, tags, input actions).
 

@@ -533,3 +533,47 @@ AVEN_TEST(animator_state_machine) {
     CHECK(!catcher.errors.empty() && catcher.errors[0].find("attack, hurt") != std::string::npos);
     game.stop();
 }
+
+// save_data() keeps values in memory, writes them when the game stops, and two games with the
+// same name but different ids keep separate saves.
+AVEN_TEST(save_data_cached_and_per_game) {
+    namespace stdfs = std::filesystem;
+    stdfs::path dir = stdfs::temp_directory_path() / "aven_save_test";
+    std::error_code ec;
+    stdfs::remove_all(dir, ec);
+    stdfs::create_directories(dir / "scripts", ec);
+    stdfs::path data = stdfs::temp_directory_path() / "aven_save_home";
+    stdfs::remove_all(data, ec);
+#ifdef _WIN32
+    _putenv_s("APPDATA", data.string().c_str());
+#else
+    setenv("XDG_DATA_HOME", data.string().c_str(), 1);
+#endif
+    fs::writeText(dir / "scripts/s.es", "def on_start():\n    game.loaded = load_data(\"best\", -1)\n"
+                                        "def on_update(dt):\n    game.n = get_game(\"n\", 0) + 1\n    save_data(\"best\", game.n)\n"
+                                        "    game.now = load_data(\"best\")\n");
+    auto run = [&](const std::string& id, int frames) {
+        Assets assets;
+        assets.setRoot(dir);
+        Input input;
+        Game game(assets, input);
+        ProjectSettings p;
+        p.name = "Same Name";
+        p.id = id;
+        game.settings() = p;
+        auto scene = std::make_unique<Scene>();
+        scene->registry().emplace<Script>(scene->create("Saver")).path = "scripts/s.es";
+        game.start(std::move(scene), "test.scene");
+        for (int i = 0; i < frames; ++i)
+            game.update(1.0f / 60.0f);
+        double loaded = game.scripts().gameNumber("loaded");
+        CHECK_EQ(game.scripts().gameNumber("now"), static_cast<double>(frames)); // straight from memory
+        game.stop();
+        return loaded;
+    };
+    CHECK_EQ(run("aaaaaaaa11111111", 5), -1.0); // nothing saved yet
+    auto saved = fs::readText(fs::userDataDir("Same Name aaaaaaaa") / "save.json");
+    CHECK(saved && saved->find("\"best\": 5") != std::string::npos); // written when it stopped
+    CHECK_EQ(run("aaaaaaaa11111111", 1), 5.0);  // read back next time
+    CHECK_EQ(run("bbbbbbbb22222222", 1), -1.0); // another game with the same name starts fresh
+}

@@ -6,6 +6,10 @@
 #include <fstream>
 #include <sstream>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -125,6 +129,41 @@ std::string extension(const stdfs::path& path) {
     return ext;
 }
 
+stdfs::path insideFolder(const stdfs::path& root, std::string_view relative) {
+    if (relative.empty() || relative.find('\0') != std::string_view::npos || relative.find(':') != std::string_view::npos ||
+        relative.find('\\') != std::string_view::npos || relative.front() == '/')
+        return {};
+    stdfs::path rel = stdfs::path(std::string(relative)).lexically_normal();
+    if (rel.is_absolute() || rel.has_root_name() || rel.has_root_directory())
+        return {};
+    for (const auto& part : rel)
+        if (part == "..")
+            return {};
+    std::error_code ec;
+    stdfs::path base = stdfs::weakly_canonical(root, ec);
+    if (ec)
+        return {};
+    stdfs::path real = stdfs::weakly_canonical(base / rel, ec);
+    if (ec)
+        return {};
+    // Symbolic links can still point elsewhere: compare the resolved paths part by part.
+    auto r = base.begin(), f = real.begin();
+    for (; r != base.end(); ++r, ++f) {
+        if (r->empty() && std::next(r) == base.end())
+            break; // a trailing separator
+        if (f == real.end() || *r != *f)
+            return {};
+    }
+    return real;
+}
+
+void persist() {
+#ifdef __EMSCRIPTEN__
+    // The page mounts IndexedDB at /saves (player/web/index.html); this copies the changes into it.
+    EM_ASM({ FS.syncfs(false, function(err) { if (err) console.warn('Saving failed', err); }); });
+#endif
+}
+
 stdfs::path userDataDir(const std::string& gameName) {
     stdfs::path base;
 #if defined(_WIN32)
@@ -133,6 +172,8 @@ stdfs::path userDataDir(const std::string& gameName) {
 #elif defined(__APPLE__)
     if (const char* home = std::getenv("HOME"))
         base = stdfs::path(home) / "Library" / "Application Support";
+#elif defined(__EMSCRIPTEN__)
+    base = "/saves";
 #else
     if (const char* xdg = std::getenv("XDG_DATA_HOME"))
         base = xdg;

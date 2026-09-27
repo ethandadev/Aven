@@ -63,6 +63,7 @@ bool Editor::init(const EditorOptions& options) {
     });
     window_.onFileDrop = [this](const std::vector<std::string>& files) { onFilesDropped(files); };
     loadRecent();
+    loadNativeTrust();
     buildApiReference();
     setupCodeIntel();
     browsePath_ = fs::userDataDir("Projects").parent_path().parent_path();
@@ -210,6 +211,12 @@ void Editor::openPanels(const std::string& list) {
         if (p == "settings") showSettings_ = true;
         else if (p.rfind("settings:", 0) == 0) { showSettings_ = true; settingsSection_ = p.substr(9); }
         else if (p == "inspector") focusInspector_ = true;
+        else if (p == "dump") { // for tests: the hierarchy, with * on selected objects
+            scene_->walk([&](Entity e, int depth) {
+                Log::info("dump: ", std::string(static_cast<size_t>(depth) * 2, ' '), isSelected(e) ? "*" : "", scene_->info(e).name);
+                return true;
+            });
+        }
         else if (p.rfind("search:", 0) == 0) hierarchyFilter_ = p.substr(7); // the Hierarchy's search box
         else if (p == "reference") showReference_ = true;
         else if (p == "prefs") showPrefs_ = true;
@@ -506,6 +513,13 @@ bool Editor::openProject(const stdfs::path& dir) {
     tabs_.clear();
     settings_ = s;
     projectDir_ = stdfs::absolute(dir);
+    // Every game gets its own id, so two games called "My Game" keep separate save data.
+    // (Not for the starter templates themselves, or automated screenshots.)
+    std::error_code idEc;
+    if (settings_.id.empty() && options_.screenshot.empty() && !stdfs::exists(projectDir_ / "template.json", idEc)) {
+        settings_.id = UUID::generate().toString();
+        settings_.save(projectDir_);
+    }
     assets_.clear();
     assets_.setRoot(projectDir_);
     window_.input().loadActions(settings_.inputActions);
@@ -525,7 +539,8 @@ bool Editor::openProject(const stdfs::path& dir) {
     lastReplay_ = {};
     clearThumbnails();
     checkLastSession();
-    NativeModules::get().refresh(projectDir_); // C/C++ behaviors, if the project has any
+    nativePromptDismissed_ = false;
+    NativeModules::get().refresh(projectDir_); // C/C++ behaviors it has, if built here or allowed
     Log::info("Opened project '", settings_.name, "'");
     return true;
 }
@@ -1901,6 +1916,7 @@ void Editor::frame(float dt) {
             drawAssetLibrary();
         if (showNativeCode_ && unlocked(Feature::NativeCode))
             drawNativeCode();
+        drawNativeTrustPrompt();
         drawScriptTabs();
         if (showSettings_)
             drawSettings();

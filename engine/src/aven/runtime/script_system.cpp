@@ -462,6 +462,16 @@ std::string requireKeyName(ScriptSystem& sys, CallArgs& a, size_t i) {
     return name;
 }
 
+// A file path from a script: inside the project folder (forward slashes, no "..", not absolute).
+std::string projectFile(ScriptSystem& s, std::string path, const char* context) {
+    std::replace(path.begin(), path.end(), '\\', '/');
+    const auto& root = s.game().assets().root();
+    if (!path.empty() && !root.empty() && fs::insideFolder(root, path).empty())
+        raise(std::string(context) + ": \"" + path + "\" is outside the project folder. Games can only use their own "
+              "files, with paths like \"sounds/jump.wav\".");
+    return path;
+}
+
 Animator& requireAnimator(ScriptSystem& s, Entity e, const char* context) {
     auto* a = s.game().scene().registry().tryGet<Animator>(e);
     if (!a)
@@ -812,7 +822,7 @@ const std::vector<MethodDef>& entityMethods() {
          [](ScriptSystem& s, Entity e, CallArgs& a) {
              float volume = static_cast<float>(a.has(1) ? a.number(1, "volume") : a.keywordNumber("volume", 1));
              float pitch = static_cast<float>(a.has(2) ? a.number(2, "pitch") : a.keywordNumber("pitch", 1));
-             s.game().audio().playSound(a.string(0, "sound"), volume, pitch, s.game().scene().worldPosition(e));
+             s.game().audio().playSound(projectFile(s, a.string(0, "sound"), "play_sound()"), volume, pitch, s.game().scene().worldPosition(e));
              return Value();
          }},
         {"send", "self.send(\"function_name\", values...)", 1, -1,
@@ -1174,12 +1184,13 @@ bool ScriptSystem::setProperty(Entity e, const std::string& name, const Value& v
             raise("'" + info.name + "' doesn't show text. Add a TextRenderer, UIText or UIButton first.");
         *s = toText(v);
     } else if (name == "image") {
+        std::string image = projectFile(*this, toText(v), "self.image");
         if (auto* s = reg.tryGet<SpriteRenderer>(e))
-            s->texture = toText(v);
+            s->texture = image;
         else if (auto* u = reg.tryGet<UIImage>(e))
-            u->texture = toText(v);
+            u->texture = image;
         else
-            reg.emplace<SpriteRenderer>(e).texture = toText(v);
+            reg.emplace<SpriteRenderer>(e).texture = image;
     } else if (name == "shape") {
         auto& s = reg.getOrEmplace<SpriteRenderer>(e);
         const ComponentInfo* ci = ComponentRegistry::find("SpriteRenderer");
@@ -1244,7 +1255,34 @@ ScriptSystem::ScriptSystem(Game& game) : game_(game) {
     native_ = std::make_unique<NativeRuntime>(*this);
 }
 
-ScriptSystem::~ScriptSystem() { native_.reset(); }
+ScriptSystem::~ScriptSystem() {
+    flushSave();
+    native_.reset();
+}
+
+Json& ScriptSystem::saveData() {
+    if (!saveLoaded_) {
+        saveLoaded_ = true;
+        const ProjectSettings& p = game_.settings();
+        auto text = fs::readText(fs::userDataDir(p.saveFolderName()) / "save.json");
+        if (!text && !p.id.empty()) // saved before games had ids
+            text = fs::readText(fs::userDataDir(p.name) / "save.json");
+        save_ = text ? Json::parse(*text) : Json::object();
+        if (!save_.isObject())
+            save_ = Json::object();
+    }
+    return save_;
+}
+
+void ScriptSystem::flushSave() {
+    if (!saveDirty_)
+        return;
+    saveDirty_ = false;
+    saveTimer_ = 0;
+    if (!fs::writeText(fs::userDataDir(game_.settings().saveFolderName()) / "save.json", save_.dump(2)))
+        Log::error("save_data(): couldn't write the save file.");
+    fs::persist();
+}
 
 std::string ScriptSystem::loadSource(const std::string& path, bool& ok) {
     auto text = fs::readText(game_.assets().resolve(path));
@@ -1354,6 +1392,7 @@ void ScriptSystem::start() {
 }
 
 void ScriptSystem::stop() {
+    flushSave();
     if (native_)
         native_->stop();
     for (auto& [e, inst] : instances_)
@@ -1438,6 +1477,10 @@ void ScriptSystem::callAll(Symbol event, const std::vector<Value>& args, bool sk
 
 void ScriptSystem::update(float dt) {
     deltaTime_ = dt;
+    if (saveDirty_ && (saveTimer_ += dt) > 0.5f)
+        flushSave();
+    if (script::cycleCollectionDue())
+        script::collectCycles();
     reloadTimer_ += dt;
     if (reloadTimer_ > 0.5f) {
         reloadTimer_ = 0;
@@ -1658,7 +1701,7 @@ void ScriptSystem::registerApi() {
     });
     def("spawn", "spawn(\"prefabs/coin.prefab\", x, y)", 1, 4, [this, &g](CallArgs& a) {
         Vec3 pos = positionArgs(*this, a, 1, "spawn()");
-        Entity e = g.spawnPrefab(a.string(0, "prefab"), pos);
+        Entity e = g.spawnPrefab(projectFile(*this, a.string(0, "prefab"), "spawn()"), pos);
         return e ? entityValue(e) : Value();
     });
     def("create_sprite", "create_sprite(\"circle\", x, y, size=1, color=\"white\")", 1, 5, [this, &g](CallArgs& a) {
@@ -1726,7 +1769,7 @@ void ScriptSystem::registerApi() {
 
     // --- scenes and game flow
     def("load_scene", "load_scene(\"scenes/level2.scene\")", 1, 1, [&g](CallArgs& a) {
-        std::string path = a.string(0, "scene");
+        std::string path = projectFile(g.scripts(), a.string(0, "scene"), "load_scene()");
         if (path.find('.') == std::string::npos)
             path = "scenes/" + path + ".scene";
         if (!fs::exists(g.assets().resolve(path)))
@@ -1864,13 +1907,13 @@ void ScriptSystem::registerApi() {
         float volume = static_cast<float>(a.has(1) ? a.number(1, "volume") : a.keywordNumber("volume", 1));
         float pitch = static_cast<float>(a.has(2) ? a.number(2, "pitch") : a.keywordNumber("pitch", 1));
         const Value* bus = a.has(3) ? &a[3] : a.keyword("bus");
-        g.audio().playSound(a.string(0, "sound"), volume, pitch, {}, bus ? bus->toString() : "Effects");
+        g.audio().playSound(projectFile(g.scripts(), a.string(0, "sound"), "play_sound()"), volume, pitch, {}, bus ? bus->toString() : "Effects");
         return Value();
     });
     def("play_music", "play_music(\"music/theme.ogg\", volume=1, loop=True)", 1, 3, [&g](CallArgs& a) {
         float volume = static_cast<float>(a.has(1) ? a.number(1, "volume") : a.keywordNumber("volume", 1));
         bool loop = a.has(2) ? a[2].truthy() : (a.keyword("loop") ? a.keyword("loop")->truthy() : true);
-        g.audio().playMusic(a.string(0, "music"), volume, loop);
+        g.audio().playMusic(projectFile(g.scripts(), a.string(0, "music"), "play_music()"), volume, loop);
         return Value();
     });
     def("stop_music", "stop_music()", 0, 0, [&g](CallArgs&) {
@@ -1906,32 +1949,23 @@ void ScriptSystem::registerApi() {
         return Value();
     });
 
-    // --- saving
-    auto savePath = [&g]() { return fs::userDataDir(g.settings().name) / "save.json"; };
-    auto readSave = [savePath]() {
-        auto text = fs::readText(savePath());
-        Json j = text ? Json::parse(*text) : Json::object();
-        return j.isObject() ? j : Json::object();
-    };
-    def("save_data", "save_data(\"high_score\", 100)", 2, 2, [savePath, readSave](CallArgs& a) {
-        Json j = readSave();
-        j[a[0].toString()] = script::VM::toJson(a[1]);
-        if (!fs::writeText(savePath(), j.dump(2)))
-            raise("save_data(): couldn't write the save file.");
+    // --- saving (in memory; written to disk a moment later, so calling it every frame is fine)
+    def("save_data", "save_data(\"high_score\", 100)", 2, 2, [this](CallArgs& a) {
+        saveData()[a[0].toString()] = script::VM::toJson(a[1]);
+        saveDirty_ = true;
         return Value();
     });
-    def("load_data", "load_data(\"high_score\", 0)", 1, 2, [readSave](CallArgs& a) {
-        Json j = readSave();
+    def("load_data", "load_data(\"high_score\", 0)", 1, 2, [this](CallArgs& a) {
+        Json& j = saveData();
         std::string key = a[0].toString();
         if (!j.contains(key))
             return a.has(1) ? a[1] : Value();
         return script::VM::fromJson(j[key]);
     });
-    def("has_data", "has_data(\"high_score\")", 1, 1, [readSave](CallArgs& a) { return Value(readSave().contains(a[0].toString())); });
-    def("delete_data", "delete_data(\"high_score\")", 1, 1, [savePath, readSave](CallArgs& a) {
-        Json j = readSave();
-        j.erase(a[0].toString());
-        fs::writeText(savePath(), j.dump(2));
+    def("has_data", "has_data(\"high_score\")", 1, 1, [this](CallArgs& a) { return Value(saveData().contains(a[0].toString())); });
+    def("delete_data", "delete_data(\"high_score\")", 1, 1, [this](CallArgs& a) {
+        saveData().erase(a[0].toString());
+        saveDirty_ = true;
         return Value();
     });
 }

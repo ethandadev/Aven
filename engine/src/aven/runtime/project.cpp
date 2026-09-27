@@ -6,10 +6,16 @@
 
 namespace aven {
 
+std::string ProjectSettings::saveFolderName() const {
+    return id.empty() ? name : name + " " + id.substr(0, 8);
+}
+
 Json ProjectSettings::toJson() const {
     Json j = Json::object();
     j["aven"] = "project";
     j["name"] = name;
+    if (!id.empty())
+        j["id"] = id;
     j["version"] = version;
     if (!description.empty())
         j["description"] = description;
@@ -66,6 +72,7 @@ Json ProjectSettings::toJson() const {
 
 void ProjectSettings::fromJson(const Json& j) {
     name = j["name"].asString(name);
+    id = j["id"].asString("");
     version = j["version"].asString(version);
     description = j["description"].asString("");
     startScene = j["start_scene"].asString(startScene);

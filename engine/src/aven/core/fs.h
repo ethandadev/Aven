@@ -28,6 +28,14 @@ std::string relativePath(const stdfs::path& path, const stdfs::path& base);
 // Lowercase extension including the dot, e.g. ".png".
 std::string extension(const stdfs::path& path);
 
+// `relative` joined onto `root`, or empty if it would leave the folder: absolute paths, "..",
+// drive letters, backslashes, NULs, or links that resolve outside. For paths that come from
+// games and web requests.
+stdfs::path insideFolder(const stdfs::path& root, std::string_view relative);
+
+// Web builds keep save data in the browser (IndexedDB): call after writing it. Elsewhere, nothing.
+void persist();
+
 // Per-user writable directory for save data: e.g. ~/.local/share/Aven/<game> on Linux.
 stdfs::path userDataDir(const std::string& gameName);
 

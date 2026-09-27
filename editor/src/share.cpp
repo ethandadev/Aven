@@ -24,6 +24,7 @@
 #include <cmath>
 #include <cstring>
 #include <fstream>
+#include <chrono>
 #include <thread>
 
 #ifdef _WIN32
@@ -439,8 +440,6 @@ public:
 #endif
         root_ = root;
         listen_ = ::socket(AF_INET, SOCK_STREAM, 0);
-        std::error_code ec;
-        rootCanonical_ = stdfs::weakly_canonical(root, ec);
         if (listen_ == INVALID_SOCKET) {
             error = "Couldn't open a network connection.";
             return false;
@@ -504,9 +503,28 @@ private:
             int on = 1; // macOS: no MSG_NOSIGNAL, so ask the socket instead
             setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof on);
 #endif
-            handle(client);
-            AVEN_CLOSE_SOCKET(client);
+            // A phone that connects and then sleeps mustn't hold everyone else up: each client gets
+            // its own short-lived thread, and gives up after a few quiet seconds.
+#ifdef _WIN32
+            DWORD timeout = 3000;
+#else
+            timeval timeout{3, 0};
+#endif
+            setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeout), sizeof timeout);
+            setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&timeout), sizeof timeout);
+            if (clients_ >= kMaxClients) {
+                AVEN_CLOSE_SOCKET(client);
+                continue;
+            }
+            ++clients_;
+            std::thread([this, client] {
+                handle(client);
+                AVEN_CLOSE_SOCKET(client);
+                --clients_;
+            }).detach();
         }
+        while (clients_ > 0) // stop() waits for them (each gives up within seconds)
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 
     void sendAll(socket_t c, const std::string& data) {
@@ -549,18 +567,8 @@ private:
             decoded += "index.html";
         // Only files inside the shared folder: no "..", drive letters ("/C:/..." would replace the
         // folder when joined on Windows), backslashes or NULs, and nothing that resolves outside it.
-        stdfs::path file = root_ / stdfs::path(decoded.substr(1)).relative_path();
-        std::error_code ec;
-        stdfs::path real = stdfs::weakly_canonical(file, ec);
-        auto inside = [&] {
-            auto r = rootCanonical_.begin(), f = real.begin();
-            for (; r != rootCanonical_.end(); ++r, ++f)
-                if (f == real.end() || *r != *f)
-                    return false;
-            return true;
-        };
-        if (decoded.find("..") != std::string::npos || decoded.find(':') != std::string::npos ||
-            decoded.find('\\') != std::string::npos || decoded.find('\0') != std::string::npos || ec || !inside()) {
+        stdfs::path real = fs::insideFolder(root_, decoded.substr(1));
+        if (real.empty()) {
             sendAll(c, "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
             return;
         }
@@ -577,11 +585,13 @@ private:
         sendAll(c, header + std::string(reinterpret_cast<const char*>(data->data()), data->size()));
     }
 
-    stdfs::path root_, rootCanonical_;
+    stdfs::path root_;
     socket_t listen_ = INVALID_SOCKET;
     int port_ = 0;
     std::atomic<bool> running_{false};
     std::atomic<int> requests_{0};
+    std::atomic<int> clients_{0};
+    static constexpr int kMaxClients = 32;
     std::thread thread_;
 };
 

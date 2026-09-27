@@ -17,8 +17,13 @@
 #include <imgui_impl_opengl3.h>
 #include <ImGuizmo.h>
 
+#include <GLFW/glfw3.h>
+
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -27,8 +32,99 @@ using namespace aven::editor;
 
 namespace {
 
+// --input: mouse and keyboard played back on given frames, for testing the editor headless.
+//   <frame> move X Y [over N frames]      <frame> down|up [button]
+//   <frame> key Shift|Ctrl|Alt|Delete|Escape|Enter|Tab|A..Z down|up      <frame> type text
+struct InputStep {
+    int frame = 0;
+    std::string command;
+    std::vector<std::string> args;
+};
+
+std::vector<InputStep> loadInput(const std::string& path) {
+    std::vector<InputStep> steps;
+    std::ifstream in(path);
+    std::string line;
+    while (std::getline(in, line)) {
+        std::istringstream ss(line);
+        InputStep st;
+        if (!(ss >> st.frame >> st.command) || st.command[0] == '#')
+            continue;
+        std::string a;
+        while (ss >> a)
+            st.args.push_back(a);
+        steps.push_back(std::move(st));
+    }
+    return steps;
+}
+
+ImGuiKey keyNamed(const std::string& n) {
+    if (n == "Shift") return ImGuiKey_LeftShift;
+    if (n == "Ctrl") return ImGuiKey_LeftCtrl;
+    if (n == "Alt") return ImGuiKey_LeftAlt;
+    if (n == "Delete") return ImGuiKey_Delete;
+    if (n == "Escape") return ImGuiKey_Escape;
+    if (n == "Enter") return ImGuiKey_Enter;
+    if (n == "Tab") return ImGuiKey_Tab;
+    if (n == "Backspace") return ImGuiKey_Backspace;
+    if (n == "F2") return ImGuiKey_F2;
+    if (n.size() == 1 && std::isalpha(static_cast<unsigned char>(n[0])))
+        return static_cast<ImGuiKey>(ImGuiKey_A + (std::toupper(static_cast<unsigned char>(n[0])) - 'A'));
+    return ImGuiKey_None;
+}
+
+struct InputPlayer {
+    std::vector<InputStep> steps;
+    float x = 0, y = 0, fromX = 0, fromY = 0, toX = 0, toY = 0;
+    int glideStart = 0, glideFrames = 0;
+
+    void apply(int frame, GLFWwindow* window) {
+        ImGuiIO& io = ImGui::GetIO();
+        if (glideFrames > 0) {
+            float t = std::min(1.0f, static_cast<float>(frame - glideStart) / static_cast<float>(glideFrames));
+            x = fromX + (toX - fromX) * t;
+            y = fromY + (toY - fromY) * t;
+            if (t >= 1.0f)
+                glideFrames = 0;
+        }
+        for (auto& st : steps) {
+            if (st.frame != frame)
+                continue;
+            if (st.command == "move" && st.args.size() >= 2) {
+                toX = std::stof(st.args[0]);
+                toY = std::stof(st.args[1]);
+                int over = st.args.size() >= 3 ? std::stoi(st.args[2]) : 0;
+                if (over > 0) {
+                    fromX = x;
+                    fromY = y;
+                    glideStart = frame;
+                    glideFrames = over;
+                } else {
+                    x = toX;
+                    y = toY;
+                }
+            } else if (st.command == "down" || st.command == "up") {
+                io.AddMouseButtonEvent(st.args.empty() ? 0 : std::stoi(st.args[0]), st.command == "down");
+            } else if (st.command == "key" && st.args.size() >= 2) {
+                bool down = st.args[1] == "down";
+                const std::string& k = st.args[0];
+                if (k == "Shift") io.AddKeyEvent(ImGuiMod_Shift, down);
+                if (k == "Ctrl") io.AddKeyEvent(ImGuiMod_Ctrl, down);
+                if (k == "Alt") io.AddKeyEvent(ImGuiMod_Alt, down);
+                io.AddKeyEvent(keyNamed(k), down);
+            } else if (st.command == "type") {
+                for (auto& word : st.args)
+                    io.AddInputCharactersUTF8(word.c_str());
+            }
+        }
+        glfwSetCursorPos(window, x, y); // so the backend reads the same position
+        io.AddMousePosEvent(x, y);
+    }
+};
+
 struct Args {
     EditorOptions editor;
+    std::string input;
     int width = 0, height = 0;
     bool check = false, strict = false;
 };
@@ -51,6 +147,8 @@ bool parseArgs(int argc, char** argv, Args& a) {
             a.editor.select = next();
         else if (s == "--play")
             a.editor.play = true;
+        else if (s == "--input")
+            a.input = next();
         else if (s == "--new")
             a.editor.newProject = next();
         else if (s == "--template")
@@ -142,6 +240,9 @@ int main(int argc, char** argv) {
         } else {
             double last = Window::time();
             int frame = 0;
+            InputPlayer input;
+            if (!args.input.empty())
+                input.steps = loadInput(args.input);
             while (!editor.wantsQuit()) {
                 window.pollEvents();
                 if (window.shouldClose()) {
@@ -162,6 +263,8 @@ int main(int argc, char** argv) {
                 editor.beginFrame();
                 ImGui_ImplOpenGL3_NewFrame();
                 ImGui_ImplGlfw_NewFrame();
+                if (!input.steps.empty())
+                    input.apply(frame, window.native());
                 ImGui::NewFrame();
                 ImGuizmo::BeginFrame();
                 editor.frame(dt);

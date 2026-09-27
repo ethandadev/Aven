@@ -94,6 +94,13 @@ private:
     float deltaTime_ = 0;
     float reloadTimer_ = 0;
 
+    // save_data(): kept in memory, written a moment after it changes and when the game stops.
+    Json save_;
+    bool saveLoaded_ = false, saveDirty_ = false;
+    float saveTimer_ = 0;
+    Json& saveData();
+    void flushSave();
+
     struct CachedModule {
         std::shared_ptr<script::Module> module;
         int64_t modified = 0;

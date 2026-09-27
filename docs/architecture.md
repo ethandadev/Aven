@@ -116,6 +116,19 @@ aven-editor path/to/game --screenshot out.png --frames 30 --panel doctor,recipes
 `--panel` accepts the commands handled in `Editor::openPanels` (`editor.cpp`). A command written
 `@N:command` runs on frame N. Headless machines can use `xvfb-run`.
 
+`--input file.txt` plays back the mouse and keyboard, one step per line, for testing how the
+editor handles clicks and drags. The `dump` panel command prints the hierarchy, with `*` on
+selected objects:
+
+```
+10 move 90 297          # mouse to x, y (window pixels)
+11 down                 # left button (down 1 / up 1: right button)
+12 up
+14 key Shift down       # Shift, Ctrl, Alt, Delete, Escape, Enter, Tab, Backspace, F2, A-Z
+22 move 90 213 10       # glide there over 10 frames
+30 type hello           # text input
+```
+
 ## Platform support
 
 - **Graphics:** a single backend, OpenGL 3.3 on the desktop and WebGL2 in browsers, behind

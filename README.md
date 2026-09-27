@@ -34,7 +34,8 @@ know how the bigger engines think.
     `aven_get(self, "x")` does what `self.x` does.
 - **Behaviors** give an object gameplay with settings instead of code: platformer and top-down
   controllers, collectibles, hazards, health, spawners, scene links and more.
-- **Runs on:** Windows, macOS and Linux, plus a WebGL2 player for browsers.
+- **Runs on:** Linux and in browsers (WebGL2), both played by hand. Windows and macOS builds
+  compile and pass every test in CI, but nobody has play-tested them yet.
 
 **The editor**, a full editor rather than a viewer:
 - **Scene work:** a hierarchy with folders, an Inspector (multi-object editing, prefab overrides,

@@ -27,6 +27,7 @@ struct ProjectSettings {
     static constexpr const char* kFileName = "project.aven";
 
     std::string name = "My Game";
+    std::string id; // random, made when the project is first opened: keeps games with the same name apart
     std::string version = "1.0";
     std::string description; // one or two sentences, shown on the game's web page and card
     std::string startScene = "scenes/main.scene";
@@ -39,6 +40,9 @@ struct ProjectSettings {
     bool advancedMode = false; // editor shows advanced components and settings
     std::string templateName;  // which starter template the project came from
     Json inputActions = Json::object();
+
+    // The folder name for this game's save data: its name plus the start of its id.
+    std::string saveFolderName() const;
 
     // Collision layers: layer 0 is "Default"; `layers` names the others (up to 15).
     // Objects on two layers listed together in `layerIgnores` pass through each other.
