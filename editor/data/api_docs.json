@@ -118,6 +118,7 @@
   "stop_music": "Stops the music.",
 
   "raycast": "Finds the first thing on a line from one point to another. Gives a dictionary with object, point, normal and distance, or None. layers=\"Ground\" (or a list) only hits those collision layers.",
+  "find_path": "The way from one place (or object) to another around walls: a list of points to walk through, or [] if there's no way. radius= is how wide the walker is.",
   "debug_line": "Draws a line while playing, to see what code is doing. Lasts one frame, or `seconds`. Only shown in the editor.",
   "debug_circle": "Draws a circle outline while playing (one frame, or `seconds`). Only shown in the editor.",
   "debug_box": "Draws a box outline while playing (one frame, or `seconds`). A 2D size draws a rectangle. Only shown in the editor.",
@@ -134,6 +135,9 @@
   "self.set_param": "Sets an Animator parameter: set_param(\"running\", True) or set_param(\"speed\", 3).",
   "self.trigger": "Fires an Animator trigger parameter once, like trigger(\"attack\").",
   "self.play_state": "Jumps the Animator straight to a state, like play_state(\"Hurt\").",
+  "self.go_to": "Walks there around walls (pathfinding): an object, a position, or x, y. speed= sets how fast; on_arrive() runs when it gets there.",
+  "self.stop_walking": "Stops walking to where self.go_to() was taking it.",
+  "self.walking": "True while self.go_to() is taking it somewhere.",
   "self.layer": "The collision layer (Project Settings > Collision layers). Setting it changes what the object collides with.",
   "self.active": "False turns the object off: it disappears and its scripts stop.",
   "self.visible": "False hides the object, but its scripts keep running.",
@@ -223,6 +227,7 @@
   "on_click": "Runs when the player clicks or taps this object or button.",
   "on_key_pressed": "Runs when any key is pressed. key is its name, like \"space\".",
   "on_message": "Runs when any script broadcasts a message.",
+  "on_arrive": "Runs when self.go_to() (or the 'walk to' block) gets there.",
   "on_destroy": "Runs just before the object is removed.",
 
   "list.append": "Adds an item to the end of the list.",

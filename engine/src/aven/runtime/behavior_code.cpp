@@ -77,8 +77,13 @@ std::string behaviorAsEasyScript(const std::string& c, const Json& v, const std:
                "        if d < closest:\n"
                "            closest = d\n"
                "            target = other\n"
-               "    if target and closest > " + num(v["stop_distance"], 0.3) + ":\n"
-               "        way = self.direction_to(target)\n"
+               "    if target and closest > " + num(v["stop_distance"], 0.3) + ":\n" +
+               (v["around_walls"].asBool(false) && !away
+                    ? std::string("        path = find_path(self, target)  # the way around walls\n"
+                                  "        if len(path) < 2:\n"
+                                  "            return\n"
+                                  "        way = (path[1] - self.position).normalized()\n")
+                    : std::string("        way = self.direction_to(target)\n")) +
                "        self.x += way.x * speed * dt" + (away ? " * -1" : "") + "\n"
                "        self.y += way.y * speed * dt" + (away ? " * -1" : "") + "\n"
                "        self.flip_x = (target.x < self.x) != " + (away ? "True" : "False") + "\n";

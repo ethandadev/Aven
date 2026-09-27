@@ -77,6 +77,35 @@ def on_collide(other):
     print(self.anim_state)               # the state playing now
 ```
 
+## Pathfinding
+
+Enemies and characters can find their way around walls, in 2D (top-down) and 3D, with no setup:
+there's no navigation mesh to bake. The engine lays a grid over the world and checks only the
+squares the search looks at. In 2D a square is blocked by any collider that doesn't move (walls,
+tilemap tiles). In 3D it looks down for the ground, and steep slopes, cliffs and steps taller than
+about half a unit block the way.
+
+- **Chase > Walk Around Walls**: the ready-made chaser goes around walls instead of into them.
+- **Blocks**: "walk to Player around walls", "stop walking", "when I get where I'm walking".
+- **Debug** (next to the speed slider) draws the way each walker is going.
+
+```easyscript
+def on_click():
+    self.go_to(find("Chest"), speed=4)   # or self.go_to(x, y), or a position
+                                         # self.walking is True until it gets there
+
+def on_arrive():
+    self.say("Here!")
+
+def on_update(dt):
+    path = find_path(self, find("Player"))   # the points to walk through; [] if there's no way
+    if len(path) > 1:
+        debug_line(self, path[1], "cyan")
+```
+
+`find_path(a, b, radius=0.4)`: `radius` is how wide the walker is, so paths keep off walls. A
+target inside a wall gets a path to the nearest spot next to it.
+
 ## Audio: the mixer
 
 **Project Settings > Audio mixer** has buses: Music, Effects and Voice to start with, plus any you

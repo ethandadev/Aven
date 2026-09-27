@@ -43,6 +43,7 @@ public:
     void onDestroy(Entity e);
     void onSpawn(Entity root); // creates instances for a new entity and its children
     void broadcast(const std::string& message, const script::Value& data);
+    void callEvent(Entity e, const char* event); // e.g. on_arrive(), if its script has it
 
     script::Value entityValue(Entity e);
     std::shared_ptr<script::Instance> instanceOf(Entity e) const;

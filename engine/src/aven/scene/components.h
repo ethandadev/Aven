@@ -482,6 +482,7 @@ struct Chase {
     float stopDistance = 0.3f;
     bool runAway = false;
     bool flipSprite = true;
+    bool aroundWalls = false; // find a way around walls (pathfinding) instead of heading straight
 };
 
 // Keeps turning (degrees per second). 2D games use Z.

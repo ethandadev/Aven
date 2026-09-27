@@ -111,6 +111,7 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `destroy(obj)`
 - `find("Player")`
 - `find_all("enemy")`
+- `find_path(from, to, radius=0.4)`
 - `spawn("prefabs/coin.prefab", x, y)`
 
 ## Saving
@@ -164,6 +165,7 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `self.tag`
 - `self.layer`
 - `self.anim_state`
+- `self.walking`
 - `self.active`
 - `self.visible`
 - `self.id`
@@ -216,6 +218,8 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `self.heal(amount)`
 - `self.set_param("running", True)`
 - `self.trigger("attack")`
+- `self.go_to(target, speed=3) or self.go_to(x, y)`
+- `self.stop_walking()`
 - `self.play_state("Hurt")`
 - `self.move(dx, dy) or self.move(dx, dy, dz)`
 - `self.move_forward(distance)`
@@ -259,4 +263,5 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `def on_click():` the player clicked this object or button
 - `def on_key_pressed(key):` any key was pressed
 - `def on_message(message, data):` a broadcast was sent
+- `def on_arrive():` got where self.go_to() was taking it
 - `def on_destroy():` about to be removed

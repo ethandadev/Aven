@@ -305,6 +305,11 @@ void Physics2D::stop() {
     impl_->pendingVelocity.clear();
 }
 
+void Physics2D::sync() {
+    if (impl_->running())
+        impl_->syncBodies();
+}
+
 void Physics2D::step(float dt) {
     if (!impl_->running())
         return;
@@ -426,6 +431,24 @@ bool Physics2D::raycast(Vec2 from, Vec2 to, RayHit& hit, uint32_t layers) const 
     hit.normal = {r.normal.x, r.normal.y, 0};
     hit.distance = r.fraction * length(d);
     return true;
+}
+
+bool Physics2D::blockedAt(Vec2 center, float radius) const {
+    if (!impl_->running())
+        return false;
+    b2Vec2 c{center.x, center.y};
+    b2ShapeProxy proxy = b2MakeProxy(&c, 1, std::max(radius, 0.01f));
+    bool blocked = false;
+    b2World_OverlapShape(
+        impl_->world, &proxy, b2DefaultQueryFilter(),
+        [](b2ShapeId shape, void* user) {
+            if (b2Shape_IsSensor(shape) || b2Body_GetType(b2Shape_GetBody(shape)) != b2_staticBody)
+                return true; // keep looking
+            *static_cast<bool*>(user) = true;
+            return false;
+        },
+        &blocked);
+    return blocked;
 }
 
 Entity Physics2D::pointQuery(Vec2 point) const {

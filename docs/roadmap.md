@@ -57,8 +57,10 @@ Where Aven stands, including what's missing. If you'd like to help with any of i
 **Engine**
 - **Animation:** sprite frames and glTF clips, switched by an Animator state machine, but no
   blend trees or IK.
-- **Not built yet:** terrain, navigation meshes and pathfinding, LODs, occlusion culling, and
-  baked lighting or global illumination.
+- **Pathfinding** works on a grid (2D and 3D, no baking). There's no crowd avoidance, and in 3D
+  it follows one floor at a time (no bridges over paths).
+- **Not built yet:** terrain, LODs, occlusion culling, and baked lighting or global
+  illumination.
 - **Audio:** volume, pitch, 3D placement and a mixer with buses (volume, mute, low-pass, echo),
   but no reverb zones or other effects.
 
@@ -88,6 +90,5 @@ Where Aven stands, including what's missing. If you'd like to help with any of i
 2. Play-test and fix Windows and macOS builds, then ship installers.
 3. `aven_find_child`, `aven_parent` and text arguments for `aven_call` in the C API (API
    version 2).
-4. Pathfinding on tilemaps and navigation meshes.
-5. A Vulkan or Metal backend behind `rhi.h`.
-6. Translations of the editor.
+4. A Vulkan or Metal backend behind `rhi.h`.
+5. Translations of the editor.

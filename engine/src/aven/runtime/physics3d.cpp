@@ -649,6 +649,19 @@ void Physics3D::stop() {
     impl_->cursorLocked = false;
 }
 
+void Physics3D::sync() {
+    if (!impl_->running()) {
+        auto& reg = impl_->game.scene().registry();
+        if (reg.count<RigidBody>() + reg.count<BoxCollider>() + reg.count<SphereCollider>() + reg.count<CharacterController>() == 0)
+            return;
+        auto pending = std::move(impl_->pendingVelocity);
+        start();
+        impl_->pendingVelocity = std::move(pending);
+        return;
+    }
+    impl_->sync();
+}
+
 void Physics3D::step(float dt) {
     if (!impl_->running()) {
         // Colliders may be added later by scripts.
@@ -791,6 +804,27 @@ std::vector<Entity> Physics3D::touching(Entity e) const {
                 out.push_back(o);
     }
     return out;
+}
+
+bool Physics3D::raycastStatic(Vec3 from, Vec3 direction, float maxDistance, RayHit& hit) const {
+    if (!impl_->running() || lengthSquared(direction) < 1e-10f)
+        return false;
+    struct StaticOnly final : JPH::BodyFilter {
+        bool ShouldCollideLocked(const JPH::Body& body) const override { return body.IsStatic() && !body.IsSensor(); }
+    } filter;
+    Vec3 dir = normalize(direction) * maxDistance;
+    JPH::RRayCast ray{toJR(from), toJ(dir)};
+    JPH::RayCastResult result;
+    if (!impl_->physics->GetNarrowPhaseQuery().CastRay(ray, result, {}, {}, filter))
+        return false;
+    hit.entity = impl_->entityOf(result.mBodyID);
+    JPH::RVec3 point = ray.GetPointOnRay(result.mFraction);
+    hit.point = {static_cast<float>(point.GetX()), static_cast<float>(point.GetY()), static_cast<float>(point.GetZ())};
+    hit.distance = result.mFraction * maxDistance;
+    JPH::BodyLockRead lock(impl_->physics->GetBodyLockInterface(), result.mBodyID);
+    if (lock.Succeeded())
+        hit.normal = fromJ(lock.GetBody().GetWorldSpaceSurfaceNormal(result.mSubShapeID2, point));
+    return true;
 }
 
 bool Physics3D::raycast(Vec3 from, Vec3 direction, float maxDistance, RayHit& hit, Entity ignore, uint32_t layers) const {

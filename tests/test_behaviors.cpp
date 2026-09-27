@@ -577,3 +577,138 @@ AVEN_TEST(save_data_cached_and_per_game) {
     CHECK_EQ(run("aaaaaaaa11111111", 1), 5.0);  // read back next time
     CHECK_EQ(run("bbbbbbbb22222222", 1), -1.0); // another game with the same name starts fresh
 }
+
+// Pathfinding: around a wall in 2D and 3D, go_to() + on_arrive(), and Chase's "Walk around walls".
+AVEN_TEST(pathfinding_around_walls) {
+    namespace stdfs = std::filesystem;
+    stdfs::path dir = stdfs::temp_directory_path() / "aven_path_test";
+    std::error_code ec;
+    stdfs::remove_all(dir, ec);
+    stdfs::create_directories(dir / "scripts", ec);
+    fs::writeText(dir / "scripts/walker.es", "def on_start():\n    self.go_to(3, 0, speed=4)\n"
+                                             "    path = find_path(self, vec(3, 0))\n    game.points = len(path)\n"
+                                             "    game.lowest = 99\n    for p in path:\n        game.lowest = min(game.lowest, p.y)\n"
+                                             "def on_arrive():\n    game.arrived = 1\n");
+    ErrorCatcher catcher;
+    Assets assets;
+    assets.setRoot(dir);
+    Input input;
+    {
+        Game game(assets, input);
+        auto scene = std::make_unique<Scene>();
+        auto& reg = scene->registry();
+        Entity wall = scene->create("Wall");
+        reg.emplace<BoxCollider2D>(wall).size = {1, 6}; // from y = -3 to 3
+        Entity walker = scene->create("Walker");
+        scene->transform(walker).position = {-3, 0, 0};
+        auto& rb = reg.emplace<RigidBody2D>(walker);
+        rb.gravityScale = 0;
+        rb.fixedRotation = true;
+        reg.emplace<CircleCollider2D>(walker).radius = 0.3f;
+        reg.emplace<Script>(walker).path = "scripts/walker.es";
+        game.start(std::move(scene), "test.scene");
+        game.update(1.0f / 60.0f);
+        CHECK(game.scripts().gameNumber("points") >= 3);        // goes via a corner
+        CHECK(game.scripts().gameNumber("lowest") < -3.0 ||      // around the bottom end...
+              game.scripts().gameNumber("lowest") > -3.0);       // (either way round is fine)
+        for (int i = 0; i < 60 * 8 && game.scripts().gameNumber("arrived") == 0; ++i)
+            game.update(1.0f / 60.0f);
+        Vec3 at = game.scene().worldPosition(game.scene().findByName("Walker"));
+        CHECK_EQ(game.scripts().gameNumber("arrived"), 1.0);
+        CHECK(std::abs(at.x - 3) < 0.3f && std::abs(at.y) < 0.3f);
+        // No way through: a closed box around the goal gives an empty path.
+        std::vector<Vec3> none;
+        PathOptions o;
+        auto path = game.navigation().findPath({-3, 0, 0}, {0, 0, 0}, o); // the goal is inside the wall
+        CHECK(!path.empty()); // ...so it stops next to it instead
+        CHECK(std::abs(path.back().x) >= 0.5f);
+        game.stop();
+    }
+    {
+        // 3D: ground and a wall across the middle.
+        Game game(assets, input);
+        auto scene = std::make_unique<Scene>();
+        auto& reg = scene->registry();
+        Entity ground = scene->create("Ground");
+        scene->transform(ground).position = {0, -0.5f, 0};
+        reg.emplace<BoxCollider>(ground).size = {30, 1, 30};
+        Entity wall = scene->create("Wall");
+        scene->transform(wall).position = {0, 1.5f, 0};
+        reg.emplace<BoxCollider>(wall).size = {1, 3, 8};
+        game.start(std::move(scene), "test.scene");
+        game.update(1.0f / 60.0f);
+        PathOptions o;
+        o.threeD = true;
+        o.cellSize = 0.5f;
+        bool reached = false;
+        auto path = game.navigation().findPath({-4, 1, 0}, {4, 1, 0}, o, &reached);
+        CHECK(reached);
+        CHECK(path.size() >= 3);
+        float widest = 0;
+        for (Vec3 p : path) {
+            widest = std::max(widest, std::abs(p.z));
+            CHECK(std::abs(p.y - 1) < 0.2f); // at the walker's height above the ground
+        }
+        CHECK(widest > 4.0f); // around the end of the wall
+        game.stop();
+    }
+    {
+        // Chase with "Walk around walls" gets to a player behind a wall.
+        Game game(assets, input);
+        auto scene = std::make_unique<Scene>();
+        auto& reg = scene->registry();
+        Entity wall = scene->create("Wall");
+        reg.emplace<BoxCollider2D>(wall).size = {1, 6};
+        Entity player = scene->create("Player");
+        scene->info(player).tag = "player";
+        scene->transform(player).position = {2, 0, 0};
+        Entity enemy = scene->create("Enemy");
+        scene->transform(enemy).position = {-2, 0, 0};
+        auto& rb = reg.emplace<RigidBody2D>(enemy);
+        rb.gravityScale = 0;
+        rb.fixedRotation = true;
+        reg.emplace<CircleCollider2D>(enemy).radius = 0.3f;
+        auto& chase = reg.emplace<Chase>(enemy);
+        chase.aroundWalls = true;
+        chase.sight = 20;
+        chase.speed = 4;
+        chase.stopDistance = 0.6f;
+        game.start(std::move(scene), "test.scene");
+        for (int i = 0; i < 60 * 8; ++i)
+            game.update(1.0f / 60.0f);
+        Vec3 at = game.scene().worldPosition(game.scene().findByName("Enemy"));
+        CHECK(length(at - Vec3{2, 0, 0}) < 1.0f);
+        game.stop();
+    }
+    {
+        // The Code Ladder's EasyScript for it does the same.
+        const ComponentInfo* ci = ComponentRegistry::find("Chase");
+        Registry r;
+        Entity x = r.create();
+        auto& c = r.emplace<Chase>(x);
+        c.aroundWalls = true;
+        c.sight = 20;
+        c.speed = 4;
+        c.stopDistance = 0.6f;
+        fs::writeText(dir / "scripts/chase.es", behaviorAsEasyScript("Chase", saveComponent(*ci, &c)));
+        Game game(assets, input);
+        auto scene = std::make_unique<Scene>();
+        auto& reg = scene->registry();
+        reg.emplace<BoxCollider2D>(scene->create("Wall")).size = {1, 6};
+        Entity player = scene->create("Player");
+        scene->info(player).tag = "player";
+        scene->transform(player).position = {2, 0, 0};
+        Entity enemy = scene->create("Enemy");
+        scene->transform(enemy).position = {-2, 0, 0};
+        reg.emplace<Script>(enemy).path = "scripts/chase.es";
+        game.start(std::move(scene), "test.scene");
+        for (int i = 0; i < 60 * 8; ++i)
+            game.update(1.0f / 60.0f);
+        Vec3 at = game.scene().worldPosition(game.scene().findByName("Enemy"));
+        CHECK(length(at - Vec3{2, 0, 0}) < 1.0f);
+        game.stop();
+    }
+    if (!catcher.errors.empty())
+        std::printf("  %s\n", catcher.errors[0].c_str());
+    CHECK(catcher.errors.empty());
+}

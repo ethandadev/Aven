@@ -531,6 +531,23 @@ const std::vector<MethodDef>& entityMethods() {
              raise("trigger(): this Animator has no parameter called \"" + name + "\". Its parameters are: " +
                    animParamNames(anim) + ".");
          }},
+        // Pathfinding: walk there around walls; on_arrive() runs when it gets there.
+        {"go_to", "self.go_to(target, speed=3) or self.go_to(x, y)", 1, 3,
+         [](ScriptSystem& s, Entity e, CallArgs& a) {
+             Entity target = s.entityFromValue(a[0]);
+             Vec3 here = s.game().scene().worldPosition(e);
+             Vec3 dest = positionArgs(s, a, 0, "go_to()", here);
+             float speed = static_cast<float>(a.keywordNumber("speed", 3));
+             if (target && a.has(1))
+                 speed = static_cast<float>(a.number(1, "speed"));
+             s.game().gameplay().goTo(e, dest, target, speed);
+             return Value();
+         }},
+        {"stop_walking", "self.stop_walking()", 0, 0,
+         [](ScriptSystem& s, Entity e, CallArgs&) {
+             s.game().gameplay().stopWalking(e);
+             return Value();
+         }},
         {"play_state", "self.play_state(\"Hurt\")", 1, 1,
          [](ScriptSystem& s, Entity e, CallArgs& a) {
              Animator& anim = requireAnimator(s, e, "play_state()");
@@ -889,7 +906,7 @@ const std::vector<MethodDef>& entityMethods() {
 // ---------------------------------------------------------------- properties
 
 std::vector<std::string> ScriptSystem::propertyNames() {
-    return {"name",     "tag",      "layer",    "anim_state", "active",   "visible",  "id",        "exists",    "x",          "y",
+    return {"name",     "tag",      "layer",    "anim_state", "walking", "active",   "visible",  "id",        "exists",    "x",          "y",
             "z",        "position", "world_x",  "world_y",  "world_z",   "world_position", "angle", "rotation",
             "rotation_x", "rotation_y", "rotation_z", "scale", "scale_x", "scale_y", "scale_z", "size",
             "width",    "height",   "color",    "alpha",    "text",      "image",     "shape",      "frame",
@@ -999,6 +1016,7 @@ bool ScriptSystem::getProperty(Entity e, const std::string& name, Value& out) {
     if (name == "name") out = Value(info.name);
     else if (name == "tag") out = Value(info.tag);
     else if (name == "anim_state") out = Value(reg.has<Animator>(e) ? reg.get<Animator>(e).current : std::string());
+    else if (name == "walking") out = Value(game_.gameplay().walking(e));
     else if (name == "layer") out = Value(info.layer.empty() ? std::string("Default") : info.layer);
     else if (name == "active") out = Value(info.active);
     else if (name == "visible") out = Value(!reg.has<Hidden>(e));
@@ -1542,6 +1560,11 @@ void ScriptSystem::onCollision(Entity a, Entity b, bool begin, bool trigger) {
     native_->onCollision(a, b, begin, trigger);
 }
 
+void ScriptSystem::callEvent(Entity e, const char* event) {
+    if (auto inst = instanceOf(e))
+        vm_.callFunction(inst, intern(event), {});
+}
+
 void ScriptSystem::onClick(Entity e) {
     static const Symbol onClickSym = intern("on_click");
     if (auto inst = instanceOf(e))
@@ -1830,6 +1853,26 @@ void ScriptSystem::registerApi() {
         else
             g.physics2D().setGravity({static_cast<float>(a.number(0, "x")), static_cast<float>(a.number(1, "y"))});
         return Value();
+    });
+    // The way around walls, as a list of points to walk through ([] if there's none).
+    def("find_path", "find_path(from, to, radius=0.4)", 2, 3, [this, &g](CallArgs& a) {
+        Entity fromEntity = entityFromValue(a[0]), toEntity = entityFromValue(a[1]);
+        Vec3 from = targetPosition(*this, a[0], "find_path() start"), to = targetPosition(*this, a[1], "find_path() end");
+        auto threeDValue = [&](const Value& v, Entity e) {
+            if (e) {
+                auto& reg = g.scene().registry();
+                return reg.has<MeshRenderer>(e) || reg.has<CharacterController>(e) || reg.has<RigidBody>(e) || reg.has<BoxCollider>(e);
+            }
+            return v.isVec() && v.vecObj().components >= 3;
+        };
+        PathOptions o;
+        o.threeD = threeDValue(a[0], fromEntity) || threeDValue(a[1], toEntity);
+        o.radius = static_cast<float>(a.has(2) ? a.number(2, "radius") : a.keywordNumber("radius", 0.4));
+        o.cellSize = std::clamp(o.radius, 0.25f, 1.0f);
+        std::vector<Value> points;
+        for (Vec3 p : g.navigation().findPath(from, to, o))
+            points.push_back(fromVec3(p, o.threeD ? 3 : 2));
+        return Value::list(std::move(points));
     });
     def("raycast", "raycast(from, to, layers=None)", 2, 3, [this, &g](CallArgs& a) {
         Vec3 from = toVec3(a[0], "raycast() start"), to = toVec3(a[1], "raycast() end");

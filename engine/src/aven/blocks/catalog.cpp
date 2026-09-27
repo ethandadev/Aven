@@ -42,6 +42,8 @@ std::vector<BlockDef> build() {
          "Runs when this object bumps into another. Needs a collider (and a RigidBody on one of them)."});
     add({"when_receive", "Events", S::Hat, "when I receive {message}", "", "on_message(message, data)",
          "message == {message}", {text("message", "go")}, "Runs when any script broadcasts this message."});
+    add({"when_arrive", "Events", S::Hat, "when I get where I'm walking", "", "on_arrive()", "", {},
+         "Runs when 'walk to' gets there."});
     add({"when_clone", "Events", S::Hat, "when I start as a clone", "", "on_start()", "is_clone", {},
          "Runs in each copy made with 'create a clone of myself'."});
     add({"when_timer", "Events", S::Hat, "every {seconds} seconds", "", "@timer", "", {num("seconds", "1")},
@@ -76,6 +78,10 @@ std::vector<BlockDef> build() {
          {num("angle", "90")}, "0 faces right, 90 faces up."});
     add({"point_towards", "Motion", S::Statement, "point towards {target}", "self.look_at(find({target}))", "", "",
          {text("target", "Player")}, ""});
+    add({"walk_to", "Motion", S::Statement, "walk to {target} around walls at speed {speed}",
+         "self.go_to(find({target}), speed={speed})", "", "", {text("target", "Player"), num("speed", "3")},
+         "Finds a way around walls (pathfinding) and walks there. Run it once, not every frame."});
+    add({"stop_walking", "Motion", S::Statement, "stop walking", "self.stop_walking()", "", "", {}, ""});
     add({"point_mouse", "Motion", S::Statement, "point towards mouse", "self.look_at(mouse_position())", "", "", {}, ""});
     add({"move_toward_object", "Motion", S::Statement, "move toward {target} at speed {speed}",
          "self.move_toward(find({target}), {speed} * delta_time())", "", "", {text("target", "Player"), num("speed", "3")},

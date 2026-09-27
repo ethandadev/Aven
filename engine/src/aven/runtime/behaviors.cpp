@@ -430,7 +430,9 @@ void GameplaySystems::updateBehaviors(float dt) {
             }
         }
         Vec3 dir{0, 0, 0};
-        if (best && (c.runAway || bestDist > c.stopDistance)) {
+        if (best && c.aroundWalls && !c.runAway) {
+            dir = pathDirection(e, scene.worldPosition(best), threeD, c.stopDistance);
+        } else if (best && (c.runAway || bestDist > c.stopDistance)) {
             dir = scene.worldPosition(best) - me;
             if (threeD)
                 dir.y = 0;

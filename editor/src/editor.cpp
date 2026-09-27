@@ -1896,6 +1896,7 @@ void Editor::buildApiReference() {
         {"on_click", "def on_click():  the player clicked this object or button"},
         {"on_key_pressed", "def on_key_pressed(key):  any key was pressed"},
         {"on_message", "def on_message(message, data):  a broadcast was sent"},
+        {"on_arrive", "def on_arrive():  got where self.go_to() was taking it"},
         {"on_destroy", "def on_destroy():  about to be removed"},
     };
     for (auto& cb : callbacks) {

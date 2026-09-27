@@ -513,7 +513,9 @@ std::vector<ComponentInfo> buildRegistry() {
             .field(F(sight), {.tooltip = "Only notices targets closer than this.", .min = 0.5f, .max = 100})
             .field(F(stopDistance), {.min = 0, .max = 10})
             .field(F(runAway), {.tooltip = "Move away instead (for scared animals)."})
-            .field(F(flipSprite));
+            .field(F(flipSprite))
+            .field(F(aroundWalls), {.label = "Walk Around Walls",
+                                    .tooltip = "Find a way around walls instead of walking straight at the target (pathfinding)."});
     }
     {
         using Type = Spin;

@@ -142,7 +142,7 @@ const NamedColor kColors[] = {
 
 const std::set<std::string> kEvents = {"on_start",  "on_update",       "on_fixed_update", "on_collide", "on_collide_end",
                                        "on_trigger", "on_trigger_exit", "on_click",        "on_key_pressed", "on_message",
-                                       "on_destroy"};
+                                       "on_destroy", "on_arrive"};
 
 const std::set<std::string> kEntityMethods = {
     "destroy", "damage",  "heal",  "move",  "move_forward", "turn", "look_at", "move_toward", "distance_to", "direction_to",

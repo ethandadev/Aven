@@ -566,7 +566,7 @@ void ProjectIndex::fillFromEngine() {
               {"on_collide_end", "on_collide_end(other)"}, {"on_trigger", "on_trigger(other)"},
               {"on_trigger_exit", "on_trigger_exit(other)"}, {"on_click", "on_click()"},
               {"on_key_pressed", "on_key_pressed(key)"}, {"on_message", "on_message(message, data)"},
-              {"on_destroy", "on_destroy()"}};
+              {"on_destroy", "on_destroy()"},             {"on_arrive", "on_arrive()"}};
     keyNames = Input::allNames();
     for (auto& a : Input::defaultActions())
         keyNames.push_back(a.name);

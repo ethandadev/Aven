@@ -24,6 +24,8 @@ void GameplaySystems::stop() {
     shakeOffset_ = {};
     hovered_ = pressed_ = pressedWorld_ = {};
     behaviorStates_.clear();
+    walkers_.clear();
+    pathCache_.clear();
 }
 
 float GameplaySystems::random01() {

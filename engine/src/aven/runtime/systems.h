@@ -37,6 +37,9 @@ public:
     void refresh(Entity e);
     void updateLayer(Entity e); // after its collision layer changed
     bool hasBody(Entity e) const;
+    // Makes bodies for new colliders now (normally done on the next step), so queries made
+    // before it (like find_path() in on_start) see them.
+    void sync();
 
     Vec2 velocity(Entity e) const;
     void setVelocity(Entity e, Vec2 v);
@@ -48,6 +51,9 @@ public:
     bool raycast(Vec2 from, Vec2 to, RayHit& hit, uint32_t layers = 0xFFFFFFFFu) const;
     // Entity whose collider contains the point, if any.
     Entity pointQuery(Vec2 point) const;
+    // Whether a circle overlaps something solid that doesn't move (walls, tilemap tiles, ground):
+    // not triggers, and not bodies that move. For pathfinding.
+    bool blockedAt(Vec2 center, float radius) const;
 
 private:
     struct Impl;
@@ -70,6 +76,7 @@ public:
     void refresh(Entity e);
     void updateLayer(Entity e); // after its collision layer changed
     bool hasBody(Entity e) const;
+    void sync(); // as Physics2D::sync
 
     Vec3 velocity(Entity e) const;
     void setVelocity(Entity e, Vec3 v);
@@ -79,6 +86,8 @@ public:
     std::vector<Entity> touching(Entity e) const;
     bool raycast(Vec3 from, Vec3 direction, float maxDistance, RayHit& hit, Entity ignore = {},
                  uint32_t layers = 0xFFFFFFFFu) const;
+    // A ray that only hits solid things that don't move (ground, walls): for pathfinding.
+    bool raycastStatic(Vec3 from, Vec3 direction, float maxDistance, RayHit& hit) const;
 
 private:
     struct Impl;
@@ -148,6 +157,15 @@ public:
     void sparkle(Vec3 at, Color color);
     Entity entityUnderMouse(Vec3& world);
 
+    // Walking along a path (pathfinding): self.go_to() and Chase's "Walk around walls".
+    void goTo(Entity e, Vec3 destination, Entity target, float speed);
+    void stopWalking(Entity e);
+    bool walking(Entity e) const { return walkers_.count(e.toHandle()) > 0; }
+    // The direction to head in to reach `to` around walls (zero when there or no way), updating
+    // the cached path every so often.
+    Vec3 pathDirection(Entity e, Vec3 to, bool threeD, float stopDistance);
+    void updateWalkers(float dt);
+
 private:
     struct BehaviorState {
         bool started = false;
@@ -160,6 +178,23 @@ private:
         std::vector<uint64_t> spawned;
     };
     std::unordered_map<uint64_t, BehaviorState> behaviorStates_;
+    struct Walker {
+        Vec3 destination;
+        uint64_t target = 0; // an object to walk to (it may move), or 0
+        float speed = 3;
+        std::vector<Vec3> path;
+        size_t next = 1;
+        float repath = 0;
+    };
+    std::unordered_map<uint64_t, Walker> walkers_;
+    struct PathCache {
+        std::vector<Vec3> path;
+        size_t next = 1;
+        float age = 1e9f;
+        Vec3 goal;
+    };
+    std::unordered_map<uint64_t, PathCache> pathCache_;
+    void moveAlong(Entity e, Vec3 dir, float speed, float dt);
     BehaviorState& state(Entity e);
     void moveTo(Entity e, Vec3 local);
 

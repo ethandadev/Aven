@@ -17,6 +17,7 @@ Game::Game(Assets& assets, Input& input)
     physics3D_ = std::make_unique<Physics3D>(*this);
     audio_ = std::make_unique<AudioSystem>(*this);
     gameplay_ = std::make_unique<GameplaySystems>(*this);
+    navigation_ = std::make_unique<Navigation>(*this);
 }
 
 Game::~Game() {
@@ -62,6 +63,7 @@ void Game::start(std::unique_ptr<Scene> scene, const std::string& path) {
     timeScale = 1.0f;
     debugDraw_.clear();
     prefabCache_.clear();
+    navigation_->clear();
     scene_->updateTransforms();
     startSystems();
 }
@@ -115,6 +117,8 @@ void Game::update(float dt) {
     auto t1 = Clock::now();
     scripts_->update(scaled);
     gameplay_->updateBehaviors(scaled);
+    gameplay_->updateWalkers(scaled);
+    navigation_->update(scaled);
     auto t2 = Clock::now();
     physics3D_->updateCharacters(scaled);
     auto t3 = Clock::now();
