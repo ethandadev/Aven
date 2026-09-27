@@ -1,6 +1,7 @@
 #include "aven/runtime/script_system.h"
 #include "aven/scene/terrain.h"
 #include "aven/runtime/native.h"
+#include "aven/runtime/network.h"
 
 #include "aven/blocks/blocks.h"
 #include "aven/core/fs.h"
@@ -907,7 +908,7 @@ const std::vector<MethodDef>& entityMethods() {
 // ---------------------------------------------------------------- properties
 
 std::vector<std::string> ScriptSystem::propertyNames() {
-    return {"name",     "tag",      "layer",    "anim_state", "walking", "active",   "visible",  "id",        "exists",    "x",          "y",
+    return {"name",     "tag",      "layer",    "anim_state", "walking", "is_mine", "owner", "active",   "visible",  "id",        "exists",    "x",          "y",
             "z",        "position", "world_x",  "world_y",  "world_z",   "world_position", "angle", "rotation",
             "rotation_x", "rotation_y", "rotation_z", "scale", "scale_x", "scale_y", "scale_z", "size",
             "width",    "height",   "color",    "alpha",    "text",      "image",     "shape",      "frame",
@@ -1018,6 +1019,8 @@ bool ScriptSystem::getProperty(Entity e, const std::string& name, Value& out) {
     else if (name == "tag") out = Value(info.tag);
     else if (name == "anim_state") out = Value(reg.has<Animator>(e) ? reg.get<Animator>(e).current : std::string());
     else if (name == "walking") out = Value(game_.gameplay().walking(e));
+    else if (name == "is_mine") out = Value(!isRemote(reg, e)); // multiplayer: this player's, or another's
+    else if (name == "owner") out = Value(reg.has<NetworkSync>(e) ? reg.get<NetworkSync>(e).owner : 0);
     else if (name == "layer") out = Value(info.layer.empty() ? std::string("Default") : info.layer);
     else if (name == "active") out = Value(info.active);
     else if (name == "visible") out = Value(!reg.has<Hidden>(e));
@@ -1483,9 +1486,14 @@ Entity ScriptSystem::entityFromValue(const Value& v) const {
 void ScriptSystem::callAll(Symbol event, const std::vector<Value>& args, bool skipIfWaiting) {
     std::vector<Entity> order = startOrder_;
     Scene& scene = game_.scene();
+    // Another player's copy (multiplayer) doesn't run its every-frame code or read this keyboard.
+    static const Symbol onUpdate = intern("on_update"), onFixed = intern("on_fixed_update"), onKey = intern("on_key_pressed");
+    bool ownerOnly = event == onUpdate || event == onFixed || event == onKey;
     for (Entity e : order) {
         auto it = instances_.find(e);
         if (it == instances_.end() || !scene.valid(e) || !scene.isActive(e))
+            continue;
+        if (ownerOnly && isRemote(scene.registry(), e))
             continue;
         auto inst = it->second;
         if (skipIfWaiting && vm_.isWaiting(inst.get(), event))
@@ -1564,6 +1572,10 @@ void ScriptSystem::onCollision(Entity a, Entity b, bool begin, bool trigger) {
 void ScriptSystem::callEvent(Entity e, const char* event) {
     if (auto inst = instanceOf(e))
         vm_.callFunction(inst, intern(event), {});
+}
+
+void ScriptSystem::callEvent(const char* event, std::vector<Value> args) {
+    callAll(intern(event), args, false);
 }
 
 void ScriptSystem::onClick(Entity e) {
@@ -1855,6 +1867,65 @@ void ScriptSystem::registerApi() {
             g.physics2D().setGravity({static_cast<float>(a.number(0, "x")), static_cast<float>(a.number(1, "y"))});
         return Value();
     });
+    // --- multiplayer on the local network (network.h)
+    auto netError = [](const std::string& fn, const std::string& error) {
+        if (!error.empty())
+            Log::warn(fn, ": ", error);
+    };
+    def("host_game", "host_game(port=4242)", 0, 1, [&g, netError](CallArgs& a) {
+        std::string error;
+        bool ok = g.network().host(static_cast<int>(a.has(0) ? a.number(0, "port") : Network::kDefaultPort), error);
+        netError("host_game()", error);
+        return Value(ok);
+    });
+    def("join_game", "join_game(\"192.168.1.20\", port=4242)", 1, 2, [&g, netError](CallArgs& a) {
+        std::string error;
+        bool ok = g.network().join(a.string(0, "address"), static_cast<int>(a.has(1) ? a.number(1, "port") : a.keywordNumber("port", Network::kDefaultPort)), error);
+        netError("join_game()", error);
+        return Value(ok);
+    });
+    def("leave_game", "leave_game()", 0, 0, [&g](CallArgs&) {
+        g.network().leave();
+        return Value();
+    });
+    def("is_online", "is_online()", 0, 0, [&g](CallArgs&) { return Value(g.network().online()); });
+    def("is_host", "is_host()", 0, 0, [&g](CallArgs&) { return Value(g.network().isHost()); });
+    def("player_id", "player_id()", 0, 0, [&g](CallArgs&) { return Value(g.network().playerId()); });
+    def("players", "players()", 0, 0, [&g](CallArgs&) {
+        std::vector<Value> list;
+        for (int id : g.network().players())
+            list.push_back(Value(id));
+        return Value::list(std::move(list));
+    });
+    def("my_address", "my_address()", 0, 0, [](CallArgs&) { return Value(Network::localAddress()); });
+    def("send", "send(\"message\", data)", 1, 2, [&g](CallArgs& a) {
+        g.network().send(a.string(0, "message"), a.has(1) ? script::VM::toJson(a[1]) : Json());
+        return Value();
+    });
+    def("find_games", "find_games()", 0, 0, [&g](CallArgs&) {
+        g.network().findGames();
+        return Value();
+    });
+    def("games_found", "games_found()", 0, 0, [&g](CallArgs&) {
+        std::vector<Value> list;
+        for (auto& f : g.network().gamesFound()) {
+            Value d = Value::dict();
+            d.dictObj().set(Value("name"), Value(f.name));
+            d.dictObj().set(Value("address"), Value(f.address));
+            d.dictObj().set(Value("port"), Value(f.port));
+            list.push_back(d);
+        }
+        return Value::list(std::move(list));
+    });
+    def("spawn_networked", "spawn_networked(\"prefabs/player.prefab\", x, y)", 1, 4, [this, &g](CallArgs& a) {
+        std::string prefab = projectFile(*this, a.string(0, "prefab"), "spawn_networked()");
+        Vec3 pos = positionArgs(*this, a, 1, "spawn_networked()");
+        Entity e = g.network().spawnNetworked(prefab, pos);
+        if (!e)
+            raise("spawn_networked(): couldn't make \"" + prefab + "\". Check the prefab exists.");
+        return entityValue(e);
+    });
+
     // Ground height of a terrain at (x, z): for putting things on the ground. None off the terrain.
     def("terrain_height", "terrain_height(x, z)", 1, 2, [this, &g](CallArgs& a) {
         Vec3 p = a[0].isNumber() ? Vec3{static_cast<float>(a.number(0, "x")), 0, static_cast<float>(a.number(1, "z"))}

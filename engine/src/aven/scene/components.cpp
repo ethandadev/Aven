@@ -198,6 +198,18 @@ std::vector<ComponentInfo> buildRegistry() {
             .field(F(unlit), {.advanced = true});
     }
     {
+        using Type = NetworkSync;
+        r.add<Type>("NetworkSync", "Multiplayer", "Keeps this object the same for every player in a network game. Its owner moves it; "
+                                                  "everyone else sees it follow.")
+            .field(F(position))
+            .field(F(rotation))
+            .field(F(scale))
+            .field(F(look), {.tooltip = "Sprite frame, flip and whether it's visible."})
+            .field(F(sendRate), {.label = "Updates a Second", .min = 1, .max = 60})
+            .field(F(owner), {.runtime = true})
+            .field(F(remote), {.runtime = true});
+    }
+    {
         using Type = Terrain;
         r.add<Type>("Terrain", "Rendering 3D", "Ground with hills and valleys: shape it with the sculpt brushes and paint it with textures.",
                     false, false, true)

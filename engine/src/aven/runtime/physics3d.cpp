@@ -6,6 +6,7 @@
 #include "aven/runtime/script_system.h"
 #include "aven/runtime/systems.h"
 
+#include "aven/runtime/network.h"
 #include "aven/scene/terrain.h"
 
 #include <Jolt/Jolt.h>
@@ -726,6 +727,14 @@ void Physics3D::updateCharacters(float dt) {
         auto it = impl_->characters.find(e);
         if (it == impl_->characters.end() || !impl_->game.scene().valid(e) || !impl_->game.scene().isActive(e))
             continue;
+        if (isRemote(impl_->game.scene().registry(), e)) {
+            // Another player's character (multiplayer): it goes where the network says.
+            auto& c = it->second;
+            Vec3 center = impl_->game.scene().worldPosition(e);
+            c.character->SetPosition(toJR(center - Vec3(0, c.height * 0.5f, 0)));
+            c.lastPosition = center;
+            continue;
+        }
         impl_->updateCharacter(e, it->second, dt);
     }
 }

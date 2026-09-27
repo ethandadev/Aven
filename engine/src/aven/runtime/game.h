@@ -5,6 +5,7 @@
 #include "aven/render/debug_draw.h"
 #include "aven/render/scene_renderer.h"
 #include "aven/runtime/navigation.h"
+#include "aven/runtime/network.h"
 #include "aven/runtime/project.h"
 #include "aven/runtime/touch_controls.h"
 #include "aven/scene/scene.h"
@@ -75,6 +76,7 @@ public:
     GameplaySystems& gameplay() { return *gameplay_; }
     Navigation& navigation() { return *navigation_; } // pathfinding
     TouchControls& touchControls() { return touch_; } // on-screen stick and buttons (phones)
+    Network& network() { return *network_; }          // multiplayer on the local network
     // Seeds every random number source so the same inputs replay the same game.
     void setRandomSeed(uint32_t seed);
 
@@ -120,6 +122,7 @@ private:
     std::unique_ptr<GameplaySystems> gameplay_;
     std::unique_ptr<Navigation> navigation_;
     TouchControls touch_;
+    std::unique_ptr<Network> network_;
 
     void startSystems();
     void stopSystems();

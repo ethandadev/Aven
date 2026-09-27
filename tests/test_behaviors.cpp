@@ -10,6 +10,7 @@
 #include "aven/runtime/systems.h"
 #include "aven/scene/reflection.h"
 #include "aven/scene/terrain.h"
+#include "aven/runtime/network.h"
 
 #include <filesystem>
 
@@ -818,4 +819,121 @@ AVEN_TEST(touch_controls_press_keys) {
     ProjectSettings q;
     q.fromJson(p.toJson());
     CHECK(q.touch.mode == TouchMode::Always && q.touch.buttons.size() == 1);
+}
+
+// Multiplayer: two games on this computer. The second joins the first, messages get through,
+// networked spawns show up on both, synced objects follow their owner, and leaving tidies up.
+AVEN_TEST(multiplayer_two_games_on_localhost) {
+    namespace stdfs = std::filesystem;
+    stdfs::path dir = stdfs::temp_directory_path() / "aven_net_test";
+    std::error_code ec;
+    stdfs::remove_all(dir, ec);
+    stdfs::create_directories(dir / "scripts", ec);
+    stdfs::create_directories(dir / "prefabs", ec);
+    fs::writeText(dir / "prefabs/avatar.prefab",
+                  R"({"entities": [{"id": "00000000000000a1", "name": "Avatar", "components": {"Transform": {}, "NetworkSync": {}}}]})");
+    fs::writeText(dir / "scripts/host.es", "def on_start():\n    game.ok = host_game(45123)\n    spawn_networked(\"prefabs/avatar.prefab\", 1, 0)\n"
+                                           "def on_player_joined(p):\n    game.joined = p\n    send(\"hi\", 42)\n"
+                                           "def on_player_left(p):\n    game.left = p\n");
+    fs::writeText(dir / "scripts/client.es", "def on_start():\n    join_game(\"127.0.0.1\", 45123)\n"
+                                             "def on_connected():\n    game.me = player_id()\n    spawn_networked(\"prefabs/avatar.prefab\", -1, 0)\n"
+                                             "def on_receive(m, d, p):\n    game.got = d\n    game.from = p\n");
+    ErrorCatcher catcher;
+    auto makeScene = [](const char* script) {
+        auto scene = std::make_unique<Scene>();
+        auto& reg = scene->registry();
+        reg.emplace<Script>(scene->create("Brain")).path = script;
+        Entity box = scene->create("Box");
+        scene->info(box).uuid = UUID{0x1234}; // the same object in both copies of the scene
+        reg.emplace<NetworkSync>(box);
+        return scene;
+    };
+    Assets hostAssets, clientAssets;
+    hostAssets.setRoot(dir);
+    clientAssets.setRoot(dir);
+    Input hostInput, clientInput;
+    Game host(hostAssets, hostInput), client(clientAssets, clientInput);
+    host.start(makeScene("scripts/host.es"), "test.scene");
+    host.update(1.0f / 60.0f);
+    CHECK(host.scripts().gameValue("ok").truthy());
+    client.start(makeScene("scripts/client.es"), "test.scene");
+    auto pump = [&](int frames) {
+        for (int i = 0; i < frames; ++i) {
+            host.update(1.0f / 60.0f);
+            client.update(1.0f / 60.0f);
+        }
+    };
+    auto avatars = [](Game& g) {
+        int n = 0;
+        g.scene().walk([&](Entity e, int) {
+            n += g.scene().info(e).name == "Avatar";
+            return true;
+        });
+        return n;
+    };
+    pump(30);
+    CHECK_EQ(host.scripts().gameNumber("joined"), 1.0);
+    CHECK_EQ(client.scripts().gameNumber("me"), 1.0);
+    CHECK_EQ(client.scripts().gameNumber("got"), 42.0);
+    CHECK_EQ(client.scripts().gameNumber("from"), 0.0);
+    CHECK_EQ(avatars(host), 2); // its own and the client's
+    CHECK_EQ(avatars(client), 2);
+    // The host owns the scene's Box: moving it moves the client's.
+    host.scene().transform(host.scene().findByName("Box")).position = {5, 2, 0};
+    // The client moves its own avatar.
+    Entity mine;
+    client.scene().walk([&](Entity e, int) {
+        if (client.scene().info(e).name == "Avatar" && !isRemote(client.scene().registry(), e))
+            mine = e;
+        return true;
+    });
+    CHECK(static_cast<bool>(mine));
+    client.scene().transform(mine).position = {-3, 4, 0};
+    pump(40);
+    Vec3 box = client.scene().transform(client.scene().findByName("Box")).position;
+    CHECK(length(box - Vec3{5, 2, 0}) < 0.05f);
+    CHECK(isRemote(client.scene().registry(), client.scene().findByName("Box")));
+    bool seen = false;
+    host.scene().walk([&](Entity e, int) {
+        if (host.scene().info(e).name == "Avatar" && isRemote(host.scene().registry(), e))
+            seen = length(host.scene().transform(e).position - Vec3{-3, 4, 0}) < 0.05f;
+        return true;
+    });
+    CHECK(seen);
+    // The client leaves: its avatar goes from the host's game.
+    client.stop();
+    pump(10);
+    CHECK_EQ(host.scripts().gameNumber("left"), 1.0);
+    CHECK_EQ(avatars(host), 1);
+    host.stop();
+    if (!catcher.errors.empty())
+        std::printf("  %s\n", catcher.errors[0].c_str());
+    CHECK(catcher.errors.empty());
+}
+
+// find_games() hears a game hosting on this computer.
+AVEN_TEST(multiplayer_find_games) {
+    Assets a1, a2;
+    Input i1, i2;
+    Game host(a1, i1), finder(a2, i2);
+    host.settings().name = "Finder Test";
+    host.start(std::make_unique<Scene>(), "test.scene");
+    finder.start(std::make_unique<Scene>(), "test.scene");
+    std::string error;
+    if (!host.network().host(Network::kDefaultPort, error)) {
+        std::printf("  (skipped: %s)\n", error.c_str());
+        return;
+    }
+    finder.network().findGames();
+    for (int i = 0; i < 20 && finder.network().gamesFound().empty(); ++i) {
+        host.update(1.0f / 60.0f);
+        finder.update(1.0f / 60.0f);
+    }
+    CHECK(!finder.network().gamesFound().empty());
+    if (!finder.network().gamesFound().empty()) {
+        CHECK_EQ(finder.network().gamesFound()[0].name, std::string("Finder Test"));
+        CHECK_EQ(finder.network().gamesFound()[0].port, Network::kDefaultPort);
+    }
+    host.stop();
+    finder.stop();
 }

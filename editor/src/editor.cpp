@@ -1931,6 +1931,11 @@ void Editor::buildApiReference() {
         {"on_key_pressed", "def on_key_pressed(key):  any key was pressed"},
         {"on_message", "def on_message(message, data):  a broadcast was sent"},
         {"on_arrive", "def on_arrive():  got where self.go_to() was taking it"},
+        {"on_connected", "def on_connected():  joined a network game (multiplayer)"},
+        {"on_disconnected", "def on_disconnected():  left it, or the host went away"},
+        {"on_player_joined", "def on_player_joined(player):  someone joined the network game"},
+        {"on_player_left", "def on_player_left(player):  someone left"},
+        {"on_receive", "def on_receive(message, data, player):  another player used send()"},
         {"on_destroy", "def on_destroy():  about to be removed"},
     };
     for (auto& cb : callbacks) {

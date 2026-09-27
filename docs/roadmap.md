@@ -48,7 +48,8 @@ Where Aven stands, including what's missing. If you'd like to help with any of i
 - **Phones play the web build**, with on-screen touch controls, and can install it to the home
   screen (it then runs full screen and offline). There are no native Android or iOS apps (no app
   store builds), and no console exports.
-- **No multiplayer or networking.**
+- **Multiplayer is local-network only**: host and join on the same Wi-Fi, messages and synced
+  objects. No internet play, no dedicated servers, and not in web builds.
 
 **Sharing**
 - **No hosted service.** Sharing gives you a web build, an itch.io zip, a game card and a link for

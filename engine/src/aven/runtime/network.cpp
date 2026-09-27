@@ -1,0 +1,798 @@
+#include "aven/runtime/network.h"
+
+#include "aven/core/log.h"
+#include "aven/runtime/game.h"
+#include "aven/runtime/script_system.h"
+#include "aven/runtime/systems.h"
+#include "aven/scene/scene.h"
+#include "aven/script/vm.h"
+
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <unordered_map>
+
+#if !defined(__EMSCRIPTEN__)
+#if defined(_WIN32)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+using socket_t = SOCKET;
+#define AVEN_CLOSE closesocket
+#define AVEN_NOSIGNAL 0
+#else
+#include <arpa/inet.h>
+#include <cerrno>
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <sys/socket.h>
+#include <unistd.h>
+using socket_t = int;
+#define INVALID_SOCKET (-1)
+#define AVEN_CLOSE ::close
+#if defined(MSG_NOSIGNAL)
+#define AVEN_NOSIGNAL MSG_NOSIGNAL
+#else
+#define AVEN_NOSIGNAL 0
+#endif
+#endif
+#endif
+
+namespace aven {
+
+bool isRemote(const Registry& reg, Entity e) {
+    const NetworkSync* ns = reg.tryGet<NetworkSync>(e);
+    return ns && ns->remote;
+}
+
+#if defined(__EMSCRIPTEN__)
+
+// Browsers can't open these connections: everything says so.
+struct Network::Impl {};
+Network::Network(Game&) : impl_(std::make_unique<Impl>()) {}
+Network::~Network() = default;
+bool Network::host(int, std::string& error) {
+    error = "Multiplayer on the local network works in the desktop version of a game, not in web builds.";
+    return false;
+}
+bool Network::join(const std::string&, int, std::string& error) { return host(0, error); }
+void Network::leave() {}
+bool Network::online() const { return false; }
+bool Network::isHost() const { return false; }
+bool Network::connecting() const { return false; }
+int Network::playerId() const { return -1; }
+std::vector<int> Network::players() const { return {}; }
+void Network::send(const std::string&, const Json&) {}
+void Network::findGames() {}
+Entity Network::spawnNetworked(const std::string&, Vec3) { return {}; }
+void Network::onDestroy(Entity) {}
+void Network::update(float) {}
+void Network::sceneStarted() {}
+void Network::stop() {}
+std::string Network::localAddress() { return "127.0.0.1"; }
+
+#else
+
+namespace {
+
+void socketsReady() {
+#if defined(_WIN32)
+    static bool started = [] {
+        WSADATA wsa;
+        return WSAStartup(MAKEWORD(2, 2), &wsa) == 0;
+    }();
+    (void)started;
+#endif
+}
+
+void setNonBlocking(socket_t s) {
+#if defined(_WIN32)
+    u_long on = 1;
+    ioctlsocket(s, FIONBIO, &on);
+#else
+    fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) | O_NONBLOCK);
+#endif
+}
+
+bool wouldBlock() {
+#if defined(_WIN32)
+    int e = WSAGetLastError();
+    return e == WSAEWOULDBLOCK || e == WSAEINPROGRESS;
+#else
+    return errno == EAGAIN || errno == EWOULDBLOCK || errno == EINPROGRESS;
+#endif
+}
+
+void noDelay(socket_t s) {
+    int on = 1;
+    setsockopt(s, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&on), sizeof on);
+#if defined(SO_NOSIGPIPE)
+    setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof on);
+#endif
+}
+
+Json vec3Json(Vec3 v) {
+    Json a = Json::array();
+    a.push(v.x);
+    a.push(v.y);
+    a.push(v.z);
+    return a;
+}
+
+Vec3 jsonVec3(const Json& j, Vec3 fallback = {}) {
+    if (j.size() < 3)
+        return fallback;
+    return {j[0].asFloat(0), j[1].asFloat(0), j[2].asFloat(0)};
+}
+
+} // namespace
+
+struct Network::Impl {
+    Game& game;
+    explicit Impl(Game& g) : game(g) {}
+
+    struct Peer {
+        socket_t s = INVALID_SOCKET;
+        std::string in, out;
+        int id = -1;
+        bool welcomed = false;
+    };
+    socket_t listener = INVALID_SOCKET; // host: new players connect here
+    socket_t discovery = INVALID_SOCKET; // host: answers "anyone hosting?"
+    socket_t finder = INVALID_SOCKET;    // looking for games
+    float findTime = 0;
+    std::vector<Peer> peers;             // host: every player; player: just the host
+    bool hosting = false, connected = false, pending = false;
+    float connectTime = 0;
+    int myId = -1, nextId = 1, port = kDefaultPort;
+    std::vector<int> playerList;
+    uint64_t spawnCounter = 0;
+    std::unordered_map<uint64_t, float> sendTimers;
+
+    // --- messages: a 4-byte length, then JSON
+    void queue(Peer& p, const Json& msg) {
+        std::string body = msg.dump();
+        uint32_t n = static_cast<uint32_t>(body.size());
+        char head[4] = {static_cast<char>(n & 0xFF), static_cast<char>((n >> 8) & 0xFF), static_cast<char>((n >> 16) & 0xFF),
+                        static_cast<char>((n >> 24) & 0xFF)};
+        p.out.append(head, 4);
+        p.out += body;
+    }
+    // To everyone this player talks to, except `skip` (a player id).
+    void broadcast(const Json& msg, int skip = -2) {
+        for (auto& p : peers)
+            if (p.id != skip && (p.welcomed || !hosting))
+                queue(p, msg);
+    }
+    void flush(Peer& p) {
+        while (!p.out.empty()) {
+            auto n = ::send(p.s, p.out.data(), static_cast<int>(std::min<size_t>(p.out.size(), 1 << 16)), AVEN_NOSIGNAL);
+            if (n <= 0)
+                return; // full for now (or gone: the read notices)
+            p.out.erase(0, static_cast<size_t>(n));
+        }
+    }
+    // Reads what's arrived; false when the connection is gone.
+    bool receive(Peer& p, std::vector<Json>& messages) {
+        char buf[16384];
+        for (;;) {
+            auto n = ::recv(p.s, buf, static_cast<int>(sizeof buf), 0);
+            if (n > 0) {
+                p.in.append(buf, static_cast<size_t>(n));
+                continue;
+            }
+            if (n == 0)
+                return false;
+            if (!wouldBlock())
+                return false;
+            break;
+        }
+        while (p.in.size() >= 4) {
+            uint32_t len = static_cast<uint8_t>(p.in[0]) | (static_cast<uint8_t>(p.in[1]) << 8) |
+                           (static_cast<uint8_t>(p.in[2]) << 16) | (static_cast<uint32_t>(static_cast<uint8_t>(p.in[3])) << 24);
+            if (len > (16u << 20))
+                return false; // not an Aven game
+            if (p.in.size() < 4 + static_cast<size_t>(len))
+                break;
+            messages.push_back(Json::parse(p.in.substr(4, len)));
+            p.in.erase(0, 4 + static_cast<size_t>(len));
+        }
+        return true;
+    }
+
+    void closeAll() {
+        for (auto& p : peers)
+            if (p.s != INVALID_SOCKET)
+                AVEN_CLOSE(p.s);
+        peers.clear();
+        for (socket_t* s : {&listener, &discovery})
+            if (*s != INVALID_SOCKET) {
+                AVEN_CLOSE(*s);
+                *s = INVALID_SOCKET;
+            }
+        hosting = connected = pending = false;
+        myId = -1;
+        playerList.clear();
+        sendTimers.clear();
+    }
+
+    // --- script events
+    void event(const char* name, std::vector<script::Value> args = {}) { game.scripts().callEvent(name, std::move(args)); }
+
+    // --- networked objects
+    std::unordered_map<uint64_t, Entity> objects() {
+        std::unordered_map<uint64_t, Entity> map;
+        Scene& scene = game.scene();
+        auto& reg = scene.registry();
+        for (Entity e : reg.entitiesWith<NetworkSync>()) {
+            auto& ns = reg.get<NetworkSync>(e);
+            if (!ns.netId) // scene objects: the same on every computer, since everyone loads the same scene
+                ns.netId = scene.info(e).uuid.value;
+            map[ns.netId] = e;
+        }
+        return map;
+    }
+
+    // Another player's object: it follows the network, not this keyboard.
+    void makeRemote(Entity e) {
+        auto& reg = game.scene().registry();
+        auto& ns = reg.get<NetworkSync>(e);
+        if (ns.remote)
+            return;
+        ns.remote = true;
+        reg.remove<PlatformerController>(e);
+        reg.remove<TopDownController>(e);
+        reg.remove<FollowMouse>(e);
+        reg.remove<Draggable>(e);
+        reg.remove<Shooter>(e);
+        if (auto* rb = reg.tryGet<RigidBody2D>(e); rb && rb->type == BodyType::Dynamic) {
+            rb->type = BodyType::Kinematic;
+            game.physics2D().refresh(e);
+        }
+        if (auto* rb = reg.tryGet<RigidBody>(e); rb && rb->type == BodyType::Dynamic) {
+            rb->type = BodyType::Kinematic;
+            game.physics3D().refresh(e);
+        }
+    }
+
+    // Which objects are whose, once this player knows its id.
+    void claimSceneObjects() {
+        auto& reg = game.scene().registry();
+        for (auto& [id, e] : objects()) {
+            auto& ns = reg.get<NetworkSync>(e);
+            if (ns.prefab.empty() && ns.owner == 0 && myId != 0)
+                makeRemote(e);
+        }
+    }
+
+    Json stateOf(Entity e) {
+        Scene& scene = game.scene();
+        auto& reg = scene.registry();
+        auto& ns = reg.get<NetworkSync>(e);
+        Json m = Json::object();
+        m["t"] = "state";
+        m["id"] = std::to_string(ns.netId);
+        Transform& t = scene.transform(e);
+        if (ns.position)
+            m["p"] = vec3Json(t.position);
+        if (ns.rotation)
+            m["r"] = vec3Json(t.rotation);
+        if (ns.scale)
+            m["s"] = vec3Json(t.scale);
+        if (ns.look) {
+            if (auto* sr = reg.tryGet<SpriteRenderer>(e)) {
+                m["f"] = sr->frame;
+                m["x"] = sr->flipX;
+            }
+            m["v"] = !reg.has<Hidden>(e);
+        }
+        return m;
+    }
+
+    Json spawnOf(Entity e) {
+        auto& ns = game.scene().registry().get<NetworkSync>(e);
+        Json m = Json::object();
+        m["t"] = "spawn";
+        m["id"] = std::to_string(ns.netId);
+        m["owner"] = ns.owner;
+        m["prefab"] = ns.prefab;
+        m["p"] = vec3Json(game.scene().transform(e).position);
+        return m;
+    }
+
+    void applyState(const Json& m, std::unordered_map<uint64_t, Entity>& objs) {
+        uint64_t id = std::strtoull(m["id"].asString("0").c_str(), nullptr, 10);
+        auto it = objs.find(id);
+        if (it == objs.end())
+            return;
+        Entity e = it->second;
+        auto& reg = game.scene().registry();
+        auto& ns = reg.get<NetworkSync>(e);
+        if (!ns.remote)
+            return; // ours: we say where it is
+        Transform& t = game.scene().transform(e);
+        ns.target = jsonVec3(m["p"], t.position);
+        ns.targetRotation = jsonVec3(m["r"], t.rotation);
+        ns.targetScale = jsonVec3(m["s"], t.scale);
+        if (!ns.hasTarget) { // first update: jump straight there
+            t.position = ns.target;
+            t.rotation = ns.targetRotation;
+            t.scale = ns.targetScale;
+        }
+        ns.hasTarget = true;
+        if (auto* sr = reg.tryGet<SpriteRenderer>(e)) {
+            if (m.contains("f"))
+                sr->frame = m["f"].asInt(sr->frame);
+            if (m.contains("x"))
+                sr->flipX = m["x"].asBool(sr->flipX);
+        }
+        if (m.contains("v")) {
+            bool visible = m["v"].asBool(true);
+            if (visible && reg.has<Hidden>(e))
+                reg.remove<Hidden>(e);
+            else if (!visible && !reg.has<Hidden>(e))
+                reg.emplace<Hidden>(e);
+        }
+    }
+
+    Entity spawnLocal(const Json& m) {
+        uint64_t id = std::strtoull(m["id"].asString("0").c_str(), nullptr, 10);
+        if (objects().count(id))
+            return {};
+        std::string prefab = m["prefab"].asString("");
+        Entity e = game.spawnPrefab(prefab, jsonVec3(m["p"]));
+        if (!e)
+            return {};
+        auto& ns = game.scene().registry().getOrEmplace<NetworkSync>(e);
+        ns.netId = id;
+        ns.owner = m["owner"].asInt(0);
+        ns.prefab = prefab;
+        if (ns.owner != myId)
+            makeRemote(e);
+        return e;
+    }
+
+    void destroyLocal(uint64_t id) {
+        auto objs = objects();
+        auto it = objs.find(id);
+        if (it != objs.end()) {
+            game.scene().registry().get<NetworkSync>(it->second).netId = 0; // no echo
+            game.destroyEntity(it->second);
+        }
+    }
+
+    // A message from `from` (the host: from anyone; a player: from the host, maybe passed on).
+    void handle(const Json& m, int from, std::unordered_map<uint64_t, Entity>& objs) {
+        std::string t = m["t"].asString("");
+        if (t == "hello" && hosting) {
+            // A new player: tell them who they are, who's here and what's been made.
+            for (auto& p : peers)
+                if (p.id == from && !p.welcomed) {
+                    Json w = Json::object();
+                    w["t"] = "welcome";
+                    w["id"] = from;
+                    Json list = Json::array();
+                    for (int id : playerList)
+                        list.push(id);
+                    list.push(from);
+                    w["players"] = list;
+                    queue(p, w);
+                    for (auto& [id, e] : objs) {
+                        auto& ns = game.scene().registry().get<NetworkSync>(e);
+                        if (!ns.prefab.empty())
+                            queue(p, spawnOf(e));
+                        queue(p, stateOf(e));
+                    }
+                    Json joined = Json::object();
+                    joined["t"] = "joined";
+                    joined["id"] = from;
+                    broadcast(joined, from);
+                    p.welcomed = true;
+                }
+            playerList.push_back(from);
+            event("on_player_joined", {script::Value(from)});
+            return;
+        }
+        if (t == "welcome" && !hosting) {
+            myId = m["id"].asInt(-1);
+            playerList.clear();
+            for (auto& id : m["players"].elements())
+                playerList.push_back(id.asInt(0));
+            connected = true;
+            pending = false;
+            claimSceneObjects();
+            event("on_connected");
+            return;
+        }
+        if (t == "joined") {
+            playerList.push_back(m["id"].asInt(0));
+            event("on_player_joined", {script::Value(m["id"].asInt(0))});
+            return;
+        }
+        if (t == "left") {
+            playerLeft(m["id"].asInt(0));
+            return;
+        }
+        // Everything else is passed on by the host to the other players.
+        Json relay = m;
+        if (hosting) {
+            relay["from"] = from;
+            broadcast(relay, from);
+        }
+        int sender = relay["from"].asInt(from);
+        if (t == "msg") {
+            event("on_receive", {script::Value(relay["m"].asString("")), script::VM::fromJson(relay["d"]), script::Value(sender)});
+        } else if (t == "spawn") {
+            if (Entity e = spawnLocal(relay))
+                objs[game.scene().registry().get<NetworkSync>(e).netId] = e;
+        } else if (t == "state") {
+            applyState(relay, objs);
+        } else if (t == "destroy") {
+            destroyLocal(std::strtoull(relay["id"].asString("0").c_str(), nullptr, 10));
+            objs = objects();
+        }
+    }
+
+    void playerLeft(int id) {
+        std::erase(playerList, id);
+        // What they made goes with them.
+        auto& reg = game.scene().registry();
+        for (auto& [nid, e] : objects()) {
+            auto& ns = reg.get<NetworkSync>(e);
+            if (!ns.prefab.empty() && ns.owner == id) {
+                ns.netId = 0;
+                game.destroyEntity(e);
+            }
+        }
+        event("on_player_left", {script::Value(id)});
+    }
+};
+
+Network::Network(Game& game) : impl_(std::make_unique<Impl>(game)) {}
+
+Network::~Network() { impl_->closeAll(); }
+
+bool Network::host(int port, std::string& error) {
+    socketsReady();
+    leave();
+    Impl& n = *impl_;
+    n.listener = ::socket(AF_INET, SOCK_STREAM, 0);
+    if (n.listener == INVALID_SOCKET) {
+        error = "Couldn't open a network connection.";
+        return false;
+    }
+    int yes = 1;
+    setsockopt(n.listener, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&yes), sizeof yes);
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(static_cast<uint16_t>(port));
+    if (::bind(n.listener, reinterpret_cast<sockaddr*>(&addr), sizeof addr) != 0 || ::listen(n.listener, 16) != 0) {
+        AVEN_CLOSE(n.listener);
+        n.listener = INVALID_SOCKET;
+        error = "Port " + std::to_string(port) + " is busy (is another game already hosting on this computer?).";
+        return false;
+    }
+    setNonBlocking(n.listener);
+    // Answer games looking for a host.
+    n.discovery = ::socket(AF_INET, SOCK_DGRAM, 0);
+    if (n.discovery != INVALID_SOCKET) {
+        setsockopt(n.discovery, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&yes), sizeof yes);
+        sockaddr_in d{};
+        d.sin_family = AF_INET;
+        d.sin_addr.s_addr = htonl(INADDR_ANY);
+        d.sin_port = htons(static_cast<uint16_t>(port + 1));
+        if (::bind(n.discovery, reinterpret_cast<sockaddr*>(&d), sizeof d) != 0) {
+            AVEN_CLOSE(n.discovery);
+            n.discovery = INVALID_SOCKET;
+        } else {
+            setNonBlocking(n.discovery);
+        }
+    }
+    n.port = port;
+    n.hosting = true;
+    n.connected = true;
+    n.myId = 0;
+    n.nextId = 1;
+    n.playerList = {0};
+    Log::info("Hosting a network game on ", localAddress(), " (port ", port, ")");
+    return true;
+}
+
+bool Network::join(const std::string& address, int port, std::string& error) {
+    socketsReady();
+    leave();
+    Impl& n = *impl_;
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(static_cast<uint16_t>(port));
+    if (inet_pton(AF_INET, address.c_str(), &addr.sin_addr) != 1) {
+        error = "\"" + address + "\" isn't an address. It looks like 192.168.1.20 (the host shows it).";
+        return false;
+    }
+    socket_t s = ::socket(AF_INET, SOCK_STREAM, 0);
+    if (s == INVALID_SOCKET) {
+        error = "Couldn't open a network connection.";
+        return false;
+    }
+    setNonBlocking(s);
+    noDelay(s);
+    if (::connect(s, reinterpret_cast<sockaddr*>(&addr), sizeof addr) != 0 && !wouldBlock()) {
+        AVEN_CLOSE(s);
+        error = "Couldn't reach " + address + ".";
+        return false;
+    }
+    Impl::Peer host;
+    host.s = s;
+    host.id = 0;
+    host.welcomed = true;
+    Json hello = Json::object();
+    hello["t"] = "hello";
+    hello["game"] = n.game.settings().name;
+    n.queue(host, hello);
+    n.peers.push_back(std::move(host));
+    n.pending = true;
+    n.connectTime = 0;
+    n.port = port;
+    return true;
+}
+
+void Network::leave() {
+    Impl& n = *impl_;
+    bool was = n.connected;
+    n.closeAll();
+    // Other players' objects go; ours stay ours.
+    auto& reg = n.game.scene().registry();
+    auto list = reg.entitiesWith<NetworkSync>();
+    for (Entity e : list) {
+        auto& ns = reg.get<NetworkSync>(e);
+        if (ns.remote && !ns.prefab.empty()) {
+            ns.netId = 0;
+            n.game.destroyEntity(e);
+        }
+    }
+    if (was)
+        n.event("on_disconnected");
+}
+
+bool Network::online() const { return impl_->connected; }
+bool Network::isHost() const { return impl_->hosting; }
+bool Network::connecting() const { return impl_->pending; }
+int Network::playerId() const { return impl_->connected ? impl_->myId : -1; }
+std::vector<int> Network::players() const { return impl_->playerList; }
+
+void Network::send(const std::string& message, const Json& data) {
+    Impl& n = *impl_;
+    if (!n.connected)
+        return;
+    Json m = Json::object();
+    m["t"] = "msg";
+    m["m"] = message;
+    m["d"] = data;
+    m["from"] = n.myId;
+    n.broadcast(m);
+}
+
+void Network::findGames() {
+    socketsReady();
+    Impl& n = *impl_;
+    found_.clear();
+    if (n.finder == INVALID_SOCKET) {
+        n.finder = ::socket(AF_INET, SOCK_DGRAM, 0);
+        if (n.finder == INVALID_SOCKET)
+            return;
+        int yes = 1;
+        setsockopt(n.finder, SOL_SOCKET, SO_BROADCAST, reinterpret_cast<const char*>(&yes), sizeof yes);
+        setNonBlocking(n.finder);
+    }
+    const char ask[] = "AVEN?";
+    for (const char* to : {"255.255.255.255", "127.0.0.1"}) {
+        sockaddr_in addr{};
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(static_cast<uint16_t>(kDefaultPort + 1));
+        inet_pton(AF_INET, to, &addr.sin_addr);
+        ::sendto(n.finder, ask, static_cast<int>(sizeof ask - 1), 0, reinterpret_cast<sockaddr*>(&addr), sizeof addr);
+    }
+    n.findTime = 3.0f;
+}
+
+Entity Network::spawnNetworked(const std::string& prefab, Vec3 position) {
+    Impl& n = *impl_;
+    Entity e = n.game.spawnPrefab(prefab, position);
+    if (!e)
+        return {};
+    auto& ns = n.game.scene().registry().getOrEmplace<NetworkSync>(e);
+    ns.owner = n.connected ? n.myId : 0;
+    ns.prefab = prefab;
+    // Unique for everyone: who made it, and how many they've made.
+    ns.netId = (static_cast<uint64_t>(ns.owner + 1) << 40) | (++n.spawnCounter) | (1ull << 63);
+    if (n.connected)
+        n.broadcast(n.spawnOf(e));
+    return e;
+}
+
+void Network::onDestroy(Entity e) {
+    Impl& n = *impl_;
+    auto* ns = n.game.scene().registry().tryGet<NetworkSync>(e);
+    if (!n.connected || !ns || !ns->netId || ns->remote)
+        return;
+    Json m = Json::object();
+    m["t"] = "destroy";
+    m["id"] = std::to_string(ns->netId);
+    n.broadcast(m);
+}
+
+void Network::update(float dt) {
+    Impl& n = *impl_;
+    // Games answering "anyone hosting?".
+    if (n.finder != INVALID_SOCKET) {
+        char buf[512];
+        sockaddr_in from{};
+        socklen_t len = sizeof from;
+        for (;;) {
+            auto got = ::recvfrom(n.finder, buf, static_cast<int>(sizeof buf - 1), 0, reinterpret_cast<sockaddr*>(&from), &len);
+            if (got <= 0)
+                break;
+            buf[got] = 0;
+            std::string reply(buf);
+            if (reply.rfind("AVEN!", 0) != 0)
+                continue;
+            size_t bar = reply.find('|');
+            char ip[INET_ADDRSTRLEN] = {};
+            inet_ntop(AF_INET, &from.sin_addr, ip, sizeof ip);
+            FoundGame g;
+            g.address = std::string(ip) == "127.0.0.1" ? localAddress() : ip;
+            g.port = std::atoi(reply.substr(5, bar == std::string::npos ? std::string::npos : bar - 5).c_str());
+            g.name = bar == std::string::npos ? "Game" : reply.substr(bar + 1);
+            if (std::none_of(found_.begin(), found_.end(), [&](const FoundGame& f) { return f.address == g.address && f.port == g.port; }))
+                found_.push_back(g);
+        }
+        if ((n.findTime -= dt) <= 0) {
+            AVEN_CLOSE(n.finder);
+            n.finder = INVALID_SOCKET;
+        }
+    }
+    if (n.discovery != INVALID_SOCKET) {
+        char buf[64];
+        sockaddr_in from{};
+        socklen_t len = sizeof from;
+        for (;;) {
+            auto got = ::recvfrom(n.discovery, buf, static_cast<int>(sizeof buf), 0, reinterpret_cast<sockaddr*>(&from), &len);
+            if (got <= 0)
+                break;
+            if (std::string(buf, static_cast<size_t>(got)) != "AVEN?")
+                continue;
+            std::string reply = "AVEN!" + std::to_string(n.port) + "|" + n.game.settings().name;
+            ::sendto(n.discovery, reply.data(), static_cast<int>(reply.size()), 0, reinterpret_cast<sockaddr*>(&from), len);
+        }
+    }
+    if (!n.hosting && n.peers.empty())
+        return;
+
+    // New players.
+    if (n.listener != INVALID_SOCKET)
+        for (;;) {
+            socket_t s = ::accept(n.listener, nullptr, nullptr);
+            if (s == INVALID_SOCKET)
+                break;
+            setNonBlocking(s);
+            noDelay(s);
+            Impl::Peer p;
+            p.s = s;
+            p.id = n.nextId++;
+            n.peers.push_back(std::move(p));
+        }
+
+    // Messages in.
+    auto objs = n.objects();
+    std::vector<int> gone;
+    for (size_t i = 0; i < n.peers.size(); ++i) {
+        std::vector<Json> messages;
+        bool alive = n.receive(n.peers[i], messages);
+        int id = n.peers[i].id;
+        for (auto& m : messages)
+            n.handle(m, id, objs);
+        if (!alive)
+            gone.push_back(id);
+    }
+    if (n.pending && (n.connectTime += dt) > 6.0f)
+        gone.push_back(0);
+    for (int id : gone) {
+        auto it = std::find_if(n.peers.begin(), n.peers.end(), [&](const Impl::Peer& p) { return p.id == id; });
+        if (it == n.peers.end())
+            continue;
+        bool welcomed = it->welcomed;
+        AVEN_CLOSE(it->s);
+        n.peers.erase(it);
+        if (n.hosting) {
+            if (welcomed) {
+                Json left = Json::object();
+                left["t"] = "left";
+                left["id"] = id;
+                n.broadcast(left);
+                n.playerLeft(id);
+            }
+        } else {
+            // The host went away (or never answered).
+            bool wasPending = n.pending;
+            leave();
+            if (wasPending)
+                Log::warn("Couldn't join the game: nobody answered. Check the address, and that both are on the same network.");
+            else
+                Log::info("The host left the game.");
+            return;
+        }
+    }
+    objs = n.objects();
+
+    // Other players' objects glide to where they were last seen.
+    auto& reg = n.game.scene().registry();
+    float k = std::min(1.0f, dt * 15.0f);
+    for (auto& [id, e] : objs) {
+        auto& ns = reg.get<NetworkSync>(e);
+        if (!ns.remote || !ns.hasTarget)
+            continue;
+        Transform& t = n.game.scene().transform(e);
+        t.position += (ns.target - t.position) * k;
+        t.rotation += (ns.targetRotation - t.rotation) * k;
+        t.scale += (ns.targetScale - t.scale) * k;
+    }
+
+    // Where our objects are, a few times a second.
+    if (n.connected)
+        for (auto& [id, e] : objs) {
+            auto& ns = reg.get<NetworkSync>(e);
+            if (ns.remote || !n.game.scene().isActive(e))
+                continue;
+            float& timer = n.sendTimers[id];
+            timer -= dt;
+            if (timer > 0)
+                continue;
+            timer = 1.0f / std::clamp(ns.sendRate, 1.0f, 60.0f);
+            n.broadcast(n.stateOf(e));
+        }
+    for (auto& p : n.peers)
+        n.flush(p);
+}
+
+void Network::sceneStarted() {
+    impl_->sendTimers.clear();
+    if (impl_->connected)
+        impl_->claimSceneObjects();
+}
+
+void Network::stop() {
+    impl_->closeAll();
+    if (impl_->finder != INVALID_SOCKET) {
+        AVEN_CLOSE(impl_->finder);
+        impl_->finder = INVALID_SOCKET;
+    }
+    found_.clear();
+}
+
+std::string Network::localAddress() {
+    socketsReady();
+    socket_t s = ::socket(AF_INET, SOCK_DGRAM, 0);
+    if (s == INVALID_SOCKET)
+        return "127.0.0.1";
+    sockaddr_in remote{};
+    remote.sin_family = AF_INET;
+    remote.sin_port = htons(53);
+    inet_pton(AF_INET, "10.254.254.254", &remote.sin_addr); // no packet is sent; this just picks the route
+    std::string ip = "127.0.0.1";
+    if (::connect(s, reinterpret_cast<sockaddr*>(&remote), sizeof remote) == 0) {
+        sockaddr_in local{};
+        socklen_t len = sizeof local;
+        if (::getsockname(s, reinterpret_cast<sockaddr*>(&local), &len) == 0) {
+            char buf[INET_ADDRSTRLEN] = {};
+            if (inet_ntop(AF_INET, &local.sin_addr, buf, sizeof buf))
+                ip = buf;
+        }
+    }
+    AVEN_CLOSE(s);
+    return ip;
+}
+
+#endif
+
+} // namespace aven

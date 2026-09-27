@@ -191,6 +191,44 @@ play_sound("sounds/radio.wav", bus="Voice")
 - **Native modules** in C or C++ for heavy lifting: see [Native code](native-code.md).
 - **Code Ladder**: any script as C#, GDScript, Luau or C++, for moving to other engines.
 
+## Multiplayer on the local network
+
+Games on the same Wi-Fi (or cable) can play together: one hosts, the others join. It works in
+desktop builds and in the editor's play mode (run a second copy with Build & Export > Run to test
+on one computer); browsers can't open these connections, so web builds can't.
+
+```easyscript
+def on_key_pressed(key):
+    if key == "h":
+        host_game()
+        say("Hosting at " + my_address())
+    if key == "j":
+        find_games()
+        wait(1)
+        games = games_found()
+        if len(games) > 0:
+            join_game(games[0]["address"])
+
+def on_connected():            # also do this after host_game() for the host's own player
+    spawn_networked("prefabs/player.prefab", 0, 0)
+
+def on_receive(message, data, player):
+    if message == "cheer":
+        say("Player " + str(player) + " cheers!")
+```
+
+- **NetworkSync** (Add Component > Multiplayer) keeps an object's position, angle, scale and look
+  (sprite frame, flip, visible) the same for everyone, about 15 times a second, smoothed.
+- Objects in the scene belong to the host. `spawn_networked()` objects belong to whoever made them
+  and go when that player leaves. `self.is_mine` says which is which.
+- Other players' copies don't read this keyboard: their controllers (Platformer, Top-Down,
+  Shooter...), `on_update` and key events pause, and their bodies follow the network.
+- `send(message, data)` reaches every other player: numbers, text, lists and dictionaries.
+- Changing scenes keeps the connection; stopping the game ends it.
+
+It's made for friends in one room: no internet play (that needs a server), no cheating
+protection, and physics isn't shared (each owner simulates its own objects).
+
 ## Editor tools: scripting the editor
 
 Automate editing with EasyScript, like Unity's editor scripts. Each `.es` file in the project's

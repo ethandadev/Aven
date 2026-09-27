@@ -207,6 +207,25 @@ struct MeshRenderer {
     bool unlit = false;
 };
 
+// ---------------------------------------------------------------- Multiplayer
+
+// Keeps an object the same for every player in a network game (network.h): its owner sends
+// where it is, the others follow smoothly.
+struct NetworkSync {
+    bool position = true;
+    bool rotation = true;
+    bool scale = false;
+    bool look = true;      // sprite frame, flip and visibility
+    float sendRate = 15;   // updates a second
+    // runtime
+    uint64_t netId = 0;
+    int owner = 0;         // player id (0 = the host)
+    bool remote = false;   // another player's: follows the network, not the keyboard
+    Vec3 target, targetRotation, targetScale{1, 1, 1};
+    bool hasTarget = false;
+    std::string prefab;    // spawned from this (so late joiners can make one too)
+};
+
 // ---------------------------------------------------------------- Terrain
 
 struct TerrainLayer {

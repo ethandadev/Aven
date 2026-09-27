@@ -18,10 +18,12 @@ Game::Game(Assets& assets, Input& input)
     audio_ = std::make_unique<AudioSystem>(*this);
     gameplay_ = std::make_unique<GameplaySystems>(*this);
     navigation_ = std::make_unique<Navigation>(*this);
+    network_ = std::make_unique<Network>(*this);
 }
 
 Game::~Game() {
     stopSystems();
+    network_.reset(); // before the scripts it tells about
 }
 
 bool Game::loadProject(const std::filesystem::path& dir) {
@@ -67,10 +69,12 @@ void Game::start(std::unique_ptr<Scene> scene, const std::string& path) {
     touch_.configure(settings_.touch);
     scene_->updateTransforms();
     startSystems();
+    network_->sceneStarted();
 }
 
 void Game::stop() {
     stopSystems();
+    network_->stop(); // a new scene keeps the connection; stopping the game ends it
 }
 
 void Game::adoptScene(std::unique_ptr<Scene> scene) {
@@ -127,6 +131,7 @@ void Game::update(float dt) {
     auto t0 = Clock::now();
     gameplay_->preUpdate(dt);
     auto t1 = Clock::now();
+    network_->update(dt); // other players' messages and objects, before scripts see them
     scripts_->update(scaled);
     gameplay_->updateBehaviors(scaled);
     gameplay_->updateWalkers(scaled);
@@ -204,6 +209,7 @@ void Game::destroyEntity(Entity e) {
     std::function<void(Entity)> visit = [&](Entity x) {
         for (Entity c : std::vector<Entity>(scene_->children(x)))
             visit(c);
+        network_->onDestroy(x);
         scripts_->onDestroy(x);
         physics2D_->onDestroy(x);
         physics3D_->onDestroy(x);

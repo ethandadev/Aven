@@ -23,9 +23,15 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `float(value)`
 - `floor(x)`
 - `game.anything = value` (shared by all scripts and scenes)
+- `games_found()`
 - `get_bus_volume("Music")`
 - `get_game("score", 0)`
+- `host_game(port=4242)`
 - `int(value)`
+- `is_host()`
+- `is_online()`
+- `join_game("192.168.1.20", port=4242)`
+- `leave_game()`
 - `len(list_or_text)`
 - `lerp(a, b, t)`
 - `list(things)`
@@ -34,13 +40,17 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `min(a, b, ...) or min(my_list)`
 - `move_toward(current, target, step)`
 - `mute_bus("Music", True)`
+- `my_address()`
 - `pi`
+- `player_id()`
+- `players()`
 - `pow(x, power)`
 - `print(value, ...)`
 - `radians(x)`
 - `range(stop) or range(start, stop) or range(start, stop, step)`
 - `reversed(my_list)`
 - `round(x) or round(x, digits)`
+- `send("message", data)`
 - `set_bus_volume("Music", 0.5)`
 - `sign(x)`
 - `sin(x)`
@@ -112,8 +122,10 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `destroy(obj)`
 - `find("Player")`
 - `find_all("enemy")`
+- `find_games()`
 - `find_path(from, to, radius=0.4)`
 - `spawn("prefabs/coin.prefab", x, y)`
+- `spawn_networked("prefabs/player.prefab", x, y)`
 
 ## Saving
 
@@ -167,6 +179,8 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `self.layer`
 - `self.anim_state`
 - `self.walking`
+- `self.is_mine`
+- `self.owner`
 - `self.active`
 - `self.visible`
 - `self.id`
@@ -265,4 +279,9 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `def on_key_pressed(key):` any key was pressed
 - `def on_message(message, data):` a broadcast was sent
 - `def on_arrive():` got where self.go_to() was taking it
+- `def on_connected():` joined a network game (multiplayer)
+- `def on_disconnected():` left it, or the host went away
+- `def on_player_joined(player):` someone joined the network game
+- `def on_player_left(player):` someone left
+- `def on_receive(message, data, player):` another player used send()
 - `def on_destroy():` about to be removed

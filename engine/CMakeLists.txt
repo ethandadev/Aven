@@ -22,6 +22,10 @@ else()
     target_compile_options(aven_engine PRIVATE -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers)
 endif()
 
+if(WIN32)
+    target_link_libraries(aven_engine PUBLIC ws2_32) # multiplayer on the local network
+endif()
+
 if(NOT EMSCRIPTEN)
     find_package(Threads REQUIRED)
     target_link_libraries(aven_engine PUBLIC Threads::Threads)
