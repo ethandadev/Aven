@@ -233,6 +233,13 @@ void Editor::openPanels(const std::string& list) {
         else if (p.rfind("pixel:", 0) == 0) openPixelEditor(p.substr(6));
         else if (p == "spritesheet") openSpriteSheet();
         else if (p == "tiles") openTilePainter();
+        else if (p == "library") openAssetLibrary();
+        else if (p.rfind("library:", 0) == 0) { // library:<item id> places it (automated tests)
+            const Json& items = library()["items"];
+            for (int i = 0; i < static_cast<int>(items.size()); ++i)
+                if (items[i]["id"].asString("") == p.substr(8))
+                    placeLibraryItem(i, {viewportSize_.x * 0.5f, viewportSize_.y * 0.5f});
+        }
         else if (p == "savescene") saveScene();
         else if (p.rfind("codeat:", 0) == 0) { // codeat:LINE:COL puts the cursor in the open code tab (automated tests)
             int line = 1, col = 1;
@@ -1890,6 +1897,8 @@ void Editor::frame(float dt) {
             drawSpriteSheet();
         if (showTilePainter_ && unlocked(Feature::Tilemap))
             drawTilePainter();
+        if (showLibrary_)
+            drawAssetLibrary();
         if (showNativeCode_ && unlocked(Feature::NativeCode))
             drawNativeCode();
         drawScriptTabs();

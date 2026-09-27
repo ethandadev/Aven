@@ -359,55 +359,67 @@ void Editor::drawSceneOverlay(const CameraView& cam) {
 void Editor::handleViewportDrop() {
     if (!ImGui::BeginDragDropTarget())
         return;
-    if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("ASSET_PATH")) {
-        std::string path(static_cast<const char*>(p->Data), static_cast<size_t>(p->DataSize));
-        std::string ext = fs::extension(path);
-        Vec2 local{ImGui::GetMousePos().x - viewportPos_.x, ImGui::GetMousePos().y - viewportPos_.y};
-        CameraView cam = editorCamera();
-        Vec3 at = cam.screenToWorld(local, viewportSize_);
-        if (view3D_) {
-            Vec3 o, d;
-            cam.screenRay(local, viewportSize_, o, d);
-            float dist;
-            Entity hit = renderer_.renderer3D().raycast(*scene_, o, d, &dist);
-            at = hit ? o + d * dist : (std::abs(d.y) > 1e-3f && -o.y / d.y > 0 ? o + d * (-o.y / d.y) : o + d * 8.0f);
-        }
-        if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga") {
-            Entity e = createEntity("Sprite");
-            scene_->info(e).name = stdfs::path(path).stem().string();
-            auto& sr = scene_->registry().get<SpriteRenderer>(e);
-            sr.texture = path;
-            const TextureAsset& t = assets_.texture(path, true);
-            if (t.height > 0)
-                sr.size = {static_cast<float>(t.width) / t.height, 1.0f};
-            scene_->transform(e).position = {at.x, at.y, view3D_ ? at.z : 0};
-        } else if (ext == ".prefab") {
-            instantiatePrefab(path, at);
-        } else if (ext == ".gltf" || ext == ".glb") {
-            Entity e = createEntity("Entity");
-            scene_->info(e).name = stdfs::path(path).stem().string();
-            auto& mr = scene_->registry().emplace<MeshRenderer>(e);
-            mr.mesh = MeshShape::Model;
-            mr.model = path;
-            scene_->transform(e).position = at;
-        } else if (ext == ".es" || ext == ".blocks") {
-            // Attach to whatever is under the mouse.
-            Entity e = pickEntity(*scene_, cam, local);
-            if (e) {
-                select(e);
-                attachScript(e, path);
-            } else {
-                notify("Drop scripts onto an object to attach them.");
-            }
-        } else if (ext == ".scene") {
-            openScene(path);
-        } else if (ext == ".wav" || ext == ".mp3" || ext == ".ogg" || ext == ".flac") {
-            Entity e = createEntity("Sound");
-            scene_->registry().get<AudioSource>(e).clip = path;
-            scene_->info(e).name = stdfs::path(path).stem().string();
-        }
-    }
+    Vec2 local{ImGui::GetMousePos().x - viewportPos_.x, ImGui::GetMousePos().y - viewportPos_.y};
+    if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("ASSET_PATH"))
+        placeAsset(std::string(static_cast<const char*>(p->Data), static_cast<size_t>(p->DataSize)), local);
+    if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("LIBRARY_ITEM"))
+        placeLibraryItem(*static_cast<const int*>(p->Data), local);
     ImGui::EndDragDropTarget();
+}
+
+// Where a drop at a viewport position lands: on the object under the mouse, the ground, or the 2D plane.
+Vec3 Editor::dropPoint(Vec2 local) {
+    CameraView cam = editorCamera();
+    Vec3 at = cam.screenToWorld(local, viewportSize_);
+    if (view3D_) {
+        Vec3 o, d;
+        cam.screenRay(local, viewportSize_, o, d);
+        float dist;
+        Entity hit = renderer_.renderer3D().raycast(*scene_, o, d, &dist);
+        at = hit ? o + d * dist : (std::abs(d.y) > 1e-3f && -o.y / d.y > 0 ? o + d * (-o.y / d.y) : o + d * 8.0f);
+    }
+    return at;
+}
+
+// A project file dropped in the scene: images become sprites, models objects, scripts attach...
+void Editor::placeAsset(const std::string& path, Vec2 local) {
+    CameraView cam = editorCamera();
+    Vec3 at = dropPoint(local);
+    std::string ext = fs::extension(path);
+    if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga") {
+        Entity e = createEntity("Sprite");
+        scene_->info(e).name = stdfs::path(path).stem().string();
+        auto& sr = scene_->registry().get<SpriteRenderer>(e);
+        sr.texture = path;
+        const TextureAsset& t = assets_.texture(path, true);
+        if (t.height > 0)
+            sr.size = {static_cast<float>(t.width) / t.height, 1.0f};
+        scene_->transform(e).position = {at.x, at.y, view3D_ ? at.z : 0};
+    } else if (ext == ".prefab") {
+        instantiatePrefab(path, at);
+    } else if (ext == ".gltf" || ext == ".glb") {
+        Entity e = createEntity("Entity");
+        scene_->info(e).name = stdfs::path(path).stem().string();
+        auto& mr = scene_->registry().emplace<MeshRenderer>(e);
+        mr.mesh = MeshShape::Model;
+        mr.model = path;
+        scene_->transform(e).position = at;
+    } else if (ext == ".es" || ext == ".blocks") {
+        // Attach to whatever is under the mouse.
+        Entity e = pickEntity(*scene_, cam, local);
+        if (e) {
+            select(e);
+            attachScript(e, path);
+        } else {
+            notify("Drop scripts onto an object to attach them.");
+        }
+    } else if (ext == ".scene") {
+        openScene(path);
+    } else if (ext == ".wav" || ext == ".mp3" || ext == ".ogg" || ext == ".flac") {
+        Entity e = createEntity("Sound");
+        scene_->registry().get<AudioSource>(e).clip = path;
+        scene_->info(e).name = stdfs::path(path).stem().string();
+    }
 }
 
 // Gizmos for the selection. Works in the editor, and on the running game while paused.

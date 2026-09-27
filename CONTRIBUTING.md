@@ -67,6 +67,12 @@ If you change what scripts can call, regenerate the API reference with
 
 By contributing, you agree your work is released under the [MIT License](LICENSE).
 
+## The asset library
+
+`editor/data/library` is generated: edit `tools/library/` (textures, models, sprites) and run
+`xvfb-run python3 tools/library/generate.py --thumbnails build/bin/aven-player` (drop `xvfb-run`
+on a desktop). New items need a unique `dest` path; `asset_library_is_complete` checks the rest.
+
 ## Making a release
 
 Releases are built by `.github/workflows/release.yml`. To publish one from `main`:

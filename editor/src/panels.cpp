@@ -1801,6 +1801,11 @@ void Editor::drawAssets() {
     ImGui::SetNextItemWidth(70);
     ImGui::SliderFloat("##cell", &assetCell_, 64, 160, "");
     ImGui::SameLine();
+    if (ImGui::SmallButton("Library"))
+        openAssetLibrary();
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Ready-made sprites, animations, backgrounds, 3D models and textures");
+    ImGui::SameLine();
     if (ImGui::SmallButton("+ Create"))
         ImGui::OpenPopup("create_asset");
     if (ImGui::BeginPopup("create_asset")) {

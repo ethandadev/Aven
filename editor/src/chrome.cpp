@@ -317,6 +317,8 @@ void Editor::drawMenuBar() {
     if (ImGui::BeginMenu("Tools")) {
         if (unlocked(Feature::Recipes) && ImGui::MenuItem("Game from a Recipe..."))
             openRecipes();
+        if (ImGui::MenuItem("Asset Library (sprites, models, textures)"))
+            openAssetLibrary();
         if (unlocked(Feature::SoundMaker) && ImGui::MenuItem("Sound Maker"))
             openSoundMaker();
         if (unlocked(Feature::PixelEditor) && ImGui::MenuItem("Pixel Editor"))

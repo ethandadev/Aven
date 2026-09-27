@@ -470,6 +470,11 @@ private:
     void drawSpriteSheet();
     enum class TileTool { Paint, Erase, Box, Fill, Pick };
     bool showTilePainter_ = false, focusTilePainter_ = false;
+    bool showLibrary_ = false, focusLibrary_ = false; // the Asset Library
+    Json library_;                                    // editor/data/library/library.json
+    int libraryKind_ = 0;
+    std::string libraryFilter_;
+    bool libraryColliders_ = true;
     TileTool tileTool_ = TileTool::Paint;
     int tileBrush_ = 0;
     bool tileStroke_ = false, tileBoxing_ = false;
@@ -499,6 +504,15 @@ private:
     void drawNativeScriptInspector(Entity e);
     void drawClickActions(Entity e, const std::vector<Entity>& selection);
     void drawValueBarHint(Entity e);
+    // Asset Library (asset_library.cpp)
+    const Json& library();
+    void openAssetLibrary();
+    void drawAssetLibrary();
+    std::string addLibraryItem(int index); // copies it into the project; returns its path there
+    void placeLibraryItem(int index, Vec2 viewportPoint);
+    void applyLibraryTexture(Entity e, int index, const std::string& path);
+    Vec3 dropPoint(Vec2 viewportPoint);
+    void placeAsset(const std::string& path, Vec2 viewportPoint); // a project file dropped in the scene
     bool matchesSearch(Entity e, const std::string& query); // Hierarchy search: names, t:, tag:, layer:
     void drawHierarchySearch();
     void drawSelectMenu(Entity e); // right-click > Select (same tag, prefab, script...)

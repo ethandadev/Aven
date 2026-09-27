@@ -333,6 +333,7 @@ void Editor::drawCommandPalette() {
         add("Game from a Recipe (platformer, shooter, clicker...)", "command", [this] { openRecipes(); });
     if (unlocked(Feature::CodeLadder))
         add("Code Ladder (see the selected script in other engines' languages)", "window", [this] { openCodeLadderForSelection(); });
+    add("Asset Library (ready-made sprites, 3D models and textures)", "window", [this] { openAssetLibrary(); });
     add("Lighting presets", "window", [this] { showLighting_ = true; });
     add("Scripting reference", "window", [this] { showReference_ = true; });
     add("Project settings", "window", [this] { showSettings_ = true; });

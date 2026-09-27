@@ -1,0 +1,615 @@
+{
+ "about": "Aven's asset library. Made by tools/library/generate.py; free to use (CC0).",
+ "items": [
+  {
+   "id": "sprite/hero",
+   "name": "Hero",
+   "kind": "sprite",
+   "file": "2d/sprites/hero.png",
+   "dest": "images/hero.png",
+   "tags": "character player"
+  },
+  {
+   "id": "sprite/slime",
+   "name": "Slime",
+   "kind": "sprite",
+   "file": "2d/sprites/slime.png",
+   "dest": "images/slime.png",
+   "tags": "enemy character"
+  },
+  {
+   "id": "sprite/bat",
+   "name": "Bat",
+   "kind": "sprite",
+   "file": "2d/sprites/bat.png",
+   "dest": "images/bat.png",
+   "tags": "enemy character flying"
+  },
+  {
+   "id": "sprite/ghost",
+   "name": "Ghost",
+   "kind": "sprite",
+   "file": "2d/sprites/ghost.png",
+   "dest": "images/ghost.png",
+   "tags": "enemy character"
+  },
+  {
+   "id": "sprite/ship",
+   "name": "Spaceship",
+   "kind": "sprite",
+   "file": "2d/sprites/ship.png",
+   "dest": "images/ship.png",
+   "tags": "player space vehicle"
+  },
+  {
+   "id": "sprite/asteroid",
+   "name": "Asteroid",
+   "kind": "sprite",
+   "file": "2d/sprites/asteroid.png",
+   "dest": "images/asteroid.png",
+   "tags": "space hazard"
+  },
+  {
+   "id": "sprite/coin",
+   "name": "Coin",
+   "kind": "sprite",
+   "file": "2d/sprites/coin.png",
+   "dest": "images/coin.png",
+   "tags": "pickup item money"
+  },
+  {
+   "id": "sprite/gem",
+   "name": "Gem",
+   "kind": "sprite",
+   "file": "2d/sprites/gem.png",
+   "dest": "images/gem.png",
+   "tags": "pickup item treasure"
+  },
+  {
+   "id": "sprite/heart",
+   "name": "Heart",
+   "kind": "sprite",
+   "file": "2d/sprites/heart.png",
+   "dest": "images/heart.png",
+   "tags": "pickup health ui"
+  },
+  {
+   "id": "sprite/star",
+   "name": "Star",
+   "kind": "sprite",
+   "file": "2d/sprites/star.png",
+   "dest": "images/star.png",
+   "tags": "pickup bonus"
+  },
+  {
+   "id": "sprite/key",
+   "name": "Key",
+   "kind": "sprite",
+   "file": "2d/sprites/key.png",
+   "dest": "images/key.png",
+   "tags": "pickup item door"
+  },
+  {
+   "id": "sprite/potion",
+   "name": "Potion",
+   "kind": "sprite",
+   "file": "2d/sprites/potion.png",
+   "dest": "images/potion.png",
+   "tags": "pickup item health"
+  },
+  {
+   "id": "sprite/apple",
+   "name": "Apple",
+   "kind": "sprite",
+   "file": "2d/sprites/apple.png",
+   "dest": "images/apple.png",
+   "tags": "pickup food"
+  },
+  {
+   "id": "sprite/cookie",
+   "name": "Cookie",
+   "kind": "sprite",
+   "file": "2d/sprites/cookie.png",
+   "dest": "images/cookie.png",
+   "tags": "food clicker"
+  },
+  {
+   "id": "sprite/sword",
+   "name": "Sword",
+   "kind": "sprite",
+   "file": "2d/sprites/sword.png",
+   "dest": "images/sword.png",
+   "tags": "weapon item"
+  },
+  {
+   "id": "sprite/shield",
+   "name": "Shield",
+   "kind": "sprite",
+   "file": "2d/sprites/shield.png",
+   "dest": "images/shield.png",
+   "tags": "item armor"
+  },
+  {
+   "id": "sprite/bomb",
+   "name": "Bomb",
+   "kind": "sprite",
+   "file": "2d/sprites/bomb.png",
+   "dest": "images/bomb.png",
+   "tags": "hazard weapon"
+  },
+  {
+   "id": "sprite/chest",
+   "name": "Treasure chest",
+   "kind": "sprite",
+   "file": "2d/sprites/chest.png",
+   "dest": "images/chest.png",
+   "tags": "treasure prop"
+  },
+  {
+   "id": "sprite/crate",
+   "name": "Crate",
+   "kind": "sprite",
+   "file": "2d/sprites/crate.png",
+   "dest": "images/crate.png",
+   "tags": "prop box"
+  },
+  {
+   "id": "sprite/spikes",
+   "name": "Spikes",
+   "kind": "sprite",
+   "file": "2d/sprites/spikes.png",
+   "dest": "images/spikes.png",
+   "tags": "hazard trap"
+  },
+  {
+   "id": "sprite/flag",
+   "name": "Flag",
+   "kind": "sprite",
+   "file": "2d/sprites/flag.png",
+   "dest": "images/flag.png",
+   "tags": "goal checkpoint"
+  },
+  {
+   "id": "sprite/portal",
+   "name": "Portal",
+   "kind": "sprite",
+   "file": "2d/sprites/portal.png",
+   "dest": "images/portal.png",
+   "tags": "goal door"
+  },
+  {
+   "id": "sprite/tree",
+   "name": "Tree",
+   "kind": "sprite",
+   "file": "2d/sprites/tree.png",
+   "dest": "images/tree.png",
+   "tags": "nature prop"
+  },
+  {
+   "id": "animation/hero_walk",
+   "name": "Hero walking (4 frames)",
+   "kind": "animation",
+   "file": "2d/animations/hero_walk.png",
+   "dest": "images/hero_walk.png",
+   "tags": "character animation player",
+   "frames": 4
+  },
+  {
+   "id": "animation/coin_spin",
+   "name": "Coin spinning (4 frames)",
+   "kind": "animation",
+   "file": "2d/animations/coin_spin.png",
+   "dest": "images/coin_spin.png",
+   "tags": "pickup animation",
+   "frames": 4
+  },
+  {
+   "id": "animation/slime_bounce",
+   "name": "Slime bouncing (2 frames)",
+   "kind": "animation",
+   "file": "2d/animations/slime_bounce.png",
+   "dest": "images/slime_bounce.png",
+   "tags": "enemy animation",
+   "frames": 2
+  },
+  {
+   "id": "background/sky_day",
+   "name": "Day sky with clouds",
+   "kind": "background",
+   "file": "2d/backgrounds/sky_day.png",
+   "dest": "images/backgrounds/sky_day.png",
+   "tags": "background sky"
+  },
+  {
+   "id": "background/sky_sunset",
+   "name": "Sunset sky",
+   "kind": "background",
+   "file": "2d/backgrounds/sky_sunset.png",
+   "dest": "images/backgrounds/sky_sunset.png",
+   "tags": "background sky evening"
+  },
+  {
+   "id": "background/sky_night",
+   "name": "Night sky with stars",
+   "kind": "background",
+   "file": "2d/backgrounds/sky_night.png",
+   "dest": "images/backgrounds/sky_night.png",
+   "tags": "background sky space night"
+  },
+  {
+   "id": "background/mountains",
+   "name": "Mountains (layer)",
+   "kind": "background",
+   "file": "2d/backgrounds/mountains.png",
+   "dest": "images/backgrounds/mountains.png",
+   "tags": "background layer parallax"
+  },
+  {
+   "id": "background/hills",
+   "name": "Hills (layer)",
+   "kind": "background",
+   "file": "2d/backgrounds/hills.png",
+   "dest": "images/backgrounds/hills.png",
+   "tags": "background layer parallax"
+  },
+  {
+   "id": "background/forest",
+   "name": "Forest (layer)",
+   "kind": "background",
+   "file": "2d/backgrounds/forest.png",
+   "dest": "images/backgrounds/forest.png",
+   "tags": "background layer parallax"
+  },
+  {
+   "id": "texture/grass",
+   "name": "Grass",
+   "kind": "texture",
+   "file": "3d/textures/grass.png",
+   "dest": "textures/grass.png",
+   "tags": "ground nature",
+   "roughness": 0.9,
+   "metallic": 0.0
+  },
+  {
+   "id": "texture/dirt",
+   "name": "Dirt",
+   "kind": "texture",
+   "file": "3d/textures/dirt.png",
+   "dest": "textures/dirt.png",
+   "tags": "ground nature",
+   "roughness": 0.95,
+   "metallic": 0.0
+  },
+  {
+   "id": "texture/sand",
+   "name": "Sand",
+   "kind": "texture",
+   "file": "3d/textures/sand.png",
+   "dest": "textures/sand.png",
+   "tags": "ground desert beach",
+   "roughness": 0.9,
+   "metallic": 0.0
+  },
+  {
+   "id": "texture/rock",
+   "name": "Rock",
+   "kind": "texture",
+   "file": "3d/textures/rock.png",
+   "dest": "textures/rock.png",
+   "tags": "stone cliff nature",
+   "roughness": 0.85,
+   "metallic": 0.0
+  },
+  {
+   "id": "texture/cobblestone",
+   "name": "Cobblestone",
+   "kind": "texture",
+   "file": "3d/textures/cobblestone.png",
+   "dest": "textures/cobblestone.png",
+   "tags": "stone path street",
+   "roughness": 0.8,
+   "metallic": 0.0
+  },
+  {
+   "id": "texture/bricks",
+   "name": "Bricks",
+   "kind": "texture",
+   "file": "3d/textures/bricks.png",
+   "dest": "textures/bricks.png",
+   "tags": "wall building",
+   "roughness": 0.85,
+   "metallic": 0.0
+  },
+  {
+   "id": "texture/planks",
+   "name": "Wood planks",
+   "kind": "texture",
+   "file": "3d/textures/planks.png",
+   "dest": "textures/planks.png",
+   "tags": "wood floor wall",
+   "roughness": 0.7,
+   "metallic": 0.0
+  },
+  {
+   "id": "texture/bark",
+   "name": "Tree bark",
+   "kind": "texture",
+   "file": "3d/textures/bark.png",
+   "dest": "textures/bark.png",
+   "tags": "wood nature",
+   "roughness": 0.9,
+   "metallic": 0.0
+  },
+  {
+   "id": "texture/leaves",
+   "name": "Leaves",
+   "kind": "texture",
+   "file": "3d/textures/leaves.png",
+   "dest": "textures/leaves.png",
+   "tags": "nature bush hedge",
+   "roughness": 0.8,
+   "metallic": 0.0
+  },
+  {
+   "id": "texture/metal",
+   "name": "Metal plates",
+   "kind": "texture",
+   "file": "3d/textures/metal.png",
+   "dest": "textures/metal.png",
+   "tags": "sci-fi industrial floor",
+   "roughness": 0.35,
+   "metallic": 1.0
+  },
+  {
+   "id": "texture/concrete",
+   "name": "Concrete",
+   "kind": "texture",
+   "file": "3d/textures/concrete.png",
+   "dest": "textures/concrete.png",
+   "tags": "city wall floor",
+   "roughness": 0.9,
+   "metallic": 0.0
+  },
+  {
+   "id": "texture/tiles",
+   "name": "Floor tiles",
+   "kind": "texture",
+   "file": "3d/textures/tiles.png",
+   "dest": "textures/tiles.png",
+   "tags": "floor indoor",
+   "roughness": 0.3,
+   "metallic": 0.0
+  },
+  {
+   "id": "texture/water",
+   "name": "Water",
+   "kind": "texture",
+   "file": "3d/textures/water.png",
+   "dest": "textures/water.png",
+   "tags": "liquid sea",
+   "roughness": 0.1,
+   "metallic": 0.0
+  },
+  {
+   "id": "texture/snow",
+   "name": "Snow",
+   "kind": "texture",
+   "file": "3d/textures/snow.png",
+   "dest": "textures/snow.png",
+   "tags": "ground winter",
+   "roughness": 0.7,
+   "metallic": 0.0
+  },
+  {
+   "id": "texture/lava",
+   "name": "Lava",
+   "kind": "texture",
+   "file": "3d/textures/lava.png",
+   "dest": "textures/lava.png",
+   "tags": "hazard fire",
+   "roughness": 0.6,
+   "metallic": 0.0
+  },
+  {
+   "id": "texture/grid_gray",
+   "name": "Prototype grid (gray)",
+   "kind": "texture",
+   "file": "3d/textures/grid_gray.png",
+   "dest": "textures/grid_gray.png",
+   "tags": "prototype blockout level design",
+   "roughness": 0.8,
+   "metallic": 0.0
+  },
+  {
+   "id": "texture/grid_orange",
+   "name": "Prototype grid (orange)",
+   "kind": "texture",
+   "file": "3d/textures/grid_orange.png",
+   "dest": "textures/grid_orange.png",
+   "tags": "prototype blockout level design",
+   "roughness": 0.8,
+   "metallic": 0.0
+  },
+  {
+   "id": "texture/grid_blue",
+   "name": "Prototype grid (blue)",
+   "kind": "texture",
+   "file": "3d/textures/grid_blue.png",
+   "dest": "textures/grid_blue.png",
+   "tags": "prototype blockout level design",
+   "roughness": 0.8,
+   "metallic": 0.0
+  },
+  {
+   "id": "model/tree",
+   "name": "Tree",
+   "kind": "model",
+   "file": "3d/models/tree.glb",
+   "dest": "models/tree.glb",
+   "tags": "nature forest",
+   "thumb": "thumbs/tree.png"
+  },
+  {
+   "id": "model/tree_pine",
+   "name": "Pine tree",
+   "kind": "model",
+   "file": "3d/models/tree_pine.glb",
+   "dest": "models/tree_pine.glb",
+   "tags": "nature forest winter",
+   "thumb": "thumbs/tree_pine.png"
+  },
+  {
+   "id": "model/rock",
+   "name": "Rock",
+   "kind": "model",
+   "file": "3d/models/rock.glb",
+   "dest": "models/rock.glb",
+   "tags": "nature stone",
+   "thumb": "thumbs/rock.png"
+  },
+  {
+   "id": "model/rock_small",
+   "name": "Small rock",
+   "kind": "model",
+   "file": "3d/models/rock_small.glb",
+   "dest": "models/rock_small.glb",
+   "tags": "nature stone",
+   "thumb": "thumbs/rock_small.png"
+  },
+  {
+   "id": "model/bush",
+   "name": "Bush",
+   "kind": "model",
+   "file": "3d/models/bush.glb",
+   "dest": "models/bush.glb",
+   "tags": "nature garden",
+   "thumb": "thumbs/bush.png"
+  },
+  {
+   "id": "model/grass_tuft",
+   "name": "Grass tuft",
+   "kind": "model",
+   "file": "3d/models/grass_tuft.glb",
+   "dest": "models/grass_tuft.glb",
+   "tags": "nature ground detail",
+   "thumb": "thumbs/grass_tuft.png"
+  },
+  {
+   "id": "model/flower",
+   "name": "Flower",
+   "kind": "model",
+   "file": "3d/models/flower.glb",
+   "dest": "models/flower.glb",
+   "tags": "nature garden",
+   "thumb": "thumbs/flower.png"
+  },
+  {
+   "id": "model/mushroom",
+   "name": "Mushroom",
+   "kind": "model",
+   "file": "3d/models/mushroom.glb",
+   "dest": "models/mushroom.glb",
+   "tags": "nature forest",
+   "thumb": "thumbs/mushroom.png"
+  },
+  {
+   "id": "model/crate",
+   "name": "Crate",
+   "kind": "model",
+   "file": "3d/models/crate.glb",
+   "dest": "models/crate.glb",
+   "tags": "props wood",
+   "thumb": "thumbs/crate.png"
+  },
+  {
+   "id": "model/barrel",
+   "name": "Barrel",
+   "kind": "model",
+   "file": "3d/models/barrel.glb",
+   "dest": "models/barrel.glb",
+   "tags": "props wood",
+   "thumb": "thumbs/barrel.png"
+  },
+  {
+   "id": "model/chest",
+   "name": "Treasure chest",
+   "kind": "model",
+   "file": "3d/models/chest.glb",
+   "dest": "models/chest.glb",
+   "tags": "props treasure",
+   "thumb": "thumbs/chest.png"
+  },
+  {
+   "id": "model/fence",
+   "name": "Fence",
+   "kind": "model",
+   "file": "3d/models/fence.glb",
+   "dest": "models/fence.glb",
+   "tags": "props farm",
+   "thumb": "thumbs/fence.png"
+  },
+  {
+   "id": "model/bench",
+   "name": "Bench",
+   "kind": "model",
+   "file": "3d/models/bench.glb",
+   "dest": "models/bench.glb",
+   "tags": "props park city",
+   "thumb": "thumbs/bench.png"
+  },
+  {
+   "id": "model/lamp_post",
+   "name": "Lamp post",
+   "kind": "model",
+   "file": "3d/models/lamp_post.glb",
+   "dest": "models/lamp_post.glb",
+   "tags": "props city light",
+   "thumb": "thumbs/lamp_post.png"
+  },
+  {
+   "id": "model/house",
+   "name": "House",
+   "kind": "model",
+   "file": "3d/models/house.glb",
+   "dest": "models/house.glb",
+   "tags": "buildings village",
+   "thumb": "thumbs/house.png"
+  },
+  {
+   "id": "model/coin",
+   "name": "Coin",
+   "kind": "model",
+   "file": "3d/models/coin.glb",
+   "dest": "models/coin.glb",
+   "tags": "pickups items",
+   "thumb": "thumbs/coin.png"
+  },
+  {
+   "id": "model/platform_grass",
+   "name": "Grass platform",
+   "kind": "model",
+   "file": "3d/models/platform_grass.glb",
+   "dest": "models/platform_grass.glb",
+   "tags": "level platform obby",
+   "thumb": "thumbs/platform_grass.png"
+  },
+  {
+   "id": "model/platform_stone",
+   "name": "Stone platform",
+   "kind": "model",
+   "file": "3d/models/platform_stone.glb",
+   "dest": "models/platform_stone.glb",
+   "tags": "level platform obby",
+   "thumb": "thumbs/platform_stone.png"
+  },
+  {
+   "id": "model/robot",
+   "name": "Robot (stand-in character)",
+   "kind": "model",
+   "file": "3d/models/robot.glb",
+   "dest": "models/robot.glb",
+   "tags": "character player",
+   "thumb": "thumbs/robot.png"
+  }
+ ]
+}

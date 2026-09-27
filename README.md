@@ -43,6 +43,10 @@ know how the bigger engines think.
 - **Code:** a built-in code editor with colors, autocomplete, parameter hints, live problem checks
   and go to definition, and a block editor.
 - **Sharing:** export to desktop, the web and itch.io.
+- **Asset Library:** 69 ready-made, free-to-use (CC0) assets: pixel-art sprites and animations,
+  parallax backgrounds, 19 low-poly 3D models (trees, rocks, houses, props, a stand-in character)
+  and 18 tileable 3D textures (grass, stone, bricks, wood, metal, prototype grids...). Click to
+  place, or drag into the scene.
 - **Creator tools:**
   - A Pixel Editor with animation frames and onion skin.
   - A Sprite Sheet slicer and animator.

@@ -66,6 +66,12 @@ Menu, a Pause Menu, a Health Bar and Score Text that already work.
 
 ## 4. Make it yours
 
+**Ready-made art:** open **Tools > Asset Library** (or the **Library** button in Assets). Click an
+item to place it, drag it to where you want it, or right-click to only add it to the project.
+Textures dropped on a 3D object cover it; models get a collider that fits them. Everything in the
+library is free to use in any game, including ones you sell.
+
+
 The **Tools** menu has creators for your own content:
 
 - **Pixel Editor:** draw sprites and animation frames.
