@@ -219,6 +219,7 @@ public:
     // A whole project in one .zip, to send to someone or keep; and back again.
     bool exportProjectZip(std::string& message);
     bool importProjectZip(const stdfs::path& zipPath);
+    void openAsset(const std::string& path); // a folder goes in; a file opens in its editor
     bool startSharing(std::string& message);
     void stopSharing();
     std::string gameControls();         // "Arrow keys to run · Space to jump", from the start scene

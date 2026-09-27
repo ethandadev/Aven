@@ -245,6 +245,24 @@ void Editor::deleteAssets(const std::vector<std::string>& items) {
                ". A copy is in .aven/trash in the project folder.");
 }
 
+// Double-click (or Enter): into a folder, or open the file in its editor.
+void Editor::openAsset(const std::string& rel) {
+    std::string ext = fs::extension(rel);
+    std::error_code ec;
+    if (stdfs::is_directory(projectDir_ / rel, ec)) {
+        assetFolder_ = rel;
+        assetSearch_.clear();
+    } else if (ext == ".scene") {
+        openScene(rel);
+    } else if (ext == ".es" || ext == ".blocks" || isNativeSource(rel)) {
+        openScript(rel);
+    } else if (ext == ".prefab") {
+        openPrefab(rel);
+    } else if (ext == ".png" && unlocked(Feature::PixelEditor)) {
+        openPixelEditor(rel);
+    }
+}
+
 void Editor::drawAssets() {
     ui::panelClass();
     ImGui::Begin("Assets", &showAssets_);
@@ -456,20 +474,8 @@ void Editor::drawAssets() {
             }
             assetPendingSelect_.clear();
         }
-        if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-            if (isDir) {
-                assetFolder_ = rel;
-                assetSearch_.clear();
-            } else if (ext == ".scene") {
-                openScene(rel);
-            } else if (ext == ".es" || ext == ".blocks" || isNativeSource(rel)) {
-                openScript(rel);
-            } else if (ext == ".prefab") {
-                openPrefab(rel);
-            } else if (ext == ".png" && unlocked(Feature::PixelEditor)) {
-                openPixelEditor(rel);
-            }
-        }
+        if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            openAsset(rel);
         if (ImGui::BeginDragDropSource()) {
             if (assetDrag_.empty()) // the drag's first frame
                 assetDrag_ = assetSelected(rel) ? selectedAssets_ : std::vector<std::string>{rel};
@@ -550,6 +556,8 @@ void Editor::drawAssets() {
             renameTarget_ = selectedAssets_.front();
             std::snprintf(renameBuffer_, sizeof renameBuffer_, "%s", stdfs::path(renameTarget_).filename().string().c_str());
         }
+        if ((ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) && selectedAssets_.size() == 1)
+            openAsset(selectedAssets_.front());
         if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_A))
             selectedAssets_ = visible;
         if (ImGui::IsKeyPressed(ImGuiKey_Escape))
