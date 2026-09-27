@@ -1,4 +1,5 @@
 #include "aven/runtime/script_system.h"
+#include "aven/scene/terrain.h"
 #include "aven/runtime/native.h"
 
 #include "aven/blocks/blocks.h"
@@ -1852,6 +1853,25 @@ void ScriptSystem::registerApi() {
             g.physics3D().setGravity({static_cast<float>(a.number(0, "x")), static_cast<float>(a.number(1, "y")), static_cast<float>(a.number(2, "z"))});
         else
             g.physics2D().setGravity({static_cast<float>(a.number(0, "x")), static_cast<float>(a.number(1, "y"))});
+        return Value();
+    });
+    // Ground height of a terrain at (x, z): for putting things on the ground. None off the terrain.
+    def("terrain_height", "terrain_height(x, z)", 1, 2, [this, &g](CallArgs& a) {
+        Vec3 p = a[0].isNumber() ? Vec3{static_cast<float>(a.number(0, "x")), 0, static_cast<float>(a.number(1, "z"))}
+                                 : targetPosition(*this, a[0], "terrain_height()");
+        auto& reg = g.scene().registry();
+        for (Entity e : reg.entitiesWith<Terrain>()) {
+            if (!g.scene().isActive(e))
+                continue;
+            Terrain& t = reg.get<Terrain>(e);
+            Mat4 world = g.scene().worldMatrix(e);
+            Vec3 local = transformPoint(inverse(world), p);
+            if (std::abs(local.x) > t.size.x * 0.5f || std::abs(local.z) > t.size.y * 0.5f)
+                continue;
+            terrainEnsure(t);
+            local.y = terrainHeightAt(t, local.x, local.z);
+            return Value(static_cast<double>(transformPoint(world, local).y));
+        }
         return Value();
     });
     // The way around walls, as a list of points to walk through ([] if there's none).

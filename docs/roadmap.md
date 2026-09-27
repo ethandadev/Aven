@@ -59,8 +59,9 @@ Where Aven stands, including what's missing. If you'd like to help with any of i
   blend trees or IK.
 - **Pathfinding** works on a grid (2D and 3D, no baking). There's no crowd avoidance, and in 3D
   it follows one floor at a time (no bridges over paths).
-- **Not built yet:** terrain, LODs, occlusion culling, and baked lighting or global
-  illumination.
+- **Terrain**: one heightfield per object with four painted layers; no holes, caves, trees or
+  grass painting, and no level of detail for very large worlds.
+- **Not built yet:** LODs, occlusion culling, and baked lighting or global illumination.
 - **Audio:** volume, pitch, 3D placement and a mixer with buses (volume, mute, low-pass, echo),
   but no reverb zones or other effects.
 

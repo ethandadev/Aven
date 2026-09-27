@@ -77,6 +77,25 @@ def on_collide(other):
     print(self.anim_state)               # the state playing now
 ```
 
+## Terrain
+
+**Create > Terrain** makes 64 x 64 m of ground with gentle hills, painted with grass, dirt, rock
+and snow from the Asset Library. It collides like ground in 3D physics, and pathfinding walks on it.
+
+- **Sculpt**: pick Raise, Lower, Smooth or Flatten in the Inspector, then hold the left button on
+  the ground in the Scene view. Shift does the opposite; Ctrl-click with Flatten picks the height to
+  level to; Esc puts the brush down. Each stroke is one undo step.
+- **Paint**: up to four layers, each a texture (drag one in from Assets), a color and how many
+  meters one copy covers. **Paint by shape** puts layer 2 on slopes, 3 on steep sides, 4 up high.
+- **Make hills** starts over with new noise hills; **Flatten all** levels everything.
+- Size, resolution (height points per side) and max height are in the Inspector. Changing the
+  resolution keeps the shape.
+
+```easyscript
+def on_start():
+    self.y = terrain_height(self.x, self.z) + 0.5   # stand on the ground
+```
+
 ## Import settings
 
 Right-click an image, 3D model or sound in the Assets panel > **Import settings** (several at

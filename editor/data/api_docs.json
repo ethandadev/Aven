@@ -118,6 +118,7 @@
   "stop_music": "Stops the music.",
 
   "raycast": "Finds the first thing on a line from one point to another. Gives a dictionary with object, point, normal and distance, or None. layers=\"Ground\" (or a list) only hits those collision layers.",
+  "terrain_height": "How high a Terrain's ground is at (x, z), for putting things on it. None if there's no terrain there.",
   "find_path": "The way from one place (or object) to another around walls: a list of points to walk through, or [] if there's no way. radius= is how wide the walker is.",
   "debug_line": "Draws a line while playing, to see what code is doing. Lasts one frame, or `seconds`. Only shown in the editor.",
   "debug_circle": "Draws a circle outline while playing (one frame, or `seconds`). Only shown in the editor.",

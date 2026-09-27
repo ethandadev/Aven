@@ -21,6 +21,7 @@ know how the bigger engines think.
 - **Post-processing:** bloom, tonemapping, color grading, vignette, SSAO and FXAA.
 - **Game UI:** text, buttons, panels, images, value bars (health, energy) and anchors. Buttons
   work without code: **Click Actions** list what a click does, like Unity's On Click list.
+- **Terrain:** sculpt hills with brushes, paint up to four texture layers, with collision.
 - **Pathfinding:** characters walk around walls to a target, in 2D and 3D, with nothing to
   set up: Chase's "Walk around walls", `self.go_to()`, `find_path()` and blocks.
 - **Animation:** an **Animator** state machine (idle, run, jump...) switches sprite-sheet frames

@@ -4,6 +4,7 @@
 #include "aven/render/mesh.h"
 #include "aven/render/model.h"
 #include "aven/render/scene_renderer.h"
+#include "aven/scene/terrain.h"
 
 #include <algorithm>
 #include <array>
@@ -50,6 +51,9 @@ layout(std140) uniform Object {
     vec4 u_emission;
     vec4 u_params; // metallic, roughness, unlit, has texture
     vec4 u_extra;  // tiling x, tiling y, skinned, 0
+    vec4 u_terrain;        // x: is terrain (blend the layers below by the vertex weights)
+    vec4 u_layer_tile;     // meters one copy of each layer's texture covers
+    vec4 u_layer_color[4];
 };
 layout(std140) uniform Skin { mat4 u_joints[128]; };
 )";
@@ -63,6 +67,7 @@ in vec4 a_weights;
 out vec3 v_world;
 out vec3 v_normal;
 out vec2 v_uv;
+out vec4 v_splat;
 out float v_view_depth;
 void main() {
     mat4 skin = mat4(1.0);
@@ -74,6 +79,7 @@ void main() {
     v_world = world.xyz;
     v_normal = mat3(u_normal_matrix) * (mat3(skin) * a_normal);
     v_uv = a_uv * u_extra.xy;
+    v_splat = a_weights;
     vec4 view = u_view * world;
     v_view_depth = -view.z;
     gl_Position = u_proj * view;
@@ -104,9 +110,14 @@ const char* kPbrFS = R"(
 uniform sampler2D u_albedo;
 uniform sampler2DShadow u_csm;
 uniform sampler2DShadow u_local;
+uniform sampler2D u_layer0;
+uniform sampler2D u_layer1;
+uniform sampler2D u_layer2;
+uniform sampler2D u_layer3;
 in vec3 v_world;
 in vec3 v_normal;
 in vec2 v_uv;
+in vec4 v_splat;
 in float v_view_depth;
 out vec4 frag_color;
 out vec4 frag_normal;
@@ -176,6 +187,19 @@ vec3 brdf(vec3 N, vec3 V, vec3 L, vec3 albedo, float metallic, float rough, vec3
 void main() {
     vec4 base = u_color;
     if (u_params.w > 0.5) base *= texture(u_albedo, v_uv);
+    if (u_terrain.x > 0.5) {
+        // Terrain: each layer's texture tiled over the ground, mixed by how much was painted.
+        vec4 w = max(v_splat, vec4(0.0));
+        w /= max(w.x + w.y + w.z + w.w, 1e-4);
+        vec2 p = v_world.xz;
+        // Each texture mixed with a bigger, shifted copy of itself hides the repeating pattern.
+        #define LAYER(tex, tile) (0.5 * (texture(tex, p / tile).rgb + texture(tex, p / (tile * 3.7) + vec2(0.37, 0.61)).rgb))
+        vec3 c = w.x * LAYER(u_layer0, u_layer_tile.x) * u_layer_color[0].rgb
+               + w.y * LAYER(u_layer1, u_layer_tile.y) * u_layer_color[1].rgb
+               + w.z * LAYER(u_layer2, u_layer_tile.z) * u_layer_color[2].rgb
+               + w.w * LAYER(u_layer3, u_layer_tile.w) * u_layer_color[3].rgb;
+        base = vec4(c * u_color.rgb, 1.0);
+    }
     vec3 albedo = to_linear(base.rgb);
     vec3 N = normalize(v_normal);
     if (!gl_FrontFacing) N = -N;
@@ -290,6 +314,9 @@ struct ObjectUniforms {
     float emission[4];
     float params[4];
     float extra[4];
+    float terrain[4];
+    float layerTile[4];
+    float layerColor[16];
 };
 
 void set4(float* dst, float a, float b, float c, float d) {
@@ -380,7 +407,20 @@ struct Renderer3D::Impl {
         bool doubleSided = false;
         bool transparent = false;
         float depth = 0;
+        bool terrain = false;
+        rhi::TextureHandle layers[4];
+        float layerTile[4] = {4, 4, 4, 4};
+        Color layerColor[4];
     };
+    // Terrain meshes, made again when a terrain changes.
+    struct TerrainMesh {
+        MeshData data;
+        GpuMesh gpu;
+        uint32_t revision = ~0u;
+        const Terrain* owner = nullptr; // the editor's scene and the running game each have their own
+        bool used = false;
+    };
+    std::unordered_map<uint64_t, std::unique_ptr<TerrainMesh>> terrains;
     std::vector<Item> items;
     std::vector<std::vector<Mat4>> skins;
     std::array<Mat4, 128> skinBuffer{};
@@ -397,7 +437,7 @@ struct Renderer3D::Impl {
         pbr.fragment = common + kSkyFunctions + kPbrFS;
         pbr.attributes = {"a_position", "a_normal", "a_uv", "a_joints", "a_weights"};
         pbr.uniformBlocks = {"Frame", "Object", "Skin"};
-        pbr.textures = {"u_albedo", "u_csm", "u_local"};
+        pbr.textures = {"u_albedo", "u_csm", "u_local", "u_layer0", "u_layer1", "u_layer2", "u_layer3"};
         pbr.outputs = {"frag_color", "frag_normal"};
         pbr.label = "pbr";
         pbrShader = device->createShader(pbr);
@@ -484,6 +524,9 @@ struct Renderer3D::Impl {
             return;
         for (auto& p : primitives)
             p.release(*device);
+        for (auto& [k, tm] : terrains)
+            tm->gpu.release(*device);
+        terrains.clear();
         models.clear();
         for (auto pl : {opaque, opaqueDouble, transparent, depth, depthDouble, sky})
             device->destroy(pl);
@@ -545,9 +588,13 @@ struct Renderer3D::Impl {
         items.clear();
         skins.clear();
         auto& reg = scene.registry();
+        for (auto& [k, tm] : terrains)
+            tm->used = false;
         scene.walk([&](Entity e, int) {
             if (!reg.get<EntityInfo>(e).active)
                 return false;
+            if (auto* terrain = reg.tryGet<Terrain>(e); terrain && !reg.has<Hidden>(e))
+                gatherTerrain(e, *terrain, reg.get<WorldTransform>(e).matrix);
             const MeshRenderer* mr = reg.tryGet<MeshRenderer>(e);
             if (!mr || reg.has<Hidden>(e))
                 return true;
@@ -625,6 +672,52 @@ struct Renderer3D::Impl {
             }
             return true;
         });
+        dropUnusedTerrains();
+    }
+
+    void gatherTerrain(Entity e, Terrain& t, const Mat4& world) {
+        terrainEnsure(t);
+        auto& tm = terrains[e.toHandle()];
+        if (!tm)
+            tm = std::make_unique<TerrainMesh>();
+        tm->used = true;
+        if (tm->revision != t.revision || tm->owner != &t || !tm->gpu.vertexBuffer) {
+            tm->gpu.release(*device);
+            terrainBuildMesh(t, tm->data);
+            tm->gpu.upload(*device, tm->data);
+            tm->revision = t.revision;
+            tm->owner = &t;
+        }
+        Item it;
+        it.entity = e;
+        it.mesh = &tm->gpu;
+        it.world = world;
+        it.color = {1, 1, 1, 1};
+        it.roughness = t.roughness;
+        it.terrain = true;
+        for (size_t i = 0; i < 4; ++i) {
+            if (i < t.layers.size()) {
+                const TerrainLayer& l = t.layers[i];
+                it.layers[i] = l.texture.empty() ? assets->white().handle : assets->texture(l.texture).handle;
+                it.layerTile[i] = std::max(0.05f, l.tileSize);
+                it.layerColor[i] = l.color;
+            } else {
+                it.layers[i] = assets->white().handle;
+            }
+        }
+        transformBounds(world, tm->gpu.boundsMin, tm->gpu.boundsMax, it.boundsMin, it.boundsMax);
+        items.push_back(it);
+    }
+
+    void dropUnusedTerrains() {
+        for (auto it = terrains.begin(); it != terrains.end();) {
+            if (!it->second->used) {
+                it->second->gpu.release(*device);
+                it = terrains.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
 
     void drawItem(const Item& it, bool shadowPass) {
@@ -635,6 +728,10 @@ struct Renderer3D::Impl {
         set4(o.emission, it.emission.x, it.emission.y, it.emission.z, 0);
         set4(o.params, it.metallic, it.roughness, it.unlit ? 1.0f : 0.0f, it.texture ? 1.0f : 0.0f);
         set4(o.extra, it.tiling.x, it.tiling.y, it.skin >= 0 ? 1.0f : 0.0f, 0);
+        set4(o.terrain, it.terrain ? 1.0f : 0.0f, 0, 0, 0);
+        set4(o.layerTile, it.layerTile[0], it.layerTile[1], it.layerTile[2], it.layerTile[3]);
+        for (int i = 0; i < 4; ++i)
+            set4(o.layerColor + i * 4, it.layerColor[i].r, it.layerColor[i].g, it.layerColor[i].b, 1);
         rhi::Bindings b;
         b.vertexBuffer = it.mesh->vertexBuffer;
         b.indexBuffer = it.mesh->indexBuffer;
@@ -642,6 +739,8 @@ struct Renderer3D::Impl {
             b.textures[0] = it.texture ? it.texture : assets->white().handle;
             b.textures[1] = csmTexture;
             b.textures[2] = localTexture;
+            for (int i = 0; i < 4; ++i)
+                b.textures[3 + i] = it.terrain ? it.layers[i] : assets->white().handle;
         }
         device->applyBindings(b);
         device->applyUniforms(1, &o, sizeof o);

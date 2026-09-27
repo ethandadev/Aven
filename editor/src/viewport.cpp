@@ -656,7 +656,11 @@ void Editor::drawViewport(float dt) {
         bool usingGizmo = false, overGizmo = false;
         // With the Tile Painter open on a Tilemap, clicks paint instead of selecting and moving.
         const bool paintingTiles = !playing_ && cam.orthographic && paintingTilemap();
-        if (!paintingTiles)
+        // With a terrain brush picked, the left button sculpts instead.
+        const bool sculpting = !paintingTiles && !cam.orthographic && sculptingTerrain();
+        if (!sculpting)
+            sculptStroke_ = false;
+        if (!paintingTiles && !sculpting)
             drawGizmo(cam, pos, size, usingGizmo, overGizmo);
         gizmoWasUsing_ = usingGizmo;
 
@@ -701,6 +705,9 @@ void Editor::drawViewport(float dt) {
         if (paintingTiles) {
             paintTilesInViewport(cam, pos);
             boxSelecting_ = false;
+        } else if (sculpting) {
+            sculptTerrainInViewport(cam, dt);
+            boxSelecting_ = false;
         } else if (viewportHovered_ && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !overGizmo && !io.KeyAlt &&
             !ImGuizmo::IsViewManipulateHovered()) {
             Vec2 local{io.MousePos.x - viewportPos_.x, io.MousePos.y - viewportPos_.y};
@@ -741,18 +748,19 @@ void Editor::drawViewport(float dt) {
                     pickInViewport({b.x - viewportPos_.x, b.y - viewportPos_.y});
                 }
             }
-        } else if (!paintingTiles && viewportHovered_ && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !usingGizmo && !overGizmo &&
+        } else if (!paintingTiles && !sculpting && viewportHovered_ && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !usingGizmo && !overGizmo &&
                    !io.KeyAlt && !ImGuizmo::IsUsingViewManipulate()) {
             ImVec2 click = io.MouseClickedPos[0];
             ImVec2 now = io.MousePos;
             if (std::abs(click.x - now.x) < 4 && std::abs(click.y - now.y) < 4)
                 pickInViewport({now.x - viewportPos_.x, now.y - viewportPos_.y});
         }
-        if (!playing_ && !paintingTiles && viewportHovered_ && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && selected())
+        if (!playing_ && !paintingTiles && !sculpting && viewportHovered_ && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && selected())
             focusSelected();
 
         if (!playing_ && prefs.showHints) {
             const char* hint = paintingTiles ? "Painting tiles  |  Shift: erase  |  [ ]: change tile  |  Right-drag: pan  |  Scroll: zoom"
+                               : sculpting   ? "Terrain brush: hold the left button  |  Shift: the opposite  |  Esc: stop  |  Right-drag: look"
                                : view3D_     ? "Right-drag: look  |  Right-drag + WASD: fly  |  Alt+drag: orbit  |  F: focus"
                                              : "Right-drag: pan  |  Scroll: zoom  |  Drag: box select  |  W/E/R: move/rotate/scale";
             dl->AddText({pos.x + 10, pos.y + size.y - 24}, IM_COL32(255, 255, 255, 110), hint);

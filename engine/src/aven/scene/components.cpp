@@ -1,4 +1,7 @@
 #include "aven/scene/components.h"
+
+#include "aven/core/base64.h"
+#include "aven/scene/terrain.h"
 #include "aven/core/log.h"
 #include "aven/scene/reflection.h"
 
@@ -193,6 +196,70 @@ std::vector<ComponentInfo> buildRegistry() {
             .field(F(tiling), {.advanced = true})
             .field(F(castShadows))
             .field(F(unlit), {.advanced = true});
+    }
+    {
+        using Type = Terrain;
+        r.add<Type>("Terrain", "Rendering 3D", "Ground with hills and valleys: shape it with the sculpt brushes and paint it with textures.",
+                    false, false, true)
+            .field(F(size), {.tooltip = "Meters across (X) and deep (Z).", .step = 0.5f})
+            .field(F(resolution), {.tooltip = "Height points along each side: more is finer detail.", .min = 17, .max = 257})
+            .field(F(maxHeight), {.label = "Max Height", .tooltip = "How high the tallest hills can be, in meters.", .min = 1, .max = 200})
+            .field(F(roughness), {.min = 0, .max = 1})
+            .field(F(collide), {.tooltip = "Things stand on it (3D physics)."});
+        auto& info = r.list.back();
+        info.extraKeys = {"heights", "paint", "layers"};
+        // Heights as 16-bit numbers and paint as bytes, both in base64: small enough for scene files.
+        info.saveExtra = [](const void* c, Json& j) {
+            auto t = *static_cast<const Terrain*>(c);
+            terrainEnsure(t);
+            std::vector<uint8_t> h(t.heights.size() * 2);
+            for (size_t i = 0; i < t.heights.size(); ++i) {
+                auto v = static_cast<uint16_t>(std::lround(std::clamp(t.heights[i], 0.0f, 1.0f) * 65535.0f));
+                h[i * 2] = static_cast<uint8_t>(v & 0xFF);
+                h[i * 2 + 1] = static_cast<uint8_t>(v >> 8);
+            }
+            j["heights"] = base64Encode(h.data(), h.size());
+            j["paint"] = base64Encode(t.splat.data(), t.splat.size());
+            Json layers = Json::array();
+            for (auto& l : t.layers) {
+                Json lj = Json::object();
+                if (!l.texture.empty())
+                    lj["texture"] = l.texture;
+                lj["color"] = Json::parse("[" + std::to_string(l.color.r) + "," + std::to_string(l.color.g) + "," +
+                                          std::to_string(l.color.b) + "," + std::to_string(l.color.a) + "]");
+                lj["tile_size"] = l.tileSize;
+                layers.push(std::move(lj));
+            }
+            j["layers"] = std::move(layers);
+        };
+        info.loadExtra = [](void* c, const Json& j) {
+            auto& t = *static_cast<Terrain*>(c);
+            std::vector<uint8_t> h = base64Decode(j["heights"].asString(""));
+            t.heights.assign(h.size() / 2, 0.0f);
+            for (size_t i = 0; i < t.heights.size(); ++i)
+                t.heights[i] = static_cast<float>(h[i * 2] | (h[i * 2 + 1] << 8)) / 65535.0f;
+            t.splat = base64Decode(j["paint"].asString(""));
+            t.layers.clear();
+            for (auto& lj : j["layers"].elements()) {
+                TerrainLayer l;
+                l.texture = lj["texture"].asString("");
+                const Json& col = lj["color"];
+                if (col.size() >= 3)
+                    l.color = {col[0].asFloat(1), col[1].asFloat(1), col[2].asFloat(1), col.size() > 3 ? col[3].asFloat(1) : 1.0f};
+                l.tileSize = std::max(0.05f, lj["tile_size"].asFloat(4.0f));
+                t.layers.push_back(l);
+            }
+            // Heights saved at another resolution are resampled.
+            int saved = static_cast<int>(std::lround(std::sqrt(static_cast<double>(t.heights.size()))));
+            if (saved >= 2 && saved != t.resolution && saved * saved == static_cast<int>(t.heights.size())) {
+                int want = t.resolution;
+                t.resolution = saved;
+                terrainEnsure(t); // makes the paint match the saved heights first
+                t.resolution = want;
+            }
+            terrainEnsure(t);
+            ++t.revision;
+        };
     }
     {
         using Type = Light;

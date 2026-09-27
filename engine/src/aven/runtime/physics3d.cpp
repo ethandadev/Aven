@@ -6,6 +6,8 @@
 #include "aven/runtime/script_system.h"
 #include "aven/runtime/systems.h"
 
+#include "aven/scene/terrain.h"
+
 #include <Jolt/Jolt.h>
 
 #include <Jolt/Core/Factory.h>
@@ -18,6 +20,7 @@
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+#include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
@@ -178,7 +181,16 @@ struct Physics3D::Impl {
         Quat lastRotation;
         bool enabled = true;
         JPH::EMotionType motion = JPH::EMotionType::Static;
+        uint32_t terrainRevision = 0; // terrains are made again after sculpting
     };
+
+    // Whether an object has something to collide with: a body, a collider, or solid terrain.
+    static bool wantsBody(Registry& reg, Entity e) {
+        if (reg.has<RigidBody>(e) || reg.has<BoxCollider>(e) || reg.has<SphereCollider>(e))
+            return true;
+        auto* t = reg.tryGet<Terrain>(e);
+        return t && t->collide;
+    }
     std::unordered_map<Entity, BodyRecord> bodies;
     std::unordered_map<uint32_t, Entity> byBodyId;
     std::vector<Entity> dirty;
@@ -235,6 +247,22 @@ struct Physics3D::Impl {
             trigger = sphere->isTrigger;
             return offsetShape(new JPH::SphereShape(std::max(0.005f, sphere->radius * maxScale)), sphere->offset * absScale);
         }
+        // Terrain: a height field the same shape as what's drawn.
+        if (auto* t = reg.tryGet<Terrain>(e)) {
+            terrainEnsure(*t);
+            int n = t->resolution;
+            std::vector<float> samples(static_cast<size_t>(n) * n);
+            for (size_t i = 0; i < samples.size(); ++i)
+                samples[i] = t->heights[i] * t->maxHeight * absScale.y;
+            JPH::HeightFieldShapeSettings hs(samples.data(),
+                                             JPH::Vec3(-t->size.x * 0.5f * absScale.x, 0, -t->size.y * 0.5f * absScale.z),
+                                             JPH::Vec3(t->size.x / static_cast<float>(n - 1) * absScale.x, 1.0f,
+                                                       t->size.y / static_cast<float>(n - 1) * absScale.z),
+                                             static_cast<uint32_t>(n));
+            friction = 0.8f;
+            auto r = hs.Create();
+            return r.IsValid() ? r.Get() : nullptr;
+        }
         // A RigidBody without a collider gets one that fits its shape.
         if (auto* mr = reg.tryGet<MeshRenderer>(e)) {
             switch (mr->mesh) {
@@ -257,7 +285,7 @@ struct Physics3D::Impl {
         Scene& scene = game.scene();
         auto& reg = scene.registry();
         auto* rb = reg.tryGet<RigidBody>(e);
-        if (!rb && !reg.has<BoxCollider>(e) && !reg.has<SphereCollider>(e))
+        if (!wantsBody(reg, e))
             return;
         if (reg.has<CharacterController>(e))
             return; // characters get their own controller
@@ -298,7 +326,7 @@ struct Physics3D::Impl {
             Log::warn("Too many 3D physics objects; '", scene.info(e).name, "' won't collide.");
             return;
         }
-        bodies[e] = {id, t, r, true, motion};
+        bodies[e] = {id, t, r, true, motion, reg.has<Terrain>(e) ? reg.get<Terrain>(e).revision : 0u};
         byBodyId[id.GetIndexAndSequenceNumber()] = e;
         auto pv = pendingVelocity.find(e);
         if (pv != pendingVelocity.end()) {
@@ -366,7 +394,8 @@ struct Physics3D::Impl {
         dirty.clear();
         std::vector<Entity> gone;
         for (auto& [e, b] : bodies)
-            if (!scene.valid(e) || (!reg.has<RigidBody>(e) && !reg.has<BoxCollider>(e) && !reg.has<SphereCollider>(e)))
+            if (!scene.valid(e) || !wantsBody(reg, e) ||
+                (reg.has<Terrain>(e) && reg.get<Terrain>(e).revision != b.terrainRevision))
                 gone.push_back(e);
         for (Entity e : gone)
             destroyBody(e);
@@ -390,6 +419,9 @@ struct Physics3D::Impl {
             ensure(e);
         for (Entity e : reg.entitiesWith<SphereCollider>())
             ensure(e);
+        for (Entity e : reg.entitiesWith<Terrain>())
+            if (reg.get<Terrain>(e).collide)
+                ensure(e);
         for (Entity e : reg.entitiesWith<CharacterController>())
             if (!characters.count(e))
                 createCharacter(e);
@@ -618,7 +650,7 @@ void Physics3D::start() {
     stop();
     auto& reg = impl_->game.scene().registry();
     if (reg.count<RigidBody>() == 0 && reg.count<BoxCollider>() == 0 && reg.count<SphereCollider>() == 0 &&
-        reg.count<CharacterController>() == 0)
+        reg.count<CharacterController>() == 0 && reg.count<Terrain>() == 0)
         return; // no 3D physics in this scene; skip the setup cost
     jolt();
     for (int i = 0; i < ProjectSettings::kMaxLayers; ++i)
@@ -652,7 +684,9 @@ void Physics3D::stop() {
 void Physics3D::sync() {
     if (!impl_->running()) {
         auto& reg = impl_->game.scene().registry();
-        if (reg.count<RigidBody>() + reg.count<BoxCollider>() + reg.count<SphereCollider>() + reg.count<CharacterController>() == 0)
+        if (reg.count<RigidBody>() + reg.count<BoxCollider>() + reg.count<SphereCollider>() + reg.count<CharacterController>() +
+                reg.count<Terrain>() ==
+            0)
             return;
         auto pending = std::move(impl_->pendingVelocity);
         start();
@@ -667,7 +701,7 @@ void Physics3D::step(float dt) {
         // Colliders may be added later by scripts.
         auto& reg = impl_->game.scene().registry();
         if (reg.count<RigidBody>() + reg.count<BoxCollider>() + reg.count<SphereCollider>() +
-                reg.count<CharacterController>() ==
+                reg.count<CharacterController>() + reg.count<Terrain>() ==
             0)
             return;
         auto pending = std::move(impl_->pendingVelocity);

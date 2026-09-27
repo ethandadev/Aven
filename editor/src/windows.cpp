@@ -359,7 +359,7 @@ void Editor::drawCommandPalette() {
         add(t.first, "tool", t.second);
     for (const char* k : {"Square", "Circle", "Sprite", "Text", "Tilemap", "Cube", "Sphere", "Player 3D", "Camera", "Particles",
                           "Sound", "UI Text", "UI Button", "UI Image", "Score Text", "Health Bar", "Start Menu", "Pause Menu",
-                          "Folder", "Sun", "Point Light"})
+                          "Folder", "Sun", "Point Light", "Terrain"})
         add(std::string("Create ") + k, "create", [this, k] { createEntity(k); });
     int objects = 0;
     scene().walk([&](Entity e, int) {

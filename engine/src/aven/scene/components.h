@@ -207,6 +207,28 @@ struct MeshRenderer {
     bool unlit = false;
 };
 
+// ---------------------------------------------------------------- Terrain
+
+struct TerrainLayer {
+    std::string texture;   // empty: plain color
+    Color color{1, 1, 1, 1};
+    float tileSize = 4.0f; // meters one copy of the texture covers
+};
+
+// Ground made of a grid of heights, shaped with the sculpt brushes and painted with up to four
+// texture layers (terrain.h). Collides like ground in 3D physics.
+struct Terrain {
+    Vec2 size{64, 64};       // meters across (x) and deep (z)
+    int resolution = 65;     // height points along each side
+    float maxHeight = 20.0f; // how high the tallest point can be
+    float roughness = 0.9f;
+    bool collide = true;
+    std::vector<float> heights;  // resolution * resolution, 0..1 (row by row, z then x)
+    std::vector<uint8_t> splat;  // resolution * resolution * 4: how much of each layer
+    std::vector<TerrainLayer> layers;
+    uint32_t revision = 0;       // runtime: goes up when the shape or paint changes
+};
+
 enum class LightType : int32_t { Directional, Point, Spot };
 
 struct Light {

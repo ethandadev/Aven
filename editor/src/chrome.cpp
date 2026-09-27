@@ -235,7 +235,7 @@ void Editor::drawMenuBar() {
         }
         if (unlocked(Feature::Tilemap) && ImGui::MenuItem("Tilemap"))
             createEntity("Tilemap");
-        for (const char* k : {"Text", "Camera", "Player 3D"})
+        for (const char* k : {"Text", "Camera", "Player 3D", "Terrain"})
             if (ImGui::MenuItem(k))
                 createEntity(k);
         if (unlocked(Feature::Particles) && ImGui::MenuItem("Particles"))

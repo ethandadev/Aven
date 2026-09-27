@@ -709,6 +709,14 @@ private:
     void drawViewport(float dt);
     void drawAssets();
     bool showImport_ = false, focusImport_ = false;
+    // Terrain tools (terrain_editor.cpp)
+    int terrainTool_ = -1; // a TerrainTool, or -1 for none
+    float brushRadius_ = 4.0f, brushStrength_ = 0.5f, flattenLevel_ = 0.3f, hillsAmount_ = 0.35f;
+    int paintLayer_ = 0;
+    bool sculptStroke_ = false; // the mouse is down with a brush: one undo step for the whole stroke
+    bool sculptingTerrain();
+    void drawTerrainInspector(Entity e);
+    void sculptTerrainInViewport(const CameraView& cam, float dt);
     void drawImportSettings(); // for the files selected in the Assets panel
     void drawConsole();
     void drawScriptTabs();

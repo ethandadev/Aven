@@ -726,7 +726,7 @@ void Editor::drawHierarchy() {
             createEntity("Tilemap");
         ImGui::Separator();
         ImGui::TextDisabled("3D");
-        for (const char* k : {"Cube", "Sphere", "Plane", "Cylinder", "Capsule", "Player 3D"})
+        for (const char* k : {"Cube", "Sphere", "Plane", "Cylinder", "Capsule", "Player 3D", "Terrain"})
             if (ImGui::MenuItem(k))
                 createEntity(k);
         if (unlocked(Feature::Lighting))
@@ -1807,7 +1807,16 @@ void Editor::drawInspector() {
             }
             if (ci.name == "ValueBar")
                 drawValueBarHint(e);
-            if (ci.name == "Animator") {
+            if (ci.name == "Terrain") {
+                if (ImGui::BeginTable("##fields", 2, ImGuiTableFlags_SizingStretchProp)) {
+                    ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, 110);
+                    ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
+                    if (drawComponent(e, ci, data))
+                        ++reg.get<Terrain>(e).revision; // size, height... change the mesh
+                    ImGui::EndTable();
+                }
+                drawTerrainInspector(e);
+            } else if (ci.name == "Animator") {
                 drawAnimator(e, selection);
             } else if (ci.name == "ClickActions") {
                 drawClickActions(e, selection);

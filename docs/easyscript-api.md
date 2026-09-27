@@ -49,6 +49,7 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `str(value)`
 - `sum(my_list)`
 - `tan(x)`
+- `terrain_height(x, z)`
 - `type(value)`
 
 ## Time

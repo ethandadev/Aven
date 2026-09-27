@@ -9,6 +9,7 @@
 #include "aven/runtime/script_system.h"
 #include "aven/runtime/systems.h"
 #include "aven/scene/reflection.h"
+#include "aven/scene/terrain.h"
 
 #include <filesystem>
 
@@ -711,4 +712,68 @@ AVEN_TEST(pathfinding_around_walls) {
     if (!catcher.errors.empty())
         std::printf("  %s\n", catcher.errors[0].c_str());
     CHECK(catcher.errors.empty());
+}
+
+// Terrain: heights survive saving, brushes shape it, balls land on it, and scripts can ask
+// how high the ground is.
+AVEN_TEST(terrain_shape_save_and_collide) {
+    Terrain t;
+    t.size = {20, 20};
+    t.resolution = 33;
+    t.maxHeight = 10;
+    terrainEnsure(t);
+    CHECK_EQ(t.heights.size(), size_t(33 * 33));
+    terrainBrush(t, TerrainTool::Raise, 0, 0, 4, 1, 1, 0, 0);
+    float peak = terrainHeightAt(t, 0, 0);
+    CHECK(peak > 1.0f && peak <= 10.0f);
+    CHECK(terrainHeightAt(t, 8, 8) < 0.01f); // outside the brush
+    Vec3 hit;
+    CHECK(terrainRaycast(t, {0, 50, 0}, {0, -1, 0}, 100, hit));
+    CHECK(std::abs(hit.y - peak) < 0.05f);
+    terrainBrush(t, TerrainTool::Paint, 5, 5, 2, 1, 1, 1, 0);
+    // Save and load (heights are stored as 16-bit numbers).
+    const ComponentInfo* ci = ComponentRegistry::find("Terrain");
+    CHECK(ci != nullptr);
+    Json saved = saveComponent(*ci, &t);
+    Terrain back;
+    loadComponent(*ci, &back, saved);
+    CHECK_EQ(back.resolution, 33);
+    CHECK(std::abs(terrainHeightAt(back, 0, 0) - peak) < 0.01f);
+    CHECK(back.splat == t.splat);
+    // A different resolution keeps the shape.
+    back.resolution = 65;
+    terrainEnsure(back);
+    CHECK(std::abs(terrainHeightAt(back, 0, 0) - peak) < 0.3f);
+
+    namespace stdfs = std::filesystem;
+    stdfs::path dir = stdfs::temp_directory_path() / "aven_terrain_test";
+    std::error_code ec;
+    stdfs::remove_all(dir, ec);
+    stdfs::create_directories(dir / "scripts", ec);
+    fs::writeText(dir / "scripts/probe.es", "def on_update(dt):\n    game.h = terrain_height(0, 0)\n    game.off = terrain_height(100, 0)\n");
+    ErrorCatcher catcher;
+    Assets assets;
+    assets.setRoot(dir);
+    Input input;
+    Game game(assets, input);
+    auto scene = std::make_unique<Scene>();
+    auto& reg = scene->registry();
+    Entity ground = scene->create("Ground");
+    scene->transform(ground).position = {0, 1, 0};
+    reg.emplace<Terrain>(ground) = t;
+    Entity ball = scene->create("Ball");
+    scene->transform(ball).position = {0, 20, 0};
+    reg.emplace<RigidBody>(ball);
+    reg.emplace<SphereCollider>(ball).radius = 0.5f;
+    reg.emplace<Script>(scene->create("Probe")).path = "scripts/probe.es";
+    game.start(std::move(scene), "test.scene");
+    for (int i = 0; i < 60 * 4; ++i)
+        game.update(1.0f / 60.0f);
+    float groundY = 1 + peak;
+    Vec3 at = game.scene().worldPosition(game.scene().findByName("Ball"));
+    CHECK(std::abs(at.y - (groundY + 0.5f)) < 0.35f); // resting on the bump (it may roll off a little)
+    CHECK(std::abs(game.scripts().gameNumber("h") - groundY) < 0.05);
+    CHECK(game.scripts().gameValue("off").isNone());
+    CHECK(catcher.errors.empty());
+    game.stop();
 }

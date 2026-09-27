@@ -9,6 +9,7 @@
 #include "aven/scene/reflection.h"
 #include "block_editor.h"
 #include "code_editor.h"
+#include "aven/scene/terrain.h"
 
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
@@ -971,6 +972,24 @@ Entity Editor::createEntity(const std::string& kind, Entity parent) {
     else if (kind == "Folder") {
         // Folders only hold other objects, so they sit at their parent's origin.
         s.transform(e).position = {0, 0, 0};
+    } else if (kind == "Terrain") {
+        // Gentle hills, painted grass, dirt, rock and snow from the Asset Library.
+        auto& t = reg.emplace<Terrain>(e);
+        if (!parent)
+            s.transform(e).position = {0, 0, 0};
+        t.layers.clear();
+        const struct { const char* id; float tile; } layers[] = {{"texture/grass", 4}, {"texture/dirt", 3}, {"texture/rock", 6}, {"texture/snow", 5}};
+        const Json& items = library()["items"];
+        for (auto& l : layers)
+            for (size_t i = 0; i < items.size(); ++i)
+                if (items[i]["id"].asString("") == l.id) {
+                    std::string path = addLibraryItem(static_cast<int>(i));
+                    t.layers.push_back({path, {1, 1, 1, 1}, l.tile});
+                }
+        terrainEnsure(t);
+        terrainGenerateHills(t, 0.35f, static_cast<uint32_t>(frameCount_ * 7919 + 17));
+        terrainAutoPaint(t);
+        scanAssets();
     } else if (kind == "Tilemap") {
         // At the origin, so tiles line up with the grid.
         reg.emplace<Tilemap>(e);
@@ -982,6 +1001,14 @@ Entity Editor::createEntity(const std::string& kind, Entity parent) {
     select(e);
     if (kind == "Tilemap")
         openTilePainter();
+    if (kind == "Terrain") {
+        terrainTool_ = static_cast<int>(TerrainTool::Raise);
+        // Look at it from above and to the side, so the whole thing shows.
+        auto& t = reg.get<Terrain>(e);
+        camPitch_ = -35.0f;
+        camYaw_ = 0.0f;
+        cam3D_ = s.worldPosition(e) + Vec3{0, t.size.y * 0.55f, t.size.y * 0.8f};
+    }
     milestone("objects_added");
     return e;
 }
@@ -1956,7 +1983,7 @@ void Editor::frame(float dt) {
             ++errorCount_;
 
     // Interaction bookkeeping for undo.
-    if (!ImGui::IsAnyItemActive() && !gizmoWasUsing_)
+    if (!ImGui::IsAnyItemActive() && !gizmoWasUsing_ && !sculptStroke_)
         editInProgress_ = false;
 
     if (!hasProject() || showHub_) {
