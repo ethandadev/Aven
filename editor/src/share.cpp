@@ -782,7 +782,7 @@ void Editor::writeWebAppFiles(const stdfs::path& out, const std::string& color, 
     if (!big.empty()) {
         Assets::savePng(out / "icon-512.png", big.data(), 512, 512, false);
         // 192 x 192, sampled down.
-        std::vector<uint8_t> small(192 * 192 * 4);
+        std::vector<uint8_t> icon(192 * 192 * 4);
         for (int y = 0; y < 192; ++y)
             for (int x = 0; x < 192; ++x)
                 for (int c = 0; c < 4; ++c) {
@@ -791,9 +791,9 @@ void Editor::writeWebAppFiles(const stdfs::path& out, const std::string& color, 
                     for (int sy = y0; sy < y1; ++sy)
                         for (int sx = x0; sx < x1; ++sx, ++n)
                             sum += big[(static_cast<size_t>(sy) * 512 + sx) * 4 + c];
-                    small[(static_cast<size_t>(y) * 192 + x) * 4 + c] = static_cast<uint8_t>(n ? sum / n : 0);
+                    icon[(static_cast<size_t>(y) * 192 + x) * 4 + c] = static_cast<uint8_t>(n ? sum / n : 0);
                 }
-        Assets::savePng(out / "icon-192.png", small.data(), 192, 192, false);
+        Assets::savePng(out / "icon-192.png", icon.data(), 192, 192, false);
     }
     Json manifest = Json::object();
     manifest["name"] = settings_.name;
