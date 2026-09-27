@@ -1,4 +1,5 @@
 #include "block_editor.h"
+#include "code_editor.h"
 
 #include "aven/platform/input.h"
 
@@ -1188,6 +1189,7 @@ bool BlockEditor::draw(const char* id, ImVec2 size) {
 
     // Keyboard: undo/redo and delete while the canvas is hovered.
     if (canvasHovered && !ImGui::GetIO().WantTextInput) {
+        claimKeyboard();
         bool ctrl = ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeySuper;
         if (ctrl && ImGui::IsKeyPressed(ImGuiKey_Z))
             ImGui::GetIO().KeyShift ? redo() : undo();

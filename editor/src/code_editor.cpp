@@ -13,6 +13,14 @@
 namespace aven::editor {
 
 namespace {
+int keyboardClaimFrame = -10;
+}
+
+void claimKeyboard() { keyboardClaimFrame = ImGui::GetFrameCount(); }
+bool keyboardClaimed() { return keyboardClaimFrame >= ImGui::GetFrameCount() - 1; }
+
+
+namespace {
 
 
 bool isKeyword(const std::string& w, CodeLanguage lang = CodeLanguage::EasyScript) {
@@ -1326,6 +1334,7 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
 
     if (focused_ && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
         ImGui::SetNextFrameWantCaptureKeyboard(true);
+        claimKeyboard();
         handleKeys(changed);
         handleTyping(changed);
     }

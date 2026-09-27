@@ -171,7 +171,7 @@ bool Editor::shortcut(const char* action) {
     if (!chord || !ImGui::IsKeyChordPressed(chord))
         return false;
     for (auto& a : keyActions())
-        if (std::string(a.id) == action && !a.whileTyping && ImGui::GetIO().WantTextInput)
+        if (std::string(a.id) == action && !a.whileTyping && (ImGui::GetIO().WantTextInput || keyboardClaimed()))
             return false;
     return true;
 }
@@ -1229,8 +1229,40 @@ void Editor::groupSelection() {
     notify("Grouped " + plural(sel.size(), "object") + " into a folder. Type a name for it.");
 }
 
+// The selected objects without those inside another selected one (they come along with it), in
+// the order the Hierarchy lists them. What duplicate, copy and drag act on.
+std::vector<Entity> Editor::topSelection() {
+    std::vector<Entity> out;
+    if (selection_.empty())
+        return out;
+    std::unordered_set<uint64_t> ids;
+    for (UUID id : selection_)
+        ids.insert(id.value);
+    scene_->walk([&](Entity x, int) {
+        if (!ids.count(scene_->info(x).uuid.value))
+            return true;
+        out.push_back(x);
+        return false;
+    });
+    return out;
+}
+
+void Editor::duplicateSelection() {
+    auto sel = topSelection();
+    if (sel.empty() || playing_)
+        return;
+    recordUndo("Duplicate");
+    std::vector<Entity> copies;
+    for (Entity e : sel)
+        if (Entity c = scene_->duplicate(e))
+            copies.push_back(c);
+    selection_.clear();
+    for (Entity c : copies)
+        addToSelection(c);
+}
+
 void Editor::copySelection(bool cut) {
-    auto sel = selectedEntities();
+    auto sel = topSelection();
     if (sel.empty())
         return;
     clipboard_ = scene_->saveEntities(sel);
@@ -1412,11 +1444,11 @@ void Editor::drawPrefabBar() {
     ImGui::PopStyleColor();
 }
 
-void Editor::savePrefab(Entity e) {
+void Editor::savePrefab(Entity e, const std::string& folder) {
     std::string name;
     for (char c : scene_->info(e).name)
         name += std::isalnum(static_cast<unsigned char>(c)) ? static_cast<char>(std::tolower(static_cast<unsigned char>(c))) : '_';
-    std::string path = uniqueName("prefabs", name.empty() ? "prefab" : name, ".prefab");
+    std::string path = uniqueName(folder, name.empty() ? "prefab" : name, ".prefab");
     Json data = scene_->saveEntities({e});
     // Prefabs spawn at the position you choose, so store them at the origin.
     if (data["entities"].size())

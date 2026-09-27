@@ -26,6 +26,11 @@ enum class CodeLanguage { EasyScript, CSharp, GDScript, Luau, Cpp };
 // auto-indent, bracket pairing and matching, indent guides, line moving, zoom, and with a
 // CodeIntel attached: suggestions by context, parameter hints, hover help, live problem
 // underlines and go to definition.
+// A widget with its own keys (the code editor, the block canvas) claims the keyboard for the
+// frame, so the editor's shortcuts (undo, duplicate...) don't also act on the scene.
+void claimKeyboard();
+bool keyboardClaimed();
+
 class CodeEditor {
 public:
     struct Completion {

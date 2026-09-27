@@ -145,7 +145,7 @@ public:
     // --- creating things
     Entity createEntity(const std::string& kind, Entity parent = {});
     Entity instantiatePrefab(const std::string& path, Vec3 position);
-    void savePrefab(Entity e);
+    void savePrefab(Entity e, const std::string& folder = "prefabs");
     void copySelection(bool cut);
     void groupSelection(); // puts the selected objects in a new folder object (Ctrl+G)
     // A setting changed while playing, which can be copied back into the edited scene.
@@ -351,7 +351,15 @@ private:
     char referenceFilter_[64] = {};
     std::vector<std::string> assetFiles_;
     float assetScanTimer_ = 0;
-    std::string selectedAsset_;
+    // Assets panel (assets_panel.cpp)
+    std::vector<std::string> selectedAssets_, assetDrag_, confirmDelete_, deleteUsers_;
+    std::string assetAnchor_, assetPendingSelect_;
+    bool assetSelected(const std::string& rel) const;
+    std::vector<std::string> assetUsers(const std::string& rel) const; // files that mention it
+    // Moves or renames files and folders, fixing every reference to them. Returns how many moved.
+    int moveAssets(const std::vector<std::pair<std::string, std::string>>& moves);
+    void moveAssetsInto(const std::vector<std::string>& items, const std::string& folder);
+    void deleteAssets(const std::vector<std::string>& items);
     std::string assetSearch_;
     float assetCell_ = 92;
     bool showInfo_ = true, showWarnings_ = true, showErrors_ = true;
@@ -399,6 +407,8 @@ private:
     UUID hierarchyAnchor_;
     UUID pendingSelect_; // a click on one of several selected rows: select it alone unless it becomes a drag
     std::vector<Entity> draggedEntities(Entity dragged);
+    std::vector<Entity> topSelection();
+    void duplicateSelection();
     UUID revealedFor_;                       // the selection the Hierarchy last opened its folders for
     std::unordered_set<uint64_t> revealIds_; // folders to open so the selected object shows
     bool scrollToSelected_ = false;
@@ -747,6 +757,7 @@ void openExternal(const std::string& target); // a file, folder or link in the s
 bool launchCommand(const std::string& commandLine); // runs a program with arguments (no shell)
 // "1 object", "3 objects"
 inline std::string plural(size_t n, const std::string& word) { return std::to_string(n) + " " + word + (n == 1 ? "" : "s"); }
+inline std::string plural(size_t n, const std::string& one, const std::string& many) { return std::to_string(n) + " " + (n == 1 ? one : many); }
 const Json& editorData(const std::string& name);
 
 // Small shared UI helpers.

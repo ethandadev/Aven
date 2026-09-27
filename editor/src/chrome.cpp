@@ -172,10 +172,8 @@ void Editor::drawMenuBar() {
             copySelection(false);
         if (ImGui::MenuItem("Paste", key("paste"), false, !playing_))
             pasteClipboard();
-        if (ImGui::MenuItem("Duplicate", key("duplicate"), false, sel && !playing_)) {
-            recordUndo("Duplicate");
-            select(scene_->duplicate(sel));
-        }
+        if (ImGui::MenuItem("Duplicate", key("duplicate"), false, sel && !playing_))
+            duplicateSelection();
         if (ImGui::MenuItem("Delete", key("delete"), false, sel && !playing_)) {
             recordUndo("Delete");
             for (Entity e : selectedEntities())
@@ -599,7 +597,7 @@ void Editor::handleShortcuts() {
     }
     if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Q))
         requestQuit();
-    if (ImGui::GetIO().WantTextInput)
+    if (ImGui::GetIO().WantTextInput || keyboardClaimed())
         return;
     if (shortcut("toggle_2d3d"))
         view3D_ = !view3D_;
@@ -611,15 +609,8 @@ void Editor::handleShortcuts() {
         redo();
     bool sceneFocus = viewportFocused_ || hierarchyFocused_;
     auto sel = selectedEntities();
-    if (!sel.empty() && shortcut("duplicate")) {
-        recordUndo("Duplicate");
-        std::vector<Entity> copies;
-        for (Entity e : sel)
-            copies.push_back(scene_->duplicate(e));
-        selection_.clear();
-        for (Entity c : copies)
-            addToSelection(c);
-    }
+    if (!sel.empty() && shortcut("duplicate"))
+        duplicateSelection();
     if (!sel.empty() && shortcut("group") && sceneFocus)
         groupSelection();
     if (!sel.empty() && shortcut("delete") && sceneFocus) {
