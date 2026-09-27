@@ -200,8 +200,9 @@ void Editor::drawAssetLibrary() {
         if (shown++ % perRow)
             ImGui::SameLine();
         ImGui::PushID(i);
-        ImGui::BeginGroup();
         ImVec2 p = ImGui::GetCursorScreenPos();
+        // One button covers the tile; the picture and name are drawn over it, so it stays the last item
+        // (a group here has no ID, and a drag that starts off it would trip ImGui's drag-source check).
         ImGui::InvisibleButton("##item", {cell, cell + ImGui::GetTextLineHeight() + 6});
         bool hovered = ImGui::IsItemHovered();
         ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -230,7 +231,6 @@ void Editor::drawAssetLibrary() {
             label = label.substr(0, label.size() - 4) + "...";
         dl->AddText({p.x + (cell - ImGui::CalcTextSize(label.c_str()).x) * 0.5f, p.y + cell + 3},
                     ImGui::GetColorU32(ImGuiCol_Text), label.c_str());
-        ImGui::EndGroup();
         if (hovered)
             ImGui::SetTooltip("%s\n%s\n\nClick to place it, or drag it into the scene.\nRight-click for more.", name.c_str(),
                               item["tags"].asString("").c_str());
