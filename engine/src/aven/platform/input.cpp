@@ -92,6 +92,13 @@ void Input::releaseAll() {
     std::fill(std::begin(pad_), std::end(pad_), false);
 }
 
+void Input::holdKey(int key, bool down, bool wasDown) {
+    if (key < 0 || key >= keys::Count)
+        return;
+    keys_[static_cast<size_t>(key)] = keys_[static_cast<size_t>(key)] || down;
+    prevKeys_[static_cast<size_t>(key)] = prevKeys_[static_cast<size_t>(key)] || wasDown;
+}
+
 void Input::mirror(const Input& src, Vec2 mouseOffset) {
     keys_ = src.keys_;
     prevKeys_ = src.prevKeys_;

@@ -777,3 +777,45 @@ AVEN_TEST(terrain_shape_save_and_collide) {
     CHECK(catcher.errors.empty());
     game.stop();
 }
+
+// Touch controls: the stick holds arrow keys, buttons press their key once, and other fingers
+// act as the mouse; fingers on controls never click the game.
+AVEN_TEST(touch_controls_press_keys) {
+    TouchControls tc;
+    TouchSettings s;
+    s.mode = TouchMode::Auto;
+    s.buttons = {{"Jump", "space"}};
+    tc.configure(s);
+    Input input;
+    Vec2 win{1280, 720};
+    tc.update({}, win, input);
+    CHECK(!tc.visible()); // Auto: not until the screen is touched
+    auto stick = tc.stickArea();
+    auto jump = tc.button(0);
+    auto frame = [&](std::vector<TouchPoint> t) {
+        input.beginFrame();
+        tc.update(t, win, input);
+    };
+    frame({{1, stick.center + Vec2{stick.radius * 0.8f, 0}}});
+    CHECK(tc.visible());
+    CHECK(input.keyDown(keys::Right) && !input.keyDown(keys::Left));
+    CHECK(!input.mouseDown(MouseButton::Left)); // the stick isn't a click
+    frame({{1, stick.center + Vec2{0, -stick.radius * 0.8f}}, {2, jump.center}}); // up, and press Jump
+    CHECK(input.keyDown(keys::Up) && !input.keyDown(keys::Right));
+    CHECK(input.keyPressed(keys::Space));
+    frame({{1, stick.center + Vec2{0, -stick.radius * 0.8f}}, {2, jump.center}});
+    CHECK(input.keyDown(keys::Space) && !input.keyPressed(keys::Space)); // held, pressed only once
+    frame({{3, {640, 200}}}); // lift both; a new finger in the middle of the screen
+    CHECK(!input.keyDown(keys::Up) && !input.keyDown(keys::Space));
+    CHECK(input.mouseDown(MouseButton::Left));
+    CHECK(input.mousePosition().x == 640.0f);
+    frame({});
+    CHECK(!input.mouseDown(MouseButton::Left));
+    // Saved with the project only when changed.
+    ProjectSettings p;
+    CHECK(p.toJson()["touch"].isNull());
+    p.touch.mode = TouchMode::Always;
+    ProjectSettings q;
+    q.fromJson(p.toJson());
+    CHECK(q.touch.mode == TouchMode::Always && q.touch.buttons.size() == 1);
+}

@@ -51,6 +51,9 @@ public:
     void setGamepad(bool connected, const bool buttons[static_cast<int>(PadButton::Count)],
                     const float axes[static_cast<int>(PadAxis::Count)]);
     void releaseAll();
+    // Holds a key on top of whatever the keyboard does, with its state last frame (for input
+    // rebuilt every frame, like the editor's game view).
+    void holdKey(int key, bool down, bool wasDown);
     // Copies another input's state, shifting the mouse by `mouseOffset` (used by the
     // editor to feed the game only what happens inside its viewport).
     void mirror(const Input& src, Vec2 mouseOffset);

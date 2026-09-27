@@ -23,6 +23,21 @@ struct AudioBus {
     bool operator==(const AudioBus&) const = default;
 };
 
+// On-screen controls for phones and tablets: a stick (the arrow keys) and buttons that press keys.
+struct TouchButton {
+    std::string label; // shown on the button
+    std::string key;   // the key it presses: "space", "x", "e"...
+    bool operator==(const TouchButton&) const = default;
+};
+enum class TouchMode : int32_t { Auto, Always, Off }; // Auto: once the screen is touched
+
+struct TouchSettings {
+    TouchMode mode = TouchMode::Auto;
+    bool stick = true; // presses the arrow keys
+    std::vector<TouchButton> buttons{{"A", "space"}};
+    bool operator==(const TouchSettings&) const = default;
+};
+
 struct ProjectSettings {
     static constexpr const char* kFileName = "project.aven";
 
@@ -40,6 +55,7 @@ struct ProjectSettings {
     bool advancedMode = false; // editor shows advanced components and settings
     std::string templateName;  // which starter template the project came from
     Json inputActions = Json::object();
+    TouchSettings touch;
 
     // The folder name for this game's save data: its name plus the start of its id.
     std::string saveFolderName() const;

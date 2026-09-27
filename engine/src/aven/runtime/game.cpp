@@ -64,6 +64,7 @@ void Game::start(std::unique_ptr<Scene> scene, const std::string& path) {
     debugDraw_.clear();
     prefabCache_.clear();
     navigation_->clear();
+    touch_.configure(settings_.touch);
     scene_->updateTransforms();
     startSystems();
 }
@@ -168,7 +169,15 @@ void Game::render(SceneRenderer& renderer, int width, int height, const RenderOp
     renderer.cameraShake = gameplay_->shakeOffset();
     CameraView cam = camera(static_cast<float>(width) / std::max(height, 1));
     renderer.debugDraw = options.debugDraw ? &debugDraw_ : nullptr;
+    auto overlay = renderer.screenOverlay;
+    if (touch_.visible() && options.drawUI)
+        renderer.screenOverlay = [&](const CameraView& c) {
+            if (overlay)
+                overlay(c);
+            touch_.draw(renderer.renderer2D(), assets_, screenSize_);
+        };
     renderer.render(*scene_, cam, width, height, options);
+    renderer.screenOverlay = overlay;
     renderer.cameraShake = {};
     renderer.debugDraw = nullptr;
 }

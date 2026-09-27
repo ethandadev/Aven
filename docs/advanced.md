@@ -77,6 +77,21 @@ def on_collide(other):
     print(self.anim_state)               # the state playing now
 ```
 
+## Phones: touch controls and installing
+
+**Project Settings > Touch controls** puts a stick (it presses the arrow keys) and up to four
+buttons (each presses a key: Jump could press space) over the game. By default they show once the
+screen is touched, so computers never see them; "Always" lets you try them with the mouse. Fingers
+anywhere else act like the mouse, so tapping in-game buttons works, even with a thumb on the stick.
+Games already written for the keyboard need no changes.
+
+Web builds are installable apps ("progressive web apps"): each export has a manifest, icons
+(pictures of the start scene) and a service worker that keeps every file. From a web host with
+https (itch.io, GitHub Pages, Netlify...) phones and computers offer to install the game: it
+opens full screen from the home screen, turned the right way, and plays offline. On iPhone it's
+Share > Add to Home Screen; the page says so. Sharing over Wi-Fi from the editor uses plain http,
+where browsers don't allow installing, but the game plays the same.
+
 ## Terrain
 
 **Create > Terrain** makes 64 x 64 m of ground with gentle hills, painted with grass, dirt, rock

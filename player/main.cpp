@@ -24,6 +24,7 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#include <emscripten/html5.h>
 #endif
 
 using namespace aven;
@@ -45,7 +46,37 @@ struct Options {
         int frames; // how long it's held
     };
     std::vector<KeyPress> keyPresses;
+    struct Touch {
+        int frame;
+        Vec2 at;
+        int frames;
+    };
+    std::vector<Touch> touches; // --touch: pretend fingers (tests)
 };
+
+#ifdef __EMSCRIPTEN__
+// Every finger on the canvas, from the browser's touch events.
+std::vector<TouchPoint> g_touches;
+
+EM_BOOL onTouch(int type, const EmscriptenTouchEvent* e, void*) {
+    for (int i = 0; i < e->numTouches; ++i) {
+        const EmscriptenTouchPoint& t = e->touches[i];
+        if (!t.isChanged)
+            continue;
+        auto it = std::find_if(g_touches.begin(), g_touches.end(), [&](const TouchPoint& p) { return p.id == t.identifier; });
+        bool ended = type == EMSCRIPTEN_EVENT_TOUCHEND || type == EMSCRIPTEN_EVENT_TOUCHCANCEL;
+        if (ended) {
+            if (it != g_touches.end())
+                g_touches.erase(it);
+        } else if (it != g_touches.end()) {
+            it->position = {static_cast<float>(t.targetX), static_cast<float>(t.targetY)};
+        } else {
+            g_touches.push_back({static_cast<int>(t.identifier), {static_cast<float>(t.targetX), static_cast<float>(t.targetY)}});
+        }
+    }
+    return EM_TRUE; // no scrolling or zooming the page while playing
+}
+#endif
 
 stdfs::path findProject(const stdfs::path& hint) {
     if (!hint.empty())
@@ -92,9 +123,16 @@ bool parseArgs(int argc, char** argv, Options& o) {
                 }
                 o.keyPresses.push_back({std::atoi(s.substr(0, colon).c_str()), key, frames});
             }
+        } else if (a == "--touch") {
+            // --touch 30:100,600:60 puts a finger at (100, 600) on frame 30 for 60 frames (tests).
+            int frame = 0, frames = 2;
+            float x = 0, y = 0;
+            if (std::sscanf(next().c_str(), "%d:%f,%f:%d", &frame, &x, &y, &frames) >= 3)
+                o.touches.push_back({frame, {x, y}, std::max(1, frames)});
         } else if (a == "--help" || a == "-h") {
             std::printf("usage: aven-player [project_folder] [--scene path] [--screenshot out.png --frames N]\n"
-                        "                   [--size WxH] [--hidden] [--press FRAME:KEY[:FRAMES]] [--debug-draw]\n");
+                        "                   [--size WxH] [--hidden] [--press FRAME:KEY[:FRAMES]] [--touch FRAME:X,Y[:FRAMES]]\n"
+                        "                   [--debug-draw]\n");
             return false;
         } else if (!a.empty() && a[0] != '-') {
             o.project = a;
@@ -148,6 +186,12 @@ struct Player {
             return false;
         capture = !opt.screenshot.empty();
         last = Window::time();
+#ifdef __EMSCRIPTEN__
+        emscripten_set_touchstart_callback("#canvas", nullptr, true, onTouch);
+        emscripten_set_touchmove_callback("#canvas", nullptr, true, onTouch);
+        emscripten_set_touchend_callback("#canvas", nullptr, true, onTouch);
+        emscripten_set_touchcancel_callback("#canvas", nullptr, true, onTouch);
+#endif
         return true;
     }
 
@@ -168,6 +212,25 @@ struct Player {
                 window.input().onKey(Input::keyFromName(press.key), down);
             }
         }
+        // Fingers: on-screen controls, and taps that act like the mouse.
+        std::vector<TouchPoint> touches;
+#ifdef __EMSCRIPTEN__
+        touches = g_touches;
+        // Touches come in page (CSS) pixels; the mouse, and so the game, uses the canvas's own size.
+        double cssW = 0, cssH = 0;
+        emscripten_get_element_css_size("#canvas", &cssW, &cssH);
+        Vec2 win = window.windowSize();
+        if (cssW > 0 && cssH > 0)
+            for (auto& t : touches)
+                t.position = {t.position.x * win.x / static_cast<float>(cssW), t.position.y * win.y / static_cast<float>(cssH)};
+#endif
+        for (auto& t : opt.touches)
+            if (frameIndex >= t.frame && frameIndex < t.frame + t.frames)
+                touches.push_back({1000 + static_cast<int>(&t - opt.touches.data()), t.at});
+        TouchControls& controls = game->touchControls();
+        if (touches.empty() && controls.visible() && window.input().mouseDown(MouseButton::Left))
+            touches.push_back({-1, window.input().mousePosition()}); // on a computer, the mouse can use them too
+        controls.update(touches, window.windowSize(), window.input());
         double now = Window::time();
         float dt = capture ? 1.0f / 60.0f : static_cast<float>(std::min(now - last, 0.1));
         last = now;

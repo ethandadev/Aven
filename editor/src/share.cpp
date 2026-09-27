@@ -293,6 +293,7 @@ bool writeZip(const stdfs::path& zipPath, const stdfs::path& folder) {
 std::string mimeType(const std::string& ext) {
     if (ext == ".html") return "text/html; charset=utf-8";
     if (ext == ".js") return "text/javascript";
+    if (ext == ".webmanifest") return "application/manifest+json";
     if (ext == ".wasm") return "application/wasm";
     if (ext == ".json" || ext == ".scene" || ext == ".prefab" || ext == ".aven" || ext == ".blocks") return "application/json";
     if (ext == ".png") return "image/png";
@@ -751,7 +752,10 @@ bool Editor::exportWeb(const stdfs::path& folder, std::string& message) {
     replaceAll("{{CONTROLS}}", html(gameControls()));
     replaceAll("{{ACCENT}}", accentHex);
     replaceAll("{{ASPECT}}", std::to_string(settings_.width) + " / " + std::to_string(settings_.height));
+    std::string orientation = settings_.width >= settings_.height ? "landscape" : "portrait";
+    replaceAll("{{ORIENTATION}}", orientation);
     fs::writeText(out / "index.html", page);
+    writeWebAppFiles(out, accentHex, orientation);
     // The card doubles as the page's preview picture; the Aven icon as its tab icon.
     std::string cardMessage;
     makeGameCard(out / "card.png", "", cardMessage);
@@ -768,6 +772,72 @@ bool Editor::exportWeb(const stdfs::path& folder, std::string& message) {
     Log::info("Exported web build to ", out.string());
     milestone("exports");
     return true;
+}
+
+// Installable on phones and computers (a "progressive web app"): a manifest that names the game
+// and its icons, the icons (pictures of the start scene), and a service worker that keeps every
+// file so it plays offline. Each export gets a new cache name, so players get the new version.
+void Editor::writeWebAppFiles(const stdfs::path& out, const std::string& color, const std::string& orientation) {
+    std::vector<uint8_t> big = renderStartScene(512, 512, false);
+    if (!big.empty()) {
+        Assets::savePng(out / "icon-512.png", big.data(), 512, 512, false);
+        // 192 x 192, sampled down.
+        std::vector<uint8_t> small(192 * 192 * 4);
+        for (int y = 0; y < 192; ++y)
+            for (int x = 0; x < 192; ++x)
+                for (int c = 0; c < 4; ++c) {
+                    int sum = 0, n = 0;
+                    int x0 = x * 512 / 192, x1 = (x + 1) * 512 / 192, y0 = y * 512 / 192, y1 = (y + 1) * 512 / 192;
+                    for (int sy = y0; sy < y1; ++sy)
+                        for (int sx = x0; sx < x1; ++sx, ++n)
+                            sum += big[(static_cast<size_t>(sy) * 512 + sx) * 4 + c];
+                    small[(static_cast<size_t>(y) * 192 + x) * 4 + c] = static_cast<uint8_t>(n ? sum / n : 0);
+                }
+        Assets::savePng(out / "icon-192.png", small.data(), 192, 192, false);
+    }
+    Json manifest = Json::object();
+    manifest["name"] = settings_.name;
+    manifest["short_name"] = settings_.name.size() > 12 ? settings_.name.substr(0, 12) : settings_.name;
+    manifest["description"] = gameDescription();
+    manifest["start_url"] = "./";
+    manifest["scope"] = "./";
+    manifest["display"] = "fullscreen";
+    manifest["orientation"] = orientation;
+    manifest["background_color"] = "#0b1020";
+    manifest["theme_color"] = color;
+    Json icons = Json::array();
+    for (int size : {192, 512}) {
+        Json icon = Json::object();
+        icon["src"] = "icon-" + std::to_string(size) + ".png";
+        icon["sizes"] = std::to_string(size) + "x" + std::to_string(size);
+        icon["type"] = "image/png";
+        icon["purpose"] = "any";
+        icons.push(std::move(icon));
+    }
+    manifest["icons"] = std::move(icons);
+    fs::writeText(out / "manifest.webmanifest", manifest.dump(2));
+
+    auto stamp = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    fs::writeText(out / "sw.js",
+                  "// Keeps the game's files so it plays offline. Made by Aven for each export.\n"
+                  "const CACHE = 'aven-" + safeGameName() + "-" + std::to_string(stamp) + "';\n"
+                  "const CORE = ['./', 'index.html', 'aven-player.js', 'aven-player.wasm', 'manifest.webmanifest', 'icon.png',\n"
+                  "              'icon-192.png', 'icon-512.png', 'card.png', 'game/files.json'];\n"
+                  "self.addEventListener('install', e => e.waitUntil((async () => {\n"
+                  "  const cache = await caches.open(CACHE);\n"
+                  "  await Promise.allSettled(CORE.map(u => cache.add(u)));\n"
+                  "  const list = await (await fetch('game/files.json')).json();\n"
+                  "  await Promise.allSettled(list.files.map(n => cache.add('game/' + n.split('/').map(encodeURIComponent).join('/'))));\n"
+                  "  await self.skipWaiting();\n"
+                  "})()));\n"
+                  "self.addEventListener('activate', e => e.waitUntil((async () => {\n"
+                  "  for (const key of await caches.keys()) if (key !== CACHE) await caches.delete(key);\n"
+                  "  await self.clients.claim();\n"
+                  "})()));\n"
+                  "self.addEventListener('fetch', e => {\n"
+                  "  if (e.request.method !== 'GET') return;\n"
+                  "  e.respondWith(caches.match(e.request, { ignoreSearch: true }).then(hit => hit || fetch(e.request)));\n"
+                  "});\n");
 }
 
 bool Editor::makeItchZip(std::string& message) {
@@ -791,6 +861,9 @@ std::vector<uint8_t> Editor::renderStartScene(int w, int h, bool ui) {
     auto game = makeGame();
     if (!game->loadScene(settings_.startScene))
         return {};
+    TouchSettings noTouch;
+    noTouch.mode = TouchMode::Off; // no on-screen controls in pictures
+    game->touchControls().configure(noTouch);
     game->setScreenSize({static_cast<float>(w), static_cast<float>(h)});
     for (int i = 0; i < 20; ++i)
         game->update(1.0f / 60.0f);

@@ -57,6 +57,20 @@ Json ProjectSettings::toJson() const {
             names.push(l);
         j["layers"] = std::move(names);
     }
+    if (!(touch == TouchSettings{})) {
+        Json t = Json::object();
+        t["mode"] = touch.mode == TouchMode::Always ? "always" : touch.mode == TouchMode::Off ? "off" : "auto";
+        t["stick"] = touch.stick;
+        Json buttons = Json::array();
+        for (auto& b : touch.buttons) {
+            Json bj = Json::object();
+            bj["label"] = b.label;
+            bj["key"] = b.key;
+            buttons.push(std::move(bj));
+        }
+        t["buttons"] = std::move(buttons);
+        j["touch"] = std::move(t);
+    }
     if (!layerIgnores.empty()) {
         Json pairs = Json::array();
         for (auto& [a, b] : layerIgnores) {
@@ -86,6 +100,18 @@ void ProjectSettings::fromJson(const Json& j) {
     advancedMode = j["advanced_mode"].asBool(advancedMode);
     templateName = j["template"].asString();
     inputActions = j["input"].isObject() ? j["input"] : Json::object();
+    touch = TouchSettings{};
+    if (const Json& t = j["touch"]; t.isObject()) {
+        std::string mode = t["mode"].asString("auto");
+        touch.mode = mode == "always" ? TouchMode::Always : mode == "off" ? TouchMode::Off : TouchMode::Auto;
+        touch.stick = t["stick"].asBool(true);
+        if (t["buttons"].isArray()) {
+            touch.buttons.clear();
+            for (auto& b : t["buttons"].elements())
+                if (touch.buttons.size() < 4)
+                    touch.buttons.push_back({b["label"].asString(""), b["key"].asString("space")});
+        }
+    }
     audioBuses = defaultAudioBuses();
     if (j["audio_buses"].isArray()) {
         audioBuses.clear();

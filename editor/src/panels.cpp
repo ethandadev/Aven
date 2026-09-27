@@ -2144,6 +2144,65 @@ void Editor::drawSettings() {
         changed = true;
     }
 
+    if (settingsSection_ == "touch") {
+        ImGui::SetScrollHereY(0);
+        settingsSection_.clear();
+    }
+    ui::sectionHeader("Touch controls");
+    ImGui::TextWrapped("For phones and tablets: a stick that presses the arrow keys and buttons that press keys, "
+                       "drawn over the game. Taps anywhere else still work like clicks.");
+    {
+        TouchSettings& t = settings_.touch;
+        int mode = static_cast<int>(t.mode);
+        ImGui::SetNextItemWidth(260);
+        if (ImGui::Combo("Show them", &mode, "When the screen is touched\0Always (try them with the mouse)\0Never\0")) {
+            t.mode = static_cast<TouchMode>(mode);
+            changed = true;
+        }
+        changed |= ImGui::Checkbox("Stick (arrow keys)", &t.stick);
+        int remove = -1;
+        for (size_t i = 0; i < t.buttons.size(); ++i) {
+            ImGui::PushID(static_cast<int>(i) + 7000);
+            ImGui::SetNextItemWidth(120);
+            changed |= ImGui::InputTextWithHint("##label", "label", &t.buttons[i].label);
+            ImGui::SameLine();
+            ImGui::TextDisabled("presses");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(120);
+            std::string& key = t.buttons[i].key;
+            if (ImGui::BeginCombo("##key", key.c_str())) {
+                for (const char* k : {"space", "enter", "x", "z", "c", "e", "f", "q", "r", "shift", "up", "escape"})
+                    if (ImGui::Selectable(k, key == k)) {
+                        key = k;
+                        changed = true;
+                    }
+                ImGui::EndCombo();
+            }
+            if (Input::keyFromName(key) < 0) {
+                ImGui::SameLine();
+                ImGui::TextColored({1, 0.6f, 0.4f, 1}, "not a key");
+            }
+            ImGui::SameLine();
+            if (ImGui::SmallButton("x"))
+                remove = static_cast<int>(i);
+            ImGui::PopID();
+        }
+        if (remove >= 0) {
+            t.buttons.erase(t.buttons.begin() + remove);
+            changed = true;
+        }
+        ImGui::BeginDisabled(t.buttons.size() >= 4);
+        if (ImGui::SmallButton("+ Button")) {
+            const char* labels[] = {"A", "B", "C", "D"};
+            const char* keys[] = {"space", "x", "z", "c"};
+            t.buttons.push_back({labels[t.buttons.size()], keys[t.buttons.size()]});
+            changed = true;
+        }
+        ImGui::EndDisabled();
+        if (changed && game_)
+            game_->touchControls().configure(t);
+    }
+
     if (settingsSection_ == "mixer") {
         ImGui::SetScrollHereY(0);
         settingsSection_.clear();

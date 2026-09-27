@@ -607,6 +607,12 @@ void Editor::drawViewport(float dt) {
             gameInput_.mirror(window_.input(), viewportPos_);
         else
             gameInput_.reset();
+        // On-screen touch controls (Project Settings): the mouse can press them.
+        TouchControls& touch = game_->touchControls();
+        std::vector<TouchPoint> fingers;
+        if (touch.visible() && viewportFocused_ && !paused_ && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            fingers.push_back({-1, gameInput_.mousePosition()});
+        touch.update(fingers, viewportSize_, gameInput_, true);
         game_->setScreenSize(viewportSize_);
         if (!paused_ || stepOnce_) {
             float step = stepOnce_ ? 1.0f / 60.0f : dt;

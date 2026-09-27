@@ -214,6 +214,7 @@ public:
     void openShare() { showExport_ = true; exportTab_ = 2; }
     bool exportWeb(const stdfs::path& folder, std::string& message);
     bool makeGameCard(const stdfs::path& png, const std::string& shareUrl, std::string& message);
+    void writeWebAppFiles(const stdfs::path& out, const std::string& color, const std::string& orientation);
     bool makeItchZip(std::string& message);
     bool startSharing(std::string& message);
     void stopSharing();

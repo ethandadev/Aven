@@ -45,8 +45,9 @@ Where Aven stands, including what's missing. If you'd like to help with any of i
   macOS, OpenGL is deprecated (it still works).
 - **Played by hand on Linux and in the browser only.** On Windows and macOS, CI builds everything
   and runs the full test suite, but nobody has played the editor there yet.
-- **No phone or console exports.** Phones can play web builds, but there's no touch input yet:
-  taps act as mouse clicks, so clicker-style games work and keyboard games don't.
+- **Phones play the web build**, with on-screen touch controls, and can install it to the home
+  screen (it then runs full screen and offline). There are no native Android or iOS apps (no app
+  store builds), and no console exports.
 - **No multiplayer or networking.**
 
 **Sharing**
@@ -87,9 +88,8 @@ Where Aven stands, including what's missing. If you'd like to help with any of i
 
 ## Next steps
 
-1. Touch controls and on-screen buttons for web builds on phones.
-2. Play-test and fix Windows and macOS builds, then ship installers.
-3. `aven_find_child`, `aven_parent` and text arguments for `aven_call` in the C API (API
+1. Play-test and fix Windows and macOS builds, then ship installers.
+2. `aven_find_child`, `aven_parent` and text arguments for `aven_call` in the C API (API
    version 2).
-4. A Vulkan or Metal backend behind `rhi.h`.
-5. Translations of the editor.
+3. A Vulkan or Metal backend behind `rhi.h`.
+4. Translations of the editor.
