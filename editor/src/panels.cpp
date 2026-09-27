@@ -364,13 +364,44 @@ void Editor::drawHierarchySearch() {
         std::string path;
         for (Entity parent = s.parent(e); parent; parent = s.parent(parent))
             path = s.info(parent).name + (path.empty() ? "" : " / " + path);
-        if (ImGui::Selectable(("     " + info.name).c_str(), isSelected(e), ImGuiSelectableFlags_AllowDoubleClick)) {
-            if (ImGui::GetIO().KeyCtrl)
+        ImGui::Selectable(("     " + info.name).c_str(), isSelected(e), ImGuiSelectableFlags_AllowDoubleClick);
+        if (ImGui::IsItemClicked()) {
+            ImGuiIO& io = ImGui::GetIO();
+            if (io.KeyCtrl) {
                 toggleSelection(e);
-            else
+            } else if (io.KeyShift && hierarchyAnchor_) {
+                auto a = std::find(lastHierarchyOrder_.begin(), lastHierarchyOrder_.end(), hierarchyAnchor_);
+                auto b = std::find(lastHierarchyOrder_.begin(), lastHierarchyOrder_.end(), info.uuid);
+                if (a != lastHierarchyOrder_.end() && b != lastHierarchyOrder_.end()) {
+                    if (a > b)
+                        std::swap(a, b);
+                    selection_.assign(a, b + 1);
+                    std::erase(selection_, info.uuid);
+                    selection_.push_back(info.uuid);
+                }
+            } else if (isSelected(e) && selection_.size() > 1) {
+                pendingSelect_ = info.uuid;
+            } else {
                 select(e);
+            }
+            if (!io.KeyShift)
+                hierarchyAnchor_ = info.uuid;
             if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
                 focusSelected();
+        }
+        if (pendingSelect_ == info.uuid && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+            if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDragMaxDistanceSqr[0] < 16.0f)
+                select(e);
+            pendingSelect_ = {};
+        }
+        if (!playing_ && ImGui::BeginDragDropSource()) {
+            uint64_t id = info.uuid.value;
+            ImGui::SetDragDropPayload("ENTITY", &id, sizeof id);
+            if (isSelected(e) && selection_.size() > 1)
+                ImGui::Text("%d objects", static_cast<int>(selection_.size()));
+            else
+                ImGui::Text("%s", info.name.c_str());
+            ImGui::EndDragDropSource();
         }
         float h = ImGui::GetItemRectSize().y;
         ImGui::GetWindowDrawList()->AddCircleFilled({p.x + 8, p.y + h * 0.5f}, 4.5f, entityColor(reg, e));

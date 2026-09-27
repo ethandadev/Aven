@@ -389,6 +389,8 @@ private:
     CameraView editorCamera() const;
     CameraView viewportCamera() const;
     Entity pickEntity(Scene& s, const CameraView& cam, Vec2 local);
+    std::vector<Entity> pickCandidates(Scene& s, const CameraView& cam, Vec2 local);
+    Vec2 lastPick_{-1000, -1000};
     void drawGizmo(const CameraView& cam, ImVec2 pos, ImVec2 size, bool& usingGizmo, bool& overGizmo);
     void drawStats(ImVec2 pos);
     void focusSelected();

@@ -50,6 +50,9 @@ uint32_t& Editor::PixelDoc::at(int f, int x, int y) { return px[static_cast<size
 void Editor::openPixelEditor(const std::string& imagePath) {
     showPixelEditor_ = focusPixelEditor_ = true;
     PixelDoc& d = pixel_;
+    // Switching images keeps the drawing being worked on.
+    if (d.dirty && !d.px.empty() && !imagePath.empty() && imagePath != d.path)
+        savePixelImage();
     d.undo.clear();
     d.redo.clear();
     d.frame = 0;

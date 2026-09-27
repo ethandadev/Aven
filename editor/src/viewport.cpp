@@ -135,35 +135,36 @@ void Editor::updateViewportCamera(float dt) {
         cam3D_ += forward * (io.MouseWheel * (1.0f + length(cam3D_) * 0.08f));
 }
 
-Entity Editor::pickEntity(Scene& s, const CameraView& cam, Vec2 local) {
+// Everything under a point in the scene view, top first: UI, then (3D) the mesh the ray hits,
+// then sprites and text by drawing order.
+std::vector<Entity> Editor::pickCandidates(Scene& s, const CameraView& cam, Vec2 local) {
     auto& reg = s.registry();
-    // UI elements first: they're drawn on top.
-    Entity best;
-    int bestOrder = -1000000;
+    std::vector<std::pair<int, Entity>> ui;
+    std::vector<std::pair<std::pair<int, int>, Entity>> flat;
+    int walkIndex = 0;
     s.walk([&](Entity e, int) {
         if (!s.info(e).active || reg.has<Hidden>(e))
             return false;
         if (reg.has<UIElement>(e)) {
             UIRect r = computeUIRect(s, e, viewportSize_.x, viewportSize_.y);
             Vec2 p{local.x, viewportSize_.y - local.y};
-            if (r.contains(p) && reg.get<UIElement>(e).order >= bestOrder) {
-                best = e;
-                bestOrder = reg.get<UIElement>(e).order;
-            }
+            if (r.contains(p))
+                ui.push_back({reg.get<UIElement>(e).order, e});
         }
         return true;
     });
-    if (best)
-        return best;
+    std::vector<Entity> out;
+    std::stable_sort(ui.begin(), ui.end(), [](auto& a, auto& b) { return a.first > b.first; });
+    for (auto& [order, e] : ui)
+        out.push_back(e);
     if (!cam.orthographic) {
         Vec3 o, d;
         cam.screenRay(local, viewportSize_, o, d);
         float dist;
         if (Entity hit = renderer_.renderer3D().raycast(s, o, d, &dist))
-            return hit;
+            out.push_back(hit);
     }
     Vec3 world = cam.screenToWorld(local, viewportSize_);
-    bestOrder = -1000000;
     s.walk([&](Entity e, int) {
         if (!s.info(e).active)
             return false;
@@ -183,17 +184,33 @@ Entity Editor::pickEntity(Scene& s, const CameraView& cam, Vec2 local) {
             return true;
         }
         Vec3 p = transformPoint(inverse(s.worldMatrix(e)), world);
-        if (std::abs(p.x) <= half.x && std::abs(p.y) <= half.y && order >= bestOrder) {
-            best = e;
-            bestOrder = order;
-        }
+        if (std::abs(p.x) <= half.x && std::abs(p.y) <= half.y)
+            flat.push_back({{order, walkIndex++}, e}); // equal order: drawn later is on top
         return true;
     });
-    return best;
+    std::sort(flat.begin(), flat.end(), [](auto& a, auto& b) { return a.first > b.first; });
+    for (auto& [key, e] : flat)
+        if (std::find(out.begin(), out.end(), e) == out.end())
+            out.push_back(e);
+    return out;
+}
+
+Entity Editor::pickEntity(Scene& s, const CameraView& cam, Vec2 local) {
+    auto all = pickCandidates(s, cam, local);
+    return all.empty() ? Entity{} : all.front();
 }
 
 void Editor::pickInViewport(Vec2 local) {
-    Entity e = pickEntity(scene(), viewportCamera(), local);
+    auto all = pickCandidates(scene(), viewportCamera(), local);
+    Entity e = all.empty() ? Entity{} : all.front();
+    // Clicking again on the same spot goes to the object underneath, and so on round.
+    if (!ImGui::GetIO().KeyCtrl && !ImGui::GetIO().KeyShift && all.size() > 1 && selection_.size() == 1 &&
+        std::abs(local.x - lastPick_.x) < 4 && std::abs(local.y - lastPick_.y) < 4) {
+        auto at = std::find(all.begin(), all.end(), selected());
+        if (at != all.end())
+            e = std::next(at) == all.end() ? all.front() : *std::next(at);
+    }
+    lastPick_ = local;
     if (ImGui::GetIO().KeyCtrl)
         toggleSelection(e);
     else if (ImGui::GetIO().KeyShift)
@@ -687,7 +704,12 @@ void Editor::drawViewport(float dt) {
         } else if (viewportHovered_ && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !overGizmo && !io.KeyAlt &&
             !ImGuizmo::IsViewManipulateHovered()) {
             Vec2 local{io.MousePos.x - viewportPos_.x, io.MousePos.y - viewportPos_.y};
-            boxSelecting_ = cam.orthographic && !pickEntity(scene(), cam, local);
+            // In 2D a drag draws a selection box (even over a big background sprite); a click picks.
+            bool onSelectedUI = false;
+            if (Entity sel = selected(); sel && scene().registry().has<UIElement>(sel))
+                onSelectedUI = computeUIRect(scene(), sel, viewportSize_.x, viewportSize_.y)
+                                   .contains({local.x, viewportSize_.y - local.y});
+            boxSelecting_ = cam.orthographic && !onSelectedUI;
             boxStart_ = {io.MousePos.x, io.MousePos.y};
         }
         if (boxSelecting_) {

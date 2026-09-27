@@ -2046,6 +2046,7 @@ void Editor::requestQuit() {
     bool unsavedScripts = false;
     for (auto& t : tabs_)
         unsavedScripts = unsavedScripts || t->modified;
+    unsavedScripts = unsavedScripts || pixel_.dirty; // a drawing in the Pixel Editor
     if ((dirty_ || unsavedScripts) && hasProject())
         confirmQuit_ = true;
     else
@@ -2128,6 +2129,8 @@ void Editor::drawQuitDialog() {
                 stop();
             saveScene();
             saveAllScripts();
+            if (pixel_.dirty)
+                savePixelImage();
             quit_ = true;
         }
         ImGui::SameLine();
