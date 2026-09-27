@@ -20,6 +20,7 @@ namespace aven {
 struct EntityInfo {
     std::string name = "Entity";
     std::string tag;
+    std::string layer; // collision layer (Project Settings > Layers); "" = Default
     bool active = true;
     UUID uuid;
 };

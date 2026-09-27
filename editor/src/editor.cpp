@@ -208,6 +208,7 @@ void Editor::openPanels(const std::string& list) {
             continue;
         }
         if (p == "settings") showSettings_ = true;
+        else if (p.rfind("settings:", 0) == 0) { showSettings_ = true; settingsSection_ = p.substr(9); }
         else if (p == "inspector") focusInspector_ = true;
         else if (p == "reference") showReference_ = true;
         else if (p == "prefs") showPrefs_ = true;

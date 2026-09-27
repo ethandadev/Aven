@@ -2,7 +2,7 @@
 // their project folder, so double-clicking it starts the game.
 //
 // Usage: aven-player [project_folder] [--scene path] [--screenshot out.png --frames N]
-//                    [--size WxH] [--hidden]
+//                    [--size WxH] [--hidden] [--debug-draw]
 
 #include "aven/assets/assets.h"
 #include "aven/core/fs.h"
@@ -38,6 +38,7 @@ struct Options {
     int frames = 60;
     int width = 0, height = 0;
     bool hidden = false;
+    bool debugDraw = false; // show scripts' debug_line() shapes
     struct KeyPress {
         int frame;
         std::string key;
@@ -71,6 +72,8 @@ bool parseArgs(int argc, char** argv, Options& o) {
             o.frames = std::atoi(next().c_str());
         else if (a == "--hidden")
             o.hidden = true;
+        else if (a == "--debug-draw")
+            o.debugDraw = true;
         else if (a == "--size") {
             std::string s = next();
             std::sscanf(s.c_str(), "%dx%d", &o.width, &o.height);
@@ -91,7 +94,7 @@ bool parseArgs(int argc, char** argv, Options& o) {
             }
         } else if (a == "--help" || a == "-h") {
             std::printf("usage: aven-player [project_folder] [--scene path] [--screenshot out.png --frames N]\n"
-                        "                   [--size WxH] [--hidden] [--press FRAME:KEY[:FRAMES]]\n");
+                        "                   [--size WxH] [--hidden] [--press FRAME:KEY[:FRAMES]] [--debug-draw]\n");
             return false;
         } else if (!a.empty() && a[0] != '-') {
             o.project = a;
@@ -178,7 +181,9 @@ struct Player {
         game->setScreenSize(fb);
         game->update(dt);
         device->beginFrame();
-        game->render(renderer, static_cast<int>(fb.x), static_cast<int>(fb.y));
+        RenderOptions renderOptions;
+        renderOptions.debugDraw = opt.debugDraw;
+        game->render(renderer, static_cast<int>(fb.x), static_cast<int>(fb.y), renderOptions);
         renderer.present(static_cast<int>(fb.x), static_cast<int>(fb.y));
         device->endFrame();
         window.swapBuffers();

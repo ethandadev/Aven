@@ -102,8 +102,14 @@ struct Physics2D::Impl {
         }
         float density = rb && area > 1e-6f ? std::max(rb->mass, 0.001f) / area : 1.0f;
 
+        // Collision layers (Project Settings > Layers).
+        const ProjectSettings& settings = game.settings();
+        int layer = settings.layerIndex(scene.info(e).layer);
+        uint64_t category = 1ull << layer, mask = settings.collisionMask(layer);
         auto shapeDef = [&](float friction, float bounciness, bool trigger) {
             b2ShapeDef sd = b2DefaultShapeDef();
+            sd.filter.categoryBits = category;
+            sd.filter.maskBits = mask;
             sd.density = density;
             sd.material.friction = friction;
             sd.material.restitution = bounciness;
@@ -325,6 +331,23 @@ void Physics2D::refresh(Entity e) {
         impl_->dirty.push_back(e);
 }
 
+void Physics2D::updateLayer(Entity e) {
+    const auto* b = impl_->find(e);
+    if (!b)
+        return;
+    const ProjectSettings& settings = impl_->game.settings();
+    int layer = settings.layerIndex(impl_->game.scene().info(e).layer);
+    b2Filter filter = b2DefaultFilter();
+    filter.categoryBits = 1ull << layer;
+    filter.maskBits = settings.collisionMask(layer);
+    b2ShapeId shapes[64];
+    int n = b2Body_GetShapes(b->id, shapes, 64);
+    for (int i = 0; i < n; ++i)
+        b2Shape_SetFilter(shapes[i], filter);
+    if (b2Body_GetType(b->id) != b2_staticBody)
+        b2Body_SetAwake(b->id, true); // a resting body wouldn't notice
+}
+
 bool Physics2D::hasBody(Entity e) const { return impl_->find(e) != nullptr; }
 
 Vec2 Physics2D::velocity(Entity e) const {
@@ -389,11 +412,13 @@ std::vector<Entity> Physics2D::touching(Entity e) const {
     return out;
 }
 
-bool Physics2D::raycast(Vec2 from, Vec2 to, RayHit& hit) const {
+bool Physics2D::raycast(Vec2 from, Vec2 to, RayHit& hit, uint32_t layers) const {
     if (!impl_->running())
         return false;
     Vec2 d = to - from;
-    b2RayResult r = b2World_CastRayClosest(impl_->world, {from.x, from.y}, {d.x, d.y}, b2DefaultQueryFilter());
+    b2QueryFilter filter = b2DefaultQueryFilter();
+    filter.maskBits = layers;
+    b2RayResult r = b2World_CastRayClosest(impl_->world, {from.x, from.y}, {d.x, d.y}, filter);
     if (!r.hit)
         return false;
     hit.entity = fromUserData(b2Shape_GetUserData(r.shapeId));

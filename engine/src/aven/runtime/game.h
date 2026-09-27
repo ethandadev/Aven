@@ -2,6 +2,7 @@
 
 #include "aven/assets/assets.h"
 #include "aven/platform/input.h"
+#include "aven/render/debug_draw.h"
 #include "aven/render/scene_renderer.h"
 #include "aven/runtime/project.h"
 #include "aven/scene/scene.h"
@@ -64,6 +65,7 @@ public:
     const GameProfile& profile() const { return profile_; }
     Physics3D& physics3D() { return *physics3D_; }
     AudioSystem& audio() { return *audio_; }
+    DebugDraw& debugDraw() { return debugDraw_; } // debug_line() and friends
     GameplaySystems& gameplay() { return *gameplay_; }
     // Seeds every random number source so the same inputs replay the same game.
     void setRandomSeed(uint32_t seed);
@@ -106,6 +108,7 @@ private:
     std::unique_ptr<Physics2D> physics2D_;
     std::unique_ptr<Physics3D> physics3D_;
     std::unique_ptr<AudioSystem> audio_;
+    DebugDraw debugDraw_;
     std::unique_ptr<GameplaySystems> gameplay_;
 
     void startSystems();

@@ -34,6 +34,7 @@ public:
     Vec2 gravity() const;
     void onDestroy(Entity e);
     void refresh(Entity e);
+    void updateLayer(Entity e); // after its collision layer changed
     bool hasBody(Entity e) const;
 
     Vec2 velocity(Entity e) const;
@@ -42,7 +43,8 @@ public:
     void applyImpulse(Entity e, Vec2 impulse);
     bool isOnGround(Entity e) const;
     std::vector<Entity> touching(Entity e) const;
-    bool raycast(Vec2 from, Vec2 to, RayHit& hit) const;
+    // `layers`: which collision layers it can hit (bit i = layer i).
+    bool raycast(Vec2 from, Vec2 to, RayHit& hit, uint32_t layers = 0xFFFFFFFFu) const;
     // Entity whose collider contains the point, if any.
     Entity pointQuery(Vec2 point) const;
 
@@ -65,6 +67,7 @@ public:
     Vec3 gravity() const;
     void onDestroy(Entity e);
     void refresh(Entity e);
+    void updateLayer(Entity e); // after its collision layer changed
     bool hasBody(Entity e) const;
 
     Vec3 velocity(Entity e) const;
@@ -73,7 +76,8 @@ public:
     void applyImpulse(Entity e, Vec3 impulse);
     bool isOnGround(Entity e) const;
     std::vector<Entity> touching(Entity e) const;
-    bool raycast(Vec3 from, Vec3 direction, float maxDistance, RayHit& hit, Entity ignore = {}) const;
+    bool raycast(Vec3 from, Vec3 direction, float maxDistance, RayHit& hit, Entity ignore = {},
+                 uint32_t layers = 0xFFFFFFFFu) const;
 
 private:
     struct Impl;

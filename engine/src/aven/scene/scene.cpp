@@ -219,6 +219,8 @@ Json Scene::saveEntity(Entity e) const {
     j["name"] = info.name;
     if (!info.tag.empty())
         j["tag"] = info.tag;
+    if (!info.layer.empty() && info.layer != "Default")
+        j["layer"] = info.layer;
     if (!info.active)
         j["active"] = false;
     Entity p = parent(e);
@@ -303,6 +305,7 @@ bool Scene::load(const Json& data, std::string* error) {
         Entity e = createWithId(id, ej["name"].asString("Entity"));
         auto& info = registry_.get<EntityInfo>(e);
         info.tag = ej["tag"].asString();
+        info.layer = ej["layer"].asString();
         info.active = ej["active"].asBool(true);
         Entity p = ej.contains("parent") ? findByUUID(UUID::fromString(ej["parent"].asString())) : Entity{};
         registry_.get<Hierarchy>(e).parent = p;
@@ -323,6 +326,7 @@ std::vector<Entity> Scene::instantiate(const Json& data, Entity parentEntity) {
         Entity e = createWithId(remap[ej["id"].asString()], ej["name"].asString("Entity"));
         auto& info = registry_.get<EntityInfo>(e);
         info.tag = ej["tag"].asString();
+        info.layer = ej["layer"].asString();
         info.active = ej["active"].asBool(true);
         auto pit = remap.find(ej["parent"].asString());
         Entity p = pit != remap.end() ? findByUUID(pit->second) : parentEntity;

@@ -521,11 +521,17 @@ void Editor::drawViewport(float dt) {
             game_->timeScale = std::max(0.1f, game_->timeScale);
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Slow motion (or fast forward) to see what's going on.");
+        ImGui::SameLine();
+        ImGui::Checkbox("Debug", &prefs.showDebugDraw);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Show what scripts draw with debug_line(), debug_circle(), debug_box() and debug_text()");
     } else {
         ImGui::SameLine();
         ImGui::Checkbox("Icons", &prefs.showIcons);
         ImGui::SameLine();
         ImGui::Checkbox("Colliders", &prefs.showColliders);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Outline the selected object's colliders");
     }
     ImGui::PopStyleVar();
 
@@ -583,6 +589,7 @@ void Editor::drawViewport(float dt) {
         auto t0 = std::chrono::steady_clock::now();
         if (playing_ && game_) {
             RenderOptions opts;
+            opts.debugDraw = prefs.showDebugDraw;
             game_->render(renderer_, w, h, opts);
         } else {
             RenderOptions opts;

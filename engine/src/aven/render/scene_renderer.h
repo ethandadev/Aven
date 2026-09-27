@@ -12,6 +12,7 @@ namespace aven {
 
 class Renderer3D;
 class PostProcessor;
+class DebugDraw;
 
 struct CameraView {
     Mat4 view;
@@ -39,6 +40,7 @@ struct RenderOptions {
     bool drawUI = true;
     bool postProcessing = true;
     bool drawCameraBackground = true;
+    bool debugDraw = false; // Game::render: also draw the game's debug_line() shapes
 };
 
 // Draws a scene: 3D objects with lighting and shadows, 2D sprites and text,
@@ -85,6 +87,8 @@ public:
 
     // Offset applied to the camera (screen shake). Set by the game each frame.
     Vec3 cameraShake;
+    // Shapes scripts drew with debug_line() and friends; null = don't draw them.
+    const DebugDraw* debugDraw = nullptr;
 
 private:
     rhi::Device* device_ = nullptr;

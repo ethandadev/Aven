@@ -60,6 +60,7 @@ void Game::start(std::unique_ptr<Scene> scene, const std::string& path) {
     fixedAccumulator_ = 0;
     paused_ = false;
     timeScale = 1.0f;
+    debugDraw_.clear();
     prefabCache_.clear();
     scene_->updateTransforms();
     startSystems();
@@ -101,6 +102,8 @@ void Game::update(float dt) {
     }
     float scaled = paused_ ? 0.0f : dt * timeScale;
     time_ += scaled;
+    if (!paused_)
+        debugDraw_.tick(dt); // while paused, the last frame's shapes stay up
 
     using Clock = std::chrono::steady_clock;
     auto ms = [](Clock::time_point a, Clock::time_point b) {
@@ -160,8 +163,10 @@ void Game::render(SceneRenderer& renderer, int width, int height, const RenderOp
     screenSize_ = {static_cast<float>(width), static_cast<float>(height)};
     renderer.cameraShake = gameplay_->shakeOffset();
     CameraView cam = camera(static_cast<float>(width) / std::max(height, 1));
+    renderer.debugDraw = options.debugDraw ? &debugDraw_ : nullptr;
     renderer.render(*scene_, cam, width, height, options);
     renderer.cameraShake = {};
+    renderer.debugDraw = nullptr;
 }
 
 void Game::setRandomSeed(uint32_t seed) {

@@ -290,3 +290,110 @@ AVEN_TEST(behavior_value_bar_follows_game_value) {
         game.update(1.0f / 60.0f);
     CHECK(std::abs(vb.fill - 0.5f) < 0.01f);
 }
+
+// Collision layers: objects on layers set to pass through each other don't collide,
+// raycasts can be limited to layers, and scripts can change an object's layer.
+AVEN_TEST(physics_collision_layers) {
+    for (bool threeD : {false, true}) {
+        Assets assets;
+        Input input;
+        Game game(assets, input);
+        game.settings().layers = {"Ghost", "Ground"};
+        game.settings().setLayersCollide("Ghost", "Ground", false);
+        CHECK(!game.settings().layersCollide("Ghost", "Ground"));
+        CHECK(game.settings().layersCollide("Ghost", "Default"));
+        auto scene = std::make_unique<Scene>();
+        auto& reg = scene->registry();
+        Entity ground = scene->create("Ground");
+        scene->info(ground).layer = "Ground";
+        scene->transform(ground).position = {0, -1, 0};
+        auto box = [&](const char* name, float x, const char* layer) {
+            Entity e = scene->create(name);
+            scene->info(e).layer = layer;
+            scene->transform(e).position = {x, 1, 0};
+            if (threeD) {
+                reg.emplace<RigidBody>(e);
+                reg.emplace<BoxCollider>(e);
+            } else {
+                reg.emplace<RigidBody2D>(e);
+                reg.emplace<BoxCollider2D>(e);
+            }
+            return e;
+        };
+        if (threeD)
+            reg.emplace<BoxCollider>(ground).size = {40, 1, 40};
+        else
+            reg.emplace<BoxCollider2D>(ground).size = {40, 1};
+        box("Solid", -2, "");
+        box("Ghost", 2, "Ghost");
+        game.start(std::move(scene), "test.scene");
+        for (int i = 0; i < 120; ++i)
+            game.update(1.0f / 60.0f);
+        Scene& s = game.scene();
+        float solidY = s.worldPosition(s.findByName("Solid")).y, ghostY = s.worldPosition(s.findByName("Ghost")).y;
+        CHECK(solidY > -0.1f); // resting on the ground
+        CHECK(ghostY < -3.0f); // fell through it
+        // A raycast down through the ground, limited to the Ground layer, hits the ground.
+        RayHit hit;
+        uint32_t groundOnly = 1u << game.settings().layerIndex("Ground");
+        bool found = threeD ? game.physics3D().raycast({-2, 5, 0}, {0, -1, 0}, 20, hit, {}, groundOnly)
+                            : game.physics2D().raycast({-2, 5}, {-2, -5}, hit, groundOnly);
+        CHECK(found);
+        CHECK(hit.entity == s.findByName("Ground"));
+        // Scripts see and change layers.
+        script::Value layer;
+        CHECK(game.scripts().getProperty(s.findByName("Ghost"), "layer", layer));
+        CHECK_EQ(layer.string(), std::string("Ghost"));
+        CHECK(game.scripts().setProperty(s.findByName("Solid"), "layer", script::Value("Ghost")));
+        for (int i = 0; i < 120; ++i)
+            game.update(1.0f / 60.0f);
+        CHECK(s.worldPosition(s.findByName("Solid")).y < -1.0f); // now falls through too
+        game.stop();
+    }
+    // Saved in project.aven and read back.
+    ProjectSettings p;
+    p.layers = {"Player", "Bullet"};
+    p.setLayersCollide("Player", "Bullet", false);
+    ProjectSettings q;
+    q.fromJson(p.toJson());
+    CHECK_EQ(q.layers.size(), size_t(2));
+    CHECK(!q.layersCollide("Bullet", "Player"));
+    CHECK(q.layersCollide("Player", "Player"));
+}
+
+// Debug shapes last one frame unless given seconds, and scripts can draw them.
+AVEN_TEST(debug_draw_lifetimes) {
+    DebugDraw d;
+    d.line({0, 0, 0}, {1, 0, 0}, {1, 1, 0, 1}, 0);
+    d.circle({0, 0, 0}, 1, {1, 1, 0, 1}, 0.5f);
+    CHECK_EQ(d.shapes().size(), size_t(2));
+    d.tick(1.0f / 60.0f);
+    CHECK_EQ(d.shapes().size(), size_t(1)); // the one-frame line is gone
+    for (int i = 0; i < 40; ++i)
+        d.tick(1.0f / 60.0f);
+    CHECK(d.shapes().empty());
+
+    namespace stdfs = std::filesystem;
+    stdfs::path dir = stdfs::temp_directory_path() / "aven_debug_draw_test";
+    std::error_code ec;
+    stdfs::remove_all(dir, ec);
+    stdfs::create_directories(dir / "scripts", ec);
+    fs::writeText(dir / "scripts/d.es", "def on_update(dt):\n    debug_line(self, vec(3, 0), \"red\")\n"
+                                        "    debug_box(vec(0, 0), vec(2, 1))\n    debug_text(self, \"hi\", seconds=2)\n");
+    ErrorCatcher catcher;
+    Assets assets;
+    assets.setRoot(dir);
+    Input input;
+    Game game(assets, input);
+    auto scene = std::make_unique<Scene>();
+    Entity e = scene->create("Drawer");
+    scene->registry().emplace<Script>(e).path = "scripts/d.es";
+    game.start(std::move(scene), "test.scene");
+    game.update(1.0f / 60.0f);
+    CHECK(catcher.errors.empty());
+    CHECK_EQ(game.debugDraw().shapes().size(), size_t(3));
+    CHECK(game.debugDraw().shapes()[1].b.z == 0); // a 2D box
+    for (int i = 0; i < 10; ++i)
+        game.update(1.0f / 60.0f);
+    CHECK(game.debugDraw().shapes().size() < 30); // lines don't pile up; labels last 2 s
+}

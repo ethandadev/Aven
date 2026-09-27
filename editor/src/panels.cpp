@@ -1452,6 +1452,32 @@ void Editor::drawInspector() {
             }
         ImGui::EndPopup();
     }
+    // Collision layer: shown once the project has layers (or in advanced mode).
+    if (!settings_.layers.empty() || advanced()) {
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Layer");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(-1);
+        std::string current = info.layer.empty() ? "Default" : info.layer;
+        bool unknown = current != "Default" && settings_.layerIndex(current) == 0;
+        if (ImGui::BeginCombo("##layer", unknown ? (current + " (missing)").c_str() : current.c_str())) {
+            for (auto& name : settings_.layerNames())
+                if (ImGui::Selectable(name.c_str(), name == current)) {
+                    for (Entity other : selection)
+                        s.info(other).layer = name == "Default" ? "" : name;
+                    edited("Change layer");
+                }
+            ImGui::Separator();
+            if (ImGui::Selectable("Edit layers...")) {
+                showSettings_ = true;
+                settingsSection_ = "layers";
+            }
+            ImGui::EndCombo();
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(unknown ? "This layer isn't in Project Settings > Collision layers, so the object acts as Default."
+                                      : "Collision layer: which other objects this one collides with (Project Settings).");
+    }
     if (!playing_)
         drawAssistant();
     if (auto* pi = s.registry().tryGet<PrefabInstance>(e)) {
@@ -2037,7 +2063,7 @@ void Editor::drawScriptTabs() {
 // ---------------------------------------------------------------- windows
 
 void Editor::drawSettings() {
-    ImGui::SetNextWindowSize({520, 560}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({560, 680}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_FirstUseEver, {0.5f, 0.5f});
     if (!ImGui::Begin("Project Settings", &showSettings_)) {
         ImGui::End();
@@ -2118,9 +2144,169 @@ void Editor::drawSettings() {
         settings_.inputActions = Json::object();
         changed = true;
     }
+
+    if (settingsSection_ == "layers") {
+        ImGui::SetScrollHereY(0);
+        settingsSection_.clear();
+    }
+    ui::sectionHeader("Collision layers");
+    ImGui::TextWrapped("Put objects on layers (Inspector, under Tag) and choose which layers collide. "
+                       "Bullets that fly through their shooter, pickups only the player touches, "
+                       "raycast(a, b, layers=\"Ground\")...");
+    changed |= drawLayerSettings();
     if (changed)
         settings_.save(projectDir_);
     ImGui::End();
+}
+
+// Renames a collision layer in every scene and prefab of the project ("" removes it: objects go back to Default).
+void Editor::renameLayer(const std::string& from, const std::string& to) {
+    auto fix = [&](Json& data) {
+        bool touched = false;
+        for (size_t i = 0; i < data["entities"].size(); ++i) {
+            Json& ej = data["entities"][i];
+            if (ej["layer"].asString("") == from) {
+                if (to.empty())
+                    ej.erase("layer");
+                else
+                    ej["layer"] = to;
+                touched = true;
+            }
+        }
+        return touched;
+    };
+    for (auto& path : projectFiles({".scene", ".prefab"})) {
+        if (path == scenePath_)
+            continue; // the open scene is changed in memory below
+        auto text = fs::readText(projectDir_ / path);
+        if (!text)
+            continue;
+        Json data = Json::parse(*text);
+        if (fix(data))
+            fs::writeText(projectDir_ / path, data.dump(2) + "\n");
+    }
+    bool any = false;
+    scene().walk([&](Entity e, int) {
+        any |= scene().info(e).layer == from;
+        return true;
+    });
+    if (any) {
+        recordUndo(to.empty() ? "Remove layer" : "Rename layer");
+        scene().walk([&](Entity e, int) {
+            if (scene().info(e).layer == from)
+                scene().info(e).layer = to;
+            return true;
+        });
+    }
+    for (auto& [a, b] : settings_.layerIgnores) {
+        if (a == from)
+            a = to.empty() ? "" : to;
+        if (b == from)
+            b = to.empty() ? "" : to;
+    }
+    std::erase_if(settings_.layerIgnores, [](const auto& p) { return p.first.empty() || p.second.empty(); });
+}
+
+bool Editor::drawLayerSettings() {
+    bool changed = false;
+    auto& layers = settings_.layers;
+    ImGui::PushID("layers");
+    int removeAt = -1;
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled(" 0");
+    ImGui::SameLine(40);
+    ImGui::TextUnformatted("Default");
+    ImGui::SameLine();
+    ImGui::TextDisabled("(every object starts here)");
+    for (size_t i = 0; i < layers.size(); ++i) {
+        ImGui::PushID(static_cast<int>(i));
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("%2d", static_cast<int>(i) + 1);
+        ImGui::SameLine(40);
+        static std::string editing;
+        static int editingIndex = -1;
+        std::string& name = editingIndex == static_cast<int>(i) ? editing : layers[i];
+        std::string before = layers[i];
+        ImGui::SetNextItemWidth(200);
+        if (ImGui::InputText("##name", &name))
+            if (editingIndex != static_cast<int>(i)) {
+                editing = name;
+                layers[i] = before;
+                editingIndex = static_cast<int>(i);
+            }
+        if (ImGui::IsItemDeactivatedAfterEdit() && editingIndex == static_cast<int>(i)) {
+            std::string to = editing;
+            to.erase(0, to.find_first_not_of(' '));
+            to.erase(to.find_last_not_of(' ') + 1);
+            bool taken = to == "Default" || std::count(layers.begin(), layers.end(), to) > 0;
+            if (!to.empty() && !taken && to != before) {
+                renameLayer(before, to);
+                layers[i] = to;
+                changed = true;
+            } else if (taken && to != before) {
+                notify("There's already a layer called " + to + ".", true);
+            }
+            editingIndex = -1;
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Remove"))
+            removeAt = static_cast<int>(i);
+        ImGui::PopID();
+    }
+    if (removeAt >= 0) {
+        std::string gone = layers[static_cast<size_t>(removeAt)];
+        renameLayer(gone, "");
+        layers.erase(layers.begin() + removeAt);
+        changed = true;
+        notify("Removed the layer " + gone + ". Objects on it are back on Default.");
+    }
+    ImGui::BeginDisabled(static_cast<int>(layers.size()) >= ProjectSettings::kMaxLayers - 1);
+    if (ImGui::Button("+ Add layer")) {
+        std::string name = "Layer " + std::to_string(layers.size() + 1);
+        for (int n = 2; std::count(layers.begin(), layers.end(), name); ++n)
+            name = "Layer " + std::to_string(layers.size() + n);
+        layers.push_back(name);
+        changed = true;
+    }
+    ImGui::EndDisabled();
+
+    // Which layers collide: one checkbox per pair, like Unity's collision matrix.
+    auto names = settings_.layerNames();
+    if (names.size() > 1) {
+        ImGui::Spacing();
+        ImGui::TextDisabled("Tick the pairs that collide:");
+        int n = static_cast<int>(names.size());
+        ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_HighlightHoveredColumn;
+        if (ImGui::BeginTable("##matrix", n + 1, flags)) {
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_NoReorder);
+            for (int c = n - 1; c >= 0; --c)
+                ImGui::TableSetupColumn(names[static_cast<size_t>(c)].c_str(), ImGuiTableColumnFlags_AngledHeader);
+            ImGui::TableAngledHeadersRow();
+            for (int r = 0; r < n; ++r) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::AlignTextToFramePadding();
+                ImGui::TextUnformatted(names[static_cast<size_t>(r)].c_str());
+                // Columns run from the last layer to the first, so the grid is a triangle.
+                for (int c = n - 1; c >= r; --c) {
+                    ImGui::TableSetColumnIndex(n - c);
+                    ImGui::PushID(r * 64 + c);
+                    const std::string &a = names[static_cast<size_t>(r)], &b = names[static_cast<size_t>(c)];
+                    bool on = settings_.layersCollide(a, b);
+                    if (ImGui::Checkbox("##c", &on)) {
+                        settings_.setLayersCollide(a, b, on);
+                        changed = true;
+                    }
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("%s and %s %s", a.c_str(), b.c_str(), on ? "collide" : "pass through each other");
+                    ImGui::PopID();
+                }
+            }
+            ImGui::EndTable();
+        }
+    }
+    ImGui::PopID();
+    return changed;
 }
 
 void Editor::drawLearn() {

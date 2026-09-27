@@ -825,7 +825,7 @@ const std::vector<MethodDef>& entityMethods() {
 // ---------------------------------------------------------------- properties
 
 std::vector<std::string> ScriptSystem::propertyNames() {
-    return {"name",     "tag",      "active",   "visible",  "id",        "exists",    "x",          "y",
+    return {"name",     "tag",      "layer",    "active",   "visible",  "id",        "exists",    "x",          "y",
             "z",        "position", "world_x",  "world_y",  "world_z",   "world_position", "angle", "rotation",
             "rotation_x", "rotation_y", "rotation_z", "scale", "scale_x", "scale_y", "scale_z", "size",
             "width",    "height",   "color",    "alpha",    "text",      "image",     "shape",      "frame",
@@ -934,6 +934,7 @@ bool ScriptSystem::getProperty(Entity e, const std::string& name, Value& out) {
     int comps = three ? 3 : 2;
     if (name == "name") out = Value(info.name);
     else if (name == "tag") out = Value(info.tag);
+    else if (name == "layer") out = Value(info.layer.empty() ? std::string("Default") : info.layer);
     else if (name == "active") out = Value(info.active);
     else if (name == "visible") out = Value(!reg.has<Hidden>(e));
     else if (name == "id") out = Value(info.uuid.toString());
@@ -1038,6 +1039,20 @@ bool ScriptSystem::setProperty(Entity e, const std::string& name, const Value& v
     bool three = is3D(scene, e);
     if (name == "name") info.name = toText(v);
     else if (name == "tag") info.tag = toText(v);
+    else if (name == "layer") {
+        std::string layer = toText(v);
+        const ProjectSettings& settings = game_.settings();
+        if (layer != "Default" && settings.layerIndex(layer) == 0) {
+            std::string known;
+            for (auto& l : settings.layerNames())
+                known += (known.empty() ? "" : ", ") + l;
+            raise("There's no collision layer called \"" + layer + "\". The layers are: " + known +
+                  " (add more in Project Settings > Layers).");
+        }
+        info.layer = layer == "Default" ? "" : layer;
+        game_.physics2D().updateLayer(e);
+        game_.physics3D().updateLayer(e);
+    }
     else if (name == "active") info.active = v.truthy();
     else if (name == "visible") {
         if (v.truthy())
@@ -1718,12 +1733,28 @@ void ScriptSystem::registerApi() {
             g.physics2D().setGravity({static_cast<float>(a.number(0, "x")), static_cast<float>(a.number(1, "y"))});
         return Value();
     });
-    def("raycast", "raycast(from, to)", 2, 2, [this, &g](CallArgs& a) {
+    def("raycast", "raycast(from, to, layers=None)", 2, 3, [this, &g](CallArgs& a) {
         Vec3 from = toVec3(a[0], "raycast() start"), to = toVec3(a[1], "raycast() end");
         bool twoD = a[0].isVec() && a[0].vecObj().components == 2;
+        // layers="Ground" or ["Ground", "Enemy"]: only hit objects on those collision layers.
+        uint32_t mask = 0xFFFFFFFFu;
+        if (const Value* l = a.has(2) ? &a[2] : a.keyword("layers"); l && !l->isNone()) {
+            mask = 0;
+            auto add = [&](const Value& name) {
+                std::string n = name.toString();
+                if (n != "Default" && g.settings().layerIndex(n) == 0)
+                    raise("raycast(): there's no collision layer called \"" + n + "\".");
+                mask |= 1u << g.settings().layerIndex(n);
+            };
+            if (l->isList())
+                for (auto& item : l->listObj().items)
+                    add(item);
+            else
+                add(*l);
+        }
         RayHit hit;
-        bool found = twoD ? g.physics2D().raycast({from.x, from.y}, {to.x, to.y}, hit)
-                          : g.physics3D().raycast(from, normalize(to - from), length(to - from), hit);
+        bool found = twoD ? g.physics2D().raycast({from.x, from.y}, {to.x, to.y}, hit, mask)
+                          : g.physics3D().raycast(from, normalize(to - from), length(to - from), hit, {}, mask);
         if (!found)
             return Value();
         Value d = Value::dict();
@@ -1732,6 +1763,45 @@ void ScriptSystem::registerApi() {
         d.dictObj().set(Value("normal"), fromVec3(hit.normal, twoD ? 2 : 3));
         d.dictObj().set(Value("distance"), Value(hit.distance));
         return d;
+    });
+
+    // --- debug drawing (shown in the editor while playing; see DebugDraw)
+    auto debugColor = [this](CallArgs& a, size_t index, const char* context) {
+        const Value* c = a.has(index) ? &a[index] : a.keyword("color");
+        return c ? toColor(*c, context) : Color{1, 0.9f, 0.2f, 1};
+    };
+    auto debugSeconds = [](CallArgs& a, size_t index) {
+        return static_cast<float>(a.has(index) ? a.number(index, "seconds") : a.keywordNumber("seconds", 0));
+    };
+    def("debug_line", "debug_line(from, to, color=\"yellow\", seconds=0)", 2, 4, [this, &g, debugColor, debugSeconds](CallArgs& a) {
+        g.debugDraw().line(targetPosition(*this, a[0], "debug_line()"), targetPosition(*this, a[1], "debug_line()"),
+                           debugColor(a, 2, "debug_line() color"), debugSeconds(a, 3));
+        return Value();
+    });
+    def("debug_circle", "debug_circle(center, radius, color=\"yellow\", seconds=0)", 2, 4,
+        [this, &g, debugColor, debugSeconds](CallArgs& a) {
+            g.debugDraw().circle(targetPosition(*this, a[0], "debug_circle()"), static_cast<float>(a.number(1, "radius")),
+                                 debugColor(a, 2, "debug_circle() color"), debugSeconds(a, 3));
+            return Value();
+        });
+    def("debug_box", "debug_box(center, size, color=\"yellow\", seconds=0)", 2, 4, [this, &g, debugColor, debugSeconds](CallArgs& a) {
+        // A 2D size (or a number for a 2D position) draws a flat rectangle.
+        bool threeD = false;
+        if (Entity t = entityFromValue(a[0]))
+            threeD = is3D(g.scene(), t);
+        else if (a[0].isVec())
+            threeD = a[0].vecObj().components == 3;
+        Vec3 size = a[1].isNumber() ? Vec3(static_cast<float>(a[1].number())) : toVec3(a[1], "debug_box() size");
+        if ((a[1].isNumber() && !threeD) || (a[1].isVec() && a[1].vecObj().components == 2))
+            size.z = 0;
+        g.debugDraw().box(targetPosition(*this, a[0], "debug_box()"), size, debugColor(a, 2, "debug_box() color"), debugSeconds(a, 3));
+        return Value();
+    });
+    def("debug_text", "debug_text(position, text, color=\"white\", seconds=0)", 2, 4, [this, &g, debugSeconds](CallArgs& a) {
+        const Value* c = a.has(2) ? &a[2] : a.keyword("color");
+        g.debugDraw().text(targetPosition(*this, a[0], "debug_text()"), a[1].toString(),
+                           c ? toColor(*c, "debug_text() color") : Color{1, 1, 1, 1}, debugSeconds(a, 3));
+        return Value();
     });
 
     // --- audio

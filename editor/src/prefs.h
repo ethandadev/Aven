@@ -55,6 +55,7 @@ struct Prefs {
     bool showHints = true;
     bool showIcons = true;
     bool showColliders = true;
+    bool showDebugDraw = true; // scripts' debug_line() shapes while playing
     bool previewParticles = true; // selected particle emitters play in the scene view
     float moveSnap = 0.5f, rotateSnap = 15.0f, scaleSnap = 0.25f;
     bool gizmoLocal = false;

@@ -1,5 +1,7 @@
 #include "aven/render/scene_renderer.h"
 
+#include "aven/render/debug_draw.h"
+
 #include "aven/core/log.h"
 #include "aven/render/post_process.h"
 #include "aven/render/renderer3d.h"
@@ -221,11 +223,14 @@ void SceneRenderer::render(Scene& scene, const CameraView& cameraIn, int w, int 
     draw2D(scene, camera, has3D);
     if (sceneOverlay)
         sceneOverlay(camera);
+    if (debugDraw)
+        debugDraw->drawWorld(renderer2D_, camera, static_cast<float>(h), assets_->white().handle);
     device_->endPass();
 
     post_->composite(sceneColor_, outputFb_, pp);
 
-    if (options.drawUI || screenOverlay) {
+    bool labels = debugDraw && !debugDraw->shapes().empty();
+    if (options.drawUI || screenOverlay || labels) {
         rhi::PassDesc ui;
         ui.framebuffer = outputFb_;
         ui.width = w;
@@ -235,6 +240,8 @@ void SceneRenderer::render(Scene& scene, const CameraView& cameraIn, int w, int 
         device_->beginPass(ui);
         if (options.drawUI)
             drawUI(scene, w, h);
+        if (labels)
+            debugDraw->drawLabels(renderer2D_, assets_->defaultFont(), camera, static_cast<float>(w), static_cast<float>(h));
         if (screenOverlay)
             screenOverlay(camera);
         device_->endPass();

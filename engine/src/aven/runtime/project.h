@@ -2,7 +2,11 @@
 
 #include "aven/core/json.h"
 
+#include <cstdint>
 #include <filesystem>
+#include <string_view>
+#include <utility>
+#include <vector>
 #include <string>
 
 namespace aven {
@@ -24,6 +28,17 @@ struct ProjectSettings {
     bool advancedMode = false; // editor shows advanced components and settings
     std::string templateName;  // which starter template the project came from
     Json inputActions = Json::object();
+
+    // Collision layers: layer 0 is "Default"; `layers` names the others (up to 15).
+    // Objects on two layers listed together in `layerIgnores` pass through each other.
+    static constexpr int kMaxLayers = 16;
+    std::vector<std::string> layers;
+    std::vector<std::pair<std::string, std::string>> layerIgnores;
+    std::vector<std::string> layerNames() const;          // "Default" first
+    int layerIndex(std::string_view name) const;          // 0 for "", "Default" or an unknown name
+    uint32_t collisionMask(int layer) const;              // bit i set = collides with layer i
+    bool layersCollide(const std::string& a, const std::string& b) const;
+    void setLayersCollide(const std::string& a, const std::string& b, bool collide);
 
     bool load(const std::filesystem::path& projectDir, std::string* error = nullptr);
     bool save(const std::filesystem::path& projectDir) const;

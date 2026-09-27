@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <map>
 #include <mutex>
 #include <set>
@@ -36,15 +37,24 @@ namespace aven {
 
 namespace {
 
+// A Jolt object layer holds two things: bit 0 says static (0) or moving (1), the other bits are
+// the collision layer from Project Settings > Layers.
 namespace Layers {
 constexpr JPH::ObjectLayer Static = 0;
 constexpr JPH::ObjectLayer Moving = 1;
+inline JPH::ObjectLayer make(bool moving, int layer) { return static_cast<JPH::ObjectLayer>((layer << 1) | (moving ? 1 : 0)); }
+inline bool moving(JPH::ObjectLayer l) { return (l & 1) != 0; }
+inline int user(JPH::ObjectLayer l) { return l >> 1; }
 } // namespace Layers
 
 class ObjectPairFilter final : public JPH::ObjectLayerPairFilter {
 public:
+    uint32_t masks[ProjectSettings::kMaxLayers];
+    ObjectPairFilter() { std::fill(std::begin(masks), std::end(masks), 0xFFFFFFFFu); }
     bool ShouldCollide(JPH::ObjectLayer a, JPH::ObjectLayer b) const override {
-        return a == Layers::Moving || b == Layers::Moving;
+        if (!Layers::moving(a) && !Layers::moving(b))
+            return false;
+        return (masks[Layers::user(a) % ProjectSettings::kMaxLayers] >> Layers::user(b)) & 1u;
     }
 };
 
@@ -52,7 +62,7 @@ class BroadPhaseLayers final : public JPH::BroadPhaseLayerInterface {
 public:
     JPH::uint GetNumBroadPhaseLayers() const override { return 2; }
     JPH::BroadPhaseLayer GetBroadPhaseLayer(JPH::ObjectLayer layer) const override {
-        return JPH::BroadPhaseLayer(static_cast<JPH::BroadPhaseLayer::Type>(layer));
+        return JPH::BroadPhaseLayer(static_cast<JPH::BroadPhaseLayer::Type>(layer & 1));
     }
 #if defined(JPH_EXTERNAL_PROFILE) || defined(JPH_PROFILE_ENABLED)
     const char* GetBroadPhaseLayerName(JPH::BroadPhaseLayer layer) const override {
@@ -64,8 +74,18 @@ public:
 class ObjectVsBroadPhaseFilter final : public JPH::ObjectVsBroadPhaseLayerFilter {
 public:
     bool ShouldCollide(JPH::ObjectLayer layer, JPH::BroadPhaseLayer bp) const override {
-        return layer == Layers::Moving || bp.GetValue() == Layers::Moving;
+        return Layers::moving(layer) || bp.GetValue() == Layers::Moving;
     }
+};
+
+// Raycasts that only hit some collision layers.
+class LayerMaskFilter final : public JPH::ObjectLayerFilter {
+public:
+    explicit LayerMaskFilter(uint32_t mask) : mask_(mask) {}
+    bool ShouldCollide(JPH::ObjectLayer layer) const override { return (mask_ >> Layers::user(layer)) & 1u; }
+
+private:
+    uint32_t mask_;
 };
 
 // Jolt reports contacts from its worker threads; queue them and hand them to
@@ -232,6 +252,8 @@ struct Physics3D::Impl {
         return boxShape(absScale * 0.5f);
     }
 
+    int userLayer(Entity e) const { return game.settings().layerIndex(game.scene().info(e).layer); }
+
     void createBody(Entity e) {
         Scene& scene = game.scene();
         auto& reg = scene.registry();
@@ -249,15 +271,15 @@ struct Physics3D::Impl {
         if (!shape)
             return;
         JPH::EMotionType motion = rb ? motionType(rb->type) : JPH::EMotionType::Static;
-        JPH::BodyCreationSettings bs(shape, toJR(t), toJ(r), motion,
-                                     motion == JPH::EMotionType::Static ? Layers::Static : Layers::Moving);
+        int layer = userLayer(e);
+        JPH::BodyCreationSettings bs(shape, toJR(t), toJ(r), motion, Layers::make(motion != JPH::EMotionType::Static, layer));
         bs.mUserData = e.toHandle();
         bs.mFriction = friction;
         bs.mRestitution = bounciness;
         bs.mIsSensor = trigger;
         if (trigger && motion == JPH::EMotionType::Static) {
             // Static sensors must still see moving objects.
-            bs.mObjectLayer = Layers::Moving;
+            bs.mObjectLayer = Layers::make(true, layer);
             bs.mMotionType = JPH::EMotionType::Kinematic;
             motion = JPH::EMotionType::Kinematic;
         }
@@ -310,7 +332,7 @@ struct Physics3D::Impl {
         settings->mMaxSlopeAngle = JPH::DegreesToRadians(50.0f);
         settings->mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -radius);
         settings->mInnerBodyShape = shape; // lets the character trigger sensors like coins
-        settings->mInnerBodyLayer = Layers::Moving;
+        settings->mInnerBodyLayer = Layers::make(true, userLayer(e));
         Vec3 center = scene.worldPosition(e);
         Vec3 feet = center - Vec3(0, height * 0.5f, 0);
         Character c;
@@ -541,9 +563,9 @@ struct Physics3D::Impl {
         ch.SetLinearVelocity(toJ(velocity) + ground);
 
         JPH::CharacterVirtual::ExtendedUpdateSettings settings;
-        ch.ExtendedUpdate(dt, toJ(Vec3(0, -cc.gravity, 0)), settings,
-                          physics->GetDefaultBroadPhaseLayerFilter(Layers::Moving),
-                          physics->GetDefaultLayerFilter(Layers::Moving), {}, {}, *jolt().temp);
+        JPH::ObjectLayer own = Layers::make(true, userLayer(e));
+        ch.ExtendedUpdate(dt, toJ(Vec3(0, -cc.gravity, 0)), settings, physics->GetDefaultBroadPhaseLayerFilter(own),
+                          physics->GetDefaultLayerFilter(own), {}, {}, *jolt().temp);
 
         JPH::RVec3 feet = ch.GetPosition();
         Vec3 newCenter{static_cast<float>(feet.GetX()), static_cast<float>(feet.GetY()) + c.height * 0.5f,
@@ -600,6 +622,8 @@ void Physics3D::start() {
         reg.count<CharacterController>() == 0)
         return; // no 3D physics in this scene; skip the setup cost
     jolt();
+    for (int i = 0; i < ProjectSettings::kMaxLayers; ++i)
+        impl_->objPair.masks[i] = impl_->game.settings().collisionMask(i);
     impl_->physics = std::make_unique<JPH::PhysicsSystem>();
     impl_->physics->Init(8192, 0, 16384, 8192, impl_->bpLayers, impl_->objVsBp, impl_->objPair);
     impl_->physics->SetGravity(toJ(impl_->gravity));
@@ -680,6 +704,23 @@ void Physics3D::refresh(Entity e) {
         impl_->dirty.push_back(e);
 }
 
+void Physics3D::updateLayer(Entity e) {
+    if (!impl_->running())
+        return;
+    JPH::BodyInterface& bi = impl_->physics->GetBodyInterface();
+    int layer = impl_->userLayer(e);
+    if (auto it = impl_->bodies.find(e); it != impl_->bodies.end()) {
+        bi.SetObjectLayer(it->second.id, Layers::make(it->second.motion != JPH::EMotionType::Static, layer));
+        if (it->second.motion != JPH::EMotionType::Static)
+            bi.ActivateBody(it->second.id); // a resting body wouldn't notice
+    }
+    if (auto it = impl_->characters.find(e); it != impl_->characters.end()) {
+        JPH::BodyID inner = it->second.character->GetInnerBodyID();
+        if (!inner.IsInvalid())
+            bi.SetObjectLayer(inner, Layers::make(true, layer));
+    }
+}
+
 bool Physics3D::hasBody(Entity e) const { return impl_->running() && impl_->bodies.count(e); }
 
 Vec3 Physics3D::velocity(Entity e) const {
@@ -753,7 +794,7 @@ std::vector<Entity> Physics3D::touching(Entity e) const {
     return out;
 }
 
-bool Physics3D::raycast(Vec3 from, Vec3 direction, float maxDistance, RayHit& hit, Entity ignore) const {
+bool Physics3D::raycast(Vec3 from, Vec3 direction, float maxDistance, RayHit& hit, Entity ignore, uint32_t layers) const {
     if (!impl_->running() || lengthSquared(direction) < 1e-10f)
         return false;
     Vec3 dir = normalize(direction) * maxDistance;
@@ -765,7 +806,8 @@ bool Physics3D::raycast(Vec3 from, Vec3 direction, float maxDistance, RayHit& hi
                                                                                : JPH::BodyID());
     const JPH::BodyFilter& filter = cit != impl_->characters.end() ? static_cast<const JPH::BodyFilter&>(characterFilter)
                                                                     : static_cast<const JPH::BodyFilter&>(ignoreFilter);
-    if (!impl_->physics->GetNarrowPhaseQuery().CastRay(ray, result, {}, {}, filter))
+    LayerMaskFilter layerFilter(layers);
+    if (!impl_->physics->GetNarrowPhaseQuery().CastRay(ray, result, {}, layerFilter, filter))
         return false;
     hit.entity = impl_->entityOf(result.mBodyID);
     JPH::RVec3 point = ray.GetPointOnRay(result.mFraction);

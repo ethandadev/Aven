@@ -408,6 +408,7 @@ private:
     std::string componentClipboardType_;
     Json fieldClipboard_;                 // one copied setting (right-click a setting's name)
     FieldType fieldClipboardType_ = FieldType::Float;
+    std::string settingsSection_; // Project Settings scrolls here when opened ("layers")
     UUID inspectorLock_;                  // the Inspector keeps showing this object while set
     std::vector<Entity> inspected_;       // what the Inspector is editing (edits apply to all of them)
     struct PrefabCache {
@@ -498,6 +499,8 @@ private:
     void drawNativeScriptInspector(Entity e);
     void drawClickActions(Entity e, const std::vector<Entity>& selection);
     void drawValueBarHint(Entity e);
+    bool drawLayerSettings();                                   // Project Settings > Collision layers
+    void renameLayer(const std::string& from, const std::string& to); // in every scene and prefab
     void buildMenu(Entity root, bool pause); // Create > UI > Start/Pause Menu
     std::function<std::string(const std::string&)> objectNamer(); // object id -> name, for generated code
     // A combo listing the scene's objects (also takes drops from the Hierarchy).

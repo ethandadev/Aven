@@ -2,6 +2,8 @@
 
 #include "aven/core/fs.h"
 
+#include <algorithm>
+
 namespace aven {
 
 Json ProjectSettings::toJson() const {
@@ -25,6 +27,22 @@ Json ProjectSettings::toJson() const {
         j["template"] = templateName;
     if (inputActions.size())
         j["input"] = inputActions;
+    if (!layers.empty()) {
+        Json names = Json::array();
+        for (auto& l : layers)
+            names.push(l);
+        j["layers"] = std::move(names);
+    }
+    if (!layerIgnores.empty()) {
+        Json pairs = Json::array();
+        for (auto& [a, b] : layerIgnores) {
+            Json pair = Json::array();
+            pair.push(a);
+            pair.push(b);
+            pairs.push(std::move(pair));
+        }
+        j["layers_pass_through"] = std::move(pairs);
+    }
     return j;
 }
 
@@ -43,6 +61,54 @@ void ProjectSettings::fromJson(const Json& j) {
     advancedMode = j["advanced_mode"].asBool(advancedMode);
     templateName = j["template"].asString();
     inputActions = j["input"].isObject() ? j["input"] : Json::object();
+    layers.clear();
+    for (auto& l : j["layers"].elements())
+        if (l.isString() && !l.asString().empty() && l.asString() != "Default" &&
+            static_cast<int>(layers.size()) < kMaxLayers - 1)
+            layers.push_back(l.asString());
+    layerIgnores.clear();
+    for (auto& pair : j["layers_pass_through"].elements())
+        if (pair.isArray() && pair.size() == 2)
+            layerIgnores.emplace_back(pair[0].asString("Default"), pair[1].asString("Default"));
+}
+
+std::vector<std::string> ProjectSettings::layerNames() const {
+    std::vector<std::string> names{"Default"};
+    names.insert(names.end(), layers.begin(), layers.end());
+    return names;
+}
+
+int ProjectSettings::layerIndex(std::string_view name) const {
+    for (size_t i = 0; i < layers.size() && i + 1 < kMaxLayers; ++i)
+        if (layers[i] == name)
+            return static_cast<int>(i) + 1;
+    return 0;
+}
+
+uint32_t ProjectSettings::collisionMask(int layer) const {
+    uint32_t mask = 0xFFFFFFFFu;
+    auto nameOf = [&](int i) { return i == 0 ? std::string("Default") : layers[static_cast<size_t>(i - 1)]; };
+    std::string me = layer > 0 && layer <= static_cast<int>(layers.size()) ? nameOf(layer) : "Default";
+    auto known = [&](const std::string& n) { return n == "Default" || layerIndex(n) > 0; };
+    for (auto& [a, b] : layerIgnores) {
+        if (!known(a) || !known(b))
+            continue; // a pair naming a layer that was removed
+        if (a == me)
+            mask &= ~(1u << layerIndex(b));
+        if (b == me)
+            mask &= ~(1u << layerIndex(a));
+    }
+    return mask;
+}
+
+bool ProjectSettings::layersCollide(const std::string& a, const std::string& b) const {
+    return (collisionMask(layerIndex(a)) >> layerIndex(b)) & 1u;
+}
+
+void ProjectSettings::setLayersCollide(const std::string& a, const std::string& b, bool collide) {
+    std::erase_if(layerIgnores, [&](const auto& p) { return (p.first == a && p.second == b) || (p.first == b && p.second == a); });
+    if (!collide)
+        layerIgnores.emplace_back(a, b);
 }
 
 bool ProjectSettings::load(const std::filesystem::path& dir, std::string* error) {

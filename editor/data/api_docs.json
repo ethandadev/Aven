@@ -114,7 +114,11 @@
   "set_volume": "The volume of every sound and the music, from 0 (silent) to 1.",
   "stop_music": "Stops the music.",
 
-  "raycast": "Finds the first thing on a line from one point to another. Gives a dictionary with object, point, normal and distance, or None.",
+  "raycast": "Finds the first thing on a line from one point to another. Gives a dictionary with object, point, normal and distance, or None. layers=\"Ground\" (or a list) only hits those collision layers.",
+  "debug_line": "Draws a line while playing, to see what code is doing. Lasts one frame, or `seconds`. Only shown in the editor.",
+  "debug_circle": "Draws a circle outline while playing (one frame, or `seconds`). Only shown in the editor.",
+  "debug_box": "Draws a box outline while playing (one frame, or `seconds`). A 2D size draws a rectangle. Only shown in the editor.",
+  "debug_text": "Shows a label at a spot in the world while playing (one frame, or `seconds`). Only shown in the editor.",
   "set_gravity": "Changes gravity: set_gravity(0, -20) for 2D, or three values for 3D.",
 
   "tween": "Smoothly animates a number property of an object to a target over some seconds.",
@@ -123,6 +127,7 @@
 
   "self.name": "The object's name, as shown in the Hierarchy.",
   "self.tag": "A label for finding groups of objects, like \"enemy\" or \"coin\".",
+  "self.layer": "The collision layer (Project Settings > Collision layers). Setting it changes what the object collides with.",
   "self.active": "False turns the object off: it disappears and its scripts stop.",
   "self.visible": "False hides the object, but its scripts keep running.",
   "self.id": "A unique id for this object, as text.",
