@@ -337,6 +337,10 @@ void Editor::drawCommandPalette() {
     add("Lighting presets", "window", [this] { showLighting_ = true; });
     add("Scripting reference", "window", [this] { showReference_ = true; });
     add("Project settings", "window", [this] { showSettings_ = true; });
+    add("Audio mixer", "window", [this] {
+        showSettings_ = true;
+        settingsSection_ = "mixer";
+    });
     add("Collision layers", "window", [this] {
         showSettings_ = true;
         settingsSection_ = "layers";

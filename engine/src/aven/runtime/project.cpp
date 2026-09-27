@@ -27,6 +27,24 @@ Json ProjectSettings::toJson() const {
         j["template"] = templateName;
     if (inputActions.size())
         j["input"] = inputActions;
+    if (audioBuses != defaultAudioBuses()) {
+        Json buses = Json::array();
+        for (auto& b : audioBuses) {
+            Json j2 = Json::object();
+            j2["name"] = b.name;
+            j2["volume"] = b.volume;
+            if (b.muted)
+                j2["muted"] = true;
+            if (b.lowpass > 0)
+                j2["lowpass"] = b.lowpass;
+            if (b.echo > 0) {
+                j2["echo"] = b.echo;
+                j2["echo_delay"] = b.echoDelay;
+            }
+            buses.push(std::move(j2));
+        }
+        j["audio_buses"] = std::move(buses);
+    }
     if (!layers.empty()) {
         Json names = Json::array();
         for (auto& l : layers)
@@ -61,6 +79,25 @@ void ProjectSettings::fromJson(const Json& j) {
     advancedMode = j["advanced_mode"].asBool(advancedMode);
     templateName = j["template"].asString();
     inputActions = j["input"].isObject() ? j["input"] : Json::object();
+    audioBuses = defaultAudioBuses();
+    if (j["audio_buses"].isArray()) {
+        audioBuses.clear();
+        for (auto& b : j["audio_buses"].elements()) {
+            AudioBus bus;
+            bus.name = b["name"].asString("");
+            if (bus.name.empty())
+                continue;
+            bus.volume = b["volume"].asFloat(1.0f);
+            bus.muted = b["muted"].asBool(false);
+            bus.lowpass = b["lowpass"].asFloat(0.0f);
+            bus.echo = b["echo"].asFloat(0.0f);
+            bus.echoDelay = b["echo_delay"].asFloat(0.3f);
+            audioBuses.push_back(bus);
+        }
+        for (const char* needed : {"Music", "Effects"})
+            if (std::none_of(audioBuses.begin(), audioBuses.end(), [&](const AudioBus& b) { return b.name == needed; }))
+                audioBuses.push_back({needed});
+    }
     layers.clear();
     for (auto& l : j["layers"].elements())
         if (l.isString() && !l.asString().empty() && l.asString() != "Default" &&
@@ -71,6 +108,8 @@ void ProjectSettings::fromJson(const Json& j) {
         if (pair.isArray() && pair.size() == 2)
             layerIgnores.emplace_back(pair[0].asString("Default"), pair[1].asString("Default"));
 }
+
+std::vector<AudioBus> ProjectSettings::defaultAudioBuses() { return {{"Music"}, {"Effects"}, {"Voice"}}; }
 
 std::vector<std::string> ProjectSettings::layerNames() const {
     std::vector<std::string> names{"Default"};

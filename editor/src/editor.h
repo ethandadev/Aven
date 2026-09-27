@@ -520,6 +520,7 @@ private:
     std::vector<Entity> movableSelection();
     void alignSelection(int axis, int mode); // mode: 0 min, 1 center, 2 max
     void distributeSelection(int axis);
+    bool drawMixer();                                            // Project Settings > Audio mixer
     bool drawLayerSettings();                                   // Project Settings > Collision layers
     void renameLayer(const std::string& from, const std::string& to); // in every scene and prefab
     void buildMenu(Entity root, bool pause); // Create > UI > Start/Pause Menu

@@ -3,6 +3,7 @@
 // Game systems besides scripting: 2D/3D physics, audio, and the gameplay
 // helpers (animation, particles, camera follow/shake, UI buttons).
 
+#include "aven/runtime/project.h"
 #include "aven/scene/scene.h"
 
 #include <memory>
@@ -93,7 +94,8 @@ public:
     void stop();
     void update(float dt);
 
-    void playSound(const std::string& path, float volume = 1, float pitch = 1, std::optional<Vec3> position = {});
+    void playSound(const std::string& path, float volume = 1, float pitch = 1, std::optional<Vec3> position = {},
+                   const std::string& bus = "Effects");
     void playMusic(const std::string& path, float volume = 1, bool loop = true);
     void stopMusic();
     void setMasterVolume(float volume);
@@ -102,7 +104,15 @@ public:
     void stopSource(Entity e);
     void onDestroy(Entity e);
 
+    // The mixer (Project Settings > Audio mixer). Volumes set while playing last until the game stops.
+    std::vector<std::string> busNames() const;
+    bool setBusVolume(const std::string& bus, float volume, std::optional<bool> muted = {}); // false: no such bus
+    float busVolume(const std::string& bus) const;
+    bool busMuted(const std::string& bus) const;
+    void applyMixer(const std::vector<AudioBus>& buses); // the editor's mixer, live while playing
+
 private:
+    Game& game() const;
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };

@@ -325,7 +325,8 @@ std::vector<ComponentInfo> buildRegistry() {
             .field(F(loop))
             .field(F(playOnStart))
             .field(F(spatial), {.tooltip = "Sound gets quieter further from the listener."})
-            .field(F(range), {.min = 1, .max = 200});
+            .field(F(range), {.min = 1, .max = 200})
+            .field(F(bus), {.tooltip = "The mixer channel it plays through (Project Settings > Audio mixer)."});
     }
     {
         using Type = AudioListener;

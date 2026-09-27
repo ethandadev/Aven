@@ -4,6 +4,7 @@
 #include "aven/core/fs.h"
 #include "aven/core/log.h"
 #include "aven/runtime/script_system.h"
+#include "aven/runtime/systems.h"
 #include "aven/scene/reflection.h"
 #include "aven/script/vm.h"
 #include "block_editor.h"
@@ -932,6 +933,23 @@ bool Editor::drawComponent(Entity e, const ComponentInfo& info, void* data) {
         }
         case FieldType::Color: c |= ImGui::ColorEdit4("##v", &f.ref<Color>(data).r, ImGuiColorEditFlags_AlphaBar); break;
         case FieldType::String:
+            if (info.name == "AudioSource" && f.name == "bus") {
+                std::string& bus = f.ref<std::string>(data);
+                if (ImGui::BeginCombo("##v", bus.c_str())) {
+                    for (auto& b : settings_.audioBuses)
+                        if (ImGui::Selectable(b.name.c_str(), b.name == bus)) {
+                            bus = b.name;
+                            c = true;
+                        }
+                    ImGui::Separator();
+                    if (ImGui::Selectable("Edit the mixer...")) {
+                        showSettings_ = true;
+                        settingsSection_ = "mixer";
+                    }
+                    ImGui::EndCombo();
+                }
+                break;
+            }
             if (f.options.multiline)
                 c |= ImGui::InputTextMultiline("##v", &f.ref<std::string>(data), {-1, ImGui::GetTextLineHeight() * 3});
             else
@@ -2282,6 +2300,14 @@ void Editor::drawSettings() {
         changed = true;
     }
 
+    if (settingsSection_ == "mixer") {
+        ImGui::SetScrollHereY(0);
+        settingsSection_.clear();
+    }
+    ui::sectionHeader("Audio mixer");
+    ImGui::TextWrapped("Sounds play through buses: music through Music, play_sound() and Audio Sources through "
+                       "Effects unless you pick another. Changes are heard right away while playing.");
+    changed |= drawMixer();
     if (settingsSection_ == "layers") {
         ImGui::SetScrollHereY(0);
         settingsSection_.clear();
@@ -2342,6 +2368,74 @@ void Editor::renameLayer(const std::string& from, const std::string& to) {
             b = to.empty() ? "" : to;
     }
     std::erase_if(settings_.layerIgnores, [](const auto& p) { return p.first.empty() || p.second.empty(); });
+}
+
+// One strip per bus: volume, mute, and the low-pass and echo effects.
+bool Editor::drawMixer() {
+    bool changed = false;
+    auto& buses = settings_.audioBuses;
+    int removeAt = -1;
+    if (ImGui::BeginTable("##mixer", 6, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_RowBg)) {
+        ImGui::TableSetupColumn("Bus", ImGuiTableColumnFlags_WidthFixed, 110);
+        ImGui::TableSetupColumn("Volume");
+        ImGui::TableSetupColumn("Mute", ImGuiTableColumnFlags_WidthFixed, 40);
+        ImGui::TableSetupColumn("Low-pass (Hz)");
+        ImGui::TableSetupColumn("Echo");
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 26);
+        ImGui::TableHeadersRow();
+        for (size_t i = 0; i < buses.size(); ++i) {
+            AudioBus& b = buses[i];
+            bool fixed = b.name == "Music" || b.name == "Effects";
+            ImGui::PushID(static_cast<int>(i));
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::SetNextItemWidth(-1);
+            if (fixed) {
+                ImGui::AlignTextToFramePadding();
+                ImGui::TextUnformatted(b.name.c_str());
+            } else if (ImGui::InputText("##name", &b.name, ImGuiInputTextFlags_EnterReturnsTrue) || ImGui::IsItemDeactivatedAfterEdit()) {
+                changed = true;
+            }
+            ImGui::TableSetColumnIndex(1);
+            ImGui::SetNextItemWidth(-1);
+            changed |= ImGui::SliderFloat("##vol", &b.volume, 0, 1, "%.2f");
+            ImGui::TableSetColumnIndex(2);
+            changed |= ImGui::Checkbox("##mute", &b.muted);
+            ImGui::TableSetColumnIndex(3);
+            ImGui::SetNextItemWidth(-1);
+            changed |= ImGui::SliderFloat("##lp", &b.lowpass, 0, 8000, b.lowpass > 0 ? "%.0f Hz" : "off");
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Cuts high sounds: muffled, far away, underwater. 0 = off.");
+            ImGui::TableSetColumnIndex(4);
+            ImGui::SetNextItemWidth(-1);
+            changed |= ImGui::SliderFloat("##echo", &b.echo, 0, 1, b.echo > 0 ? "%.2f" : "off");
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("An echo, like a cave or a hall. The delay (%.2f s) applies the next time the game starts.",
+                                  b.echoDelay);
+            ImGui::TableSetColumnIndex(5);
+            if (!fixed && ImGui::SmallButton("x"))
+                removeAt = static_cast<int>(i);
+            ImGui::PopID();
+        }
+        ImGui::EndTable();
+    }
+    if (removeAt >= 0) {
+        buses.erase(buses.begin() + removeAt);
+        changed = true;
+    }
+    if (ImGui::Button("+ Add bus")) {
+        std::string name = "Bus " + std::to_string(buses.size() + 1);
+        buses.push_back({name});
+        changed = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Reset mixer")) {
+        buses = ProjectSettings::defaultAudioBuses();
+        changed = true;
+    }
+    if (changed && playing_ && game_)
+        game_->audio().applyMixer(buses);
+    return changed;
 }
 
 bool Editor::drawLayerSettings() {

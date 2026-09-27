@@ -322,6 +322,7 @@ struct AudioSource {
     bool playOnStart = false;
     bool spatial = false;
     float range = 20.0f;
+    std::string bus = "Effects"; // mixer channel (Project Settings > Audio mixer)
 };
 
 struct AudioListener {};

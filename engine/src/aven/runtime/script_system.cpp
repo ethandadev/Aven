@@ -1805,10 +1805,11 @@ void ScriptSystem::registerApi() {
     });
 
     // --- audio
-    def("play_sound", "play_sound(\"sounds/jump.wav\", volume=1, pitch=1)", 1, 3, [&g](CallArgs& a) {
+    def("play_sound", "play_sound(\"sounds/jump.wav\", volume=1, pitch=1, bus=\"Effects\")", 1, 4, [&g](CallArgs& a) {
         float volume = static_cast<float>(a.has(1) ? a.number(1, "volume") : a.keywordNumber("volume", 1));
         float pitch = static_cast<float>(a.has(2) ? a.number(2, "pitch") : a.keywordNumber("pitch", 1));
-        g.audio().playSound(a.string(0, "sound"), volume, pitch);
+        const Value* bus = a.has(3) ? &a[3] : a.keyword("bus");
+        g.audio().playSound(a.string(0, "sound"), volume, pitch, {}, bus ? bus->toString() : "Effects");
         return Value();
     });
     def("play_music", "play_music(\"music/theme.ogg\", volume=1, loop=True)", 1, 3, [&g](CallArgs& a) {
@@ -1823,6 +1824,30 @@ void ScriptSystem::registerApi() {
     });
     def("set_volume", "set_volume(0.5)", 1, 1, [&g](CallArgs& a) {
         g.audio().setMasterVolume(static_cast<float>(a.number(0, "volume")));
+        return Value();
+    });
+    // The mixer's buses: set_bus_volume("Music", 0.3), mute_bus("Effects").
+    auto busName = [&g](CallArgs& a, const char* context) {
+        std::string name = a.string(0, "bus");
+        auto names = g.audio().busNames();
+        if (std::find(names.begin(), names.end(), name) == names.end()) {
+            std::string known;
+            for (auto& n : names)
+                known += (known.empty() ? "" : ", ") + n;
+            raise(std::string(context) + ": there's no audio bus called \"" + name + "\". The buses are: " + known + ".");
+        }
+        return name;
+    };
+    def("set_bus_volume", "set_bus_volume(\"Music\", 0.5)", 2, 2, [&g, busName](CallArgs& a) {
+        g.audio().setBusVolume(busName(a, "set_bus_volume()"), static_cast<float>(a.number(1, "volume")));
+        return Value();
+    });
+    def("get_bus_volume", "get_bus_volume(\"Music\")", 1, 1, [&g, busName](CallArgs& a) {
+        return Value(static_cast<double>(g.audio().busVolume(busName(a, "get_bus_volume()"))));
+    });
+    def("mute_bus", "mute_bus(\"Music\", True)", 1, 2, [&g, busName](CallArgs& a) {
+        std::string name = busName(a, "mute_bus()");
+        g.audio().setBusVolume(name, g.audio().busVolume(name), a.has(1) ? a[1].truthy() : true);
         return Value();
     });
 

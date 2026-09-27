@@ -110,7 +110,10 @@
   "resume_game": "Carries on after pause_game().",
 
   "play_music": "Plays music on a loop. It keeps playing when the scene changes.",
-  "play_sound": "Plays a sound once.",
+  "play_sound": "Plays a sound once. bus= picks the mixer channel (Effects by default).",
+  "set_bus_volume": "Sets how loud a mixer channel (bus) is, from 0 to 1: set_bus_volume(\"Music\", 0.3).",
+  "get_bus_volume": "How loud a mixer channel (bus) is, from 0 to 1.",
+  "mute_bus": "Silences a mixer channel (bus), or turns it back on with mute_bus(\"Music\", False).",
   "set_volume": "The volume of every sound and the music, from 0 (silent) to 1.",
   "stop_music": "Stops the music.",
 

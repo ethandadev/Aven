@@ -397,3 +397,42 @@ AVEN_TEST(debug_draw_lifetimes) {
         game.update(1.0f / 60.0f);
     CHECK(game.debugDraw().shapes().size() < 30); // lines don't pile up; labels last 2 s
 }
+
+// The audio mixer: buses are saved in the project, scripts can change them, and a wrong bus
+// name gets a clear message. (Works without a sound device too.)
+AVEN_TEST(audio_mixer_buses) {
+    ProjectSettings p;
+    CHECK(p.toJson()["audio_buses"].isNull()); // defaults aren't written out
+    p.audioBuses.push_back({"Ambience", 0.4f, false, 800.0f, 0.3f, 0.5f});
+    ProjectSettings q;
+    q.fromJson(p.toJson());
+    CHECK_EQ(q.audioBuses.size(), size_t(4));
+    CHECK_EQ(q.audioBuses[3].name, std::string("Ambience"));
+    CHECK_EQ(q.audioBuses[3].lowpass, 800.0f);
+    // Music and Effects always exist.
+    Json j = Json::parse(R"({"audio_buses": [{"name": "Voice"}]})");
+    ProjectSettings r;
+    r.fromJson(j);
+    CHECK_EQ(r.audioBuses.size(), size_t(3));
+
+    namespace stdfs = std::filesystem;
+    stdfs::path dir = stdfs::temp_directory_path() / "aven_mixer_test";
+    std::error_code ec;
+    stdfs::remove_all(dir, ec);
+    stdfs::create_directories(dir / "scripts", ec);
+    fs::writeText(dir / "scripts/m.es", "def on_start():\n    set_bus_volume(\"Music\", 0.25)\n    mute_bus(\"Effects\")\n"
+                                        "    game.v = get_bus_volume(\"Music\")\n    play_sound(\"sounds/none.wav\", bus=\"Voice\")\n"
+                                        "    set_bus_volume(\"Radio\", 1)\n");
+    ErrorCatcher catcher;
+    Assets assets;
+    assets.setRoot(dir);
+    Input input;
+    Game game(assets, input);
+    auto scene = std::make_unique<Scene>();
+    scene->registry().emplace<Script>(scene->create("Mixer")).path = "scripts/m.es";
+    game.start(std::move(scene), "test.scene");
+    game.update(1.0f / 60.0f);
+    CHECK_EQ(catcher.errors.size(), size_t(1)); // only the unknown "Radio" bus
+    CHECK(!catcher.errors.empty() && catcher.errors[0].find("no audio bus called \"Radio\"") != std::string::npos);
+    game.stop();
+}

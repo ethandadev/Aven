@@ -12,6 +12,17 @@
 namespace aven {
 
 // Settings stored in <project>/project.aven.
+// A mixer channel: sounds play through one (Project Settings > Audio mixer).
+struct AudioBus {
+    std::string name;
+    float volume = 1.0f;
+    bool muted = false;
+    float lowpass = 0.0f;   // cut sounds above this many Hz (muffled, underwater); 0 = off
+    float echo = 0.0f;      // 0..1 how loud the echo is; 0 = off
+    float echoDelay = 0.3f; // seconds between echoes
+    bool operator==(const AudioBus&) const = default;
+};
+
 struct ProjectSettings {
     static constexpr const char* kFileName = "project.aven";
 
@@ -31,6 +42,10 @@ struct ProjectSettings {
 
     // Collision layers: layer 0 is "Default"; `layers` names the others (up to 15).
     // Objects on two layers listed together in `layerIgnores` pass through each other.
+    // Audio buses; "Music" and "Effects" always exist (music and play_sound() use them by default).
+    std::vector<AudioBus> audioBuses = defaultAudioBuses();
+    static std::vector<AudioBus> defaultAudioBuses();
+
     static constexpr int kMaxLayers = 16;
     std::vector<std::string> layers;
     std::vector<std::pair<std::string, std::string>> layerIgnores;
