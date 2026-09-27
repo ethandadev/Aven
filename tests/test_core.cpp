@@ -1,5 +1,6 @@
 #include "test_framework.h"
 
+#include "aven/assets/assets.h"
 #include "aven/core/fs.h"
 #include "aven/core/json.h"
 #include "aven/core/uuid.h"
@@ -138,4 +139,31 @@ AVEN_TEST(fs_inside_folder_blocks_escapes) {
     if (!ec)
         CHECK(fs::insideFolder(root, "link/anything").empty()); // a link that leads out
 #endif
+}
+
+// Import settings: saved in import.json with only what differs, read back, and forgotten when reset.
+AVEN_TEST(import_settings_roundtrip) {
+    namespace stdfs = std::filesystem;
+    stdfs::path root = stdfs::temp_directory_path() / "aven_import_test";
+    std::error_code ec;
+    stdfs::remove_all(root, ec);
+    stdfs::create_directories(root, ec);
+    Assets assets;
+    assets.setRoot(root);
+    CHECK(assets.importFor("images/a.png") == ImportSettings{});
+    ImportSettings s;
+    s.filter = ImportSettings::Filter::Pixel;
+    s.maxSize = 256;
+    s.scale = 0.01f;
+    int gen = assets.importGeneration();
+    assets.setImport("images/a.png", s);
+    CHECK(assets.importGeneration() != gen);
+    auto text = fs::readText(root / "import.json");
+    CHECK(text && text->find("\"max_size\": 256") != std::string::npos && text->find("mipmaps") == std::string::npos);
+    Assets other; // another reader of the same project
+    other.setRoot(root);
+    ImportSettings back = other.importFor("images/a.png");
+    CHECK(back == s);
+    assets.setImport("images/a.png", {});
+    CHECK(!stdfs::exists(root / "import.json")); // nothing left to say
 }

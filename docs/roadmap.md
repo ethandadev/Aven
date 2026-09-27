@@ -65,8 +65,8 @@ Where Aven stands, including what's missing. If you'd like to help with any of i
   but no reverb zones or other effects.
 
 **Editor**
-- **Assets:** read straight from the project folder, with no import pipeline, compression
-  settings or asset bundles.
+- **Assets:** read straight from the project folder, with per-file import settings (filtering,
+  max size, model scale, streaming), but no texture compression or asset bundles.
 - **Missing tools:** visual shader and material graphs, and a timeline or cutscene editor.
 - **Ask Aven** understands a fixed vocabulary (`editor/data/assistant_words.json`) rather than
   using a language model, so it knows what it knows and says when it doesn't.

@@ -328,7 +328,8 @@ void Model::computePose(const AnimationClip* clip, float time, std::vector<Mat4>
     std::function<const Mat4&(size_t)> global = [&](size_t i) -> const Mat4& {
         if (!done[i]) {
             Mat4 local = Mat4::trs(t[i], r[i], s[i]);
-            out[i] = nodes[i].parent >= 0 ? global(static_cast<size_t>(nodes[i].parent)) * local : local;
+            out[i] = nodes[i].parent >= 0 ? global(static_cast<size_t>(nodes[i].parent)) * local
+                                          : (importScale != 1.0f ? Mat4::trs({}, Quat{}, {importScale, importScale, importScale}) * local : local);
             done[i] = true;
         }
         return out[i];

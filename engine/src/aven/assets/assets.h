@@ -1,9 +1,11 @@
 #pragma once
 
+#include "aven/core/json.h"
 #include "aven/render/font.h"
 #include "aven/render/rhi.h"
 #include "aven/scene/components.h"
 
+#include <chrono>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -12,6 +14,25 @@
 #include <vector>
 
 namespace aven {
+
+// How a file is brought into the game, from the project's import.json (Assets panel > Import
+// settings). Everything is optional; the defaults are what Aven always did.
+struct ImportSettings {
+    // Images
+    enum class Filter { Auto, Pixel, Smooth } filter = Filter::Auto; // Auto: as the component says (Pixel Art)
+    int maxSize = 0;      // shrink bigger images to fit (0 = full size)
+    bool mipmaps = true;  // smoother when small (smooth images only)
+    bool clamp = false;   // don't repeat at the edges
+    // 3D models
+    float scale = 1.0f;   // e.g. 0.01 for models made in centimeters
+    // Sounds
+    bool stream = false;  // read from disk while playing (long music) instead of all at once
+    float volume = 1.0f;
+
+    Json toJson() const; // only what isn't the default
+    static ImportSettings fromJson(const Json& j);
+    bool operator==(const ImportSettings&) const = default;
+};
 
 struct TextureAsset {
     rhi::TextureHandle handle;
@@ -42,8 +63,16 @@ public:
     Font& monoFont();
     Font& font(const std::string& path); // falls back to the default font
 
-    // Reloads images changed on disk since they were loaded. Returns true if any changed.
+    // Reloads images changed on disk since they were loaded (or whose import settings changed).
+    // Returns true if any changed.
     bool reloadChanged();
+
+    // Import settings (import.json in the project). Saving applies them straight away.
+    static constexpr const char* kImportFile = "import.json";
+    ImportSettings importFor(const std::string& path);
+    void setImport(const std::string& path, const ImportSettings& settings);
+    // Goes up whenever import.json changes, so renderers know to load models again.
+    int importGeneration() const { return importGeneration_; }
     void clear();
 
     // Decodes an image file into RGBA8 pixels.
@@ -53,10 +82,17 @@ public:
 private:
     struct CachedTexture {
         TextureAsset asset;
+        std::string path;
         std::filesystem::path file;
         int64_t modified = 0;
         bool pixelArt = false;
     };
+    Json imports_ = Json::object();
+    int64_t importsModified_ = -1;
+    std::chrono::steady_clock::time_point importsChecked_;
+    int importGeneration_ = 0;
+    void loadImports();
+    TextureAsset uploadImage(const std::string& path, std::vector<uint8_t>& pixels, int w, int h, bool pixelArt);
     rhi::Device* device_ = nullptr;
     std::filesystem::path root_;
     std::unordered_map<std::string, CachedTexture> textures_;

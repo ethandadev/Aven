@@ -211,6 +211,7 @@ void Editor::openPanels(const std::string& list) {
         if (p == "settings") showSettings_ = true;
         else if (p.rfind("settings:", 0) == 0) { showSettings_ = true; settingsSection_ = p.substr(9); }
         else if (p == "inspector") focusInspector_ = true;
+        else if (p.rfind("import:", 0) == 0) { selectedAssets_ = {p.substr(7)}; showImport_ = focusImport_ = true; } // Import Settings for a file
         else if (p.rfind("drop:", 0) == 0) onFilesDropped({p.substr(5)}); // as if dragged in from the desktop
         else if (p == "dump") { // for tests: the hierarchy, with * on selected objects
             scene_->walk([&](Entity e, int depth) {
@@ -1977,6 +1978,8 @@ void Editor::frame(float dt) {
         drawViewport(dt);
         if (showAssets_ && unlocked(Feature::Assets))
             drawAssets();
+        if (showImport_)
+            drawImportSettings();
         if (showConsole_ && unlocked(Feature::Console))
             drawConsole();
         if (showExplain_ && unlocked(Feature::Explain))

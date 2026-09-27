@@ -70,6 +70,7 @@ public:
     std::vector<ModelSkin> skins;
     std::vector<AnimationClip> animations;
     Vec3 boundsMin, boundsMax;
+    float importScale = 1.0f; // set before load(): the whole model is this much bigger (import settings)
 
     const AnimationClip* findClip(const std::string& name) const;
     // Node transforms relative to the model root, with an optional animation applied.

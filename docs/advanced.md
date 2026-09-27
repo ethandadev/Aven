@@ -77,6 +77,18 @@ def on_collide(other):
     print(self.anim_state)               # the state playing now
 ```
 
+## Import settings
+
+Right-click an image, 3D model or sound in the Assets panel > **Import settings** (several at
+once works too). Changes show straight away and are saved in `import.json`, which travels with
+the project and its exports. Moving or renaming a file keeps its settings.
+
+| Files | Settings |
+| --- | --- |
+| Images | Filter (auto, pixel, smooth), max size (shrinks big images on load), mipmaps, clamp edges |
+| 3D models | Scale (0.01 for models made in centimeters), with the size in meters shown |
+| Sounds | Volume, and stream from disk (for long files) |
+
 ## Pathfinding
 
 Enemies and characters can find their way around walls, in 2D (top-down) and 3D, with no setup:

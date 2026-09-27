@@ -122,6 +122,9 @@ struct AudioSystem::Impl {
         if (!ensure() || path.empty())
             return nullptr;
         std::string full = game.assets().resolve(path).string();
+        // Import settings: stream long files from disk instead of decoding them up front.
+        if (game.assets().importFor(path).stream && (flags & MA_SOUND_FLAG_DECODE))
+            flags = (flags & ~static_cast<ma_uint32>(MA_SOUND_FLAG_DECODE)) | MA_SOUND_FLAG_STREAM;
         auto sound = std::make_unique<ma_sound>();
         Bus* b = bus(busName);
         if (ma_sound_init_from_file(&engine, full.c_str(), flags, b ? &b->group : nullptr, nullptr, sound.get()) != MA_SUCCESS) {
@@ -206,7 +209,7 @@ void AudioSystem::update(float) {
             continue;
         }
         ma_sound* s = it->second.get();
-        ma_sound_set_volume(s, src->volume);
+        ma_sound_set_volume(s, src->volume * game().assets().importFor(src->clip).volume);
         ma_sound_set_pitch(s, src->pitch);
         if (src->spatial) {
             Vec3 p = scene.worldPosition(e);
@@ -220,7 +223,7 @@ void AudioSystem::playSound(const std::string& path, float volume, float pitch, 
     auto sound = impl_->load(path, MA_SOUND_FLAG_DECODE | MA_SOUND_FLAG_NO_SPATIALIZATION, bus);
     if (!sound)
         return;
-    ma_sound_set_volume(sound.get(), volume);
+    ma_sound_set_volume(sound.get(), volume * game().assets().importFor(path).volume);
     ma_sound_set_pitch(sound.get(), pitch);
     ma_sound_start(sound.get());
     // Avoid hundreds of overlapping sounds if a script plays one every frame.
@@ -233,7 +236,7 @@ void AudioSystem::playSound(const std::string& path, float volume, float pitch, 
 
 void AudioSystem::playMusic(const std::string& path, float volume, bool loop) {
     if (impl_->music && impl_->musicPath == path && ma_sound_is_playing(impl_->music.get())) {
-        ma_sound_set_volume(impl_->music.get(), volume);
+        ma_sound_set_volume(impl_->music.get(), volume * game().assets().importFor(path).volume);
         return;
     }
     stopMusic();
@@ -242,7 +245,7 @@ void AudioSystem::playMusic(const std::string& path, float volume, bool loop) {
         return;
     impl_->musicPath = path;
     ma_sound_set_looping(impl_->music.get(), loop);
-    ma_sound_set_volume(impl_->music.get(), volume);
+    ma_sound_set_volume(impl_->music.get(), volume * game().assets().importFor(path).volume);
     ma_sound_start(impl_->music.get());
 }
 
@@ -272,7 +275,7 @@ void AudioSystem::playSource(Entity e) {
     if (!sound)
         return;
     ma_sound_set_looping(sound.get(), src->loop);
-    ma_sound_set_volume(sound.get(), src->volume);
+    ma_sound_set_volume(sound.get(), src->volume * game().assets().importFor(src->clip).volume);
     ma_sound_set_pitch(sound.get(), src->pitch);
     if (src->spatial) {
         ma_sound_set_max_distance(sound.get(), src->range);

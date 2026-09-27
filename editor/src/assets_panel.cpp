@@ -7,9 +7,12 @@
 
 #include "aven/core/fs.h"
 #include "aven/core/log.h"
+#include "aven/render/model.h"
+#include "aven/render/renderer3d.h"
 #include "aven/scene/reflection.h"
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imgui_stdlib.h>
 
 #include <algorithm>
@@ -25,6 +28,17 @@ bool isImageFile(const std::string& ext) {
 }
 
 // Files that can mention other files by path.
+// What kind of import settings a file has: "image", "model", "sound" or "".
+std::string importKind(const std::string& ext) {
+    if (isImageFile(ext))
+        return "image";
+    if (ext == ".gltf" || ext == ".glb")
+        return "model";
+    if (ext == ".wav" || ext == ".mp3" || ext == ".ogg" || ext == ".flac")
+        return "sound";
+    return "";
+}
+
 bool mayReferenceFiles(const std::string& ext) {
     return ext == ".scene" || ext == ".prefab" || ext == ".es" || ext == ".blocks";
 }
@@ -130,6 +144,19 @@ int Editor::moveAssets(const std::vector<std::pair<std::string, std::string>>& r
             ++filesFixed;
         }
     }
+    // Import settings follow the files.
+    for (auto& [from, to] : done) {
+        for (auto& f : assetFiles_) {
+            std::string before = movedPath(f, {{to, from}}); // where this file was
+            if (before == f && f != to)
+                continue;
+            ImportSettings is = assets_.importFor(before);
+            if (is == ImportSettings{})
+                continue;
+            assets_.setImport(f, is);
+            assets_.setImport(before, {});
+        }
+    }
     // ...and in what's open: the scene (and its undo history), the scene a prefab returns to,
     // script tabs, the start scene.
     auto fixJson = [&](Json& j) {
@@ -207,6 +234,7 @@ void Editor::deleteAssets(const std::vector<std::string>& items) {
             continue;
         }
         ++deleted;
+        assets_.setImport(rel, {});
     }
     std::erase_if(selectedAssets_, [&](const std::string& a) {
         return std::any_of(items.begin(), items.end(), [&](const std::string& d) { return a == d || insidePath(a, d); });
@@ -324,7 +352,8 @@ void Editor::drawAssets() {
     } else {
         for (auto& entry : stdfs::directory_iterator(dir, ec)) {
             std::string name = entry.path().filename().string();
-            if (name.empty() || name[0] == '.' || name == ProjectSettings::kFileName || name == "tutorial.json")
+            if (name.empty() || name[0] == '.' || name == ProjectSettings::kFileName || name == "tutorial.json" ||
+                name == Assets::kImportFile)
                 continue;
             entries.push_back(entry);
         }
@@ -482,6 +511,9 @@ void Editor::drawAssets() {
                     notify("Made " + plural(static_cast<size_t>(made), "copy", "copies") + ".");
                 scanAssets();
             }
+            if (!importKind(ext).empty() && ImGui::MenuItem("Import settings...")) {
+                showImport_ = focusImport_ = true;
+            }
             if (ImGui::MenuItem("Show in file manager"))
                 openExternal((isDir ? projectDir_ / rel : (projectDir_ / rel).parent_path()).string());
             ImGui::Separator();
@@ -623,6 +655,135 @@ void Editor::drawAssets() {
         }
         ImGui::EndPopup();
     }
+    ImGui::End();
+}
+
+void Editor::drawImportSettings() {
+    // Opens as a tab next to the Inspector.
+    if (ImGuiWindow* inspector = ImGui::FindWindowByName("Inspector"); inspector && inspector->DockId)
+        ImGui::SetNextWindowDockID(inspector->DockId, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({340, 420}, ImGuiCond_FirstUseEver);
+    if (focusImport_) {
+        ImGui::SetNextWindowFocus();
+        focusImport_ = false;
+    }
+    if (!ImGui::Begin("Import Settings", &showImport_)) {
+        ImGui::End();
+        return;
+    }
+    // The selected files that have settings, all of one kind.
+    std::vector<std::string> files;
+    std::string kind;
+    for (auto& a : selectedAssets_) {
+        std::string k = importKind(fs::extension(a));
+        if (k.empty())
+            continue;
+        if (kind.empty())
+            kind = k;
+        if (k == kind)
+            files.push_back(a);
+    }
+    if (files.empty()) {
+        ImGui::TextWrapped("Select images, 3D models or sounds in the Assets panel to change how they come into the game.");
+        ImGui::End();
+        return;
+    }
+    ImGui::TextUnformatted(files.size() == 1 ? stdfs::path(files[0]).filename().string().c_str()
+                                             : (std::to_string(files.size()) + " " + kind + "s").c_str());
+    ImGui::Separator();
+    ImportSettings s = assets_.importFor(files.front());
+    bool changed = false;
+    auto row = [](const char* label) {
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(label);
+        ImGui::SameLine(120);
+        ImGui::SetNextItemWidth(-1);
+    };
+    if (kind == "image") {
+        const TextureAsset& t = assets_.texture(files.front(), s.filter == ImportSettings::Filter::Pixel);
+        float w = ImGui::GetContentRegionAvail().x, h = std::min(160.0f, w);
+        float aspect = t.height ? static_cast<float>(t.width) / static_cast<float>(t.height) : 1.0f;
+        ImVec2 size = aspect > w / h ? ImVec2(w, w / aspect) : ImVec2(h * aspect, h);
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (w - size.x) * 0.5f);
+        ImGui::Image(static_cast<ImTextureID>(device_.nativeTexture(t.handle)), size, {0, 1}, {1, 0});
+        int gw = t.width, gh = t.height;
+        while (s.maxSize > 0 && std::max(gw, gh) > s.maxSize && gw > 1 && gh > 1) {
+            gw = std::max(1, gw / 2);
+            gh = std::max(1, gh / 2);
+        }
+        ImGui::TextDisabled("%d x %d pixels%s", t.width, t.height,
+                            gw != t.width ? (", shrunk to " + std::to_string(gw) + " x " + std::to_string(gh)).c_str() : "");
+        ImGui::Spacing();
+        int filter = static_cast<int>(s.filter);
+        row("Filter");
+        if (ImGui::Combo("##filter", &filter, "Auto (as the object says)\0Pixel (sharp squares)\0Smooth\0")) {
+            s.filter = static_cast<ImportSettings::Filter>(filter);
+            changed = true;
+        }
+        const int sizes[] = {0, 128, 256, 512, 1024, 2048, 4096};
+        const char* sizeNames[] = {"Full size", "128", "256", "512", "1024", "2048", "4096"};
+        int current = 0;
+        for (int i = 0; i < 7; ++i)
+            if (sizes[i] == s.maxSize)
+                current = i;
+        row("Max size");
+        if (ImGui::Combo("##max", &current, sizeNames, 7)) {
+            s.maxSize = sizes[current];
+            changed = true;
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Big images use lots of memory, especially on phones. Shrinking them loads faster.");
+        row("Mipmaps");
+        changed |= ImGui::Checkbox("##mip", &s.mipmaps);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Smoother when shown small or far away (3D textures). Not used for pixel images.");
+        row("Clamp edges");
+        changed |= ImGui::Checkbox("##clamp", &s.clamp);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Stops the far edge bleeding in at the border. Turn off for textures that repeat.");
+    } else if (kind == "model") {
+        row("Scale");
+        changed |= ImGui::DragFloat("##scale", &s.scale, 0.01f, 0.001f, 1000.0f, "%.3gx", ImGuiSliderFlags_Logarithmic);
+        ImGui::TextDisabled("Models made in centimeters want 0.01.");
+        if (ImGui::Button("x0.01"))
+            s.scale = 0.01f, changed = true;
+        ImGui::SameLine();
+        if (ImGui::Button("x0.1"))
+            s.scale = 0.1f, changed = true;
+        ImGui::SameLine();
+        if (ImGui::Button("x1"))
+            s.scale = 1.0f, changed = true;
+        ImGui::SameLine();
+        if (ImGui::Button("x100"))
+            s.scale = 100.0f, changed = true;
+        if (Model* m = renderer_.renderer3D().model(files.front())) {
+            Vec3 d = m->boundsMax - m->boundsMin;
+            ImGui::Spacing();
+            ImGui::Text("Size: %.2f x %.2f x %.2f m", d.x, d.y, d.z);
+            ImGui::TextDisabled("%d parts, %d animation%s", static_cast<int>(m->parts.size()), static_cast<int>(m->animations.size()),
+                                m->animations.size() == 1 ? "" : "s");
+        }
+    } else {
+        std::error_code ec;
+        auto bytes = stdfs::file_size(projectDir_ / files.front(), ec);
+        ImGui::TextDisabled("%.0f KB", ec ? 0.0 : static_cast<double>(bytes) / 1024.0);
+        row("Volume");
+        changed |= ImGui::SliderFloat("##vol", &s.volume, 0.0f, 2.0f, "%.2f");
+        row("Stream");
+        changed |= ImGui::Checkbox("##stream", &s.stream);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Read from disk while playing, instead of loading it all first.\nGood for long music; music always streams.");
+    }
+    ImGui::Spacing();
+    if (ImGui::Button("Reset to defaults")) {
+        s = {};
+        changed = true;
+    }
+    if (changed)
+        for (auto& f : files)
+            assets_.setImport(f, s);
+    ImGui::Spacing();
+    ImGui::TextDisabled("Saved in import.json. Changes show straight away.");
     ImGui::End();
 }
 

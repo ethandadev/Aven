@@ -108,6 +108,7 @@ void Assets::clear() {
 
 void Assets::setRoot(const std::filesystem::path& root) {
     root_ = root;
+    importsModified_ = -1; // read this project's import.json
 }
 
 std::filesystem::path Assets::resolve(const std::string& path) const {
@@ -189,12 +190,153 @@ const TextureAsset& Assets::missingTexture() {
     return missing_;
 }
 
+// ---------------------------------------------------------------- import settings
+
+Json ImportSettings::toJson() const {
+    ImportSettings d;
+    Json j = Json::object();
+    if (filter != d.filter)
+        j["filter"] = filter == Filter::Pixel ? "pixel" : "smooth";
+    if (maxSize != d.maxSize)
+        j["max_size"] = maxSize;
+    if (mipmaps != d.mipmaps)
+        j["mipmaps"] = mipmaps;
+    if (clamp != d.clamp)
+        j["clamp"] = clamp;
+    if (scale != d.scale)
+        j["scale"] = scale;
+    if (stream != d.stream)
+        j["stream"] = stream;
+    if (volume != d.volume)
+        j["volume"] = volume;
+    return j;
+}
+
+ImportSettings ImportSettings::fromJson(const Json& j) {
+    ImportSettings s;
+    std::string f = j["filter"].asString("auto");
+    s.filter = f == "pixel" ? Filter::Pixel : f == "smooth" ? Filter::Smooth : Filter::Auto;
+    s.maxSize = std::max(0, j["max_size"].asInt(0));
+    s.mipmaps = j["mipmaps"].asBool(true);
+    s.clamp = j["clamp"].asBool(false);
+    s.scale = j["scale"].asFloat(1.0f);
+    if (!(s.scale > 0.0f))
+        s.scale = 1.0f;
+    s.stream = j["stream"].asBool(false);
+    s.volume = std::clamp(j["volume"].asFloat(1.0f), 0.0f, 4.0f);
+    return s;
+}
+
+void Assets::loadImports() {
+    if (root_.empty()) {
+        imports_ = Json::object();
+        return;
+    }
+    // Looking at the file's time costs a little: at most a few times a second.
+    auto now = std::chrono::steady_clock::now();
+    if (importsModified_ != -1 && now - importsChecked_ < std::chrono::milliseconds(250))
+        return;
+    importsChecked_ = now;
+    int64_t m = fs::modifiedTime(root_ / kImportFile);
+    if (m == importsModified_)
+        return;
+    importsModified_ = m;
+    ++importGeneration_;
+    auto text = m ? fs::readText(root_ / kImportFile) : std::nullopt;
+    imports_ = text ? Json::parse(*text) : Json::object();
+    if (!imports_.isObject())
+        imports_ = Json::object();
+}
+
+ImportSettings Assets::importFor(const std::string& path) {
+    loadImports();
+    return imports_.contains(path) ? ImportSettings::fromJson(imports_[path]) : ImportSettings{};
+}
+
+void Assets::setImport(const std::string& path, const ImportSettings& settings) {
+    loadImports();
+    Json j = settings.toJson();
+    if (j.members().empty())
+        imports_.erase(path);
+    else
+        imports_[path] = j;
+    Json out = Json::object();
+    out["about"] = "How files come into the game (Assets panel > right-click > Import settings).";
+    std::vector<std::string> keys;
+    for (auto& m : imports_.members())
+        if (m.key != "about")
+            keys.push_back(m.key);
+    std::sort(keys.begin(), keys.end());
+    for (auto& k : keys)
+        out[k] = imports_[k];
+    std::error_code ec;
+    if (keys.empty())
+        std::filesystem::remove(root_ / kImportFile, ec);
+    else
+        fs::writeText(root_ / kImportFile, out.dump(2) + "\n");
+    imports_ = keys.empty() ? Json::object() : out;
+    importsModified_ = fs::modifiedTime(root_ / kImportFile);
+    ++importGeneration_;
+    // Images show the change straight away.
+    for (auto& [key, c] : textures_) {
+        if (c.path != path || c.asset.missing)
+            continue;
+        std::vector<uint8_t> pixels;
+        int w = 0, h = 0;
+        if (!loadImage(c.file, pixels, w, h))
+            continue;
+        if (device_)
+            device_->destroy(c.asset.handle);
+        c.asset = uploadImage(c.path, pixels, w, h, c.pixelArt);
+    }
+}
+
+TextureAsset Assets::uploadImage(const std::string& path, std::vector<uint8_t>& pixels, int w, int h, bool pixelArt) {
+    ImportSettings is = importFor(path);
+    bool pixel = is.filter == ImportSettings::Filter::Auto ? pixelArt : is.filter == ImportSettings::Filter::Pixel;
+    TextureAsset t;
+    t.width = w; // the size the image is, even when it's shrunk on the GPU
+    t.height = h;
+    // Shrink by halves until it fits.
+    int gw = w, gh = h;
+    while (is.maxSize > 0 && std::max(gw, gh) > is.maxSize && gw > 1 && gh > 1) {
+        int nw = std::max(1, gw / 2), nh = std::max(1, gh / 2);
+        std::vector<uint8_t> half(static_cast<size_t>(nw) * nh * 4);
+        for (int y = 0; y < nh; ++y)
+            for (int x = 0; x < nw; ++x)
+                for (int c = 0; c < 4; ++c) {
+                    auto at = [&](int px, int py) {
+                        return pixels[(static_cast<size_t>(std::min(py, gh - 1)) * gw + std::min(px, gw - 1)) * 4 + c];
+                    };
+                    int sum = at(2 * x, 2 * y) + at(2 * x + 1, 2 * y) + at(2 * x, 2 * y + 1) + at(2 * x + 1, 2 * y + 1);
+                    half[(static_cast<size_t>(y) * nw + x) * 4 + c] = static_cast<uint8_t>((sum + 2) / 4);
+                }
+        pixels.swap(half);
+        gw = nw;
+        gh = nh;
+    }
+    if (!device_)
+        return t;
+    rhi::TextureDesc d;
+    d.width = gw;
+    d.height = gh;
+    d.format = rhi::PixelFormat::RGBA8;
+    d.filter = pixel ? rhi::Filter::Nearest : rhi::Filter::Linear;
+    d.wrap = is.clamp ? rhi::Wrap::Clamp : rhi::Wrap::Repeat;
+    d.mipmaps = is.mipmaps && !pixel;
+    d.data = pixels.data();
+    d.label = path.c_str();
+    t.handle = device_->createTexture(d);
+    return t;
+}
+
 const TextureAsset& Assets::texture(const std::string& path, bool pixelArt) {
     std::string key = path + (pixelArt ? "#p" : "#s");
     auto it = textures_.find(key);
     if (it != textures_.end())
         return it->second.asset;
     CachedTexture c;
+    c.path = path;
     c.file = resolve(path);
     c.pixelArt = pixelArt;
     c.modified = fs::modifiedTime(c.file);
@@ -205,16 +347,19 @@ const TextureAsset& Assets::texture(const std::string& path, bool pixelArt) {
         c.asset = missingTexture();
         c.asset.missing = true;
     } else {
-        c.asset = upload(pixels.data(), w, h, pixelArt, true, path.c_str());
+        c.asset = uploadImage(path, pixels, w, h, pixelArt);
     }
     return textures_.emplace(key, std::move(c)).first->second.asset;
 }
 
 bool Assets::reloadChanged() {
     bool changed = false;
+    int generation = importGeneration_;
+    loadImports();
+    bool importsChanged = generation != importGeneration_;
     for (auto& [key, c] : textures_) {
         int64_t m = fs::modifiedTime(c.file);
-        if (m == 0 || m == c.modified)
+        if (m == 0 || (m == c.modified && !importsChanged))
             continue;
         c.modified = m;
         std::vector<uint8_t> pixels;
@@ -223,8 +368,9 @@ bool Assets::reloadChanged() {
             continue;
         if (!c.asset.missing && device_)
             device_->destroy(c.asset.handle);
-        c.asset = upload(pixels.data(), w, h, c.pixelArt, true, key.c_str());
-        Log::info("Reloaded image ", c.file.filename().string());
+        c.asset = uploadImage(c.path, pixels, w, h, c.pixelArt);
+        if (!importsChanged)
+            Log::info("Reloaded image ", c.file.filename().string());
         changed = true;
     }
     return changed;

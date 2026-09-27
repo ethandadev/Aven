@@ -496,6 +496,17 @@ struct Renderer3D::Impl {
         device = nullptr;
     }
 
+    int importGeneration = -1;
+    // Import settings changed (a model's scale): load models again. Called at the start of a
+    // frame, never while pointers to models are held.
+    void checkImports() {
+        if (!assets || assets->importGeneration() == importGeneration)
+            return;
+        importGeneration = assets->importGeneration();
+        models.clear();
+        failedModels.clear();
+    }
+
     Model* loadModel(const std::string& path) {
         if (path.empty() || failedModels.count(path))
             return nullptr;
@@ -503,6 +514,7 @@ struct Renderer3D::Impl {
         if (it != models.end())
             return it->second.get();
         auto m = std::make_unique<Model>();
+        m->importScale = assets->importFor(path).scale;
         std::string error;
         if (!m->load(device, assets->resolve(path), &error)) {
             Log::warn("Couldn't load the model '", path, "': ", error);
@@ -529,6 +541,7 @@ struct Renderer3D::Impl {
     }
 
     void gather(Scene& scene) {
+        checkImports();
         items.clear();
         skins.clear();
         auto& reg = scene.registry();

@@ -708,6 +708,8 @@ private:
     void drawInspector();
     void drawViewport(float dt);
     void drawAssets();
+    bool showImport_ = false, focusImport_ = false;
+    void drawImportSettings(); // for the files selected in the Assets panel
     void drawConsole();
     void drawScriptTabs();
     void drawSettings();
