@@ -225,6 +225,13 @@ void Editor::openPanels(const std::string& list) {
                 return true;
             });
         }
+        else if (p.rfind("select:", 0) == 0) { // select:A|B|C picks objects by name (automated tests)
+            selection_.clear();
+            std::string names = p.substr(7) + "|";
+            for (size_t at = 0, bar; (bar = names.find('|', at)) != std::string::npos; at = bar + 1)
+                if (Entity e = scene_->findByName(names.substr(at, bar - at)))
+                    selection_.push_back(scene_->info(e).uuid);
+        }
         else if (p.rfind("search:", 0) == 0) hierarchyFilter_ = p.substr(7); // the Hierarchy's search box
         else if (p == "reference") showReference_ = true;
         else if (p == "prefs") showPrefs_ = true;
@@ -751,7 +758,7 @@ std::vector<Entity> Editor::selectedEntities() {
 }
 
 void Editor::recordUndo(const std::string& label) {
-    if (playing_ || runningTool_)
+    if (playing_ || runningTool_ || undoPaused_)
         return;
     undo_.push_back({label, scene_->save(), selection_});
     if (undo_.size() > 100)

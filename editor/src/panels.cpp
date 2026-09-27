@@ -789,6 +789,10 @@ void Editor::drawHierarchy() {
             for (Entity m : moving)
                 s.setParent(m, {});
         }
+        // Files from Assets (prefabs, images, models, sounds) go into the scene, in the middle of the view.
+        if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("ASSET_PATH"))
+            placeAssets(draggedAssets(std::string(static_cast<const char*>(pl->Data), static_cast<size_t>(pl->DataSize))),
+                        {viewportSize_.x * 0.5f, viewportSize_.y * 0.5f});
         ImGui::EndDragDropTarget();
     }
     if (ImGui::IsItemClicked())
@@ -1495,9 +1499,12 @@ bool Editor::componentUnlocked(const ComponentInfo& info) const {
 
 void Editor::drawAddComponent(Entity e) {
     static std::string filter;
+    // With several objects selected, a component goes on every one that doesn't have it yet.
+    std::vector<Entity> targets = inspected_.empty() ? std::vector<Entity>{e} : inspected_;
     ImGui::Spacing();
     float w = ImGui::GetContentRegionAvail().x;
-    if (ImGui::Button("+ Add Component", {w, 30})) {
+    std::string label = targets.size() > 1 ? "+ Add Component to " + std::to_string(targets.size()) + " objects" : "+ Add Component";
+    if (ImGui::Button(label.c_str(), {w, 30})) {
         filter.clear();
         ImGui::OpenPopup("add_component");
     }
@@ -1509,19 +1516,31 @@ void Editor::drawAddComponent(Entity e) {
         ImGui::InputTextWithHint("##search", "Search components...", &filter);
         std::string lastCategory;
         auto& reg = scene().registry();
+        auto missing = [&](const ComponentInfo& info) {
+            std::vector<Entity> out;
+            for (Entity t : targets)
+                if (reg.valid(t) && !info.get(reg, t))
+                    out.push_back(t);
+            return out;
+        };
         // A component copied from another object (right-click a component > Copy values).
         if (const ComponentInfo* copied = componentClipboardType_.empty() ? nullptr : ComponentRegistry::find(componentClipboardType_);
-            copied && !copied->get(reg, e) && filter.empty()) {
+            copied && !missing(*copied).empty() && filter.empty()) {
             if (ImGui::Selectable(("   Paste " + displayName(copied->name) + " (copied)").c_str())) {
                 recordUndo("Paste " + copied->name);
-                loadComponent(*copied, copied->add(reg, e), componentClipboard_);
-                ensureRequirements(e, copied->name);
+                for (Entity t : missing(*copied)) {
+                    loadComponent(*copied, copied->add(reg, t), componentClipboard_);
+                    ensureRequirements(t, copied->name);
+                }
                 ImGui::CloseCurrentPopup();
             }
             ImGui::Separator();
         }
         for (auto& info : ComponentRegistry::all()) {
-            if (info.get(reg, e) || (info.advanced && !advanced()) || !componentUnlocked(info))
+            if ((info.advanced && !advanced()) || !componentUnlocked(info))
+                continue;
+            std::vector<Entity> into = missing(info);
+            if (into.empty())
                 continue;
             std::string hay = info.name + " " + displayName(info.name) + " " + info.description + " " + info.category;
             std::string needle = filter;
@@ -1533,22 +1552,30 @@ void Editor::drawAddComponent(Entity e) {
                 ImGui::TextDisabled("%s", info.category.c_str());
                 lastCategory = info.category;
             }
-            if (ImGui::Selectable(("   " + displayName(info.name)).c_str())) {
+            std::string item = "   " + displayName(info.name);
+            if (targets.size() > 1 && into.size() < targets.size())
+                item += "  (" + std::to_string(into.size()) + " of " + std::to_string(targets.size()) + " need it)";
+            if (ImGui::Selectable(item.c_str())) {
                 recordUndo("Add " + info.name);
-                info.add(reg, e);
-                ensureRequirements(e, info.name);
-                if (info.name == "Script") {
-                    // A new script is ready to edit straight away.
-                    std::string path = newScriptFile(scene().info(e).name, !advanced());
-                    reg.get<Script>(e).path = path;
-                    fs::extension(path) == ".blocks" ? openBlocks(path) : openScript(path);
+                std::string newScript; // several objects share one new script
+                for (Entity t : into) {
+                    info.add(reg, t);
+                    ensureRequirements(t, info.name);
+                    if (info.name == "Script") {
+                        if (newScript.empty())
+                            newScript = newScriptFile(scene().info(t).name, !advanced());
+                        reg.get<Script>(t).path = newScript;
+                    }
+                    if (info.name == "BoxCollider2D")
+                        if (auto* sr = reg.tryGet<SpriteRenderer>(t))
+                            reg.get<BoxCollider2D>(t).size = sr->size;
+                    if (info.name == "CircleCollider2D")
+                        if (auto* sr = reg.tryGet<SpriteRenderer>(t))
+                            reg.get<CircleCollider2D>(t).radius = std::max(sr->size.x, sr->size.y) * 0.5f;
                 }
-                if (info.name == "BoxCollider2D")
-                    if (auto* sr = reg.tryGet<SpriteRenderer>(e))
-                        reg.get<BoxCollider2D>(e).size = sr->size;
-                if (info.name == "CircleCollider2D")
-                    if (auto* sr = reg.tryGet<SpriteRenderer>(e))
-                        reg.get<CircleCollider2D>(e).radius = std::max(sr->size.x, sr->size.y) * 0.5f;
+                // A new script is ready to edit straight away.
+                if (!newScript.empty())
+                    fs::extension(newScript) == ".blocks" ? openBlocks(newScript) : openScript(newScript);
                 ImGui::CloseCurrentPopup();
             }
             if (ImGui::IsItemHovered())

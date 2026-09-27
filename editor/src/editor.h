@@ -535,7 +535,9 @@ private:
     void placeLibraryItem(int index, Vec2 viewportPoint);
     void applyLibraryTexture(Entity e, int index, const std::string& path);
     Vec3 dropPoint(Vec2 viewportPoint);
-    void placeAsset(const std::string& path, Vec2 viewportPoint); // a project file dropped in the scene
+    Entity placeAsset(const std::string& path, Vec2 viewportPoint); // a project file dropped in the scene
+    void placeAssets(const std::vector<std::string>& paths, Vec2 viewportPoint); // several, side by side, one undo step
+    std::vector<std::string> draggedAssets(const std::string& dragged) const; // what an Assets drag carries
     bool matchesSearch(Entity e, const std::string& query); // Hierarchy search: names, t:, tag:, layer:
     void drawHierarchySearch();
     void drawSelectMenu(Entity e); // right-click > Select (same tag, prefab, script...)
@@ -719,6 +721,7 @@ private:
     void newEditorTool();
     void drawEditorToolsMenu();
     bool runningTool_ = false; // the whole run is one undo step
+    bool undoPaused_ = false;  // a group of changes already recorded as one undo step
     // Terrain tools (terrain_editor.cpp)
     int terrainTool_ = -1; // a TerrainTool, or -1 for none
     float brushRadius_ = 4.0f, brushStrength_ = 0.5f, flattenLevel_ = 0.3f, hillsAmount_ = 0.35f;

@@ -378,7 +378,7 @@ void Editor::handleViewportDrop() {
         return;
     Vec2 local{ImGui::GetMousePos().x - viewportPos_.x, ImGui::GetMousePos().y - viewportPos_.y};
     if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("ASSET_PATH"))
-        placeAsset(std::string(static_cast<const char*>(p->Data), static_cast<size_t>(p->DataSize)), local);
+        placeAssets(draggedAssets(std::string(static_cast<const char*>(p->Data), static_cast<size_t>(p->DataSize))), local);
     if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("LIBRARY_ITEM"))
         placeLibraryItem(*static_cast<const int*>(p->Data), local);
     ImGui::EndDragDropTarget();
@@ -399,12 +399,53 @@ Vec3 Editor::dropPoint(Vec2 local) {
 }
 
 // A project file dropped in the scene: images become sprites, models objects, scripts attach...
-void Editor::placeAsset(const std::string& path, Vec2 local) {
+std::vector<std::string> Editor::draggedAssets(const std::string& dragged) const {
+    if (std::find(assetDrag_.begin(), assetDrag_.end(), dragged) != assetDrag_.end())
+        return assetDrag_;
+    return {dragged};
+}
+
+void Editor::placeAssets(const std::vector<std::string>& paths, Vec2 local) {
+    if (paths.size() == 1) {
+        placeAsset(paths[0], local);
+        return;
+    }
+    // Several at once: one undo step, side by side along the view's right, all selected after.
+    recordUndo("Add " + std::to_string(paths.size()) + " assets");
+    undoPaused_ = true;
+    Vec3 right = view3D_ ? rotate(Quat::fromEuler({0, camYaw_, 0}), Vec3{1, 0, 0}) : Vec3{1, 0, 0};
+    std::vector<UUID> placed;
+    float offset = 0;
+    for (const std::string& path : paths) {
+        std::string ext = fs::extension(path);
+        if (ext == ".scene" || ext == ".es" || ext == ".blocks") {
+            // A scene would replace this one, and a script needs an object to go on: one at a time.
+            if (ext == ".es" || ext == ".blocks")
+                placeAsset(path, local);
+            continue;
+        }
+        Entity e = placeAsset(path, local);
+        if (!e)
+            continue;
+        auto& t = scene_->transform(e);
+        t.position = t.position + right * offset;
+        offset += view3D_ ? 2.0f : 1.25f;
+        placed.push_back(scene_->info(e).uuid);
+    }
+    undoPaused_ = false;
+    if (!placed.empty())
+        selection_ = placed;
+    scene_->updateTransforms();
+}
+
+Entity Editor::placeAsset(const std::string& path, Vec2 local) {
     CameraView cam = editorCamera();
     Vec3 at = dropPoint(local);
     std::string ext = fs::extension(path);
+    Entity placed;
     if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga") {
         Entity e = createEntity("Sprite");
+        placed = e;
         scene_->info(e).name = stdfs::path(path).stem().string();
         auto& sr = scene_->registry().get<SpriteRenderer>(e);
         sr.texture = path;
@@ -413,9 +454,10 @@ void Editor::placeAsset(const std::string& path, Vec2 local) {
             sr.size = {static_cast<float>(t.width) / t.height, 1.0f};
         scene_->transform(e).position = {at.x, at.y, view3D_ ? at.z : 0};
     } else if (ext == ".prefab") {
-        instantiatePrefab(path, at);
+        placed = instantiatePrefab(path, at);
     } else if (ext == ".gltf" || ext == ".glb") {
         Entity e = createEntity("Entity");
+        placed = e;
         scene_->info(e).name = stdfs::path(path).stem().string();
         auto& mr = scene_->registry().emplace<MeshRenderer>(e);
         mr.mesh = MeshShape::Model;
@@ -436,7 +478,10 @@ void Editor::placeAsset(const std::string& path, Vec2 local) {
         Entity e = createEntity("Sound");
         scene_->registry().get<AudioSource>(e).clip = path;
         scene_->info(e).name = stdfs::path(path).stem().string();
+        scene_->transform(e).position = {at.x, at.y, view3D_ ? at.z : 0};
+        placed = e;
     }
+    return placed;
 }
 
 // Gizmos for the selection. Works in the editor, and on the running game while paused.
