@@ -44,6 +44,7 @@ struct Prefs {
     std::string codeTheme = "Aven Dark";
     bool rounded = true;
     bool compact = false;
+    bool colorblindSafe = false; // axis colors that don't rely on telling red from green
     std::string layout = "Default";
     std::map<std::string, std::string> savedLayouts; // name -> ImGui .ini data
 
@@ -97,6 +98,10 @@ struct Prefs {
 
 // Applies the theme, spacing and roundness to ImGui's style.
 void applyStyle(const Prefs& prefs, float dpiScale);
+// X, Y and Z colors (move arrows, X/Y/Z fields, grid axes): red, green and blue, or with
+// colorblindSafe orange, sky blue and pink (from the Okabe-Ito palette).
+Color axisColor(int axis, float alpha = 1.0f);
+unsigned int axisColorU32(int axis);
 // (Re)builds the font atlas. Call outside of a frame, then recreate the renderer's font texture.
 void buildFonts(const Prefs& prefs, float dpiScale, Fonts& fonts);
 // Blends two colors in 0-255 units, for small UI touches.

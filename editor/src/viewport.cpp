@@ -8,6 +8,7 @@
 #include "aven/scene/reflection.h"
 
 #include <imgui.h>
+#include <imgui_internal.h>
 
 #include <ImGuizmo.h>
 
@@ -263,9 +264,9 @@ void Editor::drawSceneOverlay(const CameraView& cam) {
                 float alpha = (i % 5 == 0 ? 0.28f : 0.12f) * k;
                 Color col{g.r, g.g, g.b, alpha};
                 line(r, cam, {c.x + i, 0.001f, c.z - extent}, {c.x + i, 0.001f, c.z + extent}, 1.2f,
-                     i + c.x == 0 ? Color{0.3f, 0.5f, 0.95f, 0.6f} : col, vh, white);
+                     i + c.x == 0 ? axisColor(2, 0.6f) : col, vh, white);
                 line(r, cam, {c.x - extent, 0.001f, c.z + i}, {c.x + extent, 0.001f, c.z + i}, 1.2f,
-                     i + c.z == 0 ? Color{0.9f, 0.3f, 0.3f, 0.6f} : col, vh, white);
+                     i + c.z == 0 ? axisColor(0, 0.6f) : col, vh, white);
             }
         } else {
             float halfH = camZoom_, halfW = camZoom_ * viewportSize_.x / std::max(vh, 1.0f);
@@ -274,12 +275,12 @@ void Editor::drawSceneOverlay(const CameraView& cam) {
             float y0 = std::floor((cam2D_.y - halfH) / step) * step, y1 = cam2D_.y + halfH;
             for (float x = x0; x <= x1; x += step)
                 line(r, cam, {x, cam2D_.y - halfH, -50}, {x, cam2D_.y + halfH, -50}, 1.0f,
-                     x == 0 ? Color{0.4f, 0.8f, 0.4f, 0.55f}
+                     x == 0 ? axisColor(1, 0.55f)
                             : Color{g.r, g.g, g.b, (std::fmod(std::abs(x), step * 5) < 0.01f ? 0.16f : 0.07f) * k},
                      vh, white);
             for (float y = y0; y <= y1; y += step)
                 line(r, cam, {cam2D_.x - halfW, y, -50}, {cam2D_.x + halfW, y, -50}, 1.0f,
-                     y == 0 ? Color{0.9f, 0.35f, 0.35f, 0.55f}
+                     y == 0 ? axisColor(0, 0.55f)
                             : Color{g.r, g.g, g.b, (std::fmod(std::abs(y), step * 5) < 0.01f ? 0.16f : 0.07f) * k},
                      vh, white);
         }
@@ -508,7 +509,7 @@ void Editor::drawGizmo(const CameraView& cam, ImVec2 pos, ImVec2 size, bool& usi
     ImGuizmo::MODE mode = gizmoOp_ == 2 || prefs.gizmoLocal ? ImGuizmo::LOCAL : ImGuizmo::WORLD;
     ImGuizmo::Manipulate(cam.view.m, cam.projection.m, op, mode, world.m, nullptr, doSnap ? snapValues : nullptr);
     usingGizmo = ImGuizmo::IsUsing();
-    overGizmo = ImGuizmo::IsOver();
+    overGizmo = ImGuizmo::IsOver(op); // (the no-argument IsOver() can read an operation that was never set)
     if (!usingGizmo)
         return;
     const char* label = gizmoOp_ == 0 ? "Move" : gizmoOp_ == 1 ? "Rotate" : "Scale";
@@ -564,6 +565,9 @@ void Editor::drawViewport(float dt) {
     }
     ImGui::Begin(title.c_str(), nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::PopStyleVar();
+    // When a docked window's title changes (Scene / Game (playing)), ImGui reallocates its name but
+    // leaves the draw list pointing at the old one, which ImGuizmo looks the window up by.
+    ImGui::GetWindowDrawList()->_OwnerName = ImGui::GetCurrentWindow()->Name;
 
     drawPrefabBar();
     // A slim bar with view options.

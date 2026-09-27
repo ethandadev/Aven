@@ -148,8 +148,8 @@ bool assetField(const char* label, std::string& value, const std::vector<std::st
 }
 
 bool vectorField(float* v, int count, float step) {
-    // Red, green and blue like the move arrows in the Scene view.
-    static const ImU32 kColors[3] = {IM_COL32(226, 86, 86, 255), IM_COL32(112, 192, 80, 255), IM_COL32(82, 142, 232, 255)};
+    // The same colors as the move arrows in the Scene view.
+    const ImU32 kColors[3] = {axisColorU32(0), axisColorU32(1), axisColorU32(2)};
     static const char* kNames[3] = {"X", "Y", "Z"};
     bool changed = false;
     float spacing = ImGui::GetStyle().ItemInnerSpacing.x;

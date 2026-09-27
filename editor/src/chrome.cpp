@@ -736,6 +736,9 @@ void Editor::drawPreferences() {
         restyle |= ImGui::Checkbox("##rounded", &prefs.rounded);
         label("Compact spacing", "Fit more on the screen.");
         restyle |= ImGui::Checkbox("##compact", &prefs.compact);
+        label("Colorblind-friendly axes", "Orange, sky blue and pink for X, Y and Z (move arrows, X/Y/Z fields, grid lines)\n"
+                                          "instead of red, green and blue.");
+        restyle |= ImGui::Checkbox("##colorblind", &prefs.colorblindSafe);
         ui::sectionHeader("Layout");
         label("Panel layout");
         if (ImGui::BeginCombo("##layout", prefs.layout.c_str())) {

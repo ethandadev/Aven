@@ -4,6 +4,7 @@
 #include "aven/core/fs.h"
 #include "editor.h"
 
+#include <ImGuizmo.h>
 #include <imgui_internal.h>
 
 #include <algorithm>
@@ -138,6 +139,7 @@ Json Prefs::toJson() const {
     j["code_theme"] = codeTheme;
     j["rounded"] = rounded;
     j["compact"] = compact;
+    j["colorblind_safe"] = colorblindSafe;
     j["layout"] = layout;
     Json layouts = Json::object();
     for (auto& [name, ini] : savedLayouts)
@@ -199,6 +201,7 @@ void Prefs::fromJson(const Json& j) {
     codeTheme = j["code_theme"].asString(d.codeTheme);
     rounded = j["rounded"].asBool(d.rounded);
     compact = j["compact"].asBool(d.compact);
+    colorblindSafe = j["colorblind_safe"].asBool(d.colorblindSafe);
     layout = j["layout"].asString(d.layout);
     savedLayouts.clear();
     for (auto& m : j["saved_layouts"].members())
@@ -253,7 +256,34 @@ void Prefs::save() const { fs::writeText(prefsPath(), toJson().dump(2)); }
 
 // ---------------------------------------------------------------- style
 
+namespace {
+bool gColorblindSafe = false;
+}
+
+Color axisColor(int axis, float alpha) {
+    static const uint32_t normal[3] = {0xE25656, 0x70C050, 0x528EE8};
+    static const uint32_t safe[3] = {0xE69F00, 0x56B4E9, 0xCC79A7};
+    // (The index gets its own line: GCC 13 at -O0 mis-built std::clamp's temporaries inside the ?: here.)
+    int i = axis < 0 ? 0 : axis > 2 ? 2 : axis;
+    Color c = Color::fromHex(gColorblindSafe ? safe[i] : normal[i]);
+    c.a = alpha;
+    return c;
+}
+
+unsigned int axisColorU32(int axis) {
+    Color c = axisColor(axis);
+    return IM_COL32(static_cast<int>(c.r * 255), static_cast<int>(c.g * 255), static_cast<int>(c.b * 255), 255);
+}
+
 void applyStyle(const Prefs& prefs, float dpiScale) {
+    gColorblindSafe = prefs.colorblindSafe;
+    // The move/rotate/scale handles use the same axis colors.
+    ImGuizmo::Style& gizmo = ImGuizmo::GetStyle();
+    for (int i = 0; i < 3; ++i) {
+        Color c = axisColor(i);
+        gizmo.Colors[ImGuizmo::DIRECTION_X + i] = {c.r, c.g, c.b, 1.0f};
+        gizmo.Colors[ImGuizmo::PLANE_X + i] = {c.r, c.g, c.b, 0.38f};
+    }
     const ThemePreset& t = prefs.themePreset();
     ImGuiStyle& st = ImGui::GetStyle();
     st = ImGuiStyle();
