@@ -97,6 +97,7 @@ jobs:
       - name: Test
         env:
           ASAN_OPTIONS: detect_leaks=1
+          AVEN_FUZZ_ROUNDS: "3000"
           UBSAN_OPTIONS: print_stacktrace=1
         run: build/bin/aven_tests
 
