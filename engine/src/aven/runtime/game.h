@@ -48,6 +48,10 @@ public:
     void start(std::unique_ptr<Scene> scene, const std::string& path);
     void stop();
     bool running() const { return running_; }
+    // Lends the game a scene without starting anything (no physics, no scripts' on_start), so
+    // scripts can work on it: the editor's tools. Give it back with releaseScene().
+    void adoptScene(std::unique_ptr<Scene> scene);
+    std::unique_ptr<Scene> releaseScene();
 
     // Advances the game by dt seconds.
     void update(float dt);

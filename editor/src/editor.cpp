@@ -213,6 +213,7 @@ void Editor::openPanels(const std::string& list) {
         else if (p.rfind("settings:", 0) == 0) { showSettings_ = true; settingsSection_ = p.substr(9); }
         else if (p == "inspector") focusInspector_ = true;
         else if (p.rfind("import:", 0) == 0) { selectedAssets_ = {p.substr(7)}; showImport_ = focusImport_ = true; } // Import Settings for a file
+        else if (p.rfind("tool:", 0) == 0) runEditorTool(p.substr(5)); // run an editor tool
         else if (p.rfind("drop:", 0) == 0) onFilesDropped({p.substr(5)}); // as if dragged in from the desktop
         else if (p == "dump") { // for tests: the hierarchy, with * on selected objects
             scene_->walk([&](Entity e, int depth) {
@@ -750,7 +751,7 @@ std::vector<Entity> Editor::selectedEntities() {
 }
 
 void Editor::recordUndo(const std::string& label) {
-    if (playing_)
+    if (playing_ || runningTool_)
         return;
     undo_.push_back({label, scene_->save(), selection_});
     if (undo_.size() > 100)
@@ -1784,6 +1785,11 @@ void Editor::onFilesDropped(const std::vector<std::string>& files) {
 
 void Editor::setupCodeIntel() {
     codeIndex_.fillFromEngine();
+    // Editor tools (editor_tools/) have a few more.
+    codeIndex_.globals.push_back({"selection", "selection()", 0, 0});
+    codeIndex_.globals.push_back({"select", "select(objects)", 1, 1});
+    codeIndex_.globals.push_back({"create", "create(\"Cube\", x, y, z)", 1, 4});
+    codeIndex_.globals.push_back({"notify", "notify(\"Done!\")", 1, 1});
     const Json& docs = editorData("api_docs.json");
     for (auto& m : docs.members())
         if (m.key[0] != '_')

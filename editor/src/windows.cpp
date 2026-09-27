@@ -357,6 +357,11 @@ void Editor::drawCommandPalette() {
     add("Build & export", "window", [this] { showExport_ = true; });
     for (auto& t : extraCommands_)
         add(t.first, "tool", t.second);
+    for (auto& t : editorTools()) {
+        std::string path = t.path;
+        add("Tool: " + t.name, "editor tool", [this, path] { runEditorTool(path); });
+    }
+    add("New editor tool", "command", [this] { newEditorTool(); });
     for (const char* k : {"Square", "Circle", "Sprite", "Text", "Tilemap", "Cube", "Sphere", "Player 3D", "Camera", "Particles",
                           "Sound", "UI Text", "UI Button", "UI Image", "Score Text", "Health Bar", "Start Menu", "Pause Menu",
                           "Folder", "Sun", "Point Light", "Terrain"})

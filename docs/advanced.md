@@ -191,6 +191,34 @@ play_sound("sounds/radio.wav", bus="Voice")
 - **Native modules** in C or C++ for heavy lifting: see [Native code](native-code.md).
 - **Code Ladder**: any script as C#, GDScript, Luau or C++, for moving to other engines.
 
+## Editor tools: scripting the editor
+
+Automate editing with EasyScript, like Unity's editor scripts. Each `.es` file in the project's
+`editor_tools/` folder is a command in **Tools > Editor tools** and the command palette (Tool: ...).
+Running it calls its `run()` on the scene you're editing: `find()`, `find_all()`, `spawn()`,
+`terrain_height()` and every object property and action work as they do in a game, plus:
+
+| | |
+| --- | --- |
+| `selection()` | the selected objects, as a list |
+| `select(objects)` | select these (one object or a list) |
+| `create("Cube", x, y, z)` | anything from the Create menu; gives the new object |
+| `notify("Done!")` | a message when the tool finishes |
+
+A run is one undo step. **Tools > Editor tools > New editor tool** starts from an example:
+
+```easyscript
+# Drops the selected objects onto the terrain.
+def run():
+    for obj in selection():
+        ground = terrain_height(obj.x, obj.z)
+        if ground != None:
+            obj.y = ground
+    notify("Put " + str(len(selection())) + " objects on the ground.")
+```
+
+Tools don't run in games, and editor tools can't add windows or buttons to the editor (yet).
+
 ## Command line and CI
 
 ```sh

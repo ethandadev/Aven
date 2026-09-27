@@ -73,6 +73,17 @@ void Game::stop() {
     stopSystems();
 }
 
+void Game::adoptScene(std::unique_ptr<Scene> scene) {
+    stopSystems();
+    scene_ = std::move(scene);
+}
+
+std::unique_ptr<Scene> Game::releaseScene() {
+    auto s = std::move(scene_);
+    scene_ = std::make_unique<Scene>();
+    return s;
+}
+
 void Game::startSystems() {
     physics2D_->start();
     physics3D_->start();

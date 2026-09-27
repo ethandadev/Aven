@@ -327,6 +327,10 @@ void Editor::drawMenuBar() {
             openTilePainter();
         if (unlocked(Feature::NativeCode) && ImGui::MenuItem("Native Code (C/C++)"))
             openNativeCode();
+        if (unlocked(Feature::Code) && ImGui::BeginMenu("Editor tools")) {
+            drawEditorToolsMenu();
+            ImGui::EndMenu();
+        }
         ImGui::Separator();
         if (unlocked(Feature::Capture)) {
             if (ImGui::MenuItem("Take a Screenshot", chordName(prefs.chord("screenshot")).c_str()))

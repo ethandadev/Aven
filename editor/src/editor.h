@@ -710,6 +710,15 @@ private:
     void drawViewport(float dt);
     void drawAssets();
     bool showImport_ = false, focusImport_ = false;
+    // Editor tools: EasyScript in editor_tools/ that works on the scene (editor_tools.cpp)
+    struct EditorTool {
+        std::string path, name, about;
+    };
+    std::vector<EditorTool> editorTools() const;
+    bool runEditorTool(const std::string& path);
+    void newEditorTool();
+    void drawEditorToolsMenu();
+    bool runningTool_ = false; // the whole run is one undo step
     // Terrain tools (terrain_editor.cpp)
     int terrainTool_ = -1; // a TerrainTool, or -1 for none
     float brushRadius_ = 4.0f, brushStrength_ = 0.5f, flattenLevel_ = 0.3f, hillsAmount_ = 0.35f;
