@@ -60,6 +60,10 @@ jobs:
           xvfb-run -a -s "-screen 0 1920x1080x24" build/bin/aven-editor templates/platformer --screenshot editor.png --frames 20
           xvfb-run -a -s "-screen 0 1920x1080x24" build/bin/aven-player templates/obby-3d --screenshot player.png --frames 30 --hidden
 
+      - name: Editor interaction tests (recorded mouse and keyboard input)
+        if: runner.os == 'Linux'
+        run: python3 tests/editor/run.py build/bin/aven-editor
+
       - name: Upload screenshots
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4

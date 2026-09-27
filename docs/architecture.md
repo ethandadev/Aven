@@ -129,11 +129,20 @@ selected objects:
 
 ```
 10 move 90 297          # mouse to x, y (window pixels)
-11 down                 # left button (down 1 / up 1: right button)
+11 down                 # left button (down right / up right: the right button)
 12 up
-14 key Shift down       # Shift, Ctrl, Alt, Delete, Escape, Enter, Tab, Backspace, F2, A-Z
+14 key Shift down       # Shift, Ctrl, Alt, Delete, Escape, Enter, Tab, Backspace, F2, A-Z,
+                        # Up, Down, Left, Right, Home, End
 22 move 90 213 10       # glide there over 10 frames
 30 type hello           # text input
+```
+
+`tests/editor/run.py` uses this for the editor's interaction tests (selecting several objects and
+dragging them, arrow keys, Add Component and script variables on several objects, dropping
+assets, and a short random-input run), which CI runs on Linux:
+
+```
+python3 tests/editor/run.py build/bin/aven-editor [name-filter]
 ```
 
 ## Platform support
