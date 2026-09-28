@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(Aven
-    VERSION 0.1.0
+    VERSION 0.3.0
     DESCRIPTION "A beginner-friendly 2D/3D game engine"
     LANGUAGES C CXX)
 
