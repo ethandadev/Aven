@@ -1,0 +1,625 @@
+// Updates: when the editor starts, Aven asks GitHub for its releases. When there's a newer one, a
+// small "Update to 0.4.0" button shows in the menu bar (and on the start screen); nothing pops up.
+// The Update window shows what's new, downloads this system's zip, checks it against the SHA-256
+// GitHub lists for it, and unpacks it into .aven-update/ beside the editor. The new files are
+// swapped in when Aven quits (or restarts from that window): a running program can be renamed on
+// every system but not overwritten, so the old files move to .aven-update/old, which the new
+// version deletes when it starts. If anything can't be moved, everything is put back.
+//
+// Downloads use curl, which comes with Windows 10 and later, macOS and most Linux systems, so the
+// editor needs no HTTPS code of its own. Only release downloads (a folder with "START HERE.txt")
+// update themselves; a build from source just says there's a new version.
+//
+// AVEN_UPDATE_URL replaces GitHub's release list (for testing; file:// links work then).
+
+#include "editor.h"
+
+#include "aven/core/fs.h"
+#include "aven/core/log.h"
+#include "aven/core/update.h"
+#include "aven/core/zip.h"
+
+#include <imgui.h>
+
+#include <atomic>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <mutex>
+#include <sstream>
+#include <thread>
+
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
+#include <csignal>
+#include <fcntl.h>
+#include <spawn.h>
+#include <sys/wait.h>
+#include <unistd.h>
+extern char** environ;
+#endif
+
+namespace aven::editor {
+
+namespace {
+
+constexpr const char* kReleases = "https://api.github.com/repos/ethandadev/Aven/releases?per_page=20";
+constexpr const char* kReleasePage = "https://github.com/ethandadev/Aven/releases/latest";
+
+const char* hostSystem() {
+#if defined(_WIN32)
+    return "windows-x64";
+#elif defined(__APPLE__)
+    return "macos-arm64";
+#else
+    return "linux-x64";
+#endif
+}
+
+const char* editorProgram() {
+#if defined(_WIN32)
+    return "aven-editor.exe";
+#else
+    return "aven-editor";
+#endif
+}
+
+// Aven's folder when this is a release download (which can update itself), else empty.
+stdfs::path installFolder() {
+    std::error_code ec;
+    stdfs::path dir = fs::executableDir();
+    return stdfs::exists(dir / "START HERE.txt", ec) && stdfs::exists(dir / editorProgram(), ec) ? dir : stdfs::path();
+}
+
+std::string releasesUrl() {
+    const char* custom = std::getenv("AVEN_UPDATE_URL");
+    return custom && *custom ? custom : kReleases;
+}
+
+stdfs::path findCurl() {
+    std::error_code ec;
+#if defined(_WIN32)
+    // Part of Windows since Windows 10 (1803). The full path, so a curl.exe in the project folder can't stand in.
+    const char* root = std::getenv("SystemRoot");
+    stdfs::path system = stdfs::path(root ? root : "C:\\Windows") / "System32" / "curl.exe";
+    if (stdfs::exists(system, ec))
+        return system;
+    const char sep = ';';
+    const char* file = "curl.exe";
+#else
+    for (const char* p : {"/usr/bin/curl", "/bin/curl", "/usr/local/bin/curl", "/opt/homebrew/bin/curl"})
+        if (stdfs::exists(p, ec))
+            return p;
+    const char sep = ':';
+    const char* file = "curl";
+#endif
+    if (const char* path = std::getenv("PATH")) {
+        std::stringstream ss(path);
+        std::string dir;
+        while (std::getline(ss, dir, sep))
+            if (!dir.empty() && stdfs::path(dir).is_absolute() && stdfs::exists(stdfs::path(dir) / file, ec))
+                return stdfs::path(dir) / file;
+    }
+    return {};
+}
+
+// Runs a program (no shell, no window) and waits for it. Returns its exit code; -1 if it couldn't
+// start, -2 if `cancel` was set while it ran (it's stopped then).
+int runProgram(const std::vector<std::string>& args, const std::atomic<bool>* cancel) {
+#if defined(_WIN32)
+    std::string line;
+    for (auto& a : args) {
+        if (a.find('"') != std::string::npos)
+            return -1;
+        std::string arg = a;
+        size_t slashes = 0;
+        while (slashes < arg.size() && arg[arg.size() - 1 - slashes] == '\\')
+            ++slashes;
+        arg.append(slashes, '\\'); // a backslash before the closing quote would escape it
+        line += (line.empty() ? "\"" : " \"") + arg + "\"";
+    }
+    int n = MultiByteToWideChar(CP_UTF8, 0, line.c_str(), -1, nullptr, 0);
+    std::wstring wide(static_cast<size_t>(n > 0 ? n : 1), L'\0');
+    if (n > 0)
+        MultiByteToWideChar(CP_UTF8, 0, line.c_str(), -1, wide.data(), n);
+    STARTUPINFOW si{};
+    si.cb = sizeof si;
+    PROCESS_INFORMATION pi{};
+    if (!CreateProcessW(nullptr, wide.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi))
+        return -1;
+    CloseHandle(pi.hThread);
+    int result = 0;
+    while (WaitForSingleObject(pi.hProcess, 100) == WAIT_TIMEOUT) {
+        if (cancel && *cancel) {
+            TerminateProcess(pi.hProcess, 1);
+            WaitForSingleObject(pi.hProcess, 5000);
+            result = -2;
+            break;
+        }
+    }
+    if (result == 0) {
+        DWORD code = 1;
+        GetExitCodeProcess(pi.hProcess, &code);
+        result = static_cast<int>(code);
+    }
+    CloseHandle(pi.hProcess);
+    return result;
+#else
+    std::vector<std::string> copies = args;
+    std::vector<char*> argv;
+    for (auto& a : copies)
+        argv.push_back(a.data());
+    argv.push_back(nullptr);
+    posix_spawn_file_actions_t quiet;
+    posix_spawn_file_actions_init(&quiet);
+    posix_spawn_file_actions_addopen(&quiet, STDIN_FILENO, "/dev/null", O_RDONLY, 0);
+    posix_spawn_file_actions_addopen(&quiet, STDOUT_FILENO, "/dev/null", O_WRONLY, 0);
+    posix_spawn_file_actions_addopen(&quiet, STDERR_FILENO, "/dev/null", O_WRONLY, 0);
+    pid_t pid = 0;
+    int spawned = posix_spawn(&pid, argv[0], &quiet, nullptr, argv.data(), environ);
+    posix_spawn_file_actions_destroy(&quiet);
+    if (spawned != 0)
+        return -1;
+    int status = 0;
+    for (;;) {
+        pid_t done = waitpid(pid, &status, WNOHANG);
+        if (done == pid)
+            break;
+        if (done < 0)
+            return -1;
+        if (cancel && *cancel) {
+            kill(pid, SIGTERM);
+            waitpid(pid, &status, 0);
+            return -2;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+#endif
+}
+
+// Fetches a link into a file with curl. Returns "" when it worked, else what went wrong in words.
+std::string fetch(const std::string& url, const stdfs::path& to, bool big, const std::atomic<bool>* cancel) {
+    stdfs::path curl = findCurl();
+    if (curl.empty())
+        return "Aven uses curl to download, and it isn't installed here (on Linux: sudo apt install curl).";
+    stdfs::path err = to.string() + ".log";
+    // https only (file:// too when testing with AVEN_UPDATE_URL), also after redirects.
+    const char* protocols = std::getenv("AVEN_UPDATE_URL") ? "=https,file" : "=https";
+    std::vector<std::string> args = {curl.string(), "--fail", "--silent", "--show-error", "--location", "--proto", protocols,
+                                     "--proto-redir", protocols, "--retry", "2", "--connect-timeout", "20",
+                                     "--user-agent", std::string("Aven-Editor/") + AVEN_VERSION, "--stderr", err.string(),
+                                     "--output", to.string()};
+    if (big) // give up on a stalled download (slower than 1 KB/s for a minute), not a slow one
+        args.insert(args.end(), {"--speed-limit", "1024", "--speed-time", "60"});
+    else
+        args.insert(args.end(), {"--max-time", "30", "--header", "Accept: application/vnd.github+json"});
+    args.push_back(url);
+    int code = runProgram(args, cancel);
+    std::string said = fs::readText(err).value_or("");
+    std::error_code ec;
+    stdfs::remove(err, ec);
+    while (!said.empty() && (said.back() == '\n' || said.back() == '\r'))
+        said.pop_back();
+    if (size_t nl = said.rfind('\n'); nl != std::string::npos)
+        said = said.substr(nl + 1);
+    if (code == 0)
+        return "";
+    if (code == -2)
+        return "Cancelled.";
+    if (code == -1)
+        return "Couldn't run curl (" + curl.string() + ").";
+    if (code == 6 || code == 7 || code == 28 || code == 35)
+        return "Couldn't reach GitHub. Are you online? (" + said + ")";
+    if (code == 22 && said.find("403") != std::string::npos)
+        return "GitHub said to wait a while before asking again (" + said + ").";
+    return said.empty() ? "curl stopped with error " + std::to_string(code) + "." : said;
+}
+
+std::string megabytes(uint64_t bytes) {
+    char buf[32];
+    std::snprintf(buf, sizeof buf, "%.1f MB", static_cast<double>(bytes) / (1024.0 * 1024.0));
+    return buf;
+}
+
+// Release notes are Markdown. Shown here: headings, bullets (nested too) and paragraphs, with lines
+// that continue a bullet joined up, [links](...) as their words, and the rest as plain text. They end
+// where the release's download table starts.
+void drawNotes(const std::string& notes, ImFont* bold) {
+    struct Block {
+        int kind = 0; // 0 paragraph, 1 heading, 2 bullet
+        int depth = 0;
+        std::string text;
+    };
+    std::vector<Block> blocks;
+    bool open = false;
+    std::stringstream ss(notes);
+    std::string line;
+    while (std::getline(ss, line)) {
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        if (line.find("<!-- aven:download -->") != std::string::npos)
+            break;
+        size_t start = line.find_first_not_of(' ');
+        if (start == std::string::npos || line.compare(start, 4, "<!--") == 0 || line[start] == '|') {
+            open = false;
+            continue;
+        }
+        std::string text = line.substr(start);
+        if (text[0] == '#') {
+            blocks.push_back({1, 0, text.substr(std::min(text.size(), text.find_first_not_of("# ")))});
+            open = false;
+        } else if (text.size() > 1 && (text[0] == '-' || text[0] == '*') && text[1] == ' ') {
+            blocks.push_back({2, static_cast<int>(start / 2), text.substr(2)});
+            open = true;
+        } else if (open) {
+            blocks.back().text += " " + text; // a wrapped line
+        } else {
+            blocks.push_back({0, 0, text});
+            open = true;
+        }
+    }
+    for (auto& b : blocks) {
+        std::string& t = b.text;
+        for (const char* mark : {"**", "`"}) // emphasis reads as clutter in plain text
+            for (size_t at; (at = t.find(mark)) != std::string::npos;)
+                t.erase(at, std::strlen(mark));
+        for (size_t bracket = t.find('['); bracket != std::string::npos; bracket = t.find('[', bracket + 1)) {
+            size_t close = t.find("](", bracket), end = close == std::string::npos ? close : t.find(')', close);
+            if (end != std::string::npos)
+                t = t.substr(0, bracket) + t.substr(bracket + 1, close - bracket - 1) + t.substr(end + 1);
+        }
+        if (b.kind == 1) {
+            ImGui::Spacing();
+            ImGui::PushFont(bold);
+            ImGui::TextWrapped("%s", t.c_str());
+            ImGui::PopFont();
+        } else if (b.kind == 2) {
+            float indent = ui::px(18) * static_cast<float>(b.depth);
+            if (indent > 0)
+                ImGui::Indent(indent);
+            ImGui::Bullet();
+            ImGui::TextWrapped("%s", t.c_str());
+            if (indent > 0)
+                ImGui::Unindent(indent);
+        } else {
+            ImGui::TextWrapped("%s", t.c_str());
+        }
+    }
+}
+
+} // namespace
+
+struct Editor::UpdateJob {
+    enum Stage { Checking, UpToDate, Available, Downloading, Unpacking, Ready, Failed };
+    std::atomic<int> stage{Checking};
+    std::atomic<bool> cancel{false};
+    bool manual = false;
+    update::Release release; // written before stage becomes Available, then only read
+    stdfs::path install;     // Aven's folder, when this copy can update itself
+    stdfs::path part;        // the download while it comes in
+
+    std::mutex mutex;
+    std::string problem;
+
+    void fail(const std::string& why) {
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            problem = why;
+        }
+        Log::warn("Update: ", why);
+        stage = Failed;
+    }
+    std::string why() {
+        std::lock_guard<std::mutex> lock(mutex);
+        return problem;
+    }
+    bool busy() const { return stage == Checking || stage == Downloading || stage == Unpacking; }
+};
+
+void Editor::startUpdater() {
+    stdfs::path install = installFolder();
+    if (!install.empty()) {
+        // What an update left behind: the old version's files, or why it couldn't be installed.
+        stdfs::path work = install / ".aven-update";
+        if (auto failed = fs::readText(work / "failed.txt"))
+            notify("The update couldn't be installed: " + *failed, true);
+        std::error_code ec;
+        stdfs::remove_all(work, ec);
+    }
+    if (!options_.screenshot.empty())
+        return;
+    if (!prefs.lastVersion.empty() && update::isNewer(AVEN_VERSION, prefs.lastVersion))
+        notify(std::string("Aven is updated to ") + AVEN_VERSION + ". Have fun!");
+    if (prefs.lastVersion != AVEN_VERSION) {
+        prefs.lastVersion = AVEN_VERSION;
+        prefs.save();
+    }
+    // Builds from source don't look on their own (Help > Check for Updates still does).
+    if (prefs.checkUpdates && !install.empty())
+        checkForUpdates(false);
+}
+
+void Editor::checkForUpdates(bool manual, bool wait) {
+    if (manual)
+        showUpdater_ = true;
+    if (updateJob_ && (updateJob_->busy() || updateJob_->stage == UpdateJob::Ready))
+        return; // already on it, or already downloaded
+    auto job = std::make_shared<UpdateJob>();
+    job->manual = manual;
+    job->install = installFolder();
+    updateJob_ = job;
+    bool betas = prefs.betaUpdates || !update::parseVersion(AVEN_VERSION).pre.empty(); // beta testers keep getting betas
+    std::string skipped = manual ? "" : prefs.skippedUpdate;
+    auto work = [job, betas, skipped] {
+        stdfs::path list = fs::userDataDir("Aven Editor") / "releases.json";
+        std::error_code ec;
+        stdfs::create_directories(list.parent_path(), ec);
+        std::string problem = fetch(releasesUrl(), list, false, nullptr);
+        if (!problem.empty())
+            return job->fail(problem);
+        Json releases = Json::parse(fs::readText(list).value_or(""));
+        stdfs::remove(list, ec);
+        if (!releases.isArray())
+            return job->fail("GitHub's answer didn't list any releases" +
+                             (releases["message"].isString() ? " (" + releases["message"].asString() + ")." : std::string(".")));
+        update::Release release;
+        if (!update::newestRelease(releases, AVEN_VERSION, hostSystem(), betas, release) || release.version == skipped) {
+            job->stage = UpdateJob::UpToDate;
+            return;
+        }
+        job->release = release;
+        Log::info("Update: Aven ", release.version, " is out (this is ", AVEN_VERSION, ").");
+        job->stage = UpdateJob::Available;
+    };
+    if (wait)
+        work();
+    else
+        std::thread(work).detach();
+}
+
+void Editor::downloadUpdate(bool wait) {
+    auto job = updateJob_;
+    if (!job || job->busy() || job->stage == UpdateJob::Ready || job->release.download.empty() || job->install.empty())
+        return;
+    stdfs::path work = job->install / ".aven-update";
+    std::error_code ec;
+    stdfs::remove_all(work, ec);
+    stdfs::create_directories(work, ec);
+    bool writable = fs::writeText(work / "can-write", "yes");
+    stdfs::remove(work / "can-write", ec);
+    if (!writable) {
+        job->fail("Aven can't change its own folder (" + job->install.string() +
+                  "). Download the new version from the release page and unzip it instead.");
+        return;
+    }
+    job->part = work / (job->release.fileName + ".part");
+    job->cancel = false;
+    job->stage = UpdateJob::Downloading;
+    auto run = [job, work] {
+        const update::Release& r = job->release;
+        std::string problem = fetch(r.download, job->part, true, &job->cancel);
+        std::error_code e;
+        if (job->cancel) {
+            stdfs::remove(job->part, e);
+            job->stage = UpdateJob::Available;
+            return;
+        }
+        if (!problem.empty())
+            return job->fail("The download stopped: " + problem);
+        job->stage = UpdateJob::Unpacking;
+        uint64_t size = stdfs::file_size(job->part, e);
+        if (r.size && size != r.size)
+            return job->fail("The download came in cut short (" + megabytes(size) + " of " + megabytes(r.size) + "). Try again.");
+        if (!r.sha256.empty() && update::sha256File(job->part) != r.sha256) {
+            stdfs::remove(job->part, e);
+            return job->fail("The download doesn't match the release (its SHA-256 is different), so it wasn't installed. Try again.");
+        }
+        std::string error;
+        if (!zip::extract(job->part, work / "new", error))
+            return job->fail("Couldn't unpack the download: " + error + ".");
+        stdfs::remove(job->part, e);
+        if (!stdfs::exists(work / "new" / editorProgram(), e))
+            return job->fail("The download doesn't have the editor in it, so it wasn't installed.");
+        Log::info("Update: Aven ", r.version, " is ready; it's installed when Aven closes.");
+        job->stage = UpdateJob::Ready;
+    };
+    if (wait)
+        run();
+    else
+        std::thread(run).detach();
+}
+
+std::string Editor::installPendingUpdate() {
+    auto job = updateJob_;
+    if (job && job->stage == UpdateJob::Downloading) {
+        // Quitting mid-download: stop curl rather than leave it running without Aven.
+        job->cancel = true;
+        for (int i = 0; i < 50 && job->stage == UpdateJob::Downloading; ++i)
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    if (!job || job->stage != UpdateJob::Ready || job->install.empty())
+        return "";
+    stdfs::path work = job->install / ".aven-update";
+    std::error_code ec;
+    stdfs::remove_all(work / "old", ec);
+    std::string error;
+    if (!update::swapIn(job->install, work / "new", work / "old", error)) {
+        Log::error("Update: couldn't install Aven ", job->release.version, ": ", error);
+        fs::writeText(work / "failed.txt", error); // said when Aven next starts
+        return "";
+    }
+    Log::info("Update: installed Aven ", job->release.version, ".");
+    if (!updateRestart_)
+        return "";
+    std::string command = "\"" + (job->install / editorProgram()).string() + "\"";
+    if (hasProject())
+        command += " \"" + projectDir_.string() + "\"";
+    return command;
+}
+
+bool Editor::updateAvailable() const {
+    auto job = updateJob_;
+    if (!job)
+        return false;
+    int stage = job->stage;
+    return stage == UpdateJob::Available || stage == UpdateJob::Downloading || stage == UpdateJob::Unpacking ||
+           stage == UpdateJob::Ready || (stage == UpdateJob::Failed && !job->release.version.empty());
+}
+
+std::string Editor::updateStatus() const {
+    auto job = updateJob_;
+    if (!job)
+        return "none";
+    const char* names[] = {"checking", "up to date", "available", "downloading", "unpacking", "ready", "failed"};
+    std::string status = job->release.version.empty() ? names[job->stage] : job->release.version + " " + names[job->stage];
+    return job->stage == UpdateJob::Failed ? status + ": " + job->why() : status;
+}
+
+namespace {
+std::string badgeLabel(bool ready, const std::string& version) {
+    return ready ? "Restart to update" : "Update to " + version;
+}
+} // namespace
+
+float Editor::updateBadgeWidth() const {
+    if (!updateAvailable())
+        return 0;
+    return ImGui::CalcTextSize(badgeLabel(updateJob_->stage == UpdateJob::Ready, updateJob_->release.version).c_str()).x + ImGui::GetStyle().FramePadding.x * 2;
+}
+
+void Editor::drawUpdateBadge() {
+    if (!updateAvailable())
+        return;
+    auto job = updateJob_;
+    ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
+    if (ImGui::SmallButton((badgeLabel(job->stage == UpdateJob::Ready, job->release.version) + "##updatebadge").c_str()))
+        showUpdater_ = true;
+    ImGui::PopStyleColor(2);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("A new version of Aven is out. Click to see what's new.");
+}
+
+void Editor::drawUpdater() {
+    if (!showUpdater_)
+        return;
+    auto job = updateJob_;
+    ImGuiViewport* vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(vp->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
+    ImGui::SetNextWindowSize({ui::px(560), ui::px(460)}, ImGuiCond_Appearing);
+    if (!ImGui::Begin("Update Aven", &showUpdater_, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking)) {
+        ImGui::End();
+        return;
+    }
+    const float buttonH = ui::px(32);
+    int stage = job ? job->stage.load() : UpdateJob::UpToDate;
+    bool known = job && !job->release.version.empty();
+
+    if (!job || stage == UpdateJob::Checking) {
+        ImGui::TextUnformatted(job ? "Looking for a new version..." : "");
+    } else if (stage == UpdateJob::UpToDate) {
+        ImGui::PushFont(fonts.big);
+        ImGui::TextUnformatted("You're up to date");
+        ImGui::PopFont();
+        ImGui::TextDisabled("Aven %s is the newest%s version.", AVEN_VERSION, prefs.betaUpdates ? "" : " released");
+    } else if (stage == UpdateJob::Failed && !known) {
+        ImGui::TextWrapped("Couldn't check for a new version.");
+        ImGui::TextDisabled("%s", job->why().c_str());
+    }
+
+    if (known) {
+        const update::Release& r = job->release;
+        ImGui::PushFont(fonts.big);
+        ImGui::Text("Aven %s is here", r.version.c_str());
+        ImGui::PopFont();
+        ImGui::TextDisabled("You have %s%s", AVEN_VERSION, r.beta ? "  ·  this one is a beta" : "");
+        ImGui::Spacing();
+        bool textLine = stage == UpdateJob::Failed || stage == UpdateJob::Ready || job->install.empty() || r.download.empty();
+        float notesH = ImGui::GetContentRegionAvail().y - buttonH * (textLine ? 2.4f : 1.4f);
+        ImGui::BeginChild("##notes", {0, std::max(notesH, ui::px(80))}, ImGuiChildFlags_Borders);
+        if (r.notes.empty())
+            ImGui::TextDisabled("No notes for this version; the release page may say more.");
+        else
+            drawNotes(r.notes, fonts.bold);
+        ImGui::EndChild();
+
+        if (stage == UpdateJob::Failed)
+            ImGui::TextColored({1.0f, 0.45f, 0.4f, 1.0f}, "%s", job->why().c_str());
+        if (stage == UpdateJob::Downloading) {
+            std::error_code ec;
+            uint64_t got = stdfs::file_size(job->part, ec);
+            if (ec)
+                got = 0;
+            float fraction = r.size ? std::min(1.0f, static_cast<float>(got) / static_cast<float>(r.size)) : 0.0f;
+            std::string text = "Downloading  " + megabytes(got) + (r.size ? " of " + megabytes(r.size) : std::string());
+            ImGui::ProgressBar(fraction, {ImGui::GetContentRegionAvail().x - ui::px(110), buttonH}, text.c_str());
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", {-1, buttonH}))
+                job->cancel = true;
+        } else if (stage == UpdateJob::Unpacking) {
+            ImGui::ProgressBar(-static_cast<float>(ImGui::GetTime()), {-1, buttonH}, "Checking and unpacking...");
+        } else if (stage == UpdateJob::Ready) {
+            ImGui::TextWrapped("Ready. Aven %s goes in when you close Aven, or now:", r.version.c_str());
+            bool unsaved = (dirty_ && hasProject()) || pixel_.dirty;
+            for (auto& t : tabs_)
+                unsaved = unsaved || t->modified;
+            if (ImGui::Button(unsaved ? "Save and restart" : "Restart now", {ui::px(180), buttonH})) {
+                // As "Save and close" does.
+                if (playing_)
+                    stop();
+                if (hasProject()) {
+                    saveScene();
+                    saveAllScripts();
+                }
+                if (pixel_.dirty)
+                    savePixelImage();
+                updateRestart_ = true;
+                quit_ = true;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Later", {ui::px(100), buttonH}))
+                showUpdater_ = false;
+        } else if (job->install.empty() || r.download.empty()) {
+            ImGui::TextWrapped("%s", job->install.empty()
+                                         ? "This copy of Aven was built from its source code, so it doesn't replace itself: "
+                                           "pull the new code, or download Aven from the release page."
+                                         : "There's no download for this system in that release yet; the release page has what there is.");
+            if (ImGui::Button("Open the release page", {ui::px(220), buttonH}))
+                openExternal(r.page.empty() ? kReleasePage : r.page);
+        } else {
+            if (ImGui::Button(stage == UpdateJob::Failed ? "Try again" : "Download and install", {ui::px(200), buttonH}))
+                downloadUpdate(false);
+            ImGui::SameLine();
+            if (ImGui::Button("Release page", {0, buttonH}))
+                openExternal(r.page.empty() ? kReleasePage : r.page);
+            ImGui::SameLine();
+            if (ImGui::Button("Skip this version", {0, buttonH})) {
+                prefs.skippedUpdate = r.version;
+                prefs.save();
+                updateJob_.reset();
+                showUpdater_ = false;
+            }
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Stop mentioning %s. Help > Check for Updates still shows it.", r.version.c_str());
+        }
+    } else if (job && !job->busy()) {
+        ImGui::Spacing();
+        if (ImGui::Button("Check again", {ui::px(140), buttonH}))
+            checkForUpdates(true);
+        ImGui::SameLine();
+        if (ImGui::Button("Close", {ui::px(100), buttonH}))
+            showUpdater_ = false;
+    }
+    ImGui::End();
+}
+
+} // namespace aven::editor

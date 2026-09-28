@@ -171,6 +171,10 @@ Json Prefs::toJson() const {
     j["beginner_helpers"] = beginnerHelpers;
     j["external_editor"] = externalEditor;
     j["use_external_editor"] = useExternalEditor;
+    j["check_updates"] = checkUpdates;
+    j["beta_updates"] = betaUpdates;
+    j["skipped_update"] = skippedUpdate;
+    j["last_version"] = lastVersion;
     Json counts = Json::object();
     for (auto& [k, v] : counters)
         counts[k] = v;
@@ -233,6 +237,10 @@ void Prefs::fromJson(const Json& j) {
     beginnerHelpers = j["beginner_helpers"].asBool(d.beginnerHelpers);
     externalEditor = j["external_editor"].asString("");
     useExternalEditor = j["use_external_editor"].asBool(d.useExternalEditor);
+    checkUpdates = j["check_updates"].asBool(d.checkUpdates);
+    betaUpdates = j["beta_updates"].asBool(d.betaUpdates);
+    skippedUpdate = j["skipped_update"].asString("");
+    lastVersion = j["last_version"].asString("");
     counters.clear();
     for (auto& m : j["counters"].members())
         counters[m.key] = m.value.asInt();

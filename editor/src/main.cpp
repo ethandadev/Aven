@@ -244,6 +244,7 @@ int main(int argc, char** argv) {
     ImGui_ImplOpenGL3_Init("#version 330");
 
     int exitCode = 0;
+    std::string restart; // the updated editor, when an update asked to restart
     {
         Editor editor(window, *device);
         editor.setDpiScale(args.scale > 0 ? args.scale : std::max(1.0f, window.contentScale()));
@@ -310,11 +311,16 @@ int main(int argc, char** argv) {
                 window.swapBuffers();
             }
         }
+        restart = editor.installPendingUpdate();
     }
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     device.reset();
+    if (!restart.empty() && !screenshotMode) {
+        window.destroy();
+        launchCommand(restart);
+    }
     return exitCode;
 }

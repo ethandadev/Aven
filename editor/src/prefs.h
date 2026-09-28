@@ -73,6 +73,12 @@ struct Prefs {
     std::string externalEditor;
     bool useExternalEditor = false;
 
+    // Updates (updater.cpp)
+    bool checkUpdates = true;    // look for a new Aven when the editor starts
+    bool betaUpdates = false;    // offer beta versions too
+    std::string skippedUpdate;   // "Skip this version"
+    std::string lastVersion;     // the Aven that last ran, to say "Updated to ..." once
+
     // Learning
     int level = 1; // 1 Starter, 2 Explorer, 3 Creator, 4 Pro
     bool autoLevelUp = true;

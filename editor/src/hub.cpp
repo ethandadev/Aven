@@ -286,6 +286,10 @@ void Editor::drawHub() {
 
         ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(), ImGui::GetWindowHeight() - em * 3.2f));
         ImGui::TextDisabled("Aven %s", AVEN_VERSION);
+        if (updateAvailable()) {
+            ImGui::SameLine();
+            drawUpdateBadge();
+        }
         if (hasProject()) {
             ImGui::SameLine();
             if (ImGui::SmallButton("Back to project"))

@@ -120,6 +120,7 @@ bool Editor::init(const EditorOptions& options) {
         showHub_ = true;
     if (!hasProject())
         openPanels(options.openPanel);
+    startUpdater();
     return true;
 }
 
@@ -229,6 +230,11 @@ void Editor::openPanels(const std::string& list) {
                 if (!playerFolder(t).empty())
                     all.push_back(t);
             startDesktopExport(all, true);
+        }
+        else if (p == "update") { // Help > Check for Updates, then download it (automated tests: AVEN_UPDATE_URL)
+            checkForUpdates(true, true);
+            downloadUpdate(true);
+            Log::info("update: ", updateStatus());
         }
         else if (p == "gamedetails") { showExport_ = true; exportTab_ = 3; }
         else if (p == "projectzip") { std::string m; exportProjectZip(m); Log::info(m); } // File > Export Project as .zip
@@ -440,6 +446,8 @@ void Editor::loadRecent() {
 }
 
 void Editor::saveRecent() {
+    if (!options_.screenshot.empty())
+        return; // automated runs (tests) open throwaway copies; keep them off the user's list
     Json j = Json::object();
     Json list = Json::array();
     for (auto& r : recentProjects_)
@@ -2193,6 +2201,7 @@ void Editor::frame(float dt) {
         drawPreferences();
     if (showLevels_ || levelUpTo_)
         drawLevels();
+    drawUpdater();
     drawKeepChangesDialog();
     drawNotification(dt);
     drawQuitDialog();

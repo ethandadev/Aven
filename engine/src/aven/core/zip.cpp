@@ -212,10 +212,10 @@ bool read(const std::vector<uint8_t>& zip, std::vector<Entry>& files, std::strin
             return false;
         }
         const uint8_t* h = &zip[at];
-        uint16_t flags = get16(h + 8), method = get16(h + 10);
+        uint16_t madeBy = get16(h + 4), flags = get16(h + 8), method = get16(h + 10);
         uint32_t crc = get32(h + 16), packedSize = get32(h + 20), size = get32(h + 24);
         uint16_t nameLen = get16(h + 28), extraLen = get16(h + 30), commentLen = get16(h + 32);
-        uint32_t local = get32(h + 42);
+        uint32_t attributes = get32(h + 38), local = get32(h + 42);
         if (static_cast<uint64_t>(at) + 46 + nameLen > end) {
             error = "the zip file is damaged";
             return false;
@@ -252,6 +252,7 @@ bool read(const std::vector<uint8_t>& zip, std::vector<Entry>& files, std::strin
         }
         Entry entry;
         entry.name = name;
+        entry.executable = (madeBy >> 8) == 3 && ((attributes >> 16) & 0111) != 0; // made on Unix, with an x bit
         entry.data.resize(size);
         const char* packed = reinterpret_cast<const char*>(&zip[dataAt]);
         if (method == 0) {
@@ -310,6 +311,10 @@ bool extract(const stdfs::path& zipPath, const stdfs::path& folder, std::string&
         if (!fs::writeBinary(to, f.data.data(), f.data.size())) {
             error = "couldn't write " + name;
             return false;
+        }
+        if (f.executable) {
+            stdfs::permissions(to, stdfs::perms::owner_exec | stdfs::perms::group_exec | stdfs::perms::others_exec,
+                               stdfs::perm_options::add, ec);
         }
     }
     return true;

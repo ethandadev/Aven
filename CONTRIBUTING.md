@@ -77,15 +77,26 @@ on a desktop). New items need a unique `dest` path; `asset_library_is_complete` 
 
 Releases are built by `.github/workflows/release.yml`. To publish one from `main`:
 
+1. Set the version in `CMakeLists.txt` (`project(Aven VERSION 0.4.0 ...)`).
+2. In `CHANGELOG.md`, rename the **Next** section to the version (`## 0.4.0`) and start a new, empty
+   **Next** above it. That section becomes the release's notes, and the Update window in everyone's
+   editor shows it.
+3. Commit, then tag and push the tag:
+
 ```sh
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.4.0
+git push origin v0.4.0
 ```
 
 That builds and tests Aven on Windows, macOS and Linux, packs each into a zip with the templates
 and the web player (`tools/release/package.sh`), checks the Linux zip runs on its own, and
-publishes a GitHub release with the zips and notes generated from the commits. The tag sets the
-version the editor shows. A tag with a dash, like `v0.2.0-beta.1`, becomes a pre-release.
+publishes a GitHub release with the zips and the notes. The tag sets the version the editor shows.
+A tag with a dash, like `v0.4.0-beta.1`, becomes a pre-release, which only editors with
+"Include beta versions" turned on are offered.
+
+Editors that are already installed find the release on their own (`editor/src/updater.cpp`): they
+download `aven-<version>-<system>.zip`, so keep those names, and check it against the SHA-256 that
+GitHub lists for it.
 
 To try the build without publishing, open the Release workflow on the Actions tab and click
 **Run workflow**: the zips are attached to that run instead.

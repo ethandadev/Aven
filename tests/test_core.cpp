@@ -205,6 +205,17 @@ AVEN_TEST(zip_roundtrip_and_safety) {
     CHECK(fs::readText(dir / "back/scenes/main.scene").value_or("") == scene);
     CHECK(fs::readBinary(dir / "back/hero.png").value_or(std::vector<uint8_t>{}) == png);
     CHECK(!stdfs::exists(dir / "back/skip.tmp"));
+    // Programs stay programs: marked in the zip, runnable once unpacked (on macOS and Linux).
+    fs::writeText(dir / "src/run-me", "#!/bin/sh\n");
+    CHECK(zip::write(dir / "prog.zip", dir / "src", {}, [](const std::string& f) { return f == "run-me"; }));
+    CHECK(zip::read(fs::readBinary(dir / "prog.zip").value_or(std::vector<uint8_t>{}), files, error));
+    for (auto& f : files)
+        CHECK_EQ(f.executable, f.name == "run-me");
+    CHECK(zip::extract(dir / "prog.zip", dir / "prog", error));
+#if !defined(_WIN32)
+    CHECK((stdfs::status(dir / "prog/run-me").permissions() & stdfs::perms::owner_exec) != stdfs::perms::none);
+    CHECK((stdfs::status(dir / "prog/hero.png").permissions() & stdfs::perms::owner_exec) == stdfs::perms::none);
+#endif
 
     // Made by Python: deflated, everything inside "My Game/", with a folder entry.
     static const char kPython[] =

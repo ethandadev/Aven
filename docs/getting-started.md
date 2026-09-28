@@ -21,6 +21,28 @@ cmake --build build --config Release
 Then start the editor: `build/bin/aven-editor`. On Windows, with Visual Studio's generator,
 it's `build\bin\Release\aven-editor.exe`.
 
+Or skip building: the [Releases page](https://github.com/ethandadev/Aven/releases) has Aven ready to
+run for Windows, macOS and Linux.
+
+### Updates
+
+A downloaded Aven keeps itself up to date. When it starts, it asks GitHub whether there's a newer
+version (nothing else is sent), and if there is, an **Update to ...** button appears in the menu bar
+and on the start screen. It opens the Update window: what's new, and **Download and install**. The
+download is checked against the release's SHA-256 before anything changes, and the new version
+goes in when you press **Restart now** or next close Aven. Your games, and anything else you keep
+in Aven's folder, are left alone; the old version stays in `.aven-update/old` until the new one
+starts.
+
+- **Help > Check for Updates** looks any time.
+- **Preferences > Behavior > Updates** turns the check at start off, or adds beta versions.
+- **Skip this version** stops mentioning that one version.
+- A copy built from source doesn't replace itself (pull the new code instead); it only looks when
+  you use Check for Updates.
+- Downloading uses `curl`, which comes with Windows 10 and later, macOS and most Linux systems.
+  If Aven's folder can't be changed (say, it's somewhere only an administrator can write), the
+  Update window links to the download instead.
+
 ## 2. Make a game
 
 The editor opens on the **hub**. There are three ways to start:

@@ -72,6 +72,16 @@ Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should 
       with touch controls; install it to the home screen; play offline.
 - [ ] **Share**: the game card, the Wi-Fi link on your phone, the itch.io zip.
 
+## Updates
+- [ ] With a release download of the previous version: the **Update to ...** button shows in the menu
+      bar and on the start screen; the Update window shows the notes; **Download and install**
+      shows progress (and Cancel stops it); **Restart now** opens the new version with the same game.
+- [ ] **Later**, then close Aven: the next start is the new version. Your projects, and a file of your
+      own in Aven's folder, are untouched.
+- [ ] Windows: works with Aven in Downloads, and says what to do when it's in Program Files.
+- [ ] **Skip this version**; Preferences > Behavior > Updates (off, betas, "Don't skip it").
+- [ ] Offline: Help > Check for Updates says it couldn't reach GitHub; nothing else breaks.
+
 ## Multiplayer
 - [ ] Two computers on the same Wi-Fi: host, find the game, join, see each other move, leave.
 

@@ -17,7 +17,7 @@ quests/     Contributor Quests (small guided contributions, shown in the editor)
 
 | Folder | What's there |
 |---|---|
-| `core/` | JSON, logging, files, UUIDs, embedded data |
+| `core/` | JSON, logging, files, UUIDs, embedded data, zips, app icons, updates (versions, SHA-256, swapping files in) |
 | `math/` | vectors, quaternions, matrices, colors |
 | `ecs/` | a sparse-set entity/component registry |
 | `scene/` | components (`components.h`), reflection (fields, labels, ranges, tooltips), and `Scene`: hierarchy, save/load, prefabs |
@@ -107,6 +107,7 @@ One `Editor` class, split into files by area:
 | `recipes.cpp`, `code_ladder.cpp`, `play_edit.cpp`, `bug_replay.cpp`, `quests.cpp` | the other beginner features |
 | `pixel_editor.cpp`, `sprite_sheet.cpp`, `tile_painter.cpp`, `sound_maker.cpp`, `particle_tools.cpp`, `capture.cpp` | creator tools |
 | `share.cpp` | web export, installable phone web app, game cards, project zips |
+| `updater.cpp` | checking GitHub for a new Aven, downloading it (with curl), the Update window; installing when Aven quits |
 | `native_code.cpp` | the native (C/C++) module window and build |
 
 Things contributors can change without C++ live in `editor/data/`: the Error Doctor's

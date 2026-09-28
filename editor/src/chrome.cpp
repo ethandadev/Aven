@@ -377,13 +377,20 @@ void Editor::drawMenuBar() {
             prefsSection_ = "Shortcuts";
         }
         ImGui::Separator();
+        if (ImGui::MenuItem("Check for Updates..."))
+            checkForUpdates(true);
         if (ImGui::MenuItem("About Aven"))
             showAbout_ = true;
         ImGui::EndMenu();
     }
-    // Project name on the right.
+    // Project name on the right, after the "Update to ..." button when there's a new Aven.
     std::string label = settings_.name + (dirty_ ? "  (unsaved)" : "");
-    ImGui::SameLine(ImGui::GetWindowWidth() - ImGui::CalcTextSize(label.c_str()).x - 20);
+    float right = ImGui::GetWindowWidth() - ImGui::CalcTextSize(label.c_str()).x - 20;
+    if (updateAvailable()) {
+        ImGui::SameLine(right - updateBadgeWidth() - ImGui::GetStyle().ItemSpacing.x * 2);
+        drawUpdateBadge();
+    }
+    ImGui::SameLine(right);
     ImGui::TextDisabled("%s", label.c_str());
     ImGui::EndMenuBar();
     if (showAbout_) {
@@ -911,6 +918,24 @@ void Editor::drawPreferences() {
             launchCommand((at == std::string::npos ? cmd : cmd.substr(0, at)) + " \"" + projectDir_.string() + "\"");
         }
         ImGui::EndDisabled();
+        ui::sectionHeader("Updates");
+        label("Check for updates", "When Aven starts, it asks GitHub whether there's a new version, and shows an\n"
+                                   "\"Update to ...\" button if there is. Nothing is downloaded until you say so.");
+        changed |= ImGui::Checkbox("##checkupdates", &prefs.checkUpdates);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Check now"))
+            checkForUpdates(true);
+        label("Include beta versions", "Try new features before they're finished. Betas can have more bugs.");
+        changed |= ImGui::Checkbox("##betaupdates", &prefs.betaUpdates);
+        if (!prefs.skippedUpdate.empty()) {
+            label("Skipped version");
+            ImGui::TextDisabled("%s", prefs.skippedUpdate.c_str());
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Don't skip it")) {
+                prefs.skippedUpdate.clear();
+                changed = true;
+            }
+        }
     } else if (prefsSection_ == "Learning") {
         ui::sectionHeader("Learn mode");
         ImGui::TextWrapped("The editor starts simple and shows more as you learn. You're at the %s level.", levelName(prefs.level));

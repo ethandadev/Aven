@@ -238,6 +238,77 @@ def test_export_desktop_app(editor):
         return "the exported game didn't run:\n" + (run.stdout + run.stderr)[-1500:]
 
 
+def test_update_downloads_and_installs(editor):
+    """The updater: a newer release is found, downloaded, checked and swapped in when Aven closes;
+    a download that doesn't match its SHA-256 is refused. (Linux: a copy of the editor as a download.)"""
+    import hashlib
+    import zipfile
+    if not sys.platform.startswith("linux"):
+        return None
+    work = tempfile.mkdtemp(prefix="aven-update-test-")
+    game = os.path.join(work, "game")
+    shutil.copytree(os.path.join(ROOT, "templates", "platformer"), game)
+    marker = b"AVEN-NEW-BUILD"
+    package = os.path.join(work, "aven-9.9.9-linux-x64.zip")
+    with zipfile.ZipFile(package, "w", zipfile.ZIP_DEFLATED) as z:
+        for name, data, mode in (("aven-editor", open(editor, "rb").read() + marker, 0o755),
+                                 ("START HERE.txt", b"new", 0o644), ("templates/new.txt", b"hello", 0o644)):
+            info = zipfile.ZipInfo("aven-9.9.9-linux-x64/" + name)
+            info.create_system, info.external_attr, info.compress_type = 3, (0o100000 | mode) << 16, zipfile.ZIP_DEFLATED
+            z.writestr(info, data)
+    data = open(package, "rb").read()
+
+    def attempt(digest):
+        install = os.path.join(work, "Aven-" + digest[:6])
+        os.makedirs(os.path.join(install, "templates"))
+        shutil.copy2(editor, install)
+        for name, text in (("START HERE.txt", "old"), ("templates/old.txt", "old"), ("My notes.txt", "mine")):
+            with open(os.path.join(install, name), "w") as f:
+                f.write(text)
+        releases = os.path.join(work, "releases.json")
+        with open(releases, "w") as f:
+            json.dump([{"tag_name": "v9.9.9", "prerelease": False, "draft": False, "body": "## New\n- things",
+                        "html_url": "https://example.com", "assets": [
+                            {"name": "aven-9.9.9-linux-x64.zip", "size": len(data), "digest": "sha256:" + digest,
+                             "browser_download_url": "file://" + package}]}], f)
+        cmd = [os.path.join(install, "aven-editor"), game, "--screenshot", os.path.join(work, "shot.png"),
+               "--frames", "6", "--panel", "@3:update"]
+        if not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
+            cmd = ["xvfb-run", "-a", "-s", "-screen 0 1920x1080x24"] + cmd
+        env = dict(os.environ, AVEN_UPDATE_URL="file://" + releases)
+        run = subprocess.run(cmd, capture_output=True, text=True, timeout=300, env=env)
+        return install, run.stdout + run.stderr
+
+    install, log = attempt(hashlib.sha256(data).hexdigest())
+    if "update: 9.9.9 ready" not in log:
+        return "the update wasn't downloaded:\n" + log[-1500:]
+    if not open(os.path.join(install, "aven-editor"), "rb").read().endswith(marker):
+        return "the new editor wasn't put in place:\n" + log[-1500:]
+    if not os.access(os.path.join(install, "aven-editor"), os.X_OK):
+        return "the new editor isn't runnable"
+    if open(os.path.join(install, "START HERE.txt")).read() != "new" or not os.path.exists(os.path.join(install, "templates/new.txt")):
+        return "the new files weren't put in place"
+    if os.path.exists(os.path.join(install, "templates/old.txt")):
+        return "the old templates folder should have been replaced"
+    if open(os.path.join(install, "My notes.txt")).read() != "mine":
+        return "a file of the user's was touched"
+    # The new version starts, and tidies away the old files.
+    cmd = [os.path.join(install, "aven-editor"), "--screenshot", os.path.join(work, "shot2.png"), "--frames", "4"]
+    if not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
+        cmd = ["xvfb-run", "-a", "-s", "-screen 0 1920x1080x24"] + cmd
+    run = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    if run.returncode != 0:
+        return "the updated editor didn't start:\n" + (run.stdout + run.stderr)[-1500:]
+    if os.path.exists(os.path.join(install, ".aven-update")):
+        return "the old version's files should be gone once the new one starts"
+
+    install, log = attempt("0" * 64)
+    if "update: 9.9.9 failed" not in log or "SHA-256" not in log:
+        return "a download that doesn't match should be refused:\n" + log[-1500:]
+    if open(os.path.join(install, "aven-editor"), "rb").read().endswith(marker) or open(os.path.join(install, "START HERE.txt")).read() != "old":
+        return "a refused download must not change anything"
+
+
 def test_monkey(editor):
     """Random clicks, drags, keys and typing for a while, editing and playing: no crash."""
     for seed, template, play in ((1, "platformer", False), (2, "obby-3d", True)):

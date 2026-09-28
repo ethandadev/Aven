@@ -102,7 +102,8 @@ Clicker, 3D Obby and Crystal Forest (3D exploring).
 
 Ready-to-run builds for Windows, macOS (Apple silicon) and Linux are on the
 [Releases page](https://github.com/ethandadev/Aven/releases). Unzip, open `aven-editor`, and see
-`START HERE.txt` for the first run.
+`START HERE.txt` for the first run. After that, Aven updates itself: when a new version is out, an
+**Update to ...** button shows in the menu bar ([what's new](CHANGELOG.md)).
 
 ## Building
 

@@ -27,13 +27,14 @@ bool write(const stdfs::path& zipPath, const stdfs::path& folder,
 struct Entry {
     std::string name; // "scenes/main.scene"
     std::vector<uint8_t> data;
+    bool executable = false; // marked as a program (Unix permissions, from zips made on macOS/Linux)
 };
 
 // All the files in a zip held in memory. False (with a reason) for anything broken or unsafe.
 bool read(const std::vector<uint8_t>& zipBytes, std::vector<Entry>& files, std::string& error);
 
 // Unpacks into a folder (made if needed). If every file sits in one top folder ("My Game/..."),
-// that folder is dropped, so the files land straight in the destination.
+// that folder is dropped, so the files land straight in the destination. Programs stay runnable.
 bool extract(const stdfs::path& zipPath, const stdfs::path& folder, std::string& error);
 
 } // namespace aven::zip

@@ -104,6 +104,9 @@ public:
     void setDpiScale(float scale) { dpiScale_ = scale; styleDirty_ = true; }
     bool wantsQuit() const { return quit_; }
     void requestQuit();
+    // When Aven quits (main.cpp): puts a downloaded update in place (updater.cpp). Returns the
+    // command that starts the new version when the user chose to restart, else "".
+    std::string installPendingUpdate();
     // Runs `action` now, or asks to save first when there are unsaved changes (the scene's,
     // and also open scripts' when `scripts` is true) and runs it once the user has answered.
     // Returns true if it had to ask.
@@ -237,6 +240,19 @@ public:
     std::shared_ptr<DesktopJob> desktopJob_;
     std::map<std::string, bool> exportTargets_{{"windows-x64", true}, {"macos-arm64", true}, {"linux-x64", true}};
     std::string signPassword_; // for this export only; never saved
+    // Updates (updater.cpp): new versions of Aven from its GitHub releases.
+    struct UpdateJob;
+    std::shared_ptr<UpdateJob> updateJob_;
+    bool showUpdater_ = false;
+    bool updateRestart_ = false; // start the new version after installing it
+    void startUpdater();         // at startup: tidy up after an update, say what's new, check for one
+    void checkForUpdates(bool manual, bool wait = false);
+    void downloadUpdate(bool wait = false);
+    void drawUpdater();
+    void drawUpdateBadge(); // "Update to 0.3.1" in the menu bar and on the start screen
+    bool updateAvailable() const; // a new version to show the badge for
+    float updateBadgeWidth() const;
+    std::string updateStatus() const; // "0.4.0 ready", "up to date", "failed: ..." (tests)
     bool startSharing(std::string& message);
     void stopSharing();
     std::string gameControls();         // "Arrow keys to run · Space to jump", from the start scene

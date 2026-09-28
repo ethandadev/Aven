@@ -5,8 +5,16 @@ project(Aven
     DESCRIPTION "A beginner-friendly 2D/3D game engine"
     LANGUAGES C CXX)
 
-# The version the editor and player show. Release builds pass the tag's version (-DAVEN_VERSION=0.2.0).
-set(AVEN_VERSION "${PROJECT_VERSION}" CACHE STRING "Version shown by the editor and player")
+# The version the editor and player show (and the updater compares). Release builds pass the tag's
+# version (-DAVEN_VERSION=0.2.0); otherwise it follows project(VERSION) above, also in a build folder
+# made before that changed (which kept the old number, from the cache, before AVEN_VERSION_DEFAULT).
+get_property(_aven_version_type CACHE AVEN_VERSION PROPERTY TYPE)
+if(NOT AVEN_VERSION OR AVEN_VERSION STREQUAL "${AVEN_VERSION_DEFAULT}" OR
+   (NOT DEFINED AVEN_VERSION_DEFAULT AND _aven_version_type STREQUAL "STRING"))
+    set(AVEN_VERSION "${PROJECT_VERSION}" CACHE STRING "Version shown by the editor and player" FORCE)
+endif()
+set(AVEN_VERSION "${AVEN_VERSION}" CACHE STRING "Version shown by the editor and player")
+set(AVEN_VERSION_DEFAULT "${PROJECT_VERSION}" CACHE INTERNAL "The project version AVEN_VERSION followed")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

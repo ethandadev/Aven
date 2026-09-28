@@ -200,19 +200,35 @@ jobs:
         with:
           name: aven-packages
           path: dist
+      - uses: actions/checkout@v4
+      - name: Release notes from CHANGELOG.md
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          # The "## <version>" section, up to the next "## " heading.
+          awk -v v="$v" '/^## / { on = ($2 == v); next } on' CHANGELOG.md > body.md
+          if [ ! -s body.md ]; then
+            echo "::warning::CHANGELOG.md has no '## $v' section, so the release has no notes."
+          fi
+          # The editor's Update window shows the notes above this line.
+          cat >> body.md <<'EOF'
+
+          <!-- aven:download -->
+          ## Download
+
+          | | |
+          |---|---|
+          | Windows | `aven-*-windows-x64.zip` |
+          | macOS (Apple silicon) | `aven-*-macos-arm64.zip` |
+          | Linux | `aven-*-linux-x64.zip` |
+
+          Unzip it and open **aven-editor**. `START HERE.txt` in the zip explains the first run on each
+          system (Windows SmartScreen and macOS may ask about an app from the internet). Versions after
+          0.3.0 offer new versions themselves (Help > Check for Updates).
+          EOF
+          cat body.md
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*.zip
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
-          body: |
-            ## Download
-
-            | | |
-            |---|---|
-            | Windows | `aven-*-windows-x64.zip` |
-            | macOS (Apple silicon) | `aven-*-macos-arm64.zip` |
-            | Linux | `aven-*-linux-x64.zip` |
-
-            Unzip it and open **aven-editor**. `START HERE.txt` in the zip explains the first run on each
-            system (Windows SmartScreen and macOS may ask about an app from the internet).
+          body_path: body.md
