@@ -45,6 +45,11 @@ float valueNoise(float x, float y, uint32_t seed) {
 
 void terrainEnsure(Terrain& t) {
     t.resolution = std::clamp(t.resolution, 9, 513);
+    // (a size of 0 from a hand-edited file or a script would divide by zero in the brushes)
+    t.size.x = std::isfinite(t.size.x) ? std::max(t.size.x, 1.0f) : 64.0f;
+    t.size.y = std::isfinite(t.size.y) ? std::max(t.size.y, 1.0f) : 64.0f;
+    if (!std::isfinite(t.maxHeight))
+        t.maxHeight = 20.0f;
     int n = t.resolution;
     size_t count = static_cast<size_t>(n) * n;
     if (t.layers.empty())
@@ -105,7 +110,7 @@ float terrainHeightAt(const Terrain& t, float x, float z) {
 
 Vec3 terrainNormalAt(const Terrain& t, float x, float z) {
     int n = res(t);
-    float sx = t.size.x / static_cast<float>(n - 1), sz = t.size.y / static_cast<float>(n - 1);
+    float sx = std::max(t.size.x, 0.01f) / static_cast<float>(n - 1), sz = std::max(t.size.y, 0.01f) / static_cast<float>(n - 1);
     float hl = terrainHeightAt(t, x - sx, z), hr = terrainHeightAt(t, x + sx, z);
     float hd = terrainHeightAt(t, x, z - sz), hu = terrainHeightAt(t, x, z + sz);
     return normalize(Vec3{(hl - hr) / (2 * sx), 1.0f, (hd - hu) / (2 * sz)});

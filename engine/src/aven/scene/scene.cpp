@@ -302,6 +302,22 @@ void Scene::clear() {
     pendingDestroy_.clear();
 }
 
+// Puts loaded entities into the hierarchy once they all exist, so a child listed before its parent
+// (a hand-edited or merged file) still finds it. A parent that would make a loop, or that isn't
+// there, leaves the entity at the top level (or under `fallback`).
+void Scene::linkLoaded(const std::vector<std::pair<Entity, UUID>>& wanted, Entity fallback, std::vector<Entity>* tops) {
+    for (auto& [e, parentId] : wanted) {
+        Entity p = parentId ? findByUUID(parentId) : Entity{};
+        bool linked = p && p != e && !isAncestor(e, p);
+        if (!linked)
+            p = fallback;
+        registry_.get<Hierarchy>(e).parent = p;
+        siblingList(p).push_back(e);
+        if (!linked && tops)
+            tops->push_back(e);
+    }
+}
+
 bool Scene::load(const Json& data, std::string* error) {
     if (!data.isObject() || !data["entities"].isArray()) {
         if (error)
@@ -312,6 +328,8 @@ bool Scene::load(const Json& data, std::string* error) {
         Log::warn("Scene was saved by a newer version of Aven; some things may be missing.");
     clear();
     name = data["name"].asString("Untitled");
+    std::vector<std::pair<Entity, UUID>> wanted;
+    std::vector<const Json*> components;
     for (auto& ej : data["entities"].elements()) {
         UUID id = UUID::fromString(ej["id"].asString());
         if (!id || byUUID_.count(id))
@@ -321,36 +339,46 @@ bool Scene::load(const Json& data, std::string* error) {
         info.tag = ej["tag"].asString();
         info.layer = ej["layer"].asString();
         info.active = ej["active"].asBool(true);
-        Entity p = ej.contains("parent") ? findByUUID(UUID::fromString(ej["parent"].asString())) : Entity{};
-        registry_.get<Hierarchy>(e).parent = p;
-        siblingList(p).push_back(e);
-        loadEntityComponents(e, ej["components"]);
+        wanted.push_back({e, ej.contains("parent") ? UUID::fromString(ej["parent"].asString()) : UUID{}});
+        components.push_back(&ej["components"]);
     }
+    linkLoaded(wanted, {}, nullptr);
+    for (size_t i = 0; i < wanted.size(); ++i)
+        loadEntityComponents(wanted[i].first, *components[i]);
     updateTransforms();
     return true;
 }
 
 std::vector<Entity> Scene::instantiate(const Json& data, Entity parentEntity) {
+    // Every copy gets a fresh id; an entry without one (or with one used twice) gets its own.
     std::unordered_map<std::string, UUID> remap;
-    for (auto& ej : data["entities"].elements())
-        remap[ej["id"].asString()] = UUID::generate();
-
-    std::vector<Entity> created, tops;
+    std::vector<UUID> ids;
     for (auto& ej : data["entities"].elements()) {
-        Entity e = createWithId(remap[ej["id"].asString()], ej["name"].asString("Entity"));
+        std::string old = ej["id"].asString("");
+        UUID fresh = UUID::generate();
+        if (!old.empty() && !remap.count(old))
+            remap[old] = fresh;
+        ids.push_back(fresh);
+    }
+    std::vector<std::pair<Entity, UUID>> wanted;
+    std::vector<const Json*> components;
+    std::vector<Entity> created, tops;
+    size_t i = 0;
+    for (auto& ej : data["entities"].elements()) {
+        Entity e = createWithId(ids[i++], ej["name"].asString("Entity"));
         auto& info = registry_.get<EntityInfo>(e);
         info.tag = ej["tag"].asString();
         info.layer = ej["layer"].asString();
         info.active = ej["active"].asBool(true);
-        auto pit = remap.find(ej["parent"].asString());
-        Entity p = pit != remap.end() ? findByUUID(pit->second) : parentEntity;
-        registry_.get<Hierarchy>(e).parent = p;
-        siblingList(p).push_back(e);
-        if (pit == remap.end())
-            tops.push_back(e);
-        loadEntityComponents(e, ej["components"]);
+        std::string parentId = ej["parent"].asString("");
+        auto pit = parentId.empty() ? remap.end() : remap.find(parentId);
+        wanted.push_back({e, pit != remap.end() ? pit->second : UUID{}});
+        components.push_back(&ej["components"]);
         created.push_back(e);
     }
+    linkLoaded(wanted, parentEntity, &tops);
+    for (size_t k = 0; k < created.size(); ++k)
+        loadEntityComponents(created[k], *components[k]);
     // Entity references inside the copied set point at the new copies.
     auto fix = [&](UUID& id) {
         auto it = remap.find(id.toString());

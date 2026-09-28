@@ -6,6 +6,7 @@
 #include "aven/scene/reflection.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <iterator>
 #include <functional>
 #include <cstring>
@@ -42,8 +43,8 @@ const std::vector<std::string> kAlign{"Left", "Center", "Right"};
 
 std::vector<ComponentInfo> buildRegistry() {
     Registrar r;
-    // Note: `list` must not reallocate while a builder is alive, so reserve up front.
-    r.list.reserve(64);
+    // Note: `list` must not reallocate while a builder is alive, so reserve up front (checked below).
+    r.list.reserve(128);
 
     {
         using Type = Transform;
@@ -237,8 +238,10 @@ std::vector<ComponentInfo> buildRegistry() {
                 Json lj = Json::object();
                 if (!l.texture.empty())
                     lj["texture"] = l.texture;
-                lj["color"] = Json::parse("[" + std::to_string(l.color.r) + "," + std::to_string(l.color.g) + "," +
-                                          std::to_string(l.color.b) + "," + std::to_string(l.color.a) + "]");
+                Json color = Json::array();
+                for (float v : {l.color.r, l.color.g, l.color.b, l.color.a})
+                    color.push(v);
+                lj["color"] = std::move(color);
                 lj["tile_size"] = l.tileSize;
                 layers.push(std::move(lj));
             }
@@ -767,6 +770,8 @@ std::vector<ComponentInfo> buildRegistry() {
         r.add<Type>("PrefabInstance", "Basics", "Links this object to the prefab it was created from.", true)
             .field(F(path), {.label = "Prefab", .asset = AssetKind::Prefab});
     }
+    if (r.list.size() > 128)
+        std::abort(); // raise the reserve() above: builders held references into the list
     return std::move(r.list);
 }
 
@@ -806,7 +811,8 @@ std::vector<int> Tilemap::passThroughTiles() const {
     bool inNumber = false;
     for (char c : notSolid + ",") {
         if (c >= '0' && c <= '9') {
-            value = value * 10 + (c - '0');
+            if (value < 100000000) // (a very long number stops growing instead of overflowing)
+                value = value * 10 + (c - '0');
             inNumber = true;
         } else if (inNumber) {
             out.push_back(value);

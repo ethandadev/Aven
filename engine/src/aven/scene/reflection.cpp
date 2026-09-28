@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <set>
 
 namespace aven {
@@ -125,20 +126,44 @@ Json saveField(const FieldInfo& f, const void* c) {
 void loadField(const FieldInfo& f, void* c, const Json& v) {
     if (v.isNull() && f.type != FieldType::EntityRef)
         return;
+    // Hand-edited files: 1e999 reads as infinity, which would blow up physics; a number where a
+    // list belongs would zero the vector. Those keep the value that was there.
+    auto num = [](const Json& j, float fallback) {
+        float x = j.asFloat(fallback);
+        return std::isfinite(x) ? x : fallback;
+    };
+    auto wrong = [&](const char* what) {
+        if (firstTime(f.name + "#" + what))
+            Log::warn("'", f.label, "' should be ", what, "; the value in the file was ignored.");
+    };
     switch (f.type) {
     case FieldType::Bool: f.ref<bool>(c) = v.asBool(); break;
-    case FieldType::Int: f.ref<int>(c) = v.asInt(); break;
-    case FieldType::Float: f.ref<float>(c) = v.asFloat(); break;
-    case FieldType::Vec2: f.ref<Vec2>(c) = {v[0].asFloat(), v[1].asFloat()}; break;
-    case FieldType::Vec3: f.ref<Vec3>(c) = {v[0].asFloat(), v[1].asFloat(), v[2].asFloat()}; break;
+    case FieldType::Int: f.ref<int>(c) = v.asInt(f.ref<int>(c)); break;
+    case FieldType::Float: f.ref<float>(c) = num(v, f.ref<float>(c)); break;
+    case FieldType::Vec2: {
+        if (!v.isArray())
+            return wrong("a list of 2 numbers, like [1, 2]");
+        auto& t = f.ref<Vec2>(c);
+        t = {num(v[0], t.x), num(v[1], t.y)};
+        break;
+    }
+    case FieldType::Vec3: {
+        if (!v.isArray())
+            return wrong("a list of 3 numbers, like [1, 2, 3]");
+        auto& t = f.ref<Vec3>(c);
+        t = {num(v[0], t.x), num(v[1], t.y), num(v[2], t.z)};
+        break;
+    }
     case FieldType::Color:
-        f.ref<Color>(c) = {v[0].asFloat(1), v[1].asFloat(1), v[2].asFloat(1), v.size() > 3 ? v[3].asFloat(1) : 1.0f};
+        if (!v.isArray())
+            return wrong("a color, like [1, 0.5, 0, 1]");
+        f.ref<Color>(c) = {num(v[0], 1), num(v[1], 1), num(v[2], 1), v.size() > 3 ? num(v[3], 1) : 1.0f};
         break;
     case FieldType::String:
     case FieldType::Asset: f.ref<std::string>(c) = v.asString(); break;
     case FieldType::Enum: {
+        auto& names = f.options.enumNames;
         if (v.isString()) {
-            auto& names = f.options.enumNames;
             bool found = false;
             for (size_t i = 0; i < names.size(); ++i)
                 if (equalsIgnoreCase(names[i], v.asString())) {
@@ -152,7 +177,12 @@ void loadField(const FieldInfo& f, void* c, const Json& v) {
                 Log::warn("'", v.asString(), "' isn't a choice for ", f.label, ". It can be: ", choices, ".");
             }
         } else {
-            f.ref<int32_t>(c) = v.asInt();
+            // A number from an old or hand-edited file: only one that names a choice.
+            int i = v.asInt(-1);
+            if (i >= 0 && (names.empty() || i < static_cast<int>(names.size())))
+                f.ref<int32_t>(c) = i;
+            else
+                wrong("one of its choices");
         }
         break;
     }

@@ -156,6 +156,15 @@ std::string relativePath(const stdfs::path& path, const stdfs::path& base) {
     return rel.generic_string();
 }
 
+std::string toUtf8(const stdfs::path& path) {
+    std::u8string s = path.u8string();
+    return std::string(s.begin(), s.end());
+}
+
+stdfs::path fromUtf8(std::string_view utf8) {
+    return stdfs::path(std::u8string(utf8.begin(), utf8.end()));
+}
+
 std::string extension(const stdfs::path& path) {
     std::string ext = path.extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });

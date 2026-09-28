@@ -613,8 +613,9 @@ struct Renderer3D::Impl {
                 base.texture = assets->texture(mr->texture).handle;
 
             if (mr->mesh != MeshShape::Model) {
+                int shape = static_cast<int>(mr->mesh);
                 Item it = base;
-                it.mesh = &primitives[static_cast<int>(mr->mesh)];
+                it.mesh = &primitives[shape >= 0 && shape < 7 ? shape : 0]; // (a bad number from a script: a cube)
                 it.world = world;
                 it.doubleSided = mr->mesh == MeshShape::Plane;
                 transformBounds(world, it.mesh->boundsMin, it.mesh->boundsMax, it.boundsMin, it.boundsMax);
@@ -882,7 +883,9 @@ struct Renderer3D::Impl {
             renderCascades(Vec3(frame.sunDir[0], frame.sunDir[1], frame.sunDir[2]), camera);
     }
 
-    static Vec3 pow3(Vec3 c) { return {std::pow(c.x, 2.2f), std::pow(c.y, 2.2f), std::pow(c.z, 2.2f)}; }
+    static Vec3 pow3(Vec3 c) {
+        return {std::pow(std::max(c.x, 0.0f), 2.2f), std::pow(std::max(c.y, 0.0f), 2.2f), std::pow(std::max(c.z, 0.0f), 2.2f)};
+    }
 
     void renderCascades(Vec3 toSun, const CameraView& camera) {
         float nearD = std::max(camera.orthographic ? 0.0f : camera.nearClip, 0.01f);
@@ -971,7 +974,7 @@ bool Renderer3D::init(rhi::Device* device, Assets* assets) { return impl_->init(
 void Renderer3D::shutdown() { impl_->shutdown(); }
 
 bool Renderer3D::hasContent(const Scene& scene) const {
-    return scene.registry().count<MeshRenderer>() > 0;
+    return scene.registry().count<MeshRenderer>() > 0 || scene.registry().count<Terrain>() > 0;
 }
 
 void Renderer3D::prepare(Scene& scene, const CameraView& camera) {
@@ -1030,9 +1033,14 @@ void Renderer3D::drawTransparent(Scene&, const CameraView&) {
 Model* Renderer3D::model(const std::string& path) { return impl_->loadModel(path); }
 
 Entity Renderer3D::raycast(Scene& scene, Vec3 origin, Vec3 direction, float* distance) {
-    impl_->gather(scene);
     Entity best;
     float bestDist = 1e30f;
+    if (lengthSquared(direction) < 1e-12f) {
+        if (distance)
+            *distance = bestDist;
+        return best;
+    }
+    impl_->gather(scene);
     for (auto& it : impl_->items) {
         if (!it.mesh || !it.mesh->cpu)
             continue;
@@ -1048,6 +1056,8 @@ Entity Renderer3D::raycast(Scene& scene, Vec3 origin, Vec3 direction, float* dis
         Vec3 lo = transformPoint(invWorld, origin);
         Vec3 ld = transformDirection(invWorld, direction);
         float scale = length(ld);
+        if (scale < 1e-12f)
+            continue; // (an object scaled to nothing)
         float t = it.skin >= 0 ? std::max(enter, 0.0f) * scale : it.mesh->cpu->raycast(lo, ld / scale);
         if (t < 0)
             continue;

@@ -84,6 +84,7 @@ private:
     void detach(Entity e);
     Json saveEntity(Entity e) const;
     void loadEntityComponents(Entity e, const Json& components);
+    void linkLoaded(const std::vector<std::pair<Entity, UUID>>& wanted, Entity fallback, std::vector<Entity>* tops);
 };
 
 } // namespace aven

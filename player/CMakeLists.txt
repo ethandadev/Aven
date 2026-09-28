@@ -1,5 +1,5 @@
 if(WIN32)
-    add_executable(aven_player main.cpp app.rc)
+    add_executable(aven_player main.cpp app.rc ${PROJECT_SOURCE_DIR}/resources/windows/aven.manifest)
 else()
     add_executable(aven_player main.cpp)
 endif()

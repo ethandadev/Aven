@@ -191,3 +191,31 @@ AVEN_TEST(scene_forgives_camel_case_fields) {
     CHECK_NEAR(rb->gravityScale, 0.5f, 1e-6f);
     CHECK(rb->type == BodyType::Dynamic);
 }
+
+// Hand-edited and merged files: a child listed before its parent still finds it; a parent loop
+// doesn't hang (the entities end up at the top); prefab entries without an id don't adopt others.
+AVEN_TEST(scene_load_links_parents_in_any_order) {
+    Scene s;
+    CHECK(s.load(Json::parse(R"({"entities":[
+        {"id":"2","name":"Child","parent":"1","components":{}},
+        {"id":"1","name":"Parent","components":{}},
+        {"id":"3","name":"LoopA","parent":"4","components":{}},
+        {"id":"4","name":"LoopB","parent":"3","components":{}},
+        {"id":"5","name":"Self","parent":"5","components":{}}]})")));
+    Entity child = s.findByName("Child"), parent = s.findByName("Parent");
+    CHECK(s.parent(child) == parent);
+    // One of the loop is linked, the other can't be: no entity is its own ancestor.
+    Entity a = s.findByName("LoopA"), b = s.findByName("LoopB");
+    CHECK(!(s.isAncestor(a, a)) && !(s.isAncestor(b, b)));
+    CHECK(!s.parent(s.findByName("Self")));
+
+    Scene p;
+    auto tops = p.instantiate(Json::parse(R"({"entities":[
+        {"name":"NoId","components":{}},
+        {"name":"AlsoNoId","components":{}},
+        {"id":"9","name":"Kid","parent":"8","components":{}},
+        {"id":"8","name":"Top","components":{}}]})"));
+    CHECK_EQ(tops.size(), size_t(3)); // NoId, AlsoNoId and Top; Kid is under Top
+    CHECK(!p.parent(p.findByName("AlsoNoId")));
+    CHECK(p.parent(p.findByName("Kid")) == p.findByName("Top"));
+}

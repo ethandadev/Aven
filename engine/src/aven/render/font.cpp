@@ -54,6 +54,68 @@ void Font::release() {
     delete static_cast<stbtt_fontinfo*>(info_);
     info_ = nullptr;
     glyphs_.clear();
+    missing_.clear();
+    penX_ = penY_ = 1;
+    rowHeight_ = 0;
+    full_ = false;
+}
+
+namespace {
+constexpr int kPadding = 6;
+constexpr unsigned char kOnEdge = 180;
+constexpr float kDistScale = 180.0f / kPadding;
+} // namespace
+
+const Font::Glyph* Font::addGlyph(uint32_t cp, std::vector<uint8_t>* pixels) const {
+    auto* info = static_cast<stbtt_fontinfo*>(info_);
+    if (!info || missing_.count(cp))
+        return nullptr;
+    int glyphIndex = stbtt_FindGlyphIndex(info, static_cast<int>(cp));
+    if (glyphIndex == 0 && cp != ' ') {
+        missing_[cp] = true;
+        return nullptr;
+    }
+    int advance, lsb;
+    stbtt_GetGlyphHMetrics(info, glyphIndex, &advance, &lsb);
+    Glyph g{};
+    g.advance = advance * scale_;
+    int w = 0, h = 0, xoff = 0, yoff = 0;
+    unsigned char* sdf = stbtt_GetGlyphSDF(info, scale_, glyphIndex, kPadding, kOnEdge, kDistScale, &w, &h, &xoff, &yoff);
+    if (sdf && w > 0 && h > 0) {
+        if (penX_ + w + 1 >= kAtlasSize) {
+            penX_ = 1;
+            penY_ += rowHeight_ + 1;
+            rowHeight_ = 0;
+        }
+        if (full_ || penY_ + h + 1 >= kAtlasSize) {
+            stbtt_FreeSDF(sdf, nullptr);
+            if (!full_)
+                Log::warn("The font has no room for more characters; some won't show.");
+            full_ = true;
+            missing_[cp] = true;
+            return nullptr;
+        }
+        if (pixels) {
+            for (int row = 0; row < h; ++row)
+                std::memcpy(&(*pixels)[static_cast<size_t>(penY_ + row) * kAtlasSize + static_cast<size_t>(penX_)], sdf + row * w,
+                            static_cast<size_t>(w));
+        } else if (device_ && atlas_.valid()) {
+            device_->updateTextureRegion(atlas_, penX_, penY_, w, h, sdf);
+        }
+        g.u0 = static_cast<float>(penX_) / kAtlasSize;
+        g.v0 = static_cast<float>(penY_) / kAtlasSize;
+        g.u1 = static_cast<float>(penX_ + w) / kAtlasSize;
+        g.v1 = static_cast<float>(penY_ + h) / kAtlasSize;
+        g.x0 = static_cast<float>(xoff);
+        g.y0 = static_cast<float>(yoff);
+        g.x1 = static_cast<float>(xoff + w);
+        g.y1 = static_cast<float>(yoff + h);
+        penX_ += w + 1;
+        rowHeight_ = std::max(rowHeight_, h);
+    }
+    if (sdf)
+        stbtt_FreeSDF(sdf, nullptr);
+    return &(glyphs_[cp] = g);
 }
 
 bool Font::load(rhi::Device* device, const uint8_t* ttf, size_t size) {
@@ -61,77 +123,33 @@ bool Font::load(rhi::Device* device, const uint8_t* ttf, size_t size) {
     device_ = device;
     ttf_.assign(ttf, ttf + size);
     auto* info = new stbtt_fontinfo();
-    info_ = info;
-    if (!stbtt_InitFont(info, ttf_.data(), stbtt_GetFontOffsetForIndex(ttf_.data(), 0))) {
+    int offset = ttf_.empty() ? -1 : stbtt_GetFontOffsetForIndex(ttf_.data(), 0);
+    if (offset < 0 || !stbtt_InitFont(info, ttf_.data(), offset)) {
+        delete info; // (a half-set-up font would be read later: kerning, glyphs)
         Log::error("This font file could not be read.");
         return false;
     }
+    info_ = info;
     scale_ = stbtt_ScaleForPixelHeight(info, kBaseSize);
     int ascent, descent, gap;
     stbtt_GetFontVMetrics(info, &ascent, &descent, &gap);
     ascent_ = ascent * scale_;
     lineHeight_ = (ascent - descent + gap) * scale_;
 
-    std::vector<uint32_t> codepoints;
+    // The common characters go in straight away; any others the first time they're drawn.
+    std::vector<uint8_t> pixels(static_cast<size_t>(kAtlasSize) * kAtlasSize, 0);
     for (uint32_t c = 32; c < 127; ++c)
-        codepoints.push_back(c);
+        addGlyph(c, &pixels);
     for (uint32_t c = 160; c < 256; ++c)
-        codepoints.push_back(c);
+        addGlyph(c, &pixels);
     for (uint32_t c : {0x2018u, 0x2019u, 0x201Cu, 0x201Du, 0x2022u, 0x2026u, 0x20ACu, 0x2190u, 0x2191u, 0x2192u,
                        0x2193u, 0x2605u, 0x2606u, 0x2665u, 0x2713u, 0x00D7u, 0xFFFDu})
-        codepoints.push_back(c);
-
-    const int atlasSize = 1024, padding = 6;
-    const unsigned char onEdge = 180;
-    const float distScale = 180.0f / padding;
-    std::vector<uint8_t> pixels(static_cast<size_t>(atlasSize * atlasSize), 0);
-    int penX = 1, penY = 1, rowHeight = 0;
-
-    for (uint32_t cp : codepoints) {
-        int glyphIndex = stbtt_FindGlyphIndex(info, static_cast<int>(cp));
-        if (glyphIndex == 0 && cp != ' ')
-            continue;
-        int advance, lsb;
-        stbtt_GetGlyphHMetrics(info, glyphIndex, &advance, &lsb);
-        Glyph g{};
-        g.advance = advance * scale_;
-        int w = 0, h = 0, xoff = 0, yoff = 0;
-        unsigned char* sdf =
-            stbtt_GetGlyphSDF(info, scale_, glyphIndex, padding, onEdge, distScale, &w, &h, &xoff, &yoff);
-        if (sdf && w > 0 && h > 0) {
-            if (penX + w + 1 >= atlasSize) {
-                penX = 1;
-                penY += rowHeight + 1;
-                rowHeight = 0;
-            }
-            if (penY + h + 1 >= atlasSize) {
-                stbtt_FreeSDF(sdf, nullptr);
-                Log::warn("Font atlas is full; some characters won't show.");
-                break;
-            }
-            for (int row = 0; row < h; ++row)
-                std::memcpy(&pixels[static_cast<size_t>((penY + row) * atlasSize + penX)], sdf + row * w,
-                            static_cast<size_t>(w));
-            g.u0 = static_cast<float>(penX) / atlasSize;
-            g.v0 = static_cast<float>(penY) / atlasSize;
-            g.u1 = static_cast<float>(penX + w) / atlasSize;
-            g.v1 = static_cast<float>(penY + h) / atlasSize;
-            g.x0 = static_cast<float>(xoff);
-            g.y0 = static_cast<float>(yoff);
-            g.x1 = static_cast<float>(xoff + w);
-            g.y1 = static_cast<float>(yoff + h);
-            penX += w + 1;
-            rowHeight = std::max(rowHeight, h);
-        }
-        if (sdf)
-            stbtt_FreeSDF(sdf, nullptr);
-        glyphs_[cp] = g;
-    }
+        addGlyph(c, &pixels);
 
     if (device_) {
         rhi::TextureDesc td;
-        td.width = atlasSize;
-        td.height = atlasSize;
+        td.width = kAtlasSize;
+        td.height = kAtlasSize;
         td.format = rhi::PixelFormat::R8;
         td.filter = rhi::Filter::Linear;
         td.data = pixels.data();
@@ -143,7 +161,9 @@ bool Font::load(rhi::Device* device, const uint8_t* ttf, size_t size) {
 
 const Font::Glyph* Font::glyph(uint32_t codepoint) const {
     auto it = glyphs_.find(codepoint);
-    return it == glyphs_.end() ? nullptr : &it->second;
+    if (it != glyphs_.end())
+        return &it->second;
+    return addGlyph(codepoint, nullptr);
 }
 
 float Font::kerning(uint32_t a, uint32_t b) const {

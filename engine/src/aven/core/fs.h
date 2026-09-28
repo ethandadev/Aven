@@ -28,6 +28,11 @@ stdfs::path resourceDir();
 // Forward-slash relative path from `base` to `path` (portable across OSes, stored in scenes).
 std::string relativePath(const stdfs::path& path, const stdfs::path& base);
 
+// Paths as UTF-8 text and back. path.string() is the system's code page on Windows, which can't
+// hold every name (a folder called "Игры" or "ゲーム"); these always can.
+std::string toUtf8(const stdfs::path& path);
+stdfs::path fromUtf8(std::string_view utf8);
+
 // Lowercase extension including the dot, e.g. ".png".
 std::string extension(const stdfs::path& path);
 

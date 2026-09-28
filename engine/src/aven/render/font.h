@@ -28,6 +28,8 @@ public:
     bool load(rhi::Device* device, const uint8_t* ttf, size_t size);
     void release();
 
+    // A character's glyph, drawn into the atlas the first time it's asked for (any letter the font
+    // has: Greek, Cyrillic, accented letters...). Null when the font doesn't have it.
     const Glyph* glyph(uint32_t codepoint) const;
     float kerning(uint32_t a, uint32_t b) const;
 
@@ -51,9 +53,16 @@ private:
     rhi::TextureHandle atlas_;
     std::vector<uint8_t> ttf_;
     void* info_ = nullptr; // stbtt_fontinfo
-    std::unordered_map<uint32_t, Glyph> glyphs_;
+    // The atlas fills up as characters are first used (mutable: drawing text is const).
+    mutable std::unordered_map<uint32_t, Glyph> glyphs_;
+    mutable std::unordered_map<uint32_t, bool> missing_; // asked for, but the font doesn't have it
+    mutable int penX_ = 1, penY_ = 1, rowHeight_ = 0;
+    mutable bool full_ = false;
     float scale_ = 1;
     float ascent_ = 0, lineHeight_ = 0;
+    static constexpr int kAtlasSize = 2048;
+    // Draws one character into the atlas (and `pixels` when given, before the texture exists).
+    const Glyph* addGlyph(uint32_t codepoint, std::vector<uint8_t>* pixels) const;
 };
 
 } // namespace aven

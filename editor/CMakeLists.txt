@@ -7,9 +7,10 @@ if(APPLE)
         LANGUAGE CXX COMPILE_OPTIONS "-xobjective-c++;-fobjc-arc")
 endif()
 if(WIN32)
-    # Aven's icon in the .exe: Explorer, the taskbar and the installer's shortcuts show it.
+    # Aven's icon in the .exe (Explorer, the taskbar and the installer's shortcuts show it), and a
+    # manifest: UTF-8 file names everywhere (resources/windows/aven.manifest).
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/editor_icon.rc "1 ICON \"${PROJECT_SOURCE_DIR}/resources/icon/aven.ico\"\n")
-    list(APPEND AVEN_EDITOR_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/editor_icon.rc)
+    list(APPEND AVEN_EDITOR_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/editor_icon.rc ${PROJECT_SOURCE_DIR}/resources/windows/aven.manifest)
 endif()
 add_executable(aven_editor ${AVEN_EDITOR_SOURCES})
 target_include_directories(aven_editor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

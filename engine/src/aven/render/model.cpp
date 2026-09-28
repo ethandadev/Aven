@@ -1,6 +1,7 @@
 #define CGLTF_IMPLEMENTATION
 #include "aven/render/model.h"
 
+#include "aven/core/fs.h"
 #include "aven/core/log.h"
 
 #include <cgltf.h>
@@ -8,6 +9,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <functional>
 
@@ -42,6 +44,24 @@ const AnimationClip* Model::findClip(const std::string& name) const {
 
 namespace {
 
+// cgltf opens files through these: Aven's file reading, which takes any folder name (cgltf's own
+// fopen can't on Windows). Paths come in as UTF-8.
+cgltf_result readFile(const cgltf_memory_options*, const cgltf_file_options*, const char* path, cgltf_size* size, void** data) {
+    auto bytes = fs::readBinary(fs::fromUtf8(path));
+    if (!bytes)
+        return cgltf_result_file_not_found;
+    void* copy = std::malloc(std::max<size_t>(bytes->size(), 1));
+    if (!copy)
+        return cgltf_result_out_of_memory;
+    if (!bytes->empty())
+        std::memcpy(copy, bytes->data(), bytes->size());
+    *size = bytes->size();
+    *data = copy;
+    return cgltf_result_success;
+}
+
+void releaseFile(const cgltf_memory_options*, const cgltf_file_options*, void* data) { std::free(data); }
+
 rhi::TextureHandle loadImage(rhi::Device* device, const cgltf_image* image, const std::filesystem::path& base) {
     int w = 0, h = 0, channels = 0;
     stbi_uc* pixels = nullptr;
@@ -53,7 +73,8 @@ rhi::TextureHandle loadImage(rhi::Device* device, const cgltf_image* image, cons
         std::string uri = image->uri;
         cgltf_decode_uri(uri.data());
         uri.resize(std::strlen(uri.c_str()));
-        pixels = stbi_load((base / uri).string().c_str(), &w, &h, &channels, 4);
+        if (auto bytes = fs::readBinary(base / fs::fromUtf8(uri)); bytes && !bytes->empty())
+            pixels = stbi_load_from_memory(bytes->data(), static_cast<int>(bytes->size()), &w, &h, &channels, 4);
     }
     if (!pixels)
         return {};
@@ -86,8 +107,10 @@ bool Model::load(rhi::Device* device, const std::filesystem::path& path, std::st
     release();
     device_ = device;
     cgltf_options options{};
+    options.file.read = readFile;
+    options.file.release = releaseFile;
     cgltf_data* data = nullptr;
-    std::string p = path.string();
+    std::string p = fs::toUtf8(path);
     if (cgltf_parse_file(&options, p.c_str(), &data) != cgltf_result_success) {
         if (error)
             *error = "not a valid glTF file";
@@ -97,6 +120,13 @@ bool Model::load(rhi::Device* device, const std::filesystem::path& path, std::st
     if (cgltf_load_buffers(&options, data, p.c_str()) != cgltf_result_success) {
         if (error)
             *error = "the model's data (.bin) file is missing";
+        return false;
+    }
+    // Every accessor inside its buffer, indices in range...: a damaged file is refused here
+    // instead of reading past the end of its data below.
+    if (cgltf_validate(data) != cgltf_result_success) {
+        if (error)
+            *error = "the model file is damaged (its data doesn't add up)";
         return false;
     }
     std::filesystem::path base = path.parent_path();
@@ -169,9 +199,19 @@ bool Model::load(rhi::Device* device, const std::filesystem::path& path, std::st
                 }
             }
             if (prim.indices) {
-                part.data.indices.resize(prim.indices->count);
-                for (cgltf_size k = 0; k < prim.indices->count; ++k)
-                    part.data.indices[k] = static_cast<uint32_t>(cgltf_accessor_read_index(prim.indices, k));
+                // Whole triangles only, and only ones whose corners exist.
+                cgltf_size count = prim.indices->count - prim.indices->count % 3;
+                part.data.indices.reserve(count);
+                for (cgltf_size k = 0; k < count; k += 3) {
+                    uint32_t tri[3];
+                    bool ok = true;
+                    for (int c = 0; c < 3; ++c) {
+                        tri[c] = static_cast<uint32_t>(cgltf_accessor_read_index(prim.indices, k + static_cast<cgltf_size>(c)));
+                        ok = ok && tri[c] < positions.size();
+                    }
+                    if (ok)
+                        part.data.indices.insert(part.data.indices.end(), tri, tri + 3);
+                }
             } else {
                 for (uint32_t k = 0; k < positions.size(); ++k)
                     part.data.indices.push_back(k);
@@ -328,13 +368,17 @@ void Model::computePose(const AnimationClip* clip, float time, std::vector<Mat4>
         }
     }
     out.assign(nodes.size(), Mat4{});
-    std::vector<bool> done(nodes.size(), false);
+    // 0 = not yet, 1 = working on it (a parent chain that loops back is treated as the top), 2 = done
+    std::vector<uint8_t> state(nodes.size(), 0);
+    Mat4 rootScale = importScale != 1.0f ? Mat4::trs({}, Quat{}, {importScale, importScale, importScale}) : Mat4{};
     std::function<const Mat4&(size_t)> global = [&](size_t i) -> const Mat4& {
-        if (!done[i]) {
+        if (state[i] == 0) {
+            state[i] = 1;
             Mat4 local = Mat4::trs(t[i], r[i], s[i]);
-            out[i] = nodes[i].parent >= 0 ? global(static_cast<size_t>(nodes[i].parent)) * local
-                                          : (importScale != 1.0f ? Mat4::trs({}, Quat{}, {importScale, importScale, importScale}) * local : local);
-            done[i] = true;
+            int parent = nodes[i].parent;
+            bool hasParent = parent >= 0 && static_cast<size_t>(parent) < nodes.size() && state[static_cast<size_t>(parent)] != 1;
+            out[i] = hasParent ? global(static_cast<size_t>(parent)) * local : rootScale * local;
+            state[i] = 2;
         }
         return out[i];
     };

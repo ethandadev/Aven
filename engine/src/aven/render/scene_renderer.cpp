@@ -8,6 +8,7 @@
 #include "aven/render/ui_layout.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 
 namespace aven {
@@ -46,6 +47,18 @@ Vec2 CameraView::worldToScreen(Vec3 world, Vec2 size) const {
 
 CameraView SceneRenderer::makeCamera(Vec3 position, Quat rotation, bool ortho, float sizeOrFov, float aspect,
                                      float nearClip, float farClip) {
+    // Settings that would make an impossible camera (from the Inspector or a script) are nudged into
+    // range: the view goes on working instead of turning black.
+    if (!(aspect > 1e-4f) || !std::isfinite(aspect))
+        aspect = 1.0f;
+    if (ortho) {
+        sizeOrFov = std::isfinite(sizeOrFov) ? std::max(std::abs(sizeOrFov), 0.01f) : 5.0f;
+    } else {
+        sizeOrFov = std::isfinite(sizeOrFov) ? std::clamp(sizeOrFov, 1.0f, 179.0f) : 60.0f;
+        nearClip = std::isfinite(nearClip) ? std::max(nearClip, 0.001f) : 0.1f;
+    }
+    if (!std::isfinite(farClip) || farClip <= nearClip + 0.001f)
+        farClip = std::max(nearClip + 0.01f, ortho ? 1000.0f : nearClip * 1000.0f);
     CameraView v;
     v.position = position;
     v.orthographic = ortho;
@@ -197,7 +210,8 @@ void SceneRenderer::render(Scene& scene, const CameraView& cameraIn, int w, int 
     pass.framebuffer = sceneFb_;
     pass.width = w;
     pass.height = h;
-    pass.clearValue = {std::pow(bg.r, 2.2f), std::pow(bg.g, 2.2f), std::pow(bg.b, 2.2f), 1};
+    auto linear = [](float c) { return std::pow(std::max(c, 0.0f), 2.2f); };
+    pass.clearValue = {linear(bg.r), linear(bg.g), linear(bg.b), 1};
     pass.label = "scene";
     device_->beginPass(pass);
     if (has3D) {
