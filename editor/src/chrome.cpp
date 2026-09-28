@@ -415,6 +415,35 @@ void Editor::drawToolbar() {
                       ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::PopStyleVar();
     float b = ImGui::GetFrameHeight();
+    // Save, undo and redo, for the mouse (they're also Ctrl+S, Ctrl+Z and Ctrl+Y).
+    {
+        static std::string saveTip, undoTip, redoTip;
+        saveTip = "Save the scene and scripts (" + chordName(prefs.chord("save")) + ")";
+        undoTip = undo_.empty() ? std::string("Nothing to undo") : "Undo: " + undo_.back().label + " (" + chordName(prefs.chord("undo")) + ")";
+        redoTip = redo_.empty() ? std::string("Nothing to redo") : "Redo: " + redo_.back().label + " (" + chordName(prefs.chord("redo")) + ")";
+        ImGui::BeginDisabled(playing_);
+        if (ui::iconButton("save", ui::Save, saveTip.c_str(), false, b)) {
+            saveScene();
+            saveAllScripts();
+        }
+        ImGui::SameLine(0, ImGui::GetStyle().ItemSpacing.x * 0.5f);
+        ImGui::BeginDisabled(undo_.empty());
+        if (ui::iconButton("undo", ui::Undo, undoTip.c_str(), false, b))
+            undo();
+        ImGui::EndDisabled();
+        ImGui::SameLine(0, ImGui::GetStyle().ItemSpacing.x * 0.5f);
+        ImGui::BeginDisabled(redo_.empty());
+        if (ui::iconButton("redo", ui::Redo, redoTip.c_str(), false, b))
+            redo();
+        ImGui::EndDisabled();
+        ImGui::EndDisabled();
+        // A thin divider before the tools.
+        ImGui::SameLine();
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        ImGui::GetWindowDrawList()->AddLine({p.x, p.y + b * 0.15f}, {p.x, p.y + b * 0.85f}, ImGui::GetColorU32(ImGuiCol_Separator), 1);
+        ImGui::Dummy({ImGui::GetStyle().ItemSpacing.x * 0.5f, b});
+        ImGui::SameLine();
+    }
     if (ui::iconButton("move", ui::Move, "Move (W)", gizmoOp_ == 0, b))
         gizmoOp_ = 0;
     ImGui::SameLine();

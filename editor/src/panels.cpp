@@ -117,6 +117,32 @@ bool iconButton(const char* id, int icon, const char* tooltip, bool active, floa
         dl->AddLine({m.x - s * 0.8f, m.y + s * 0.1f}, {m.x - s * 0.8f, m.y - s}, fg, 3);
         dl->AddLine({m.x + s * 0.8f, m.y + s * 0.1f}, {m.x + s * 0.8f, m.y - s}, fg, 3);
         break;
+    case Save: { // a floppy disk
+        float r = s * 0.95f;
+        dl->AddRect({m.x - r, m.y - r}, {m.x + r, m.y + r}, fg, 2, 0, 1.8f);
+        dl->AddRectFilled({m.x - r * 0.5f, m.y - r}, {m.x + r * 0.45f, m.y - r * 0.3f}, fg);
+        dl->AddRect({m.x - r * 0.6f, m.y + r * 0.1f}, {m.x + r * 0.6f, m.y + r}, fg, 1, 0, 1.5f);
+        break;
+    }
+    case Undo:
+    case Redo: { // a curved arrow, pointing left (undo) or right (redo)
+        float dir = icon == Undo ? 1.0f : -1.0f;
+        ImVec2 c{m.x + dir * s * 0.05f, m.y + s * 0.25f};
+        if (icon == Undo)
+            dl->PathArcTo(c, s * 0.8f, -3.14159f * 0.5f, 3.14159f * 0.5f, 14);
+        else
+            dl->PathArcTo(c, s * 0.8f, 3.14159f * 1.5f, 3.14159f * 0.5f, 14);
+        dl->PathStroke(fg, 0, 2);
+        ImVec2 tip{c.x - dir * s * 0.45f, c.y - s * 0.8f};
+        dl->AddTriangleFilled({tip.x - dir * s * 0.45f, tip.y}, {tip.x + dir * s * 0.1f, tip.y - s * 0.4f},
+                              {tip.x + dir * s * 0.1f, tip.y + s * 0.4f}, fg);
+        dl->AddLine({tip.x, tip.y}, {c.x, tip.y}, fg, 2);
+        if (icon == Undo)
+            dl->AddLine({c.x, c.y + s * 0.8f}, {c.x - s * 0.5f, c.y + s * 0.8f}, fg, 2);
+        else
+            dl->AddLine({c.x, c.y + s * 0.8f}, {c.x + s * 0.5f, c.y + s * 0.8f}, fg, 2);
+        break;
+    }
     default: dl->AddCircleFilled(m, s * 0.6f, fg); break;
     }
     if (hovered && tooltip)

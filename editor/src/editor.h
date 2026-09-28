@@ -836,7 +836,7 @@ bool vectorField(float* v, int count, float step);
 // The nine screen anchors as a clickable 3x3 grid.
 bool anchorGrid(int32_t& anchor);
 enum Icon { Play, Pause, Stop, Step, Move, Rotate, Scale, Grid, Magnet, Folder, File, Plus, Blocks, Code, Image, Sound,
-            Model, Scene, Prefab };
+            Model, Scene, Prefab, Save, Undo, Redo };
 } // namespace ui
 
 } // namespace aven::editor
