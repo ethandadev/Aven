@@ -136,6 +136,14 @@ static double ordinary(const CallArgs& a, size_t i, const char* param) {
               script::formatNumber(d) + ".");
     return d;
 }
+// The same for a value given by name (play_sound("hit.wav", volume=0.5)).
+static double ordinaryKeyword(const CallArgs& a, const char* param, double fallback) {
+    double d = a.keywordNumber(param, fallback);
+    if (!std::isfinite(d) || std::abs(d) > 3e38)
+        raise(std::string(a.functionName) + "(): '" + param + "' should be an ordinary number, but it is " +
+              script::formatNumber(d) + ".");
+    return d;
+}
 static double ordinaryOr(const CallArgs& a, size_t i, const char* param, double fallback) {
     return i >= a.size() || a[i].isNone() ? fallback : ordinary(a, i, param);
 }
@@ -569,7 +577,7 @@ const std::vector<MethodDef>& entityMethods() {
              Entity target = s.entityFromValue(a[0]);
              Vec3 here = s.game().scene().worldPosition(e);
              Vec3 dest = positionArgs(s, a, 0, "go_to()", here);
-             float speed = static_cast<float>(a.keywordNumber("speed", 3));
+             float speed = static_cast<float>(ordinaryKeyword(a, "speed", 3));
              if (target && a.has(1))
                  speed = static_cast<float>(ordinary(a, 1, "speed"));
              s.game().gameplay().goTo(e, dest, target, speed);
@@ -721,7 +729,7 @@ const std::vector<MethodDef>& entityMethods() {
              bool loop = a.has(3) ? a[3].truthy() : true;
              if (const Value* k = a.keyword("loop"))
                  loop = k->truthy();
-             float fps = static_cast<float>(a.has(2) ? ordinary(a, 2, "fps") : a.keywordNumber("fps", 10));
+             float fps = static_cast<float>(a.has(2) ? ordinary(a, 2, "fps") : ordinaryKeyword(a, "fps", 10));
              if (anim.firstFrame != first || anim.lastFrame != last || !anim.playing) {
                  anim.time = 0;
                  if (auto* sr = s.game().scene().registry().tryGet<SpriteRenderer>(e))
@@ -869,8 +877,8 @@ const std::vector<MethodDef>& entityMethods() {
          }},
         {"play_sound", "self.play_sound(\"sounds/jump.wav\", volume=1)", 1, 3,
          [](ScriptSystem& s, Entity e, CallArgs& a) {
-             float volume = static_cast<float>(a.has(1) ? ordinary(a, 1, "volume") : a.keywordNumber("volume", 1));
-             float pitch = static_cast<float>(a.has(2) ? ordinary(a, 2, "pitch") : a.keywordNumber("pitch", 1));
+             float volume = static_cast<float>(a.has(1) ? ordinary(a, 1, "volume") : ordinaryKeyword(a, "volume", 1));
+             float pitch = static_cast<float>(a.has(2) ? ordinary(a, 2, "pitch") : ordinaryKeyword(a, "pitch", 1));
              s.game().audio().playSound(projectFile(s, a.string(0, "sound"), "play_sound()"), volume, pitch, s.game().scene().worldPosition(e));
              return Value();
          }},
@@ -1829,7 +1837,7 @@ void ScriptSystem::registerApi() {
         }
         if (a.has(1))
             scene.transform(e).position = positionArgs(*this, a, 1, "create_sprite()");
-        float size = static_cast<float>(a.has(3) ? ordinary(a, 3, "size") : a.keywordNumber("size", 1));
+        float size = static_cast<float>(a.has(3) ? ordinary(a, 3, "size") : ordinaryKeyword(a, "size", 1));
         sr.size = Vec2(size);
         if (const Value* c = a.has(4) ? &a[4] : a.keyword("color"))
             sr.color = toColor(*c, "create_sprite() color");
@@ -1842,7 +1850,7 @@ void ScriptSystem::registerApi() {
         tr.text = a[0].toString();
         if (a.has(1))
             scene.transform(e).position = positionArgs(*this, a, 1, "create_text()");
-        tr.fontSize = static_cast<float>(a.has(3) ? ordinary(a, 3, "size") : a.keywordNumber("size", 0.5));
+        tr.fontSize = static_cast<float>(a.has(3) ? ordinary(a, 3, "size") : ordinaryKeyword(a, "size", 0.5));
         return entityValue(e);
     });
     def("destroy", "destroy(obj)", 1, 1, [this, &g](CallArgs& a) {
@@ -1956,7 +1964,7 @@ void ScriptSystem::registerApi() {
     });
     def("join_game", "join_game(\"192.168.1.20\", port=4242)", 1, 2, [&g, netError](CallArgs& a) {
         std::string error;
-        bool ok = g.network().join(a.string(0, "address"), toInt(a.has(1) ? a.number(1, "port") : a.keywordNumber("port", Network::kDefaultPort)), error);
+        bool ok = g.network().join(a.string(0, "address"), toInt(a.has(1) ? a.number(1, "port") : ordinaryKeyword(a, "port", Network::kDefaultPort)), error);
         netError("join_game()", error);
         return Value(ok);
     });
@@ -2048,7 +2056,7 @@ void ScriptSystem::registerApi() {
         };
         PathOptions o;
         o.threeD = threeDValue(a[0], fromEntity) || threeDValue(a[1], toEntity);
-        o.radius = static_cast<float>(a.has(2) ? ordinary(a, 2, "radius") : a.keywordNumber("radius", 0.4));
+        o.radius = static_cast<float>(a.has(2) ? ordinary(a, 2, "radius") : ordinaryKeyword(a, "radius", 0.4));
         o.cellSize = std::clamp(o.radius, 0.25f, 1.0f);
         std::vector<Value> points;
         for (Vec3 p : g.navigation().findPath(from, to, o))
@@ -2098,7 +2106,7 @@ void ScriptSystem::registerApi() {
         return c ? toColor(*c, context) : Color{1, 0.9f, 0.2f, 1};
     };
     auto debugSeconds = [](CallArgs& a, size_t index) {
-        return static_cast<float>(a.has(index) ? ordinary(a, index, "seconds") : a.keywordNumber("seconds", 0));
+        return static_cast<float>(a.has(index) ? ordinary(a, index, "seconds") : ordinaryKeyword(a, "seconds", 0));
     };
     def("debug_line", "debug_line(from, to, color=\"yellow\", seconds=0)", 2, 4, [this, &g, debugColor, debugSeconds](CallArgs& a) {
         g.debugDraw().line(targetPosition(*this, a[0], "debug_line()"), targetPosition(*this, a[1], "debug_line()"),
@@ -2133,14 +2141,14 @@ void ScriptSystem::registerApi() {
 
     // --- audio
     def("play_sound", "play_sound(\"sounds/jump.wav\", volume=1, pitch=1, bus=\"Effects\")", 1, 4, [&g](CallArgs& a) {
-        float volume = static_cast<float>(a.has(1) ? ordinary(a, 1, "volume") : a.keywordNumber("volume", 1));
-        float pitch = static_cast<float>(a.has(2) ? ordinary(a, 2, "pitch") : a.keywordNumber("pitch", 1));
+        float volume = static_cast<float>(a.has(1) ? ordinary(a, 1, "volume") : ordinaryKeyword(a, "volume", 1));
+        float pitch = static_cast<float>(a.has(2) ? ordinary(a, 2, "pitch") : ordinaryKeyword(a, "pitch", 1));
         const Value* bus = a.has(3) ? &a[3] : a.keyword("bus");
         g.audio().playSound(projectFile(g.scripts(), a.string(0, "sound"), "play_sound()"), volume, pitch, {}, bus ? bus->toString() : "Effects");
         return Value();
     });
     def("play_music", "play_music(\"music/theme.ogg\", volume=1, loop=True)", 1, 3, [&g](CallArgs& a) {
-        float volume = static_cast<float>(a.has(1) ? ordinary(a, 1, "volume") : a.keywordNumber("volume", 1));
+        float volume = static_cast<float>(a.has(1) ? ordinary(a, 1, "volume") : ordinaryKeyword(a, "volume", 1));
         bool loop = a.has(2) ? a[2].truthy() : (a.keyword("loop") ? a.keyword("loop")->truthy() : true);
         g.audio().playMusic(projectFile(g.scripts(), a.string(0, "music"), "play_music()"), volume, loop);
         return Value();

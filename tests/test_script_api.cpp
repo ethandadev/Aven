@@ -148,5 +148,11 @@ AVEN_TEST(nan_and_huge_numbers_stay_out_of_the_scene) {
         CHECK(logged("should be an ordinary number"));
         CHECK(std::isfinite(run.game.scene().transform(run.hero).position.x));
     }
+    {
+        // Given by name, too.
+        ScriptRun run("aven_nan_keyword_test", "def on_start():\n    self.play_animation(0, 1, fps=float(\"nan\"))\n");
+        run.frames(1);
+        CHECK(logged("'fps' should be an ordinary number"));
+    }
     Log::removeSink(sink);
 }
