@@ -163,6 +163,13 @@ AVEN_TEST(intel_finds_likely_mistakes) {
                 "        e.say(f\"{hits} hits\")\n    self.sprite.color = color(\"red\")\n    self.best = max(hits, 3)\n"
                 "    print(self.best)\n")
               .empty());
+    // import lines define names; they aren't unknown.
+    auto imports = check("import utils\nimport lib.tools as t\nimport \"player/moves.es\" as moves\n"
+                         "from utils import double, speed as fast\n\ndef on_start():\n"
+                         "    print(utils.count, t.triple(2), moves.jump(), double(fast))\n");
+    for (auto& d : imports)
+        std::printf("    %d: %s\n", d.line, d.message.c_str());
+    CHECK(imports.empty());
 }
 
 AVEN_TEST(intel_has_no_false_alarms_on_the_templates) {

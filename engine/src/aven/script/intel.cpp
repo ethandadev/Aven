@@ -454,7 +454,7 @@ std::string typoOf(const std::string& word, const std::vector<std::string>& cand
 }
 
 const char* kEasyKeywords[] = {"if", "elif", "else", "for", "in", "while", "def", "return", "break", "continue", "pass",
-                               "and", "or", "not", "True", "False", "None", "global"};
+                               "and", "or", "not", "True", "False", "None", "global", "import", "from"};
 
 const char* kCKeywords[] = {"if", "else", "for", "while", "do", "return", "break", "continue", "switch", "case", "default",
                             "struct", "typedef", "static", "const", "void", "int", "float", "double", "char", "unsigned",
@@ -1217,7 +1217,7 @@ struct Checker {
     }
 
     bool known(const std::string& n, const std::unordered_set<std::string>& locals) const {
-        if (locals.count(n) || moduleNames.count(n) || ix.global(n))
+        if (locals.count(n) || moduleNames.count(n) || ix.global(n) || n == "__import")
             return true;
         return std::find(ix.globalValues.begin(), ix.globalValues.end(), n) != ix.globalValues.end();
     }

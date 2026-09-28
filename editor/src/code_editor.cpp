@@ -27,7 +27,7 @@ namespace {
 bool isKeyword(const std::string& w, CodeLanguage lang = CodeLanguage::EasyScript) {
     static const std::unordered_set<std::string> easy = {"def", "if", "elif", "else", "while", "for", "in", "return", "break",
                                                           "continue", "pass", "and", "or", "not", "True", "False", "None",
-                                                          "global", "true", "false", "null"};
+                                                          "global", "import", "from", "as", "true", "false", "null"};
     static const std::unordered_set<std::string> cs = {
         "using", "public", "private", "protected", "class", "static", "void", "float", "int", "bool", "string", "var", "new",
         "if", "else", "while", "for", "foreach", "in", "return", "break", "continue", "true", "false", "null", "object",

@@ -29,6 +29,10 @@ renames it to the version (see [CONTRIBUTING.md](CONTRIBUTING.md#making-a-releas
 - **Crash recovery**: while you have unsaved changes, Aven keeps a copy of them (the scene and any
   edited scripts) every 30 seconds, away from your files. If it closes unexpectedly, opening the
   project again offers them back.
+- **`import` in EasyScript**: put shared functions in one script and use them from others with
+  `import utils`, `from utils import jump`, `import utils as u` or `import "folder/utils.es"`.
+  Every importer shares one copy, so its variables are shared too. Mistakes (a missing script, two
+  scripts importing each other) get plain messages.
 - `refresh_paths()` for scripts that move walls; paths already notice walls and floors that are
   made or destroyed, straight away.
 

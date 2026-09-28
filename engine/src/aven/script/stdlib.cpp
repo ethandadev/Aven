@@ -426,6 +426,9 @@ void registerStdlib(VM& vm) {
         return Value();
     });
 
+    // `import utils` is `utils = __import("utils")` (the parser writes it that way).
+    vm.defineFunction("__import", "import name", 1, 1, [](CallArgs& a) { return a.vm.importModule(a.string(0, "name")); });
+
     vm.defineFunction("len", "len(list_or_text)", 1, 1, [](CallArgs& a) {
         const Value& v = a[0];
         switch (v.type()) {

@@ -360,8 +360,8 @@ private:
             declareLocal(p);
         declareLocals(s.body);
         block(s.body);
-        emit(Op::PushNone, s.endLine);
-        emit(Op::Return, s.endLine);
+        emit(Op::PushNone, 0); // the end of the function isn't a line of its own (the debugger skips line 0)
+        emit(Op::Return, 0);
         fn_ = savedFn;
         locals_ = std::move(savedLocals);
         declaredGlobals_ = std::move(savedGlobals);

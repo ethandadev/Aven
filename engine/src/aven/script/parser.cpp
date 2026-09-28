@@ -1,6 +1,7 @@
 #include "aven/script/ast.h"
 #include "aven/script/errors.h"
 
+#include <filesystem>
 #include <unordered_set>
 
 namespace aven::script {
@@ -121,7 +122,104 @@ private:
                                       tok.text == "void" || tok.text == "fun") &&
             peek(1).type == Tok::Name)
             error("Use 'def' to create a function in EasyScript, like: def " + peek(1).text + "():");
+        // import utils / import utils as u / from utils import speed, jump
+        if (tok.type == Tok::Name && tok.text == "import" && (peek(1).type == Tok::Name || peek(1).type == Tok::String)) {
+            importStatement(out);
+            endOfStatement();
+            return;
+        }
+        if (tok.type == Tok::Name && tok.text == "from" && peek(1).type == Tok::Name && fromImportAhead()) {
+            fromImportStatement(out);
+            endOfStatement();
+            return;
+        }
         simpleStatements(out);
+    }
+
+    // --- import, written as assignments: `import utils` is `utils = __import("utils")`, and
+    // `from utils import speed` is `speed = __import("utils").speed`.
+
+    bool fromImportAhead() const {
+        size_t i = 1; // from a.b.c import
+        while (peek(i).type == Tok::Name && peek(i + 1).type == Tok::Dot)
+            i += 2;
+        return peek(i).type == Tok::Name && peek(i + 1).type == Tok::Name && peek(i + 1).text == "import";
+    }
+
+    // utils, folder.utils or "folder/utils.es"
+    std::string moduleName(std::string& lastPart) {
+        if (check(Tok::String)) {
+            std::string path = advance().text;
+            lastPart = std::filesystem::path(path).stem().string();
+            return path;
+        }
+        std::string name = expect(Tok::Name, "Expected the name of a script to import, like: import utils").text;
+        lastPart = name;
+        while (match(Tok::Dot)) {
+            lastPart = expect(Tok::Name, "Expected a name after '.', like: import folder.utils").text;
+            name += "." + lastPart;
+        }
+        return name;
+    }
+
+    ExprPtr importCall(const std::string& module, int line) {
+        auto fn = std::make_unique<Expr>(ExprKind::Name, line);
+        fn->text = "__import";
+        fn->sym = intern("__import");
+        auto arg = std::make_unique<Expr>(ExprKind::String, line);
+        arg->text = module;
+        auto call = std::make_unique<Expr>(ExprKind::Call, line);
+        call->a = std::move(fn);
+        call->items.push_back(std::move(arg));
+        return call;
+    }
+
+    StmtPtr assignName(const Token& target, ExprPtr value, int line) {
+        auto name = std::make_unique<Expr>(ExprKind::Name, target.line);
+        name->col = target.column;
+        name->text = target.text;
+        name->sym = intern(target.text);
+        auto s = std::make_unique<Stmt>(StmtKind::Assign, line);
+        s->targets.push_back(std::move(name));
+        s->expr = std::move(value);
+        return s;
+    }
+
+    void importStatement(std::vector<StmtPtr>& out) {
+        int line = advance().line; // import
+        do {
+            const Token& start = peek();
+            std::string last;
+            std::string module = moduleName(last);
+            Token target = start;
+            target.text = last;
+            if (check(Tok::Name) && peek().text == "as") {
+                advance();
+                target = expect(Tok::Name, "Expected a name after 'as', like: import utils as u");
+            }
+            out.push_back(assignName(target, importCall(module, line), line));
+        } while (match(Tok::Comma));
+    }
+
+    void fromImportStatement(std::vector<StmtPtr>& out) {
+        int line = advance().line; // from
+        std::string last;
+        std::string module = moduleName(last);
+        advance(); // import
+        do {
+            const Token& what = expect(Tok::Name, "Name what to import, like: from utils import jump, speed");
+            Token target = what;
+            if (check(Tok::Name) && peek().text == "as") {
+                advance();
+                target = expect(Tok::Name, "Expected a name after 'as', like: from utils import jump as leap");
+            }
+            auto attr = std::make_unique<Expr>(ExprKind::Attr, what.line);
+            attr->col = what.column;
+            attr->a = importCall(module, line);
+            attr->text = what.text;
+            attr->sym = intern(what.text);
+            out.push_back(assignName(target, std::move(attr), line));
+        } while (match(Tok::Comma));
     }
 
     void simpleStatements(std::vector<StmtPtr>& out) {

@@ -111,8 +111,8 @@ void Game::stopSystems() {
 }
 
 void Game::update(float dt) {
-    if (!running_)
-        return;
+    if (!running_ || scripts_->vm().debugPaused())
+        return; // (a script stopped at a breakpoint: everything waits for the debugger)
     if (!pendingScene_.empty()) {
         std::string next = std::move(pendingScene_);
         pendingScene_.clear();

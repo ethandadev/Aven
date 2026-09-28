@@ -1256,6 +1256,29 @@ bool ScriptSystem::setProperty(Entity e, const std::string& name, const Value& v
 
 ScriptSystem::ScriptSystem(Game& game) : game_(game) {
     gameData_ = Value::object(std::make_shared<GameDataObject>());
+    // import: `import utils` means utils.es next to the importing script, then scripts/utils.es
+    // (folder.utils or "folder/utils.es" for others). Always inside the game's folder.
+    vm_.resolveImport = [this](const std::string& fromFile, const std::string& name) -> std::string {
+        std::string rel = name;
+        if (fs::extension(rel) != ".es" && fs::extension(rel) != ".blocks") {
+            std::replace(rel.begin(), rel.end(), '.', '/');
+            rel += ".es";
+        }
+        std::vector<std::string> candidates;
+        std::string folder = std::filesystem::path(fromFile).parent_path().generic_string();
+        if (!folder.empty())
+            candidates.push_back(folder + "/" + rel);
+        candidates.push_back("scripts/" + rel);
+        candidates.push_back(rel);
+        for (auto& c : candidates) {
+            std::string normal = std::filesystem::path(c).lexically_normal().generic_string();
+            std::filesystem::path inside = fs::insideFolder(game_.assets().root(), normal);
+            if (!inside.empty() && fs::exists(inside))
+                return normal;
+        }
+        return "";
+    };
+    vm_.loadImport = [this](const std::string& path) { return module(path); };
     vm_.onPrint = [](const std::string& text, const std::string& file, int line) {
         Log::write(LogLevel::Info, text, file, line);
     };
@@ -1373,6 +1396,9 @@ void ScriptSystem::checkForChanges() {
                 ++reloaded;
             }
         }
+        // Imported scripts: their shared copy picks up the new code too.
+        if (auto imported = vm_.importedInstance(path); imported && vm_.reload(imported, fresh))
+            ++reloaded;
         Log::info("Reloaded ", path, reloaded ? " (" + std::to_string(reloaded) + " running)" : "");
     }
 }
@@ -1490,6 +1516,8 @@ void ScriptSystem::callAll(Symbol event, const std::vector<Value>& args, bool sk
     static const Symbol onUpdate = intern("on_update"), onFixed = intern("on_fixed_update"), onKey = intern("on_key_pressed");
     bool ownerOnly = event == onUpdate || event == onFixed || event == onKey;
     for (Entity e : order) {
+        if (vm_.debugPaused())
+            break; // stopped at a breakpoint: the rest waits until it carries on
         auto it = instances_.find(e);
         if (it == instances_.end() || !scene.valid(e) || !scene.isActive(e))
             continue;
@@ -1503,6 +1531,8 @@ void ScriptSystem::callAll(Symbol event, const std::vector<Value>& args, bool sk
 }
 
 void ScriptSystem::update(float dt) {
+    if (vm_.debugPaused())
+        return; // stopped at a breakpoint (whoever runs the game normally stops calling this)
     deltaTime_ = dt;
     if (saveDirty_ && (saveTimer_ += dt) > 0.5f)
         flushSave();

@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
 
 namespace aven::script {
 
@@ -183,7 +184,8 @@ std::vector<const NativeFunctionObj*> VM::methodsOf(Type t) const {
 std::vector<std::string> VM::globalNames() const {
     std::vector<std::string> out;
     for (auto& [s, v] : globals_)
-        out.push_back(symbolName(s));
+        if (symbolName(s).rfind("__", 0) != 0) // helpers the language uses itself (import's __import)
+            out.push_back(symbolName(s));
     std::sort(out.begin(), out.end());
     return out;
 }
@@ -225,17 +227,121 @@ void VM::report(ScriptError& e, Task& task) {
 VM::Result VM::runTask(std::unique_ptr<Task> task) {
     try {
         Status s = run(*task);
-        if (s == Status::Waiting) {
-            waiting_.push_back(std::move(task));
+        if (s == Status::Paused) {
+            paused_ = std::move(task);
             return {true, true, {}};
         }
+        if (s == Status::Waiting) {
+            waiting_.push_back(std::move(task)); // (stepping carries on in it after the wait)
+            return {true, true, {}};
+        }
+        if (stepTask_ == task.get())
+            stepTask_ = nullptr; // stepped past its end: stop at whatever script line runs next
         return {true, false, task->result};
     } catch (ScriptError& e) {
+        if (stepTask_ == task.get()) {
+            step_ = Step::Continue; // the error stops the stepping
+            stepTask_ = nullptr;
+            updateDebugging();
+        }
         report(e, *task);
         if (onError)
             onError(e);
         return {false, false, {}};
     }
+}
+
+// ---------------------------------------------------------------- debugger
+
+void VM::setBreakpoints(std::map<std::string, std::set<int>> lines) {
+    std::erase_if(lines, [](const auto& entry) { return entry.second.empty(); });
+    breakpoints_ = std::move(lines);
+    updateDebugging();
+}
+
+bool VM::debugStopsHere(Task& task) {
+    if (paused_ || !task.canWait)
+        return false; // one pause at a time; code that can't wait runs through
+    CallFrame& f = task.frames.back();
+    if (f.ip >= f.proto->lines.size())
+        return false;
+    int line = f.proto->lines[f.ip];
+    if (line <= 0 || line == f.debugLine)
+        return false;
+    f.debugLine = line;
+    size_t depth = task.frames.size();
+    if (step_ != Step::Continue && (!stepTask_ || stepTask_ == &task)) {
+        if (!stepTask_ || step_ == Step::Into)
+            return true;
+        if (step_ == Step::Over ? depth <= stepDepth_ : depth < stepDepth_)
+            return true;
+    }
+    if (breakpoints_.empty() || !f.proto->module)
+        return false;
+    auto it = breakpoints_.find(f.proto->module->path);
+    return it != breakpoints_.end() && it->second.count(line);
+}
+
+namespace {
+
+std::string debugText(const Value& v) {
+    std::string s = v.repr();
+    if (s.size() > 200)
+        s = s.substr(0, 197) + "...";
+    return s;
+}
+
+} // namespace
+
+std::vector<DebugFrame> VM::debugFrames() const {
+    std::vector<DebugFrame> out;
+    if (!paused_)
+        return out;
+    const Task& t = *paused_;
+    for (size_t i = t.frames.size(); i-- > 0;) {
+        const CallFrame& f = t.frames[i];
+        DebugFrame d;
+        d.function = f.proto->isTopLevel ? "" : f.proto->name;
+        d.file = f.proto->module ? f.proto->module->path : "";
+        // The innermost call stopped before its instruction; the others are inside a call.
+        size_t ip = i + 1 == t.frames.size() ? f.ip : (f.ip > 0 ? f.ip - 1 : 0);
+        d.line = ip < f.proto->lines.size() ? f.proto->lines[ip] : 0;
+        for (size_t k = 0; k < f.proto->localNames.size(); ++k) {
+            size_t slot = f.base + 1 + k;
+            if (slot < t.stack.size() && !isUnbound(t.stack[slot]))
+                d.locals.emplace_back(symbolName(f.proto->localNames[k]), debugText(t.stack[slot]));
+        }
+        if (f.instance) {
+            d.object = f.instance->name;
+            if (!f.instance->self.isNone())
+                d.vars.emplace_back("self", debugText(f.instance->self));
+            for (Symbol s : f.instance->order) {
+                auto v = f.instance->vars.find(s);
+                if (v != f.instance->vars.end() && v->second.type() != Type::Function)
+                    d.vars.emplace_back(symbolName(s), debugText(v->second));
+            }
+        }
+        out.push_back(std::move(d));
+    }
+    return out;
+}
+
+void VM::debugResume(Step step) {
+    if (!paused_)
+        return;
+    std::unique_ptr<Task> task = std::move(paused_);
+    step_ = step;
+    stepTask_ = step == Step::Continue ? nullptr : task.get();
+    stepDepth_ = task->frames.size();
+    updateDebugging();
+    runTask(std::move(task));
+}
+
+void VM::debugStop() {
+    paused_.reset();
+    step_ = Step::Continue;
+    stepTask_ = nullptr;
+    updateDebugging();
 }
 
 std::shared_ptr<Instance> VM::createInstance(std::shared_ptr<Module> module, Value self, std::string name) {
@@ -259,6 +365,76 @@ std::shared_ptr<Instance> VM::createInstance(std::shared_ptr<Module> module, Val
             inst->initial[s] = v;
     }
     return inst;
+}
+
+// ---------------------------------------------------------------- import
+
+namespace {
+
+// What `import utils` gives: the script's variables and functions, as utils.name. Every script that
+// imports it shares the one copy, so its variables are shared too (and it has no self).
+struct ModuleObject : NativeObject {
+    std::shared_ptr<Instance> instance;
+    std::string name;
+    std::string typeName() const override { return "module"; }
+    std::string repr() const override { return "<module " + name + ">"; }
+    bool getAttr(VM&, const std::string& attr, Value& out) override {
+        if (Value* v = instance->find(intern(attr))) {
+            out = *v;
+            return true;
+        }
+        return false;
+    }
+    bool setAttr(VM&, const std::string& attr, const Value& value) override {
+        instance->set(intern(attr), value);
+        return true;
+    }
+    std::vector<std::string> attrNames() const override { return instance->varNames(); }
+    bool equals(const NativeObject& other) const override {
+        auto* o = dynamic_cast<const ModuleObject*>(&other);
+        return o && o->instance == instance;
+    }
+};
+
+Value moduleValue(const std::shared_ptr<Instance>& inst, const std::string& name) {
+    auto m = std::make_shared<ModuleObject>();
+    m->instance = inst;
+    m->name = name;
+    return Value::object(m);
+}
+
+} // namespace
+
+std::shared_ptr<Instance> VM::importedInstance(const std::string& path) const {
+    auto it = imports_.find(path);
+    return it == imports_.end() ? nullptr : it->second;
+}
+
+Value VM::importModule(const std::string& name) {
+    if (!resolveImport || !loadImport)
+        raise("import isn't available here.");
+    std::string path = resolveImport(currentFile(), name);
+    if (path.empty())
+        raise("There's no script called '" + name + "' to import. It looks for " + name +
+              ".es next to this script, then in scripts/.");
+    std::string shortName = name.substr(name.find_last_of("./") == std::string::npos ? 0 : name.find_last_of("./") + 1);
+    if (auto it = imports_.find(path); it != imports_.end()) {
+        if (!it->second)
+            raise("'" + path + "' imports a script that imports it back (directly or through others). Move what "
+                  "both need into a third script that neither imports.");
+        return moduleValue(it->second, shortName);
+    }
+    auto module = loadImport(path);
+    if (!module)
+        raise("'" + path + "' has an error (see above), so it can't be imported.");
+    imports_[path] = nullptr; // running its top-level code: importing it again from there is circular
+    auto inst = createInstance(module, Value(), std::filesystem::path(path).stem().string());
+    if (!inst) {
+        imports_.erase(path);
+        raise("'" + path + "' stopped with an error while starting (see above), so it can't be imported.");
+    }
+    imports_[path] = inst;
+    return moduleValue(inst, shortName);
 }
 
 bool VM::reload(const std::shared_ptr<Instance>& instance, std::shared_ptr<Module> module) {
@@ -354,10 +530,12 @@ bool VM::isWaiting(const Instance* instance, Symbol event) const {
     for (auto& t : waiting_)
         if (t->event == event && t->owner.lock().get() == instance)
             return true;
-    return false;
+    return paused_ && paused_->event == event && paused_->owner.lock().get() == instance;
 }
 
 void VM::update(double dt) {
+    if (paused_)
+        return; // stopped at a breakpoint: time stands still for scripts
     time_ += dt;
     ++frame_;
 
@@ -402,7 +580,7 @@ void VM::update(double dt) {
 }
 
 void VM::cancelTasks(const Instance* instance) {
-    std::erase_if(waiting_, [&](const std::unique_ptr<Task>& t) {
+    auto belongs = [&](const std::unique_ptr<Task>& t) {
         auto owner = t->owner.lock();
         if (owner.get() == instance)
             return true;
@@ -410,13 +588,20 @@ void VM::cancelTasks(const Instance* instance) {
             if (f.instance.get() == instance)
                 return true;
         return false;
-    });
+    };
+    for (auto& t : waiting_)
+        if (t.get() == stepTask_ && belongs(t))
+            stepTask_ = nullptr;
+    std::erase_if(waiting_, belongs);
+    if (paused_ && belongs(paused_))
+        paused_.reset();
     std::erase_if(timers_, [&](const Timer& t) { return t.hasOwner && t.owner.lock().get() == instance; });
 }
 
 void VM::clearTasks() {
     waiting_.clear();
     timers_.clear();
+    debugStop();
 }
 
 void VM::wait(double seconds) {
@@ -613,6 +798,8 @@ VM::Status VM::run(Task& task) {
     };
 
     while (true) {
+        if (debugging_ && debugStopsHere(task))
+            return Status::Paused;
         CallFrame& f = task.frames.back();
         const Instr& in = f.proto->code[f.ip++];
         switch (in.op) {

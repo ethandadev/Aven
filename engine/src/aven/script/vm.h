@@ -6,7 +6,9 @@
 #include "aven/script/value.h"
 
 #include <functional>
+#include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -41,6 +43,7 @@ struct CallFrame {
     size_t ip = 0;
     size_t base = 0; // stack slot of the callee; locals start at base + 1
     std::shared_ptr<Instance> instance;
+    int debugLine = 0; // the debugger: the line this call is on (a breakpoint stops once per visit)
 };
 
 struct Task {
@@ -55,6 +58,16 @@ struct Task {
     double wakeAt = 0;
     uint64_t waitFrame = 0;
     Value result;
+};
+
+// Where a paused script is, for the editor's debugger: one entry per function call, innermost first.
+struct DebugFrame {
+    std::string function; // "on_update", or "" for the top of the script
+    std::string file;
+    int line = 0;
+    std::string object;                                     // the object it runs on
+    std::vector<std::pair<std::string, std::string>> locals; // name, value as text
+    std::vector<std::pair<std::string, std::string>> vars;   // script variables
 };
 
 class VM {
@@ -125,6 +138,30 @@ public:
     static Value fromJson(const Json& j);
     static Json toJson(const Value& v);
 
+    // import: which script a name means, from the script doing the import ("" if there's none),
+    // and compiling it (errors reported as usual; null on failure). Set by the game.
+    std::function<std::string(const std::string& fromFile, const std::string& name)> resolveImport;
+    std::function<std::shared_ptr<Module>(const std::string& path)> loadImport;
+    // The shared copy of an imported script (null if nothing imported it), e.g. to reload it.
+    std::shared_ptr<Instance> importedInstance(const std::string& path) const;
+    Value importModule(const std::string& name); // what `import name` does
+
+    // --- the debugger. A breakpoint is a line of a script ("scripts/player.es", 12). Code that Aven
+    // runs (an event like on_update, a timer, a message) pauses when it reaches one, the way wait()
+    // does, until debugResume(); whoever runs the game stops it meanwhile. The top of a script and
+    // helper calls (sorted(key=...)) run straight through.
+    enum class Step { Continue, Over, Into, Out };
+    void setBreakpoints(std::map<std::string, std::set<int>> lines);
+    const std::map<std::string, std::set<int>>& breakpoints() const { return breakpoints_; }
+    bool debugPaused() const { return paused_ != nullptr; }
+    std::vector<DebugFrame> debugFrames() const; // empty unless paused
+    // Carries on now: to the end (or the next breakpoint), or one line (Over: not into calls,
+    // Into: into them, Out: back to the caller). Stepping past the end of the function stops at
+    // the next line of script that runs.
+    void debugResume(Step step);
+    // Drops the paused code without running the rest of it, and stops stepping.
+    void debugStop();
+
     std::function<void(const ScriptError&)> onError;
     std::function<void(const std::string& text, const std::string& file, int line)> onPrint;
 
@@ -132,8 +169,10 @@ public:
     int maxCallDepth = 200;
 
 private:
-    enum class Status { Done, Waiting };
+    enum class Status { Done, Waiting, Paused };
     Status run(Task& task);
+    bool debugStopsHere(Task& task);
+    void updateDebugging() { debugging_ = !breakpoints_.empty() || step_ != Step::Continue; }
     void prepareCall(Task& task, size_t calleeIndex, int positional, int keywords, const std::vector<Symbol>* names);
     void callNative(Task& task, size_t calleeIndex, int positional, int keywords, const std::vector<Symbol>* names);
     Value loadName(const CallFrame& frame, Symbol s);
@@ -143,9 +182,18 @@ private:
     void registerBuiltins();
 
     std::unordered_map<Symbol, Value> globals_;
+    // Imported scripts, one shared copy each (null while one is still running its top-level code).
+    std::unordered_map<std::string, std::shared_ptr<Instance>> imports_;
     std::unordered_map<Symbol, Value> listMethods_, stringMethods_, dictMethods_, vecMethods_;
     std::vector<std::unique_ptr<Task>> waiting_;
     Task* current_ = nullptr;
+
+    std::map<std::string, std::set<int>> breakpoints_;
+    bool debugging_ = false; // breakpoints set or stepping: run() checks each new line
+    std::unique_ptr<Task> paused_;
+    Step step_ = Step::Continue;
+    const Task* stepTask_ = nullptr; // the code being stepped through (null: whatever runs next)
+    size_t stepDepth_ = 0;
     double time_ = 0;
     uint64_t frame_ = 0;
 

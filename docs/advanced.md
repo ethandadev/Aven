@@ -195,6 +195,11 @@ play_sound("sounds/radio.wav", bus="Voice")
   and `debug_text(position, text)`. Each takes `color=` and `seconds=` (0 = this frame only).
   Positions can be vectors or objects. They show in the editor while playing (the **Debug**
   toggle above the game view), and in `aven-player --debug-draw`, never in normal exports.
+- **Modules**: `import utils`, `import lib.tools as t`, `from utils import jump, speed as s`
+  or `import "folder/utils.es"`. Lookup is the importing script's folder, then `scripts/`
+  (always inside the game folder). A module is loaded once per game and shared by everything
+  that imports it, with its own variables and no `self`; import cycles are reported as errors.
+  (See [EasyScript](easyscript.md#sharing-code-import).)
 - **Hot reload**: saving a script while the game runs swaps in the new code and keeps the
   variables the game changed.
 - **Your own code editor**: **Preferences > Behavior > External code editor**, for example

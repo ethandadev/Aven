@@ -152,6 +152,43 @@ def on_message(message, data):
         self.hide()
 ```
 
+## Sharing code: `import`
+
+Functions you want in several scripts can live in one script of their own, say
+`scripts/utils.es`, and other scripts `import` it:
+
+```easyscript
+# scripts/utils.es
+hits = 0
+
+def double(x):
+    return x * 2
+
+def count_hit():
+    global hits
+    hits += 1
+```
+
+```easyscript
+# scripts/player.es
+import utils
+from utils import double
+
+def on_collide(other):
+    utils.count_hit()
+    print(double(utils.hits))
+```
+
+- `import utils` looks for `utils.es` next to the script first, then in `scripts/`.
+  A script in a folder is `import folder.utils` (you then write `utils.`), and
+  `import "folder/utils.es"` works too.
+- `import utils as u` gives it a shorter name; `from utils import double, hits as h` takes
+  just those names.
+- Every script that imports `utils` shares **one** copy: when one of them changes `utils.hits`,
+  the others see it. It isn't on an object, so it has no `self`, and Aven doesn't call its
+  events (`on_update`...); it's for functions and shared values.
+- Saving an imported script while the game runs reloads it, like any script.
+
 ## Waiting and timers
 
 `wait(seconds)` pauses just this function. The rest of the game keeps running:
