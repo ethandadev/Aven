@@ -315,13 +315,13 @@ void Editor::drawAssets() {
         start = slash + 1;
     }
     ImGui::SameLine(std::max(ImGui::GetCursorPosX() + 10, ImGui::GetWindowWidth() - 390));
-    ImGui::SetNextItemWidth(170);
+    ImGui::SetNextItemWidth(ui::px(170));
     ImGui::InputTextWithHint("##assetsearch", "Search files", &assetSearch_);
     ImGui::SameLine();
     ImGui::AlignTextToFramePadding();
     ImGui::TextDisabled("Size");
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(70);
+    ImGui::SetNextItemWidth(ui::px(70));
     ImGui::SliderFloat("##cell", &assetCell_, 64, 160, "");
     ImGui::SameLine();
     if (ImGui::SmallButton("Library"))
@@ -582,7 +582,7 @@ void Editor::drawAssets() {
     if (ImGui::BeginPopupModal("Rename file", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         if (ImGui::IsWindowAppearing())
             ImGui::SetKeyboardFocusHere();
-        ImGui::SetNextItemWidth(300);
+        ImGui::SetNextItemWidth(ui::px(300));
         bool enter = ImGui::InputText("##rename", renameBuffer_, sizeof renameBuffer_, ImGuiInputTextFlags_EnterReturnsTrue);
         std::string newName = renameBuffer_;
         while (!newName.empty() && newName.back() == ' ')
@@ -608,7 +608,7 @@ void Editor::drawAssets() {
         else
             ImGui::TextDisabled("Scenes, prefabs and scripts that use it are updated too.");
         ImGui::BeginDisabled(!why.empty());
-        bool ok = ImGui::Button("Rename", {120, 0});
+        bool ok = ImGui::Button("Rename", {ui::px(120), 0});
         ImGui::EndDisabled();
         if ((enter || ok) && why.empty()) {
             if (to != renameTarget_)
@@ -617,7 +617,7 @@ void Editor::drawAssets() {
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Cancel", {120, 0}) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+        if (ImGui::Button("Cancel", {ui::px(120), 0}) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
             renameTarget_.clear();
             ImGui::CloseCurrentPopup();
         }
@@ -635,7 +635,7 @@ void Editor::drawAssets() {
                     deleteUsers_.push_back(u);
         ImGui::OpenPopup("Delete files?");
     }
-    ImGui::SetNextWindowSize({440, 0});
+    ImGui::SetNextWindowSize({ui::px(440), 0});
     if (ImGui::BeginPopupModal("Delete files?", nullptr, ImGuiWindowFlags_NoResize)) {
         ImGui::TextUnformatted(confirmDelete_.size() == 1 ? "Delete this?" : ("Delete these " + std::to_string(confirmDelete_.size()) + "?").c_str());
         for (size_t k = 0; k < confirmDelete_.size() && k < 8; ++k)
@@ -654,14 +654,14 @@ void Editor::drawAssets() {
         if (ImGui::IsWindowAppearing())
             ImGui::SetKeyboardFocusHere();
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.62f, 0.2f, 0.2f, 1));
-        if (ImGui::Button("Delete", {120, 0}) || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+        if (ImGui::Button("Delete", {ui::px(120), 0}) || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
             deleteAssets(confirmDelete_);
             confirmDelete_.clear();
             ImGui::CloseCurrentPopup();
         }
         ImGui::PopStyleColor();
         ImGui::SameLine();
-        if (ImGui::Button("Cancel", {120, 0}) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+        if (ImGui::Button("Cancel", {ui::px(120), 0}) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
             confirmDelete_.clear();
             ImGui::CloseCurrentPopup();
         }
@@ -674,7 +674,7 @@ void Editor::drawImportSettings() {
     // Opens as a tab next to the Inspector.
     if (ImGuiWindow* inspector = ImGui::FindWindowByName("Inspector"); inspector && inspector->DockId)
         ImGui::SetNextWindowDockID(inspector->DockId, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize({340, 420}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({ui::px(340), ui::px(420)}, ImGuiCond_FirstUseEver);
     if (focusImport_) {
         ImGui::SetNextWindowFocus();
         focusImport_ = false;
@@ -708,7 +708,7 @@ void Editor::drawImportSettings() {
     auto row = [](const char* label) {
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted(label);
-        ImGui::SameLine(120);
+        ImGui::SameLine(ui::px(120));
         ImGui::SetNextItemWidth(-1);
     };
     if (kind == "image") {

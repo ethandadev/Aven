@@ -117,7 +117,7 @@ void Editor::drawAnimator(Entity e, const std::vector<Entity>& selection) {
     if (!a.states.empty()) {
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted("Starts in");
-        ImGui::SameLine(110);
+        ImGui::SameLine(ui::px(110));
         ImGui::SetNextItemWidth(-1);
         changed |= combo("##start", a.startState, stateNames, a.states.front().name.c_str());
     }

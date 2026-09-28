@@ -196,7 +196,7 @@ void Editor::drawCodeLadder() {
     ImGuiWindow* sceneWindow = ImGui::FindWindowByName("###Viewport");
     if (sceneWindow && sceneWindow->DockId)
         ImGui::SetNextWindowDockID(sceneWindow->DockId, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize({820, 620}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({ui::px(820), ui::px(620)}, ImGuiCond_FirstUseEver);
     if (focusLadder_) {
         ImGui::SetNextWindowFocus();
         focusLadder_ = false;

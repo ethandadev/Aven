@@ -965,18 +965,45 @@ void Editor::drawAssistant() {
         ImGui::SetKeyboardFocusHere();
         assistantFocus_ = false;
     }
-    static const char* examples[] = {"e.g. make it faster and patrol left and right", "e.g. bigger and red", "e.g. chase the player",
+    static const char* examples[] = {"e.g. bigger and red", "e.g. patrol left and right", "e.g. chase the player",
                                      "e.g. make it a collectible coin worth 5", "e.g. spin slowly and glow", "e.g. let me control it",
-                                     "e.g. dangerous, and bounce"};
+                                     "e.g. dangerous and bouncy"};
     int ex = static_cast<int>(ImGui::GetTime() / 4) % IM_ARRAYSIZE(examples);
-    ImGui::SetNextItemWidth(-ImGui::CalcTextSize("Ask").x - 24);
+    // Set apart from the Tag and Layer fields above: a heading, and an outline in the accent color.
+    ImGui::Spacing();
+    ImVec4 accent = ImGui::GetStyleColorVec4(ImGuiCol_CheckMark);
+    ImGui::TextColored(accent, "Ask Aven");
+    ImGui::SameLine();
+    ImGui::TextDisabled("change this object by describing it");
+    ImGui::PushStyleColor(ImGuiCol_Border, accent);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+    ImGui::SetNextItemWidth(-ImGui::CalcTextSize("Ask").x - ImGui::GetStyle().FramePadding.x * 2 - ImGui::GetStyle().ItemSpacing.x);
     bool enter = ImGui::InputTextWithHint("##ask", examples[ex], &assistantText_, ImGuiInputTextFlags_EnterReturnsTrue);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Ask Aven: describe a change in plain words. You'll see what it changes before anything happens.");
+        ImGui::SetTooltip("Describe a change in plain words. You'll see what it changes before anything happens.");
     ImGui::SameLine();
-    if ((ImGui::Button("Ask") || enter) && !trim(assistantText_).empty()) {
-        askAven(assistantText_);
-        assistantFocus_ = true;
+    bool pressed = ImGui::Button("Ask");
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor();
+    if (pressed || enter) {
+        if (!trim(assistantText_).empty()) {
+            askAven(assistantText_);
+            assistantFocus_ = true;
+        } else {
+            ImGui::OpenPopup("ask_examples"); // nothing typed yet: show what it can do
+        }
+    }
+    if (ImGui::BeginPopup("ask_examples")) {
+        ImGui::TextDisabled("Type what you want in the box, or pick one:");
+        ImGui::Separator();
+        for (const char* e : {"bigger and red", "spin slowly and glow", "patrol left and right", "chase the player",
+                              "make it a collectible coin worth 5", "dangerous", "bouncy", "let me control it"}) {
+            if (ImGui::Selectable(e)) {
+                assistantText_ = e;
+                askAven(assistantText_);
+            }
+        }
+        ImGui::EndPopup();
     }
     if (!assistant_.request.empty()) {
         ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));

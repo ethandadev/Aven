@@ -475,7 +475,7 @@ void Editor::drawClickActions(Entity e, const std::vector<Entity>& selection) {
 
         // The settings this kind of step needs.
         if (ImGui::BeginTable("##step", 2, ImGuiTableFlags_SizingStretchProp)) {
-            ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, 110);
+            ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, ui::px(110));
             ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
             auto file = [&](const char* label, AssetKind kind) {
                 row(label);
@@ -626,7 +626,7 @@ void Editor::drawScriptVariables(Entity e) {
             // "# @header Movement" above the variable.
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
-            ImGui::Dummy({0, 2});
+            ImGui::Dummy({0, ui::px(2)});
             ImGui::PushFont(fonts.bold);
             ImGui::TextUnformatted(ex.header.c_str());
             ImGui::PopFont();
@@ -1079,7 +1079,7 @@ void Editor::drawInspector() {
                 drawParticlePresets(e, selection);
             if (ci.name == "Tilemap" && unlocked(Feature::Tilemap)) {
                 bool painting = showTilePainter_;
-                if (ImGui::Button(painting ? "Stop painting" : "Paint tiles", {-1, 28})) {
+                if (ImGui::Button(painting ? "Stop painting" : "Paint tiles", {-1, ui::px(28)})) {
                     if (painting)
                         showTilePainter_ = false;
                     else
@@ -1090,7 +1090,7 @@ void Editor::drawInspector() {
                 drawValueBarHint(e);
             if (ci.name == "Terrain") {
                 if (ImGui::BeginTable("##fields", 2, ImGuiTableFlags_SizingStretchProp)) {
-                    ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, 110);
+                    ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, ui::px(110));
                     ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
                     if (drawComponent(e, ci, data))
                         ++reg.get<Terrain>(e).revision; // size, height... change the mesh
@@ -1104,7 +1104,7 @@ void Editor::drawInspector() {
             } else if (ci.name == "NativeScript") {
                 drawNativeScriptInspector(e);
             } else if (ImGui::BeginTable("##fields", 2, ImGuiTableFlags_SizingStretchProp)) {
-                ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, 110);
+                ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, ui::px(110));
                 ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
                 drawComponent(e, ci, data);
                 if (ci.name == "Script")

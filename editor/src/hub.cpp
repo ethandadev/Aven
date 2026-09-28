@@ -162,7 +162,7 @@ bool Editor::drawFolderBrowser(bool projectsOnly, stdfs::path* picked) {
 
     if (projectsOnly) {
         ImGui::BeginDisabled(!ProjectSettings::isProject(browsePath_));
-        if (accentButton("Open this project", {200, 0})) {
+        if (accentButton("Open this project", {ui::px(200), 0})) {
             *picked = browsePath_;
             result = true;
         }
@@ -170,7 +170,7 @@ bool Editor::drawFolderBrowser(bool projectsOnly, stdfs::path* picked) {
         ImGui::SameLine();
         ImGui::TextDisabled("Pick a folder marked [game] (or a [zip] someone sent you).");
     } else {
-        if (accentButton("Use this folder", {160, 0})) {
+        if (accentButton("Use this folder", {ui::px(160), 0})) {
             *picked = browsePath_;
             result = true;
         }
@@ -180,7 +180,7 @@ bool Editor::drawFolderBrowser(bool projectsOnly, stdfs::path* picked) {
         }
         if (ImGui::BeginPopup("New folder")) {
             static std::string folderName = "Aven Games";
-            ImGui::SetNextItemWidth(220);
+            ImGui::SetNextItemWidth(ui::px(220));
             bool enter = ImGui::InputText("##name", &folderName, ImGuiInputTextFlags_EnterReturnsTrue);
             ImGui::SameLine();
             if ((ImGui::Button("Create") || enter) && !safeFolderName(folderName).empty()) {

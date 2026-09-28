@@ -12,7 +12,7 @@ namespace aven::editor {
 
 void Editor::drawParticlePresets(Entity e, const std::vector<Entity>& selection) {
     auto& reg = scene().registry();
-    ImGui::SetNextItemWidth(170);
+    ImGui::SetNextItemWidth(ui::px(170));
     if (ImGui::BeginCombo("##preset", "Choose a look...")) {
         for (auto& p : particlePresets()) {
             if (ImGui::Selectable(p.name)) {

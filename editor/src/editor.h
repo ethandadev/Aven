@@ -31,6 +31,8 @@
 
 #include <imgui.h>
 
+#include "ui_scale.h"
+
 namespace aven::script {
 class VM;
 struct Module;

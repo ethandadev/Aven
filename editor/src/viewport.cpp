@@ -573,7 +573,7 @@ void Editor::drawViewport(float dt) {
     // A slim bar with view options.
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {6, 2});
     ImGui::SetCursorPos({ImGui::GetCursorPosX() + 6, ImGui::GetCursorPosY() + 3});
-    ImGui::SetNextItemWidth(130);
+    ImGui::SetNextItemWidth(ui::px(130));
     ImGui::Combo("##aspect", &gameAspect_, kAspectNames, IM_ARRAYSIZE(kAspectNames));
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Screen shape used while playing (and in the scene view for UI).");
@@ -599,7 +599,7 @@ void Editor::drawViewport(float dt) {
         game_->audio().setMasterVolume(muteGame_ ? 0.0f : 1.0f);
     if (playing_) {
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(110);
+        ImGui::SetNextItemWidth(ui::px(110));
         if (ImGui::SliderFloat("##speed", &game_->timeScale, 0.1f, 2.0f, "Speed %.1fx"))
             game_->timeScale = std::max(0.1f, game_->timeScale);
         if (ImGui::IsItemHovered())

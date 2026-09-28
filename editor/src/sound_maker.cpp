@@ -175,7 +175,7 @@ void Editor::drawSoundMaker() {
 
     // Saving and using.
     ImGui::Separator();
-    ImGui::SetNextItemWidth(200);
+    ImGui::SetNextItemWidth(ui::px(200));
     ImGui::InputText("##sfxname", &sfxName_);
     ImGui::SameLine();
     if (ImGui::Button("Save to sounds/")) {

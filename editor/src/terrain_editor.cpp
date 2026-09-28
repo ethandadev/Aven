@@ -83,7 +83,7 @@ void Editor::drawTerrainInspector(Entity e) {
 
     // --- whole-terrain actions
     ImGui::SeparatorText("Shape it all at once");
-    ImGui::SetNextItemWidth(120);
+    ImGui::SetNextItemWidth(ui::px(120));
     ImGui::SliderFloat("##hills", &hillsAmount_, 0.05f, 1.0f, "hills %.2f");
     ImGui::SameLine();
     if (ImGui::Button("Make hills")) {

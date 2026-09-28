@@ -952,7 +952,7 @@ void Editor::stopSharing() {
 // ---------------------------------------------------------------- UI
 
 void Editor::drawExport() {
-    ImGui::SetNextWindowSize({640, 560}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({ui::px(640), ui::px(560)}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_FirstUseEver, {0.5f, 0.5f});
     if (!ImGui::Begin("Build & Share###Export", &showExport_)) {
         ImGui::End();
@@ -970,7 +970,7 @@ void Editor::drawExport() {
             ImGui::InputText("Output folder", &exportFolder_);
             ImGui::TextDisabled("Game name: %s  |  Start scene: %s", settings_.name.c_str(), settings_.startScene.c_str());
             ImGui::Spacing();
-            if (ImGui::Button("Export game", {160, 34})) {
+            if (ImGui::Button("Export game", {ui::px(160), ui::px(34)})) {
                 saveScene();
                 saveAllScripts();
                 exportGame(exportFolder_, exportResult_);
@@ -996,15 +996,15 @@ void Editor::drawExport() {
                                                           "tools/web/build_web_player.sh (it needs Emscripten).");
             ImGui::InputText("Output folder##web", &exportFolder_);
             ImGui::BeginDisabled(!ready);
-            if (ImGui::Button("Build for the web", {180, 34}))
+            if (ImGui::Button("Build for the web", {ui::px(180), ui::px(34)}))
                 exportWeb(exportFolder_, webResult_);
             ImGui::SameLine();
-            if (ImGui::Button("Make a zip for itch.io", {0, 34}))
+            if (ImGui::Button("Make a zip for itch.io", {0, ui::px(34)}))
                 makeItchZip(webResult_);
             ImGui::EndDisabled();
             if (!webExportDir_.empty()) {
                 ImGui::SameLine();
-                if (ImGui::Button("Open the folder", {0, 34}))
+                if (ImGui::Button("Open the folder", {0, ui::px(34)}))
                     openExternal(webExportDir_);
             }
             if (!webResult_.empty())
@@ -1058,7 +1058,7 @@ void Editor::drawExport() {
                 ImGui::TextWrapped("Builds the web version and serves it from this computer, so friends and classmates on the same "
                                    "network can play right away.");
                 ImGui::BeginDisabled(!ready);
-                if (ImGui::Button("Start sharing", {160, 34}))
+                if (ImGui::Button("Start sharing", {ui::px(160), ui::px(34)}))
                     startSharing(shareResult_);
                 ImGui::EndDisabled();
                 if (!ready)

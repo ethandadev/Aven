@@ -263,7 +263,7 @@ void Editor::drawPixelEditor() {
         ImGui::PushID(static_cast<int>(i));
         float c[4];
         unpack(fromHex(kPalette[i]), c);
-        if (ImGui::ColorButton("##pal", {c[0], c[1], c[2], 1}, ImGuiColorEditFlags_NoTooltip, {20, 20}))
+        if (ImGui::ColorButton("##pal", {c[0], c[1], c[2], 1}, ImGuiColorEditFlags_NoTooltip, {ui::px(20), ui::px(20)}))
             std::copy(c, c + 4, d.color);
         ImGui::PopID();
     }
@@ -380,7 +380,7 @@ void Editor::drawPixelEditor() {
         ImGui::SameLine();
         ImGui::Checkbox("Play", &d.playing);
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(90);
+        ImGui::SetNextItemWidth(ui::px(90));
         ImGui::SliderFloat("##pfps", &d.fps, 1, 24, "%.0f fps");
         if (d.playing) {
             d.playTime += io.DeltaTime * d.fps;

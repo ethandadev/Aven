@@ -122,8 +122,8 @@ struct InputPlayer {
                 if (k == "Alt") io.AddKeyEvent(ImGuiMod_Alt, down);
                 io.AddKeyEvent(keyNamed(k), down);
             } else if (st.command == "type") {
-                for (auto& word : st.args)
-                    io.AddInputCharactersUTF8(word.c_str());
+                for (size_t w = 0; w < st.args.size(); ++w) // words, with the spaces between them
+                    io.AddInputCharactersUTF8(((w ? " " : "") + st.args[w]).c_str());
             }
         }
         glfwSetCursorPos(window, x, y); // so the backend reads the same position
@@ -135,6 +135,7 @@ struct Args {
     EditorOptions editor;
     std::string input;
     int width = 0, height = 0;
+    float scale = 0; // --scale 1.5: like 150% display scaling (for testing layouts)
     bool check = false, strict = false;
 };
 
@@ -172,6 +173,8 @@ bool parseArgs(int argc, char** argv, Args& a) {
             a.check = true;
         else if (s == "--strict")
             a.strict = true;
+        else if (s == "--scale")
+            a.scale = static_cast<float>(std::atof(next().c_str()));
         else if (s == "--size") {
             std::string v = next();
             std::sscanf(v.c_str(), "%dx%d", &a.width, &a.height);
@@ -243,7 +246,7 @@ int main(int argc, char** argv) {
     int exitCode = 0;
     {
         Editor editor(window, *device);
-        editor.setDpiScale(std::max(1.0f, window.contentScale()));
+        editor.setDpiScale(args.scale > 0 ? args.scale : std::max(1.0f, window.contentScale()));
         if (!editor.init(args.editor)) {
             exitCode = 1;
         } else {

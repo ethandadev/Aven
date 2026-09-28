@@ -118,7 +118,7 @@ void Editor::drawTilePainter() {
         ImGui::PopStyleColor();
         ImGui::Spacing();
         ImGui::BeginDisabled(playing_);
-        if (ImGui::Button("Create a Tilemap", {-1, 34}))
+        if (ImGui::Button("Create a Tilemap", {-1, ui::px(34)}))
             createEntity("Tilemap");
         ImGui::EndDisabled();
         // Offer the tilemaps already in the scene.
@@ -270,14 +270,14 @@ void Editor::drawTilePainter() {
             openPixelEditor(map->tileset);
     }
     if (!colored) {
-        ImGui::SetNextItemWidth(90);
+        ImGui::SetNextItemWidth(ui::px(90));
         int cols = map->columns, rows = map->rows;
         if (ImGui::InputInt("Across", &cols) && cols >= 1) {
             edited("Tileset grid");
             map->columns = cols;
         }
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(90);
+        ImGui::SetNextItemWidth(ui::px(90));
         if (ImGui::InputInt("Down", &rows) && rows >= 1) {
             edited("Tileset grid");
             map->rows = rows;

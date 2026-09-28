@@ -216,6 +216,13 @@ void Editor::openPanels(const std::string& list) {
         else if (p.rfind("import:", 0) == 0) { selectedAssets_ = {p.substr(7)}; showImport_ = focusImport_ = true; } // Import Settings for a file
         else if (p.rfind("tool:", 0) == 0) runEditorTool(p.substr(5)); // run an editor tool
         else if (p.rfind("drop:", 0) == 0) onFilesDropped({p.substr(5)}); // as if dragged in from the desktop
+        else if (p.rfind("ask:", 0) == 0) { // ask:bigger and red (automated tests): Ask Aven's proposals, logged
+            askAven(p.substr(4));
+            for (auto& pr : assistant_.proposals)
+                Log::info("ask proposal: ", pr.text);
+            for (auto& u : assistant_.unknown)
+                Log::info("ask unknown: ", u);
+        }
         else if (p == "projectzip") { std::string m; exportProjectZip(m); Log::info(m); } // File > Export Project as .zip
         else if (p == "dump") { // for tests: the hierarchy, with * on selected objects
             scene_->walk([&](Entity e, int depth) {
@@ -1535,10 +1542,10 @@ void Editor::drawPrefabBar() {
     ImGui::SameLine();
     ImGui::TextColored({0.8f, 1, 0.9f, 0.8f}, "(every copy changes too)");
     ImGui::SameLine(ImGui::GetWindowWidth() - 280);
-    if (ImGui::Button("Save", {80, 0}))
+    if (ImGui::Button("Save", {ui::px(80), 0}))
         saveScene();
     ImGui::SameLine();
-    if (ImGui::Button("Save and go back", {170, 0}))
+    if (ImGui::Button("Save and go back", {ui::px(170), 0}))
         closePrefab(true);
     ImGui::EndChild();
     ImGui::PopStyleColor();
@@ -2215,7 +2222,7 @@ void Editor::drawSwitchDialog() {
         if (action)
             action();
     };
-    if (ImGui::Button("Save", {110, 0})) {
+    if (ImGui::Button("Save", {ui::px(110), 0})) {
         bool ok = !dirty_ || saveScene();
         if (pendingSwitchScripts_)
             saveAllScripts();
@@ -2223,7 +2230,7 @@ void Editor::drawSwitchDialog() {
             proceed();
     }
     ImGui::SameLine();
-    if (ImGui::Button("Don't save", {110, 0})) {
+    if (ImGui::Button("Don't save", {ui::px(110), 0})) {
         dirty_ = false;
         if (pendingSwitchScripts_)
             for (auto& t : tabs_)
@@ -2231,7 +2238,7 @@ void Editor::drawSwitchDialog() {
         proceed();
     }
     ImGui::SameLine();
-    if (ImGui::Button("Cancel", {90, 0})) {
+    if (ImGui::Button("Cancel", {ui::px(90), 0})) {
         pendingSwitch_ = nullptr;
         ImGui::CloseCurrentPopup();
     }
@@ -2246,7 +2253,7 @@ void Editor::drawQuitDialog() {
     if (ImGui::BeginPopupModal("Save changes?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text("You have unsaved changes. Save them before closing?");
         ImGui::Spacing();
-        if (ImGui::Button("Save and close", {150, 0})) {
+        if (ImGui::Button("Save and close", {ui::px(150), 0})) {
             if (playing_)
                 stop();
             saveScene();
@@ -2256,10 +2263,10 @@ void Editor::drawQuitDialog() {
             quit_ = true;
         }
         ImGui::SameLine();
-        if (ImGui::Button("Don't save", {110, 0}))
+        if (ImGui::Button("Don't save", {ui::px(110), 0}))
             quit_ = true;
         ImGui::SameLine();
-        if (ImGui::Button("Cancel", {90, 0})) {
+        if (ImGui::Button("Cancel", {ui::px(90), 0})) {
             window_.cancelClose();
             ImGui::CloseCurrentPopup();
         }

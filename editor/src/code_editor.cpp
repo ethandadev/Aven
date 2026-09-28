@@ -1,4 +1,5 @@
 #include "code_editor.h"
+#include "ui_scale.h"
 
 #include <imgui_stdlib.h>
 
@@ -955,7 +956,7 @@ bool CodeEditor::drawFindBar() {
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted("Go to line");
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(100);
+        ImGui::SetNextItemWidth(ui::px(100));
         if (findFocus_) {
             ImGui::SetKeyboardFocusHere();
             findFocus_ = false;
@@ -976,7 +977,7 @@ bool CodeEditor::drawFindBar() {
         for (size_t c = 0; c + findText_.size() <= line.size() && !findText_.empty(); ++c)
             if (matchesAt(line, c))
                 ++count;
-    ImGui::SetNextItemWidth(220);
+    ImGui::SetNextItemWidth(ui::px(220));
     if (findFocus_) {
         ImGui::SetKeyboardFocusHere();
         findFocus_ = false;
@@ -1002,7 +1003,7 @@ bool CodeEditor::drawFindBar() {
     if (ImGui::SmallButton("x"))
         findOpen_ = false;
     if (replaceOpen_ && !readOnly) {
-        ImGui::SetNextItemWidth(220);
+        ImGui::SetNextItemWidth(ui::px(220));
         ImGui::InputTextWithHint("##replace", "Replace with", &replaceText_);
         ImGui::SameLine();
         if (ImGui::SmallButton("Replace")) {

@@ -394,6 +394,7 @@ void buildFonts(const Prefs& prefs, float dpiScale, Fonts& fonts) {
         return io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(data), static_cast<int>(bytes), size, &cfg, ranges);
     };
     float ui = static_cast<float>(prefs.fontSize) * scale;
+    ui::setPixelScale(ui / 16.0f); // fixed sizes in the editor were laid out for 16 px text
     fonts.ui = add("Roboto-Medium.ttf", ui);
     fonts.bold = add("Roboto-Medium.ttf", ui * 1.12f);
     fonts.big = add("Roboto-Medium.ttf", ui * 1.75f);

@@ -1,4 +1,5 @@
 #include "block_editor.h"
+#include "ui_scale.h"
 #include "code_editor.h"
 
 #include "aven/platform/input.h"
@@ -805,12 +806,12 @@ void BlockEditor::drawEditPopup() {
     switch (in->type) {
     case InputType::Key: {
         ImGui::TextDisabled("Choose a key");
-        ImGui::BeginChild("keys", {260, 220});
+        ImGui::BeginChild("keys", {ui::px(260), ui::px(220)});
         int col = 0;
         for (const char* k : kKeys) {
             if (col++ % 4)
                 ImGui::SameLine();
-            if (ImGui::Button(k, {58, 0})) {
+            if (ImGui::Button(k, {ui::px(58), 0})) {
                 setValue(Json(k));
                 ImGui::CloseCurrentPopup();
             }
@@ -833,7 +834,7 @@ void BlockEditor::drawEditPopup() {
     case InputType::Number:
     case InputType::Value: {
         ImGui::SetKeyboardFocusHere();
-        ImGui::SetNextItemWidth(180);
+        ImGui::SetNextItemWidth(ui::px(180));
         bool enter = ImGui::InputText("##value", editBuffer_, sizeof editBuffer_, ImGuiInputTextFlags_EnterReturnsTrue);
         if (ImGui::IsItemEdited() || enter) {
             std::string s = editBuffer_;
@@ -858,7 +859,7 @@ void BlockEditor::drawEditPopup() {
                 ImGui::CloseCurrentPopup();
             }
         ImGui::Separator();
-        ImGui::SetNextItemWidth(140);
+        ImGui::SetNextItemWidth(ui::px(140));
         ImGui::InputText("##newvar", newVarName_, sizeof newVarName_);
         ImGui::SameLine();
         if (ImGui::Button("New variable") && newVarName_[0]) {
@@ -878,7 +879,7 @@ void BlockEditor::drawEditPopup() {
             if (col++ % 6)
                 ImGui::SameLine();
             ImGui::PushID(c);
-            if (ImGui::ColorButton(c, {color.r, color.g, color.b, 1}, 0, {30, 30})) {
+            if (ImGui::ColorButton(c, {color.r, color.g, color.b, 1}, 0, {ui::px(30), ui::px(30)})) {
                 setValue(Json(c));
                 ImGui::CloseCurrentPopup();
             }
@@ -986,7 +987,7 @@ void BlockEditor::drawPalette(ImVec2 origin, ImVec2 size) {
             char buf[64];
             std::snprintf(buf, sizeof buf, "%s", variables_[v].second.isString() ? variables_[v].second.asString().c_str()
                                                                                    : variables_[v].second.dump().c_str());
-            ImGui::SetNextItemWidth(70);
+            ImGui::SetNextItemWidth(ui::px(70));
             if (ImGui::InputText("##start", buf, sizeof buf)) {
                 char* end = nullptr;
                 double n = std::strtod(buf, &end);

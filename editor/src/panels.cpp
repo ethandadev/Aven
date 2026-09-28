@@ -25,6 +25,13 @@ namespace aven::editor {
 
 namespace ui {
 
+namespace {
+float gPixelScale = 1.0f;
+}
+
+float px(float size) { return size * gPixelScale; }
+void setPixelScale(float scale) { gPixelScale = scale > 0 ? scale : 1.0f; }
+
 void placeWindow(ImVec2 size, ImVec2 where) {
     // First time a tool window opens: its size and a spot on screen (fractions of the window).
     ImGuiViewport* vp = ImGui::GetMainViewport();
@@ -740,7 +747,8 @@ void Editor::drawHierarchy() {
     ui::panelClass();
     ImGui::Begin("Hierarchy", &showHierarchy_);
     hierarchyFocused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
-    ImGui::SetNextItemWidth(-60);
+    // Room for the "+ Add" button next to it, however big the text is.
+    ImGui::SetNextItemWidth(-(ImGui::CalcTextSize("+ Add").x + ImGui::GetStyle().FramePadding.x * 2 + ImGui::GetStyle().ItemSpacing.x));
     ImGui::InputTextWithHint("##filter", "Search...", &hierarchyFilter_);
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Search by name, or filter:\n  t:RigidBody2D   objects with a component\n  tag:enemy   by tag\n"
@@ -1056,7 +1064,7 @@ void Editor::drawScriptTabs() {
 // ---------------------------------------------------------------- windows
 
 void Editor::drawSettings() {
-    ImGui::SetNextWindowSize({560, 680}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({ui::px(560), ui::px(680)}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_FirstUseEver, {0.5f, 0.5f});
     if (!ImGui::Begin("Project Settings", &showSettings_)) {
         ImGui::End();
@@ -1109,7 +1117,7 @@ void Editor::drawSettings() {
             auto actions = input.actions();
             bool actionsChanged = false;
             if (ImGui::BeginTable("##actions", 2, ImGuiTableFlags_BordersInnerH)) {
-                ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthFixed, 90);
+                ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthFixed, ui::px(90));
                 ImGui::TableSetupColumn("Keys");
                 for (auto& a : actions) {
                     ImGui::TableNextRow();
@@ -1163,7 +1171,7 @@ void Editor::drawSettings() {
             {
                 TouchSettings& t = settings_.touch;
                 int mode = static_cast<int>(t.mode);
-                ImGui::SetNextItemWidth(260);
+                ImGui::SetNextItemWidth(ui::px(260));
                 if (ImGui::Combo("Show them", &mode,
                                  "When the screen is touched\0Always (try them with the mouse)\0Never\0")) {
                     t.mode = static_cast<TouchMode>(mode);
@@ -1173,12 +1181,12 @@ void Editor::drawSettings() {
                 int remove = -1;
                 for (size_t i = 0; i < t.buttons.size(); ++i) {
                     ImGui::PushID(static_cast<int>(i) + 7000);
-                    ImGui::SetNextItemWidth(120);
+                    ImGui::SetNextItemWidth(ui::px(120));
                     changed |= ImGui::InputTextWithHint("##label", "label", &t.buttons[i].label);
                     ImGui::SameLine();
                     ImGui::TextDisabled("presses");
                     ImGui::SameLine();
-                    ImGui::SetNextItemWidth(120);
+                    ImGui::SetNextItemWidth(ui::px(120));
                     std::string& key = t.buttons[i].key;
                     if (ImGui::BeginCombo("##key", key.c_str())) {
                         for (const char* k :
@@ -1292,12 +1300,12 @@ bool Editor::drawMixer() {
     auto& buses = settings_.audioBuses;
     int removeAt = -1;
     if (ImGui::BeginTable("##mixer", 6, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_RowBg)) {
-        ImGui::TableSetupColumn("Bus", ImGuiTableColumnFlags_WidthFixed, 110);
+        ImGui::TableSetupColumn("Bus", ImGuiTableColumnFlags_WidthFixed, ui::px(110));
         ImGui::TableSetupColumn("Volume");
-        ImGui::TableSetupColumn("Mute", ImGuiTableColumnFlags_WidthFixed, 40);
+        ImGui::TableSetupColumn("Mute", ImGuiTableColumnFlags_WidthFixed, ui::px(40));
         ImGui::TableSetupColumn("Low-pass (Hz)");
         ImGui::TableSetupColumn("Echo");
-        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 26);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, ui::px(26));
         ImGui::TableHeadersRow();
         for (size_t i = 0; i < buses.size(); ++i) {
             AudioBus& b = buses[i];
@@ -1361,7 +1369,7 @@ bool Editor::drawLayerSettings() {
     int removeAt = -1;
     ImGui::AlignTextToFramePadding();
     ImGui::TextDisabled(" 0");
-    ImGui::SameLine(40);
+    ImGui::SameLine(ui::px(40));
     ImGui::TextUnformatted("Default");
     ImGui::SameLine();
     ImGui::TextDisabled("(every object starts here)");
@@ -1369,12 +1377,12 @@ bool Editor::drawLayerSettings() {
         ImGui::PushID(static_cast<int>(i));
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("%2d", static_cast<int>(i) + 1);
-        ImGui::SameLine(40);
+        ImGui::SameLine(ui::px(40));
         static std::string editing;
         static int editingIndex = -1;
         std::string& name = editingIndex == static_cast<int>(i) ? editing : layers[i];
         std::string before = layers[i];
-        ImGui::SetNextItemWidth(200);
+        ImGui::SetNextItemWidth(ui::px(200));
         if (ImGui::InputText("##name", &name))
             if (editingIndex != static_cast<int>(i)) {
                 editing = name;
@@ -1511,19 +1519,19 @@ void Editor::drawLearn() {
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::BeginDisabled(learnStep_ == 0);
-    if (ImGui::Button("< Back", {90, 0}))
+    if (ImGui::Button("< Back", {ui::px(90), 0}))
         --learnStep_;
     ImGui::EndDisabled();
     ImGui::SameLine();
     ImGui::BeginDisabled(learnStep_ + 1 >= count);
-    if (ImGui::Button("Next >", {90, 0}))
+    if (ImGui::Button("Next >", {ui::px(90), 0}))
         ++learnStep_;
     ImGui::EndDisabled();
     ImGui::End();
 }
 
 void Editor::drawReference() {
-    ImGui::SetNextWindowSize({560, 620}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({ui::px(560), ui::px(620)}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_FirstUseEver, {0.5f, 0.5f});
     if (!ImGui::Begin("Scripting Reference", &showReference_)) {
         ImGui::End();

@@ -832,7 +832,7 @@ void Editor::loadRecipeCard(const std::string& scenePath) {
 }
 
 void Editor::drawRecipes() {
-    ImGui::SetNextWindowSize({980, 660}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({ui::px(980), ui::px(660)}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_FirstUseEver, {0.5f, 0.5f});
     if (focusRecipes_) {
         ImGui::SetNextWindowFocus();
@@ -898,7 +898,7 @@ void Editor::drawRecipes() {
         ImGui::PushID(i);
         ImVec2 p = ImGui::GetCursorScreenPos();
         bool sel = c.heroImage.empty() && c.heroShape == kHeroShapes[i];
-        if (ImGui::InvisibleButton("##shape", {40, 40})) {
+        if (ImGui::InvisibleButton("##shape", {ui::px(40), ui::px(40)})) {
             c.heroShape = kHeroShapes[i];
             c.heroImage.clear();
         }
@@ -916,7 +916,7 @@ void Editor::drawRecipes() {
     ImGui::SameLine();
     auto images = projectFiles({".png", ".jpg", ".jpeg"});
     if (!images.empty()) {
-        ImGui::SetNextItemWidth(170);
+        ImGui::SetNextItemWidth(ui::px(170));
         if (ImGui::BeginCombo("##heroimage", c.heroImage.empty() ? "or an image..." : c.heroImage.c_str())) {
             if (ImGui::Selectable("(use the shape)", c.heroImage.empty()))
                 c.heroImage.clear();
@@ -983,7 +983,7 @@ void Editor::drawRecipes() {
         ImGui::PopID();
     }
     ui::sectionHeader("Name");
-    ImGui::SetNextItemWidth(260);
+    ImGui::SetNextItemWidth(ui::px(260));
     ImGui::InputText("##recipename", &c.name);
     ImGui::Checkbox("Start the game with this scene", &c.makeStartScene);
     ImGui::EndChild();
@@ -1027,11 +1027,11 @@ void Editor::drawRecipes() {
     ImGui::TextDisabled("Everything is made with behaviors (no code needed), plus a few tiny scripts you can read. A Recipe "
                         "Card explains each part.");
     ImGui::PopTextWrapPos();
-    ImGui::Dummy({0, 16});
+    ImGui::Dummy({0, ui::px(16)});
     ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(34, 160, 90, 255));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(44, 185, 105, 255));
     ImGui::PushFont(fonts.bold);
-    bool cook = ImGui::Button("Cook it!", {-1, 52});
+    bool cook = ImGui::Button("Cook it!", {-1, ui::px(52)});
     ImGui::PopFont();
     ImGui::PopStyleColor(2);
     ImGui::EndChild();

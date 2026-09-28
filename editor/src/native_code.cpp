@@ -116,7 +116,7 @@ void Editor::drawNativeTrustPrompt() {
         return;
     if (modules.blockedCount() > 0 && !nativePromptDismissed_ && !ImGui::IsPopupOpen("Compiled code in this project"))
         ImGui::OpenPopup("Compiled code in this project");
-    ImGui::SetNextWindowSize({560, 0});
+    ImGui::SetNextWindowSize({ui::px(560), 0});
     if (!ImGui::BeginPopupModal("Compiled code in this project", nullptr, ImGuiWindowFlags_NoResize))
         return;
     ImGui::PushTextWrapPos(0);
@@ -334,7 +334,7 @@ void Editor::drawNativeCode() {
         ImGui::TextDisabled("  aven_set(self, \"angle\", aven_get(self, \"angle\") + s->speed * dt);");
         ImGui::PopFont();
         ImGui::Spacing();
-        if (ImGui::Button("Create a native module", {-1, 36}))
+        if (ImGui::Button("Create a native module", {-1, ui::px(36)}))
             createNativeModule();
         ImGui::Spacing();
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
@@ -348,7 +348,7 @@ void Editor::drawNativeCode() {
     // Build bar.
     const bool building = nativeBuild_ != nullptr;
     ImGui::BeginDisabled(building);
-    if (ImGui::Button(building ? "Building..." : "Build", {120, 30}))
+    if (ImGui::Button(building ? "Building..." : "Build", {ui::px(120), ui::px(30)}))
         buildNativeModule();
     ImGui::EndDisabled();
     if (ImGui::IsItemHovered())
@@ -503,7 +503,7 @@ void Editor::drawNativeScriptInspector(Entity e) {
     }
     if (!ImGui::BeginTable("##nativeprops", 2, ImGuiTableFlags_SizingStretchProp))
         return;
-    ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, 110);
+    ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, ui::px(110));
     ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
     for (auto& p : info->properties) {
         ImGui::PushID(p.name.c_str());

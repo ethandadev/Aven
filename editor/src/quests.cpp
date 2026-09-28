@@ -182,7 +182,7 @@ void Editor::drawQuests() {
     questIndex_ = std::clamp(questIndex_, 0, static_cast<int>(quests_.size()) - 1);
 
     // Quest list.
-    ImGui::BeginChild("##questlist", {280, 0}, ImGuiChildFlags_Border);
+    ImGui::BeginChild("##questlist", {ui::px(280), 0}, ImGuiChildFlags_Border);
     ImGui::PushFont(fonts.bold);
     ImGui::TextUnformatted("Help build Aven");
     ImGui::PopFont();

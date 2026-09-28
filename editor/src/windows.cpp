@@ -151,8 +151,8 @@ void Editor::drawProfiler() {
     };
     if (ImGui::BeginTable("##prof", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp)) {
         ImGui::TableSetupColumn("Part");
-        ImGui::TableSetupColumn("Average", ImGuiTableColumnFlags_WidthFixed, 80);
-        ImGui::TableSetupColumn("Peak", ImGuiTableColumnFlags_WidthFixed, 80);
+        ImGui::TableSetupColumn("Average", ImGuiTableColumnFlags_WidthFixed, ui::px(80));
+        ImGui::TableSetupColumn("Peak", ImGuiTableColumnFlags_WidthFixed, ui::px(80));
         ImGui::TableSetupColumn("Share", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableHeadersRow();
         float total = 0;
@@ -281,7 +281,7 @@ void Editor::drawCommandPalette() {
     }
     ImGuiViewport* vp = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos({vp->Pos.x + vp->Size.x * 0.5f, vp->Pos.y + 90}, ImGuiCond_Always, {0.5f, 0});
-    ImGui::SetNextWindowSize({620, 0});
+    ImGui::SetNextWindowSize({ui::px(620), 0});
     if (!ImGui::BeginPopup("##palette")) {
         showPalette_ = false;
         return;

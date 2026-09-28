@@ -41,7 +41,7 @@ def run_editor(editor, template, frames, inputs="", panels="", extra=()):
         cmd += ["--panel", panels]
     cmd += list(extra)
     if sys.platform.startswith("linux") and not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
-        cmd = ["xvfb-run", "-a", "-s", "-screen 0 1920x1080x24"] + cmd
+        cmd = ["xvfb-run", "-a", "-s", "-screen 0 1920x1400x24"] + cmd
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     return project, proc.stdout + proc.stderr, proc.returncode
 
@@ -171,11 +171,11 @@ def test_assets_drag_several_into_scene(editor):
 def test_add_component_to_two_objects(editor):
     """+ Add Component with two objects selected adds it to both."""
     project, log, _ = run_editor(editor, "platformer", 26, """
-8 move 1416 431
+8 move 1416 458
 9 down
 10 up
 14 type Rigidbody
-17 move 1340 503
+17 move 1340 530
 18 down
 19 up
 """, "@3:select:Background|Level,@4:inspector,@23:savescene")
@@ -187,7 +187,7 @@ def test_add_component_to_two_objects(editor):
 def test_script_variable_on_two_objects(editor):
     """Changing a script variable with two objects selected changes it on both."""
     project, log, _ = run_editor(editor, "obby-3d", 28, """
-8 move 1468 855
+8 move 1468 883
 9 key Ctrl down
 10 down
 11 up
@@ -199,7 +199,7 @@ def test_script_variable_on_two_objects(editor):
 18 type 45
 20 key Enter down
 21 key Enter up
-""", "@3:select:Spinning Lava|Trophy,@4:inspector,@25:savescene")
+""", "@3:select:Spinning Lava|Trophy,@4:inspector,@25:savescene", ["--size", "1600x1200"])
     speeds = {e["name"]: e["components"]["Script"].get("overrides", {}).get("speed")
               for e in entities(project) if e["name"] in ("Spinning Lava", "Trophy")}
     if speeds != {"Spinning Lava": 45, "Trophy": 45}:

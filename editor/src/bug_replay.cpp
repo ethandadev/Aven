@@ -213,7 +213,7 @@ void Editor::drawReplayBar(ImVec2 pos, ImVec2 size) {
         }
         ImGui::Text("REPLAY  %.1f / %.1f s", shown, total);
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(120);
+        ImGui::SetNextItemWidth(ui::px(120));
         float progress = total > 0 ? shown / total : 1;
         ImGui::ProgressBar(progress, {120, 0}, "");
         ImGui::SameLine();

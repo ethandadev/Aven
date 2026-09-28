@@ -46,14 +46,14 @@ void Editor::drawSpriteSheet() {
     };
 
     ImGui::Text("%s  (%d x %d pixels)", sr->texture.c_str(), tex.width, tex.height);
-    ImGui::SetNextItemWidth(110);
+    ImGui::SetNextItemWidth(ui::px(110));
     int cols = sr->columns, rows = sr->rows;
     if (ImGui::InputInt("Columns", &cols) && cols >= 1) {
         change("Sprite sheet");
         sr->columns = std::min(cols, tex.width);
     }
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(110);
+    ImGui::SetNextItemWidth(ui::px(110));
     if (ImGui::InputInt("Rows", &rows) && rows >= 1) {
         change("Sprite sheet");
         sr->rows = std::min(rows, tex.height);

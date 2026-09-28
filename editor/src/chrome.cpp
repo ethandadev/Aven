@@ -397,7 +397,7 @@ void Editor::drawMenuBar() {
         ImGui::Spacing();
         ImGui::TextDisabled("Renderer: %s", device_.description().c_str());
         ImGui::TextDisabled("Preferences: %s", (fs::userDataDir("Aven Editor") / "preferences.json").string().c_str());
-        if (ImGui::Button("Close", {120, 0}))
+        if (ImGui::Button("Close", {ui::px(120), 0}))
             ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
@@ -431,11 +431,11 @@ void Editor::drawToolbar() {
         snap_ = !snap_;
     if (ImGui::BeginPopupContextItem("snap_settings")) {
         ImGui::TextDisabled("Snap steps");
-        ImGui::SetNextItemWidth(120);
+        ImGui::SetNextItemWidth(ui::px(120));
         ImGui::DragFloat("Move", &prefs.moveSnap, 0.05f, 0.05f, 10.0f, "%.2f");
-        ImGui::SetNextItemWidth(120);
+        ImGui::SetNextItemWidth(ui::px(120));
         ImGui::DragFloat("Rotate", &prefs.rotateSnap, 1.0f, 1.0f, 90.0f, "%.0f deg");
-        ImGui::SetNextItemWidth(120);
+        ImGui::SetNextItemWidth(ui::px(120));
         ImGui::DragFloat("Scale", &prefs.scaleSnap, 0.05f, 0.05f, 2.0f, "%.2f");
         ImGui::EndPopup();
     }
@@ -443,7 +443,8 @@ void Editor::drawToolbar() {
     if (ui::iconButton("grid", ui::Grid, "Show grid", showGrid_, b))
         showGrid_ = !showGrid_;
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(70);
+    // As wide as its text needs, plus the arrow (a fixed width cut off "3D" with Windows display scaling).
+    ImGui::SetNextItemWidth(ImGui::CalcTextSize("3D").x + ImGui::GetStyle().FramePadding.x * 2 + ImGui::GetFrameHeight() + ui::px(6));
     int view = view3D_ ? 1 : 0;
     const char* views[] = {"2D", "3D"};
     if (ImGui::Combo("##view", &view, views, 2))
@@ -660,14 +661,14 @@ void Editor::handleShortcuts() {
 // ---------------------------------------------------------------- preferences
 
 void Editor::drawPreferences() {
-    ImGui::SetNextWindowSize({760, 560}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({ui::px(760), ui::px(560)}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_FirstUseEver, {0.5f, 0.5f});
     if (!ImGui::Begin("Preferences", &showPrefs_, ImGuiWindowFlags_NoDocking)) {
         ImGui::End();
         return;
     }
     const char* sections[] = {"Look", "Code", "Scene view", "Behavior", "Learning", "Shortcuts", "Profile"};
-    ImGui::BeginChild("##sections", {150, 0}, ImGuiChildFlags_Borders);
+    ImGui::BeginChild("##sections", {ui::px(150), 0}, ImGuiChildFlags_Borders);
     for (const char* s : sections)
         if (ImGui::Selectable(s, prefsSection_ == s, 0, {0, ImGui::GetFrameHeight()}))
             prefsSection_ = s;
@@ -680,7 +681,7 @@ void Editor::drawPreferences() {
         ImGui::TextUnformatted(text);
         if (help && ImGui::IsItemHovered())
             ImGui::SetTooltip("%s", help);
-        ImGui::SameLine(190);
+        ImGui::SameLine(ui::px(190));
         ImGui::SetNextItemWidth(-1);
     };
 
@@ -694,7 +695,7 @@ void Editor::drawPreferences() {
                 ImGui::SameLine();
             ImGui::PushID(t.name);
             ImVec2 p = ImGui::GetCursorScreenPos();
-            if (ImGui::InvisibleButton("##theme", {140, 74})) {
+            if (ImGui::InvisibleButton("##theme", {ui::px(140), ui::px(74)})) {
                 prefs.theme = t.name;
                 prefs.customAccent = false;
                 restyle = true;
@@ -725,7 +726,7 @@ void Editor::drawPreferences() {
                 ImGui::SameLine();
                 Color c = Color::fromHex(sw);
                 ImGui::PushID(static_cast<int>(sw));
-                if (ImGui::ColorButton("##sw", {c.r, c.g, c.b, 1}, ImGuiColorEditFlags_NoTooltip, {20, 20})) {
+                if (ImGui::ColorButton("##sw", {c.r, c.g, c.b, 1}, ImGuiColorEditFlags_NoTooltip, {ui::px(20), ui::px(20)})) {
                     prefs.accent = c;
                     restyle = true;
                 }
@@ -883,7 +884,7 @@ void Editor::drawPreferences() {
                 prefs.level = lvl;
                 changed = true;
             }
-            ImGui::SameLine(120);
+            ImGui::SameLine(ui::px(120));
             ImGui::TextDisabled("%s", levelBlurb(lvl));
             ImGui::PopID();
         }
@@ -903,8 +904,8 @@ void Editor::drawPreferences() {
         ImGui::TextDisabled("Click a shortcut, then press the new keys. Esc cancels, Backspace removes it.");
         if (ImGui::BeginTable("##keys", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp)) {
             ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Keys", ImGuiTableColumnFlags_WidthFixed, 200);
-            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 60);
+            ImGui::TableSetupColumn("Keys", ImGuiTableColumnFlags_WidthFixed, ui::px(200));
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, ui::px(60));
             for (auto& a : keyActions()) {
                 ImGui::PushID(a.id);
                 ImGui::TableNextRow();
@@ -995,7 +996,7 @@ void Editor::drawLevels() {
                 ImGui::TextDisabled("%s", f->description);
             }
         ImGui::Spacing();
-        if (ImGui::Button("Show me the new features", {240, 0})) {
+        if (ImGui::Button("Show me the new features", {ui::px(240), 0})) {
             prefs.level = levelUpTo_;
             levelUpTo_ = 0;
             resetLayout_ = true;
@@ -1004,7 +1005,7 @@ void Editor::drawLevels() {
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Not yet", {100, 0})) {
+        if (ImGui::Button("Not yet", {ui::px(100), 0})) {
             prefs.counters["snoozed_level_" + std::to_string(levelUpTo_)] = 1;
             levelUpTo_ = 0;
             prefs.save();
@@ -1015,7 +1016,7 @@ void Editor::drawLevels() {
 
     if (!showLevels_)
         return;
-    ImGui::SetNextWindowSize({860, 580}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({ui::px(860), ui::px(580)}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_FirstUseEver, {0.5f, 0.5f});
     if (!ImGui::Begin("Learn mode", &showLevels_, ImGuiWindowFlags_NoDocking)) {
         ImGui::End();

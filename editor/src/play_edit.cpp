@@ -157,13 +157,13 @@ void Editor::drawKeepChangesDialog() {
             ImGui::BulletText("%s: %s = %s", name.c_str(), what.c_str(), c.value.dump().c_str());
         }
         ImGui::Spacing();
-        if (ImGui::Button("Keep them in my scene", {200, 0})) {
+        if (ImGui::Button("Keep them in my scene", {ui::px(200), 0})) {
             applyLiveChanges(pendingKeep_);
             pendingKeep_.clear();
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Throw them away", {160, 0})) {
+        if (ImGui::Button("Throw them away", {ui::px(160), 0})) {
             pendingKeep_.clear();
             ImGui::CloseCurrentPopup();
         }
