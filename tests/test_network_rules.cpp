@@ -119,7 +119,7 @@ AVEN_TEST(multiplayer_host_only_lets_players_change_their_own_things) {
     host.settings().name = "Rules Test";
     auto scene = std::make_unique<Scene>();
     Entity box = scene->create("Box");
-    scene->setUUID(box, UUID{0x1234});
+    scene->setUUID(box, aven::UUID{0x1234}); // aven:: (Windows has a UUID of its own)
     scene->registry().emplace<NetworkSync>(box);
     host.start(std::move(scene), "test.scene");
     std::string error;
