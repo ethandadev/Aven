@@ -260,6 +260,23 @@ def on_update(dt):
 They last one frame, or `seconds`. They show in the editor while playing (untick **Debug**
 above the game to hide them), not in exported games.
 
+### Stopping at a line: the debugger
+
+Click a line's number in the code editor (or put the cursor on it and press **F9**): a red dot
+marks a **breakpoint**. Play, and when the game gets to that line everything stops: the script
+opens with the line highlighted, and the **Debugger** window shows the values the code can see
+right then (the function's own values, and the script's variables) and the calls that led there.
+Then:
+
+- **Continue** (F5) runs on until a breakpoint is reached again.
+- **Step Over** (F10) runs one line and stops at the next.
+- **Step Into** (F11) goes into the function the line calls, if it's one of yours.
+- **Step Out** (Shift+F11) finishes the function and stops back where it was called.
+
+Click the dot again to remove it. Breakpoints work in functions Aven runs (events like
+`on_update`, timers, messages), not in the lines at the top of a script. They stay while Aven is
+open.
+
 Comments can also shape how a variable looks in the Inspector:
 `speed = 5  # @range(0, 20)` gives a slider, and `# @header Movement` on the line above starts a
 group. More in [For experienced developers](advanced.md#scripting).

@@ -4,6 +4,7 @@
 
 #include <imgui.h>
 
+#include <set>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -59,6 +60,12 @@ public:
     ImFont* font = nullptr;
     std::vector<Completion> completions;
     std::unordered_set<std::string> highlightWords; // functions to color (engine API)
+    // The debugger: breakpoint lines (1-based; click the line numbers or F9), and the line a paused
+    // game stopped on (0: none). breakpointsChanged is set when they change here (clicks, or lines
+    // added or removed above them); whoever owns the editor clears it.
+    std::set<int> breakpoints;
+    bool breakpointsChanged = false;
+    int pausedLine = 0;
 
 private:
     struct Pos {
@@ -145,6 +152,8 @@ private:
     float columnX(int line, int col) const;
     int columnAt(int line, float x) const;
     void drawLine(ImDrawList* dl, int index, ImVec2 pos, bool& inTripleString) const;
+    void toggleBreakpoint(int line); // 0-based
+    void shiftBreakpoints(int editLine, int delta);
 };
 
 } // namespace aven::editor

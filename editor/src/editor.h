@@ -10,6 +10,7 @@
 #include "aven/runtime/replay.h"
 #include "aven/scene/reflection.h"
 #include "aven/scene/scene.h"
+#include "aven/script/vm.h"
 
 #include "code_editor.h"
 #include "learn_mode.h"
@@ -149,7 +150,7 @@ public:
     bool playing() const { return playing_; }
 
     // --- scripts
-    void openScript(const std::string& path, int line = 0);
+    void openScript(const std::string& path, int line = 0, bool inAven = false); // inAven: never the external editor
     void openBlocks(const std::string& path);
     std::string newScriptFile(const std::string& baseName, bool blocks);
     void attachScript(Entity e, const std::string& path);
@@ -770,6 +771,17 @@ private:
     Json pendingRecovery_;
     bool recoveryWritten_ = false;
     float recoveryTimer_ = 0;
+    // The script debugger (debugger.cpp): breakpoints in the code editor stop the game at a line.
+    void updateDebugger();
+    void drawDebugger();
+    void debugStep(script::VM::Step step);
+    void showDebugFrame(size_t index);
+    void setBreakpoint(const std::string& path, int line, bool on);
+    bool debugPaused() const;
+    std::map<std::string, std::set<int>> breakpoints_; // script -> lines (1-based)
+    std::vector<script::DebugFrame> debugFrames_;
+    size_t debugFrame_ = 0;
+    bool debugWasPaused_ = false;
     void drawMenuBar();
     void drawToolbar();
     void drawHub();

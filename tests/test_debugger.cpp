@@ -46,6 +46,10 @@ AVEN_TEST(debugger_breakpoints_and_stepping) {
     Input input;
     Game game(assets, input);
     VM& vm = game.scripts().vm();
+    // (by value: CHECK_EQ keeps references to what it compares)
+    auto topLine = [&] { return vm.debugFrames().at(0).line; };
+    auto frameCount = [&] { return vm.debugFrames().size(); };
+    auto topVar = [&](const char* name) { return valueOf(vm.debugFrames().at(0).vars, name); };
     vm.setBreakpoints({{"scripts/d.es", {8}}});
     auto scene = std::make_unique<Scene>();
     Entity e = scene->create("Counter");
@@ -68,7 +72,7 @@ AVEN_TEST(debugger_breakpoints_and_stepping) {
     for (int i = 0; i < 5; ++i)
         game.update(1.0f / 60.0f);
     CHECK(vm.debugPaused());
-    CHECK_EQ(valueOf(vm.debugFrames()[0].vars, "count"), std::string("1"));
+    CHECK_EQ(topVar("count"), std::string("1"));
 
     vm.debugResume(VM::Step::Into); // into helper()
     frames = vm.debugFrames();
@@ -89,20 +93,20 @@ AVEN_TEST(debugger_breakpoints_and_stepping) {
     CHECK_EQ(game.scripts().gameNumber("last"), 2.0);
     game.update(1.0f / 60.0f); // ...so it stops at the next line that runs: next frame's
     CHECK(vm.debugPaused());
-    CHECK_EQ(vm.debugFrames()[0].line, 7);
+    CHECK_EQ(topLine(), 7);
 
     vm.debugResume(VM::Step::Over); // over, not into, helper()
-    CHECK_EQ(vm.debugFrames()[0].line, 8);
+    CHECK_EQ(topLine(), 8);
     vm.debugResume(VM::Step::Over);
-    CHECK_EQ(vm.debugFrames()[0].line, 9);
-    CHECK_EQ(vm.debugFrames().size(), size_t(1));
+    CHECK_EQ(topLine(), 9);
+    CHECK_EQ(frameCount(), size_t(1));
 
     vm.debugResume(VM::Step::Continue); // to the breakpoint, next frame
     CHECK(!vm.debugPaused());
     game.update(1.0f / 60.0f);
     CHECK(vm.debugPaused());
-    CHECK_EQ(vm.debugFrames()[0].line, 8);
-    CHECK_EQ(valueOf(vm.debugFrames()[0].vars, "count"), std::string("3"));
+    CHECK_EQ(topLine(), 8);
+    CHECK_EQ(topVar("count"), std::string("3"));
 
     // No breakpoints: it runs freely.
     vm.setBreakpoints({});

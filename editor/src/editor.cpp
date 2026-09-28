@@ -246,6 +246,26 @@ void Editor::openPanels(const std::string& list) {
         }
         else if (p == "rollback") rollbackPending_ = true;
         else if (p == "recoverysnapshot") writeRecovery(); // what the 30-second timer does (automated tests)
+        else if (p.rfind("breakpoint:", 0) == 0) { // breakpoint:scripts/x.es:12 (a click on line 12's number)
+            size_t colon = p.rfind(':');
+            std::string file = p.substr(11, colon - 11);
+            int line = std::atoi(p.c_str() + colon + 1);
+            setBreakpoint(file, line, !(breakpoints_.count(file) && breakpoints_[file].count(line)));
+        }
+        else if (p == "debug:continue") debugStep(script::VM::Step::Continue); // the Debugger's buttons
+        else if (p == "debug:over") debugStep(script::VM::Step::Over);
+        else if (p == "debug:into") debugStep(script::VM::Step::Into);
+        else if (p == "debug:out") debugStep(script::VM::Step::Out);
+        else if (p == "debug:values") { // what the Debugger shows (automated tests)
+            for (auto& f : debugFrames_) {
+                Log::info("debugger: in ", f.function, "() at ", f.file, ":", f.line);
+                for (auto& [n, v] : f.locals)
+                    Log::info("debugger:   ", n, " = ", v);
+                for (auto& [n, v] : f.vars)
+                    Log::info("debugger:   ", n, " = ", v, " (script)");
+            }
+        }
+        else if (p == "play") play();
         else if (p == "recover") recover(true);            // the recovery prompt's buttons
         else if (p == "discard") recover(false);
 #if AVEN_TEST_HOOKS
@@ -880,6 +900,7 @@ void Editor::play() {
     // A known random seed makes the session replayable (Bug replay).
     uint32_t seed = std::random_device{}();
     game_->setRandomSeed(seed);
+    game_->scripts().vm().setBreakpoints(breakpoints_);
     game_->start(std::move(copy), scenePath_);
     beginRecording(seed, start);
     replayEditNoted_ = false;
@@ -1666,7 +1687,7 @@ void Editor::attachScript(Entity e, const std::string& path) {
     scene_->registry().getOrEmplace<Script>(e).path = path;
 }
 
-void Editor::openScript(const std::string& path, int line) {
+void Editor::openScript(const std::string& path, int line, bool inAven) {
     for (auto& t : tabs_)
         if (t->path == path) {
             t->focus = true;
@@ -1678,7 +1699,7 @@ void Editor::openScript(const std::string& path, int line) {
         openBlocks(path);
         return;
     }
-    if (prefs.useExternalEditor && !prefs.externalEditor.empty()) {
+    if (prefs.useExternalEditor && !prefs.externalEditor.empty() && !inAven) {
         std::string cmd = prefs.externalEditor;
         auto fill = [&](const std::string& key, const std::string& value) {
             for (size_t at = cmd.find(key); at != std::string::npos; at = cmd.find(key, at + value.size()))
@@ -1703,6 +1724,8 @@ void Editor::openScript(const std::string& path, int line) {
     tab->code = std::make_unique<CodeEditor>();
     tab->code->setText(*text);
     tab->code->font = fonts.code;
+    if (auto bp = breakpoints_.find(path); bp != breakpoints_.end())
+        tab->code->breakpoints = bp->second;
     if (isNativeSource(path)) {
         tab->code->language = CodeLanguage::Cpp;
         tab->code->intel = cIntel_.get();
@@ -2220,6 +2243,8 @@ void Editor::frame(float dt) {
         drawLevels();
     updateRecovery(dt);
     drawRecoveryPrompt();
+    updateDebugger();
+    drawDebugger();
     drawAppDialogs();
     drawUpdater();
     drawKeepChangesDialog();

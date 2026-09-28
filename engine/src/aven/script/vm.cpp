@@ -285,6 +285,11 @@ bool VM::debugStopsHere(Task& task) {
 namespace {
 
 std::string debugText(const Value& v) {
+    if (v.isNumber()) { // 0.0166667, not 0.01666666753590107
+        char buf[32];
+        std::snprintf(buf, sizeof buf, "%.6g", v.number());
+        return buf;
+    }
     std::string s = v.repr();
     if (s.size() > 200)
         s = s.substr(0, 197) + "...";

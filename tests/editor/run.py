@@ -412,6 +412,25 @@ def test_crash_recovery(editor):
         return "after a normal close, there should be nothing left to recover"
 
 
+def test_debugger_stops_at_a_breakpoint(editor):
+    """A breakpoint stops the game at a line, shows the values there, steps a line at a time, and
+    the game runs on once it's removed."""
+    panels = ("@3:breakpoint:scripts/slime.es:13,@4:play,@12:debug:values,@13:debug:over,@14:debug:values,"
+              "@15:breakpoint:scripts/slime.es:13,@16:debug:continue,@40:dump")
+    _, log, code = run_editor(editor, "platformer", 45, "", panels)
+    if code != 0:
+        return "exit %d:\n%s" % (code, log[-1500:])
+    stops = [l for l in log.splitlines() if "debugger: stopped at scripts/slime.es line 13" in l]
+    if not stops:
+        return "it should stop at the breakpoint:\n" + log[-2000:]
+    if "debugger:   dt = " not in log or "debugger:   speed = 1.5 (script)" not in log:
+        return "the Debugger should show dt and the script's speed:\n" + log[-2000:]
+    if "debugger: in on_update() at scripts/slime.es:14" not in log:
+        return "Step Over should go on to line 14:\n" + log[-2000:]
+    if len(stops) > 3:
+        return "with the breakpoint removed, the game should run on (stopped %d times)" % len(stops)
+
+
 def test_monkey(editor):
     """Random clicks, drags, keys and typing for a while, editing and playing: no crash."""
     for seed, template, play in ((1, "platformer", False), (2, "obby-3d", True)):

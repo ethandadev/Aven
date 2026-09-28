@@ -200,6 +200,10 @@ play_sound("sounds/radio.wav", bus="Voice")
   (always inside the game folder). A module is loaded once per game and shared by everything
   that imports it, with its own variables and no `self`; import cycles are reported as errors.
   (See [EasyScript](easyscript.md#sharing-code-import).)
+- **Debugger**: breakpoints on the line numbers (or F9); F5 continue, F10 step over, F11 step
+  into, Shift+F11 step out. The Debugger window shows the call stack with each call's locals and
+  script variables. While stopped, the whole game waits (physics, timers, `wait()`); stepping
+  past the end of a function stops at the next script line that runs.
 - **Hot reload**: saving a script while the game runs swaps in the new code and keeps the
   variables the game changed.
 - **Your own code editor**: **Preferences > Behavior > External code editor**, for example

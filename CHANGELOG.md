@@ -33,6 +33,9 @@ renames it to the version (see [CONTRIBUTING.md](CONTRIBUTING.md#making-a-releas
   `import utils`, `from utils import jump`, `import utils as u` or `import "folder/utils.es"`.
   Every importer shares one copy, so its variables are shared too. Mistakes (a missing script, two
   scripts importing each other) get plain messages.
+- **A script debugger**: click a line number (or F9) for a breakpoint. When the game reaches it,
+  everything stops and the Debugger shows the values there and the calls that led to it. Continue
+  (F5), Step Over (F10), Step Into (F11), Step Out (Shift+F11).
 - `refresh_paths()` for scripts that move walls; paths already notice walls and floors that are
   made or destroyed, straight away.
 

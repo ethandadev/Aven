@@ -1257,6 +1257,33 @@ bool CodeEditor::matchingBracket(Pos& a, Pos& b) const {
 
 // ---------------------------------------------------------------- drawing
 
+void CodeEditor::toggleBreakpoint(int line) {
+    if (line < 0 || line >= static_cast<int>(lines_.size()))
+        return;
+    if (!breakpoints.erase(line + 1))
+        breakpoints.insert(line + 1);
+    breakpointsChanged = true;
+}
+
+// Keeps breakpoints on their lines when lines are added or removed. `from` is the first (0-based)
+// line that moves; when removing, lines from..from-delta-1 are gone, with their breakpoints.
+void CodeEditor::shiftBreakpoints(int from, int delta) {
+    if (breakpoints.empty() || delta == 0)
+        return;
+    std::set<int> moved;
+    for (int b : breakpoints) {
+        int l = b - 1;
+        if (l < from)
+            moved.insert(b);
+        else if (delta > 0 || l >= from - delta)
+            moved.insert(b + delta);
+    }
+    if (moved != breakpoints) {
+        breakpoints = std::move(moved);
+        breakpointsChanged = true;
+    }
+}
+
 bool CodeEditor::draw(const char* id, ImVec2 size) {
     bool changed = false;
     if (findOpen_ || gotoOpen_) {
@@ -1278,7 +1305,9 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
                       ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoNav |
                           (io.KeyCtrl ? ImGuiWindowFlags_NoScrollWithMouse : 0));
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    float gutter = charWidth_ * (std::to_string(lines_.size()).size() + 2) + 8;
+    // (room on the left for breakpoints, in EasyScript)
+    float gutter = charWidth_ * (std::to_string(lines_.size()).size() + 2) + 8 +
+                   (language == CodeLanguage::EasyScript && !readOnly ? lineHeight_ * 0.5f : 0.0f);
     ImVec2 origin = ImGui::GetCursorScreenPos();
     float maxWidth = 0;
     for (size_t l = 0; l < lines_.size(); ++l)
@@ -1289,8 +1318,11 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
                      ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
     ImGui::InvisibleButton("##text", contentSize, ImGuiButtonFlags_MouseButtonLeft);
     bool hovered = ImGui::IsItemHovered();
+    // Breakpoints go on the line numbers (EasyScript only: that's what the debugger runs).
+    bool canBreak = language == CodeLanguage::EasyScript && !readOnly && intel;
+    bool overGutter = hovered && ImGui::GetMousePos().x < origin.x + gutter - 5;
     if (hovered)
-        ImGui::SetMouseCursor(ImGuiMouseCursor_TextInput);
+        ImGui::SetMouseCursor(overGutter && canBreak ? ImGuiMouseCursor_Hand : ImGuiMouseCursor_TextInput);
 
     if (ImGui::IsItemActivated())
         focused_ = true;
@@ -1316,6 +1348,9 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
             acceptSuggestion();
             changed = true;
         }
+    } else if (ImGui::IsItemActivated() && canBreak && ImGui::GetMousePos().x < origin.x + gutter - 5) {
+        toggleBreakpoint(mouseToPos().line); // a click on the line numbers
+        completionOpen_ = false;
     } else if (ImGui::IsItemActivated()) {
         Pos p = mouseToPos();
         if (io.KeyCtrl && intel) {
@@ -1340,8 +1375,17 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
     if (focused_ && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
         ImGui::SetNextFrameWantCaptureKeyboard(true);
         claimKeyboard();
+        int linesBefore = static_cast<int>(lines_.size());
+        Pos editStart = selStart();
         handleKeys(changed);
         handleTyping(changed);
+        int delta = static_cast<int>(lines_.size()) - linesBefore;
+        if (delta > 0) // lines added: the ones below move down (a new line at the start of one pushes it down too)
+            shiftBreakpoints(editStart.col == 0 && editStart.line < cursor_.line ? editStart.line : editStart.line + 1, delta);
+        else if (delta < 0) // lines removed: joined onto the line the cursor ends up on
+            shiftBreakpoints(cursor_.line + 1, delta);
+        if (canBreak && ImGui::IsKeyPressed(ImGuiKey_F9, false))
+            toggleBreakpoint(cursor_.line);
     }
     if (intel && focused_ && cursor_ != sigCursor_)
         updateSignature();
@@ -1410,6 +1454,16 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
         if (l + 1 == errorLine_) {
             dl->AddRectFilled({winPos.x, y}, {winPos.x + winW, y + lineHeight_}, IM_COL32(224, 70, 70, 55));
             dl->AddCircleFilled({origin.x + 6, y + lineHeight_ * 0.5f}, 4, IM_COL32(240, 80, 80, 255));
+        }
+        float markX = origin.x + 4 + lineHeight_ * 0.35f, markY = y + lineHeight_ * 0.5f, markR = lineHeight_ * 0.3f;
+        if (breakpoints.count(l + 1))
+            dl->AddCircleFilled({markX, markY}, markR, IM_COL32(229, 57, 53, 255));
+        else if (overGutter && canBreak && l == static_cast<int>((ImGui::GetMousePos().y - origin.y) / lineHeight_))
+            dl->AddCircleFilled({markX, markY}, markR, IM_COL32(229, 57, 53, 90)); // where a click would put one
+        if (l + 1 == pausedLine) {
+            dl->AddRectFilled({winPos.x, y}, {winPos.x + winW, y + lineHeight_}, IM_COL32(250, 204, 21, 60));
+            float h = markR * 1.1f;
+            dl->AddTriangleFilled({markX - h, markY - h}, {markX + h, markY}, {markX - h, markY + h}, IM_COL32(250, 204, 21, 255));
         }
         // Indent guides: a faint line for each level of indentation.
         int indent = indentWidth(line);

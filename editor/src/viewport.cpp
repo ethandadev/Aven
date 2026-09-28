@@ -663,7 +663,7 @@ void Editor::drawViewport(float dt) {
             fingers.push_back({-1, gameInput_.mousePosition()});
         touch.update(fingers, viewportSize_, gameInput_, true);
         game_->setScreenSize(viewportSize_);
-        if (!paused_ || stepOnce_) {
+        if ((!paused_ || stepOnce_) && !debugPaused()) { // (at a breakpoint, the Debugger moves it on)
             float step = stepOnce_ ? 1.0f / 60.0f : dt;
             recordFrame(step);
             game_->update(step);
@@ -847,8 +847,10 @@ void Editor::drawViewport(float dt) {
     }
 
     if (playing_) {
-        dl->AddRectFilled(pos, {pos.x + size.x, pos.y + 3}, paused_ ? IM_COL32(250, 200, 60, 255) : IM_COL32(60, 200, 120, 255));
-        const char* hint = paused_ ? "Paused: click objects to inspect and change them, then Keep or Undo your changes"
+        bool held = paused_ || debugPaused();
+        dl->AddRectFilled(pos, {pos.x + size.x, pos.y + 3}, held ? IM_COL32(250, 200, 60, 255) : IM_COL32(60, 200, 120, 255));
+        const char* hint = debugPaused() ? "Stopped at a breakpoint - Continue (F5) or step through it in the Debugger"
+                           : paused_ ? "Paused: click objects to inspect and change them, then Keep or Undo your changes"
 #if defined(__APPLE__)
                            : viewportFocused_ ? "Playing - Cmd+P or the stop button goes back to editing"
 #else
