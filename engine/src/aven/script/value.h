@@ -173,6 +173,7 @@ struct CallArgs {
     double numberOr(size_t i, const char* param, double fallback) const;
     const Value* keyword(std::string_view name) const;
     double keywordNumber(std::string_view name, double fallback) const;
+    std::string keywordString(std::string_view name, const std::string& fallback) const;
 };
 
 using NativeFn = std::function<Value(CallArgs&)>;

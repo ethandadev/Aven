@@ -27,8 +27,13 @@ cp -R "$bin"/. "$stage"/
 # Things the build makes for testing only.
 rm -rf "$stage"/aven_tests* "$stage"/aven_example_* "$stage"/aven_test_module* "$stage"/web
 rm -f "$stage"/*.pdb "$stage"/*.ilk "$stage"/*.exp "$stage"/*.lib "$stage"/imgui.ini
+# The online multiplayer relay runs on a server: it comes with the Linux download only.
+case "$name" in
+    *linux*) ;;
+    *) rm -f "$stage"/aven-relay "$stage"/aven-relay.exe ;;
+esac
 # Smaller downloads: drop debug symbols (Windows keeps them in the .pdb files removed above).
-for exe in "$stage/aven-editor" "$stage/aven-player"; do
+for exe in "$stage/aven-editor" "$stage/aven-player" "$stage/aven-relay"; do
     if [ -f "$exe" ] && command -v strip >/dev/null; then
         strip "$exe" 2>/dev/null || strip -x "$exe" || true
     fi

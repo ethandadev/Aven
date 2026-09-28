@@ -540,6 +540,15 @@ double CallArgs::keywordNumber(std::string_view name, double fallback) const {
     return v->number();
 }
 
+std::string CallArgs::keywordString(std::string_view name, const std::string& fallback) const {
+    const Value* v = keyword(name);
+    if (!v)
+        return fallback;
+    if (!v->isString())
+        raise(std::string(functionName) + "(): '" + std::string(name) + "' should be text, in quotes.");
+    return v->string();
+}
+
 Value makeNative(std::string name, std::string signature, int minArgs, int maxArgs, NativeFn fn) {
     auto f = std::make_shared<NativeFunctionObj>();
     f->name = std::move(name);

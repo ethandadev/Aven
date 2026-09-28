@@ -2102,6 +2102,7 @@ void Editor::buildApiReference() {
         {"on_disconnected", "def on_disconnected():  left it, or the host went away"},
         {"on_player_joined", "def on_player_joined(player):  someone joined the network game"},
         {"on_player_left", "def on_player_left(player):  someone left"},
+        {"on_room_ready", "def on_room_ready(code):  hosting online: the code to share"},
         {"on_receive", "def on_receive(message, data, player):  another player used send()"},
         {"on_destroy", "def on_destroy():  about to be removed"},
     };

@@ -21,7 +21,9 @@ know how the bigger engines think.
 - **Post-processing:** bloom, tonemapping, color grading, vignette, SSAO and FXAA.
 - **Game UI:** text, buttons, panels, images, value bars (health, energy) and anchors. Buttons
   work without code: **Click Actions** list what a click does, like Unity's On Click list.
-- **Multiplayer:** host and join games on the same Wi-Fi, with messages and synced objects.
+- **Multiplayer:** host and join games on the same Wi-Fi, or over the internet with a room code
+  (through a small relay server, [docs/online-multiplayer.md](docs/online-multiplayer.md)), with
+  messages and synced objects.
 - **Phones:** on-screen touch controls (a stick and buttons, no code changes), and web builds
   install to the home screen and play offline.
 - **Terrain:** sculpt hills with brushes, paint up to four texture layers, with collision.

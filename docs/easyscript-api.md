@@ -27,10 +27,12 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `get_bus_volume("Music")`
 - `get_game("score", 0)`
 - `host_game(port=4242)`
+- `host_online(relay="")`
 - `int(value)`
 - `is_host()`
 - `is_online()`
 - `join_game("192.168.1.20", port=4242)`
+- `join_online("KX7P2M", relay="")`
 - `leave_game()`
 - `len(list_or_text)`
 - `lerp(a, b, t)`
@@ -48,7 +50,9 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `print(value, ...)`
 - `radians(x)`
 - `range(stop) or range(start, stop) or range(start, stop, step)`
+- `refresh_paths()`
 - `reversed(my_list)`
+- `room_code()`
 - `round(x) or round(x, digits)`
 - `send("message", data)`
 - `set_bus_volume("Music", 0.5)`
@@ -124,7 +128,6 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `find_all("enemy")`
 - `find_games()`
 - `find_path(from, to, radius=0.4)`
-- `refresh_paths()`
 - `spawn("prefabs/coin.prefab", x, y)`
 - `spawn_networked("prefabs/player.prefab", x, y)`
 
@@ -284,5 +287,6 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `def on_disconnected():` left it, or the host went away
 - `def on_player_joined(player):` someone joined the network game
 - `def on_player_left(player):` someone left
+- `def on_room_ready(code):` hosting online: the code to share
 - `def on_receive(message, data, player):` another player used send()
 - `def on_destroy():` about to be removed

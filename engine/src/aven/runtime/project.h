@@ -68,6 +68,7 @@ struct ProjectSettings {
     std::string id; // random, made when the project is first opened: keeps games with the same name apart
     std::string version = "1.0";
     std::string description; // one or two sentences, shown on the game's web page and card
+    std::string relay;       // online multiplayer: the relay server ("relay.example.com:4243"), if any
     std::string startScene = "scenes/main.scene";
     int width = 1280;
     int height = 720;

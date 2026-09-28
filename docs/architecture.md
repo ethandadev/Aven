@@ -1,11 +1,12 @@
 # Architecture
 
-Aven is C++20 with three programs on one engine library:
+Aven is C++20 with four programs on one engine library:
 
 ```
 engine/     aven_engine (static library): everything a game needs at runtime
 player/     aven-player: runs a game (desktop, and WebAssembly for the web)
 editor/     aven-editor: the editor, built with Dear ImGui on the same engine
+relay/      aven-relay: the server for online multiplayer (no screen; runs on any Linux server)
 sdk/        aven.h (the C API for native modules), the native module template, examples
 templates/  starter games, each a normal Aven project
 tests/      aven_tests: unit and integration tests

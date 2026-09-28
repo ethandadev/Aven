@@ -569,7 +569,7 @@ void ProjectIndex::fillFromEngine() {
               {"on_destroy", "on_destroy()"},             {"on_arrive", "on_arrive()"},
               {"on_player_joined", "on_player_joined(player)"}, {"on_player_left", "on_player_left(player)"},
               {"on_receive", "on_receive(message, data, player)"}, {"on_connected", "on_connected()"},
-              {"on_disconnected", "on_disconnected()"}};
+              {"on_disconnected", "on_disconnected()"}, {"on_room_ready", "on_room_ready(code)"}};
     keyNames = Input::allNames();
     for (auto& a : Input::defaultActions())
         keyNames.push_back(a.name);

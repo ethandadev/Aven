@@ -1914,6 +1914,20 @@ void ScriptSystem::registerApi() {
         netError("join_game()", error);
         return Value(ok);
     });
+    // Online, through a relay (Project Settings > Game > Online relay, or relay="address").
+    def("host_online", "host_online(relay=\"\")", 0, 1, [&g, netError](CallArgs& a) {
+        std::string error;
+        bool ok = g.network().hostOnline(a.has(0) ? a.string(0, "relay") : a.keywordString("relay", ""), error);
+        netError("host_online()", error);
+        return Value(ok);
+    });
+    def("join_online", "join_online(\"KX7P2M\", relay=\"\")", 1, 2, [&g, netError](CallArgs& a) {
+        std::string error;
+        bool ok = g.network().joinOnline(a.has(1) ? a.string(1, "relay") : a.keywordString("relay", ""), a.string(0, "code"), error);
+        netError("join_online()", error);
+        return Value(ok);
+    });
+    def("room_code", "room_code()", 0, 0, [&g](CallArgs&) { return Value(g.network().roomCode()); });
     def("leave_game", "leave_game()", 0, 0, [&g](CallArgs&) {
         g.network().leave();
         return Value();

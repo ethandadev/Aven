@@ -1110,7 +1110,7 @@ void Editor::drawSettings() {
         return ImGui::BeginTabItem(label, nullptr, flags);
     };
     if (ImGui::BeginTabBar("##settings_tabs", ImGuiTabBarFlags_DrawSelectedOverline)) {
-        if (tab("Game", {"game", "window"})) {
+        if (tab("Game", {"game", "window", "online"})) {
             ui::sectionHeader("Game");
             changed |= ImGui::InputText("Name", &settings_.name);
             changed |= ImGui::InputText("Version", &settings_.version);
@@ -1125,6 +1125,12 @@ void Editor::drawSettings() {
                     }
                 ImGui::EndCombo();
             }
+            ui::sectionHeader("Online multiplayer");
+            changed |= ImGui::InputTextWithHint("Online relay", "relay.example.com:4243", &settings_.relay);
+            ui::helpMarker("The relay server that host_online() and join_online() go through, so friends on different "
+                           "networks (over the internet) can play together. It's a small program, aven-relay, that "
+                           "runs on any server; the online multiplayer guide explains how. Games on the same Wi-Fi "
+                           "don't need one (host_game and join_game).");
             ui::sectionHeader("Window");
             changed |= ImGui::InputInt("Width", &settings_.width);
             changed |= ImGui::InputInt("Height", &settings_.height);

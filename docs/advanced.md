@@ -246,8 +246,12 @@ def on_receive(message, data, player):
 - `send(message, data)` reaches every other player: numbers, text, lists and dictionaries.
 - Changing scenes keeps the connection; stopping the game ends it.
 
-It's made for friends in one room: no internet play (that needs a server), no cheating
-protection, and physics isn't shared (each owner simulates its own objects).
+The host is in charge: players can only move, spawn and delete their own objects, and only the
+host says who joined or left. Physics isn't shared (each owner simulates its own objects).
+
+**Over the internet**: the same game, with `host_online()` and `join_online(code)` instead. Both
+connect out to a small relay server (`aven-relay`), so nobody opens ports on their router; the host
+gets a room code to share. See [Online multiplayer](online-multiplayer.md).
 
 ## Editor tools: scripting the editor
 

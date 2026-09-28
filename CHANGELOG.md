@@ -36,6 +36,10 @@ renames it to the version (see [CONTRIBUTING.md](CONTRIBUTING.md#making-a-releas
 - **A script debugger**: click a line number (or F9) for a breakpoint. When the game reaches it,
   everything stops and the Debugger shows the values there and the calls that led to it. Continue
   (F5), Step Over (F10), Step Into (F11), Step Out (Shift+F11).
+- **Online multiplayer**: `host_online()` gives the host a room code; friends anywhere join with
+  `join_online(code)`. It goes through a small relay server, `aven-relay` (in the Linux download),
+  so nobody opens ports on their router. Set its address in Project Settings > Game > Online
+  relay; docs/online-multiplayer.md explains running one.
 - `refresh_paths()` for scripts that move walls; paths already notice walls and floors that are
   made or destroyed, straight away.
 

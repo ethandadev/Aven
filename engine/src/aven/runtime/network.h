@@ -11,6 +11,10 @@
 // scene objects belong to the host, spawn_networked() objects to whoever made them. The other
 // players' copies don't read this computer's keyboard; they follow what their owner sends.
 //
+// Online (over the internet): the same, through a relay server that both sides connect out to
+// (relay.h), with a room code instead of an address: host_online(), join_online(code), room_code(),
+// on_room_ready(code).
+//
 // Not available in web builds: browsers can't open network connections like this.
 
 #include "aven/core/json.h"
@@ -34,6 +38,11 @@ public:
 
     bool host(int port, std::string& error);
     bool join(const std::string& address, int port, std::string& error);
+    // Online, through a relay server (relay.h): hosting gets a room code to share; joining uses it.
+    // `relay` is "host:port" (empty: the project's setting).
+    bool hostOnline(const std::string& relay, std::string& error);
+    bool joinOnline(const std::string& relay, const std::string& code, std::string& error);
+    std::string roomCode() const; // hosting online: the code, once the relay has given one
     void leave();
     bool online() const;    // hosting, or connected to a host
     bool isHost() const;

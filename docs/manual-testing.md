@@ -60,6 +60,10 @@ Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should 
 - [ ] Debugger: click a line number in on_update for a breakpoint, Play: it stops there with the
       values shown; F10 steps a line, F11 goes into your own function, Shift+F11 comes back out, F5
       continues. Adding a line above a breakpoint moves it down with its line. Stop while stopped.
+- [ ] Online multiplayer: run `aven-relay` (on a server, or on this computer for a first try), put
+      its address in Project Settings > Game > Online relay, host with `host_online()` in one copy
+      of a game and join from another computer (on a different network if you can, like a phone
+      hotspot) with the room code. Moving, `send()` and leaving work as on a local network.
 - [ ] `import`: a script with `import utils` uses a function from scripts/utils.es; saving utils.es
       while playing uses the new version.
 

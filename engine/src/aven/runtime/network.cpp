@@ -2,41 +2,19 @@
 
 #include "aven/core/log.h"
 #include "aven/runtime/game.h"
+#include "aven/runtime/relay.h"
 #include "aven/runtime/script_system.h"
 #include "aven/runtime/systems.h"
 #include "aven/scene/scene.h"
 #include "aven/script/vm.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstring>
 #include <unordered_map>
 
-#if !defined(__EMSCRIPTEN__)
-#if defined(_WIN32)
-#include <winsock2.h>
-#include <ws2tcpip.h>
-using socket_t = SOCKET;
-#define AVEN_CLOSE closesocket
-#define AVEN_NOSIGNAL 0
-#else
-#include <arpa/inet.h>
-#include <cerrno>
-#include <fcntl.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <sys/socket.h>
-#include <unistd.h>
-using socket_t = int;
-#define INVALID_SOCKET (-1)
-#define AVEN_CLOSE ::close
-#if defined(MSG_NOSIGNAL)
-#define AVEN_NOSIGNAL MSG_NOSIGNAL
-#else
-#define AVEN_NOSIGNAL 0
-#endif
-#endif
-#endif
+#include "aven/runtime/net_socket.h"
 
 namespace aven {
 
@@ -56,6 +34,9 @@ bool Network::host(int, std::string& error) {
     return false;
 }
 bool Network::join(const std::string&, int, std::string& error) { return host(0, error); }
+bool Network::hostOnline(const std::string&, std::string& error) { return host(0, error); }
+bool Network::joinOnline(const std::string&, const std::string&, std::string& error) { return host(0, error); }
+std::string Network::roomCode() const { return ""; }
 void Network::leave() {}
 bool Network::online() const { return false; }
 bool Network::isHost() const { return false; }
@@ -75,41 +56,10 @@ std::string Network::localAddress() { return "127.0.0.1"; }
 
 namespace {
 
-void socketsReady() {
-#if defined(_WIN32)
-    static bool started = [] {
-        WSADATA wsa;
-        return WSAStartup(MAKEWORD(2, 2), &wsa) == 0;
-    }();
-    (void)started;
-#endif
-}
-
-void setNonBlocking(socket_t s) {
-#if defined(_WIN32)
-    u_long on = 1;
-    ioctlsocket(s, FIONBIO, &on);
-#else
-    fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) | O_NONBLOCK);
-#endif
-}
-
-bool wouldBlock() {
-#if defined(_WIN32)
-    int e = WSAGetLastError();
-    return e == WSAEWOULDBLOCK || e == WSAEINPROGRESS;
-#else
-    return errno == EAGAIN || errno == EWOULDBLOCK || errno == EINPROGRESS;
-#endif
-}
-
-void noDelay(socket_t s) {
-    int on = 1;
-    setsockopt(s, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&on), sizeof on);
-#if defined(SO_NOSIGPIPE)
-    setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof on);
-#endif
-}
+using net::noDelay;
+using net::setNonBlocking;
+using net::socketsReady;
+using net::wouldBlock;
 
 Json vec3Json(Vec3 v) {
     Json a = Json::array();
@@ -137,7 +87,15 @@ struct Network::Impl {
         int id = -1;
         bool welcomed = false;
         bool drop = false; // close after sending what's queued (refused, or not keeping up)
+        bool gone = false; // through the relay: it said this player left
+        bool virtualPeer() const { return s == INVALID_SOCKET; }
     };
+    // Online: everything goes through one connection to the relay (relay.h). Players are then
+    // peers without a socket of their own; their bytes travel in the relay's Data frames.
+    struct RelayLink {
+        socket_t s = INVALID_SOCKET;
+        std::string in, out, code, address;
+    } relay;
     socket_t listener = INVALID_SOCKET; // host: new players connect here
     socket_t discovery = INVALID_SOCKET; // host: answers "anyone hosting?"
     socket_t finder = INVALID_SOCKET;    // looking for games
@@ -176,6 +134,12 @@ struct Network::Impl {
                 queue(p, msg);
     }
     void flush(Peer& p) {
+        if (p.virtualPeer()) {
+            for (size_t at = 0; at < p.out.size(); at += relay::kMaxPayload)
+                relay.out += relay::frame(relay::Data, hosting ? static_cast<uint32_t>(p.id) : 0, p.out.substr(at, relay::kMaxPayload));
+            p.out.clear();
+            return;
+        }
         while (!p.out.empty()) {
             auto n = ::send(p.s, p.out.data(), static_cast<int>(std::min<size_t>(p.out.size(), 1 << 16)), AVEN_NOSIGNAL);
             if (n <= 0)
@@ -187,6 +151,8 @@ struct Network::Impl {
     bool receive(Peer& p, std::vector<Json>& messages) {
         char buf[16384];
         for (;;) {
+            if (p.virtualPeer())
+                break; // (the relay link filled p.in)
             auto n = ::recv(p.s, buf, static_cast<int>(sizeof buf), 0);
             if (n > 0) {
                 p.in.append(buf, static_cast<size_t>(n));
@@ -208,6 +174,70 @@ struct Network::Impl {
             messages.push_back(Json::parse(p.in.substr(4, len)));
             p.in.erase(0, 4 + static_cast<size_t>(len));
         }
+        return !p.gone;
+    }
+
+    // The relay connection: what it says, and sending what's waiting. False when it's gone.
+    bool pumpRelay() {
+        char buf[16384];
+        bool open = true;
+        for (;;) {
+            auto n = ::recv(relay.s, buf, static_cast<int>(sizeof buf), 0);
+            if (n > 0) {
+                relay.in.append(buf, static_cast<size_t>(n));
+                continue;
+            }
+            if (n == 0 || !wouldBlock())
+                open = false; // closed: but first, what it said before closing (why, say)
+            break;
+        }
+        bool refused = false;
+        bool framed = relay::readFrames(relay.in, [&](relay::Kind kind, uint32_t peer, std::string&& payload) {
+            if (refused)
+                return;
+            int id = static_cast<int>(peer);
+            switch (kind) {
+            case relay::Room:
+                relay.code = payload;
+                Log::info("Online game ready. Room code: ", payload);
+                event("on_room_ready", {script::Value(payload)});
+                break;
+            case relay::PeerNew:
+                if (hosting && id > 0 && !peerById(id)) {
+                    Peer p;
+                    p.id = id;
+                    peers.push_back(std::move(p));
+                }
+                break;
+            case relay::PeerGone:
+                if (Peer* p = peerById(id))
+                    p->gone = true;
+                break;
+            case relay::Data:
+                if (hosting) {
+                    if (Peer* p = peerById(id); p && !p->drop)
+                        p->in += payload;
+                } else if (!peers.empty()) {
+                    peers[0].in += payload;
+                }
+                break;
+            case relay::Error:
+                Log::warn("Online: ", payload);
+                refused = true;
+                break;
+            default:
+                break;
+            }
+        });
+        return open && framed && !refused;
+    }
+    bool flushRelay() {
+        while (!relay.out.empty()) {
+            auto n = ::send(relay.s, relay.out.data(), static_cast<int>(std::min<size_t>(relay.out.size(), 1 << 16)), AVEN_NOSIGNAL);
+            if (n <= 0)
+                return n == 0 || wouldBlock();
+            relay.out.erase(0, static_cast<size_t>(n));
+        }
         return true;
     }
 
@@ -216,6 +246,11 @@ struct Network::Impl {
             if (p.s != INVALID_SOCKET)
                 AVEN_CLOSE(p.s);
         peers.clear();
+        if (relay.s != INVALID_SOCKET) {
+            flushRelay(); // (a goodbye, if there's room)
+            AVEN_CLOSE(relay.s);
+        }
+        relay = {};
         for (socket_t* s : {&listener, &discovery})
             if (*s != INVALID_SOCKET) {
                 AVEN_CLOSE(*s);
@@ -615,6 +650,75 @@ bool Network::join(const std::string& address, int port, std::string& error) {
     return true;
 }
 
+bool Network::hostOnline(const std::string& relayAddress, std::string& error) {
+    socketsReady();
+    leave();
+    Impl& n = *impl_;
+    std::string address = relayAddress.empty() ? n.game.settings().relay : relayAddress;
+    std::string host;
+    int port = relay::kDefaultPort;
+    net::splitAddress(address, host, port, relay::kDefaultPort);
+    if (host.empty()) {
+        error = "There's no relay to host through. Set one in Project Settings > Game > Online relay, or pass "
+                "its address: host_online(\"relay.example.com\").";
+        return false;
+    }
+    socket_t s = net::connectTo(host, port, error);
+    if (s == INVALID_SOCKET)
+        return false;
+    n.relay.s = s;
+    n.relay.address = address;
+    n.relay.out = relay::frame(relay::Host, 0, std::string(relay::kVersion) + "\n" + n.game.settings().name);
+    n.hosting = true;
+    n.connected = true;
+    n.myId = 0;
+    n.playerList = {0};
+    Log::info("Asking the relay (", address, ") for a room...");
+    return true;
+}
+
+bool Network::joinOnline(const std::string& relayAddress, const std::string& code, std::string& error) {
+    socketsReady();
+    leave();
+    Impl& n = *impl_;
+    std::string address = relayAddress.empty() ? n.game.settings().relay : relayAddress;
+    std::string host;
+    int port = relay::kDefaultPort;
+    net::splitAddress(address, host, port, relay::kDefaultPort);
+    if (host.empty()) {
+        error = "There's no relay to join through. Set one in Project Settings > Game > Online relay, or pass "
+                "its address: join_online(code, relay=\"relay.example.com\").";
+        return false;
+    }
+    std::string trimmed;
+    for (char c : code)
+        if (!std::isspace(static_cast<unsigned char>(c)) && c != '-')
+            trimmed += c;
+    if (trimmed.empty()) {
+        error = "join_online() needs the room code the host sees.";
+        return false;
+    }
+    socket_t s = net::connectTo(host, port, error);
+    if (s == INVALID_SOCKET)
+        return false;
+    n.relay.s = s;
+    n.relay.address = address;
+    n.relay.out = relay::frame(relay::Join, 0, std::string(relay::kVersion) + "\n" + trimmed + "\n" + n.game.settings().name);
+    Impl::Peer hostPeer; // no socket: through the relay
+    hostPeer.id = 0;
+    hostPeer.welcomed = true;
+    Json hello = Json::object();
+    hello["t"] = "hello";
+    hello["game"] = n.game.settings().name;
+    n.queue(hostPeer, hello);
+    n.peers.push_back(std::move(hostPeer));
+    n.pending = true;
+    n.connectTime = 0;
+    return true;
+}
+
+std::string Network::roomCode() const { return impl_->relay.code; }
+
 void Network::leave() {
     Impl& n = *impl_;
     bool was = n.connected;
@@ -744,6 +848,18 @@ void Network::update(float dt) {
             ::sendto(n.discovery, reply.data(), static_cast<int>(reply.size()), 0, reinterpret_cast<sockaddr*>(&from), len);
         }
     }
+    if (n.relay.s != INVALID_SOCKET && (!n.pumpRelay() || n.relay.out.size() > (32u << 20))) {
+        bool wasHost = n.hosting, wasPending = n.pending;
+        std::string where = n.relay.address;
+        leave();
+        if (wasHost)
+            Log::warn("Lost the connection to the relay (", where, "), so the online game ended.");
+        else if (wasPending)
+            Log::warn("Couldn't join the online game through ", where, ".");
+        else
+            Log::info("The online game ended.");
+        return;
+    }
     if (!n.hosting && n.peers.empty())
         return;
 
@@ -778,14 +894,17 @@ void Network::update(float dt) {
             n.flush(p); // e.g. why they were refused
             gone.push_back(p.id);
         }
-    if (n.pending && (n.connectTime += dt) > 6.0f)
+    if (n.pending && (n.connectTime += dt) > (n.relay.s != INVALID_SOCKET ? 15.0f : 6.0f))
         gone.push_back(0);
     for (int id : gone) {
         auto it = std::find_if(n.peers.begin(), n.peers.end(), [&](const Impl::Peer& p) { return p.id == id; });
         if (it == n.peers.end())
             continue;
         bool welcomed = it->welcomed;
-        AVEN_CLOSE(it->s);
+        if (!it->virtualPeer())
+            AVEN_CLOSE(it->s);
+        else if (n.hosting && !it->gone)
+            n.relay.out += relay::frame(relay::PeerGone, static_cast<uint32_t>(id), ""); // the relay lets them go
         n.peers.erase(it);
         if (n.hosting) {
             if (welcomed) {
@@ -836,6 +955,8 @@ void Network::update(float dt) {
         }
     for (auto& p : n.peers)
         n.flush(p);
+    if (n.relay.s != INVALID_SOCKET)
+        n.flushRelay();
 }
 
 void Network::sceneStarted() {

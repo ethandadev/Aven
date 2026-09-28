@@ -50,6 +50,9 @@ add_subdirectory(engine)
 
 if(AVEN_BUILD_PLAYER)
     add_subdirectory(player)
+    if(NOT EMSCRIPTEN)
+        add_subdirectory(relay) # the server for online multiplayer
+    endif()
 endif()
 
 if(AVEN_BUILD_EDITOR)

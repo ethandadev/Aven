@@ -19,6 +19,8 @@ Json ProjectSettings::toJson() const {
     j["version"] = version;
     if (!description.empty())
         j["description"] = description;
+    if (!relay.empty())
+        j["relay"] = relay;
     j["start_scene"] = startScene;
     if (!(publish == PublishSettings{})) {
         Json p = Json::object();
@@ -111,6 +113,7 @@ void ProjectSettings::fromJson(const Json& j) {
     id = j["id"].asString("");
     version = j["version"].asString(version);
     description = j["description"].asString("");
+    relay = j["relay"].asString("");
     startScene = j["start_scene"].asString(startScene);
     const Json& p = j["publish"];
     PublishSettings d;
