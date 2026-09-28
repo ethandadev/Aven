@@ -24,6 +24,28 @@ renames it to the version (see [CONTRIBUTING.md](CONTRIBUTING.md#making-a-releas
   the disk image shows Aven's icon.
 - Release builds can be code signed on Windows too (see docs/releasing.md).
 - The editor's Windows program has Aven's icon.
+- **Go back after an update**: Preferences > Behavior > Updates > Go back to Aven ... restarts with
+  the version the last update replaced.
+- `refresh_paths()` for scripts that move walls; paths already notice walls and floors that are
+  made or destroyed, straight away.
+
+### Security
+- **Updates are signed with a key that isn't on GitHub.** The editor installs a download only if
+  its signature (Ed25519, over its name and SHA-256) checks out with the key built into it, so
+  publishing a release isn't enough to reach anyone's computer. The name has the version in it, so
+  an old signed download can't pose as a new one. (docs/releasing.md: making the key.)
+- The release workflow pins every action to a full commit SHA, can only read the repository
+  except in its last step, and gives signing secrets only to the steps that use them.
+- Building a project's C/C++ code asks first when its native/CMakeLists.txt isn't the one Aven
+  makes (CMake scripts can run any command), and again if it changes.
+- Multiplayer: the host only lets players move, delete and spawn their own objects; only the host
+  says who joined or left; a player from a different game is turned away; saying hello twice no
+  longer counts twice; a player who stops reading is let go instead of queueing memory forever.
+- A certificate password is no longer shown in the export log if it can't be passed to the signing
+  tool, and is never put on a command line.
+- Zips are unpacked one file at a time, and entries claiming impossible compression are refused.
+- Compiled-library fingerprints are SHA-256 (you'll be asked once more about ones you allowed).
+- AVEN_UPDATE_URL and the other test settings only exist in test builds.
 
 ### Fixed
 - **Everything was twice as big on Retina Macs** (and on Linux with Wayland scaling). The layout now

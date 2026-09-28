@@ -160,7 +160,8 @@ def on_update(dt):
 ```
 
 `find_path(a, b, radius=0.4)`: `radius` is how wide the walker is, so paths keep off walls. A
-target inside a wall gets a path to the nearest spot next to it.
+target inside a wall gets a path to the nearest spot next to it. Paths notice walls and floors
+that are made or destroyed straight away; after a script *moves* one, call `refresh_paths()`.
 
 ## Audio: the mixer
 

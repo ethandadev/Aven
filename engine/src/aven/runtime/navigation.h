@@ -37,8 +37,12 @@ public:
     // `reached` (optional) says whether the path gets all the way.
     std::vector<Vec3> findPath(Vec3 from, Vec3 to, const PathOptions& options, bool* reached = nullptr);
 
-    // Forget what's known about the world (call after walls move). Also happens every few seconds.
-    void clear() { cells_.clear(); }
+    // Forget what's known about the world. Happens by itself when a wall or floor is made or
+    // removed, and every few seconds (for walls moved by scripts); refresh_paths() calls it.
+    void clear() {
+        cells_.clear();
+        age_ = 0;
+    }
     void update(float dt);
 
 private:
@@ -50,6 +54,7 @@ private:
     std::unordered_map<uint64_t, Cell> cells_;
     PathOptions cachedFor_;
     float age_ = 0;
+    uint64_t staticChanges_ = 0;
     float probeTop_ = 0; // 3D: where the downward rays start
     uint64_t frame_ = 0, lastSyncFrame_ = ~0ull;
 

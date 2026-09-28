@@ -626,6 +626,11 @@ AVEN_TEST(pathfinding_around_walls) {
         auto path = game.navigation().findPath({-3, 0, 0}, {0, 0, 0}, o); // the goal is inside the wall
         CHECK(!path.empty()); // ...so it stops next to it instead
         CHECK(std::abs(path.back().x) >= 0.5f);
+        // The wall goes (a door opening): paths know on the next frame, not seconds later.
+        CHECK(game.navigation().findPath({-3, 0, 0}, {3, 0, 0}, o).size() >= 3);
+        game.destroyEntity(game.scene().findByName("Wall"));
+        game.update(1.0f / 60.0f);
+        CHECK_EQ(game.navigation().findPath({-3, 0, 0}, {3, 0, 0}, o).size(), size_t(2)); // straight there
         game.stop();
     }
     {

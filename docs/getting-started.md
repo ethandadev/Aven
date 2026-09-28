@@ -30,12 +30,16 @@ Linux, plus zips.
 A downloaded Aven keeps itself up to date. When it starts, it asks GitHub whether there's a newer
 version (nothing else is sent), and if there is, an **Update to ...** button appears in the menu bar
 and on the start screen. It opens the Update window: what's new, and **Download and install**. The
-download is checked against the release's SHA-256 before anything changes, and the new version
+download is checked before anything changes: it must be signed with Aven's release key (a key
+that isn't on GitHub, so a release someone else managed to publish there wouldn't pass) and match
+its SHA-256. The new version
 goes in when you press **Restart now** or next close Aven. Your games, and anything else you keep
 in Aven's folder, are left alone; the old version stays in `.aven-update/old` until the new one
 starts.
 
 - **Help > Check for Updates** looks any time.
+- **Preferences > Behavior > Updates > Go back to Aven ...** restarts with the version the last
+  update replaced (it's kept until the next update).
 - **Preferences > Behavior > Updates** turns the check at start off, or adds beta versions.
 - **Skip this version** stops mentioning that one version.
 - A copy built from source doesn't replace itself (pull the new code instead); it only looks when

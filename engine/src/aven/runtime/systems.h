@@ -37,6 +37,8 @@ public:
     void refresh(Entity e);
     void updateLayer(Entity e); // after its collision layer changed
     bool hasBody(Entity e) const;
+    // Goes up whenever a collider that doesn't move is made or removed (pathfinding looks again).
+    uint64_t staticChanges() const;
     // Makes bodies for new colliders now (normally done on the next step), so queries made
     // before it (like find_path() in on_start) see them.
     void sync();
@@ -76,6 +78,8 @@ public:
     void refresh(Entity e);
     void updateLayer(Entity e); // after its collision layer changed
     bool hasBody(Entity e) const;
+    // Goes up whenever a collider that doesn't move is made or removed (pathfinding looks again).
+    uint64_t staticChanges() const;
     void sync(); // as Physics2D::sync
 
     Vec3 velocity(Entity e) const;

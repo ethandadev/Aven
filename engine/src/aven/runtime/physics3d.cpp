@@ -328,6 +328,8 @@ struct Physics3D::Impl {
             return;
         }
         bodies[e] = {id, t, r, true, motion, reg.has<Terrain>(e) ? reg.get<Terrain>(e).revision : 0u};
+        if (motion == JPH::EMotionType::Static)
+            ++staticChanges;
         byBodyId[id.GetIndexAndSequenceNumber()] = e;
         auto pv = pendingVelocity.find(e);
         if (pv != pendingVelocity.end()) {
@@ -336,10 +338,14 @@ struct Physics3D::Impl {
         }
     }
 
+    uint64_t staticChanges = 0; // walls and ground made or taken away (pathfinding looks again)
+
     void destroyBody(Entity e) {
         auto it = bodies.find(e);
         if (it == bodies.end())
             return;
+        if (it->second.motion == JPH::EMotionType::Static)
+            ++staticChanges;
         JPH::BodyInterface& bi = physics->GetBodyInterface();
         bi.RemoveBody(it->second.id);
         bi.DestroyBody(it->second.id);
@@ -746,6 +752,8 @@ void Physics3D::setGravity(Vec3 g) {
 }
 
 Vec3 Physics3D::gravity() const { return impl_->gravity; }
+
+uint64_t Physics3D::staticChanges() const { return impl_->staticChanges; }
 
 void Physics3D::onDestroy(Entity e) {
     if (!impl_->running())

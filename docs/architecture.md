@@ -17,7 +17,7 @@ quests/     Contributor Quests (small guided contributions, shown in the editor)
 
 | Folder | What's there |
 |---|---|
-| `core/` | JSON, logging, files, UUIDs, embedded data, zips, app icons, updates (versions, SHA-256, swapping files in) |
+| `core/` | JSON, logging, files, UUIDs, embedded data, zips, app icons, updates (versions, SHA-256, Ed25519 signatures, swapping files in) |
 | `math/` | vectors, quaternions, matrices, colors |
 | `ecs/` | a sparse-set entity/component registry |
 | `scene/` | components (`components.h`), reflection (fields, labels, ranges, tooltips), and `Scene`: hierarchy, save/load, prefabs |

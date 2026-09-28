@@ -124,6 +124,7 @@ Everything scripts can use, generated from the engine itself (the same list as t
 - `find_all("enemy")`
 - `find_games()`
 - `find_path(from, to, radius=0.4)`
+- `refresh_paths()`
 - `spawn("prefabs/coin.prefab", x, y)`
 - `spawn_networked("prefabs/player.prefab", x, y)`
 

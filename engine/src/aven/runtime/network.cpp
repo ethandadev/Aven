@@ -136,6 +136,7 @@ struct Network::Impl {
         std::string in, out;
         int id = -1;
         bool welcomed = false;
+        bool drop = false; // close after sending what's queued (refused, or not keeping up)
     };
     socket_t listener = INVALID_SOCKET; // host: new players connect here
     socket_t discovery = INVALID_SOCKET; // host: answers "anyone hosting?"
@@ -150,8 +151,18 @@ struct Network::Impl {
     std::unordered_map<uint64_t, float> sendTimers;
 
     // --- messages: a 4-byte length, then JSON
+    // What may wait to be sent to one player: one who stops reading is let go, rather than
+    // queueing up memory for them forever.
+    static constexpr size_t kMaxQueued = 8u << 20;
     void queue(Peer& p, const Json& msg) {
+        if (p.drop)
+            return;
         std::string body = msg.dump();
+        if (p.out.size() + body.size() > kMaxQueued) {
+            Log::warn("Multiplayer: player ", p.id, " isn't keeping up; letting them go.");
+            p.drop = true;
+            return;
+        }
         uint32_t n = static_cast<uint32_t>(body.size());
         char head[4] = {static_cast<char>(n & 0xFF), static_cast<char>((n >> 8) & 0xFF), static_cast<char>((n >> 16) & 0xFF),
                         static_cast<char>((n >> 24) & 0xFF)};
@@ -361,74 +372,141 @@ struct Network::Impl {
         }
     }
 
-    // A message from `from` (the host: from anyone; a player: from the host, maybe passed on).
+    // The host is in charge: players only get to change what's theirs, and only the host says who
+    // joined or left. A player trusts the host, whose messages are all it hears.
+    Peer* peerById(int id) {
+        for (auto& p : peers)
+            if (p.id == id)
+                return &p;
+        return nullptr;
+    }
+    // The player a networked spawn's id says made it (see spawnNetworked), or -1 for scene objects.
+    static int idOwner(uint64_t netId) {
+        if (!(netId >> 63))
+            return -1;
+        return static_cast<int>((netId >> 40) & ((1u << 23) - 1)) - 1;
+    }
+    void addPlayer(int id) {
+        if (std::find(playerList.begin(), playerList.end(), id) == playerList.end())
+            playerList.push_back(id);
+    }
+
     void handle(const Json& m, int from, std::unordered_map<uint64_t, Entity>& objs) {
         std::string t = m["t"].asString("");
-        if (t == "hello" && hosting) {
+        if (hosting)
+            hostHandle(t, m, from, objs);
+        else
+            playerHandle(t, m, objs);
+    }
+
+    void hostHandle(const std::string& t, const Json& m, int from, std::unordered_map<uint64_t, Entity>& objs) {
+        Peer* peer = peerById(from);
+        if (!peer)
+            return;
+        if (t == "hello") {
+            if (peer->welcomed)
+                return; // said hello already
+            if (m["game"].asString("") != game.settings().name) {
+                Json no = Json::object();
+                no["t"] = "refused";
+                no["why"] = "that's " + game.settings().name + ", a different game";
+                queue(*peer, no);
+                peer->drop = true;
+                return;
+            }
             // A new player: tell them who they are, who's here and what's been made.
-            for (auto& p : peers)
-                if (p.id == from && !p.welcomed) {
-                    Json w = Json::object();
-                    w["t"] = "welcome";
-                    w["id"] = from;
-                    Json list = Json::array();
-                    for (int id : playerList)
-                        list.push(id);
-                    list.push(from);
-                    w["players"] = list;
-                    queue(p, w);
-                    for (auto& [id, e] : objs) {
-                        auto& ns = game.scene().registry().get<NetworkSync>(e);
-                        if (!ns.prefab.empty())
-                            queue(p, spawnOf(e));
-                        queue(p, stateOf(e));
-                    }
-                    Json joined = Json::object();
-                    joined["t"] = "joined";
-                    joined["id"] = from;
-                    broadcast(joined, from);
-                    p.welcomed = true;
-                }
-            playerList.push_back(from);
+            Json w = Json::object();
+            w["t"] = "welcome";
+            w["id"] = from;
+            Json list = Json::array();
+            for (int id : playerList)
+                list.push(id);
+            list.push(from);
+            w["players"] = list;
+            queue(*peer, w);
+            for (auto& [id, e] : objs) {
+                auto& ns = game.scene().registry().get<NetworkSync>(e);
+                if (!ns.prefab.empty())
+                    queue(*peer, spawnOf(e));
+                queue(*peer, stateOf(e));
+            }
+            Json joined = Json::object();
+            joined["t"] = "joined";
+            joined["id"] = from;
+            broadcast(joined, from);
+            peer->welcomed = true;
+            addPlayer(from);
             event("on_player_joined", {script::Value(from)});
             return;
         }
-        if (t == "welcome" && !hosting) {
+        if (!peer->welcomed)
+            return; // nothing before hello
+        uint64_t id = std::strtoull(m["id"].asString("0").c_str(), nullptr, 10);
+        auto owned = [&] { // an object this player made
+            auto it = objs.find(id);
+            return it != objs.end() && game.scene().registry().get<NetworkSync>(it->second).owner == from;
+        };
+        Json relay = m;
+        relay["from"] = from; // whatever the message says
+        if (t == "msg") {
+            broadcast(relay, from);
+            event("on_receive", {script::Value(relay["m"].asString("")), script::VM::fromJson(relay["d"]), script::Value(from)});
+        } else if (t == "spawn") {
+            if (idOwner(id) != from || objs.count(id))
+                return; // only new objects, with ids from this player's own range
+            relay["owner"] = from;
+            if (Entity e = spawnLocal(relay)) {
+                objs[id] = e;
+                broadcast(relay, from);
+            }
+        } else if (t == "state") {
+            if (!owned())
+                return; // not theirs to move (scene objects are the host's)
+            applyState(relay, objs);
+            broadcast(relay, from);
+        } else if (t == "destroy") {
+            if (!owned() || idOwner(id) != from)
+                return; // only what they spawned
+            destroyLocal(id);
+            objs = objects();
+            broadcast(relay, from);
+        }
+        // "welcome", "joined" and "left" come from the host only: from a player, they're ignored.
+    }
+
+    void playerHandle(const std::string& t, const Json& m, std::unordered_map<uint64_t, Entity>& objs) {
+        if (t == "welcome") {
+            if (connected)
+                return;
             myId = m["id"].asInt(-1);
             playerList.clear();
             for (auto& id : m["players"].elements())
-                playerList.push_back(id.asInt(0));
+                addPlayer(id.asInt(0));
             connected = true;
             pending = false;
             claimSceneObjects();
             event("on_connected");
-            return;
-        }
-        if (t == "joined") {
-            playerList.push_back(m["id"].asInt(0));
-            event("on_player_joined", {script::Value(m["id"].asInt(0))});
-            return;
-        }
-        if (t == "left") {
+        } else if (t == "refused") {
+            Log::warn("Couldn't join the game: ", m["why"].asString("the host said no"), ".");
+            if (!peers.empty())
+                peers[0].drop = true;
+        } else if (t == "joined") {
+            int id = m["id"].asInt(0);
+            if (std::find(playerList.begin(), playerList.end(), id) != playerList.end())
+                return;
+            addPlayer(id);
+            event("on_player_joined", {script::Value(id)});
+        } else if (t == "left") {
             playerLeft(m["id"].asInt(0));
-            return;
-        }
-        // Everything else is passed on by the host to the other players.
-        Json relay = m;
-        if (hosting) {
-            relay["from"] = from;
-            broadcast(relay, from);
-        }
-        int sender = relay["from"].asInt(from);
-        if (t == "msg") {
-            event("on_receive", {script::Value(relay["m"].asString("")), script::VM::fromJson(relay["d"]), script::Value(sender)});
+        } else if (t == "msg") {
+            event("on_receive", {script::Value(m["m"].asString("")), script::VM::fromJson(m["d"]), script::Value(m["from"].asInt(0))});
         } else if (t == "spawn") {
-            if (Entity e = spawnLocal(relay))
+            if (Entity e = spawnLocal(m))
                 objs[game.scene().registry().get<NetworkSync>(e).netId] = e;
         } else if (t == "state") {
-            applyState(relay, objs);
+            applyState(m, objs);
         } else if (t == "destroy") {
-            destroyLocal(std::strtoull(relay["id"].asString("0").c_str(), nullptr, 10));
+            destroyLocal(std::strtoull(m["id"].asString("0").c_str(), nullptr, 10));
             objs = objects();
         }
     }
@@ -695,6 +773,11 @@ void Network::update(float dt) {
         if (!alive)
             gone.push_back(id);
     }
+    for (auto& p : n.peers)
+        if (p.drop && std::find(gone.begin(), gone.end(), p.id) == gone.end()) {
+            n.flush(p); // e.g. why they were refused
+            gone.push_back(p.id);
+        }
     if (n.pending && (n.connectTime += dt) > 6.0f)
         gone.push_back(0);
     for (int id : gone) {

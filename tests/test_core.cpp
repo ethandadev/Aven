@@ -246,6 +246,34 @@ AVEN_TEST(zip_roundtrip_and_safety) {
     std::vector<uint8_t> cut(bytes->begin(), bytes->begin() + static_cast<long>(bytes->size() / 2));
     CHECK(!zip::read(cut, files, error));
     CHECK(!zip::read(std::vector<uint8_t>{'h', 'i'}, files, error));
+    // list() reads just the names, from the file.
+    std::vector<std::string> names;
+    CHECK(zip::list(dir / "out.zip", names, error));
+    CHECK(names.size() == 2 && names[0] == "hero.png" && names[1] == "scenes/main.scene");
+    // A "zip bomb": an entry claiming to unpack to far more than deflate can compress. Refused
+    // before anything is set aside for it (here: 3000 bytes of deflate claiming to be 900 MB).
+    {
+        std::vector<uint8_t> bomb = *bytes;
+        auto put32 = [&](size_t at, uint32_t v) {
+            for (int i = 0; i < 4; ++i)
+                bomb[at + static_cast<size_t>(i)] = static_cast<uint8_t>(v >> (8 * i));
+        };
+        size_t central = 0;
+        for (size_t i = 0; i + 4 <= bomb.size(); ++i)
+            if (bomb[i] == 'P' && bomb[i + 1] == 'K' && bomb[i + 2] == 1 && bomb[i + 3] == 2) {
+                central = i;
+                break;
+            }
+        CHECK(central > 0);
+        // The first entry ("hero.png", stored) becomes deflated, with a huge claimed size.
+        bomb[central + 10] = 8;
+        bomb[central + 11] = 0;
+        put32(central + 24, 900u << 20);
+        CHECK(!zip::read(bomb, files, error));
+        CHECK(error.find("claims to unpack") != std::string::npos);
+        fs::writeBinary(dir / "bomb.zip", bomb.data(), bomb.size());
+        CHECK(!zip::extract(dir / "bomb.zip", dir / "bomb", error));
+    }
     stdfs::remove_all(dir, ec);
 }
 

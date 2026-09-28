@@ -94,13 +94,14 @@ publishes a GitHub release with the zips and the notes. The tag sets the version
 A tag with a dash, like `v0.4.0-beta.1`, becomes a pre-release, which only editors with
 "Include beta versions" turned on are offered.
 
-Signing (a Developer ID for macOS, a certificate for Windows) is set up once as repository
-secrets: see [docs/releasing.md](docs/releasing.md). The release has installers (Setup.exe, .dmg,
+Signing is set up once as repository secrets and variables: the update key first (without it,
+editors don't install the release as an update), then a Developer ID for macOS and a certificate
+for Windows. See [docs/releasing.md](docs/releasing.md). The release has installers (Setup.exe, .dmg,
 .flatpak) and zips.
 
 Editors that are already installed find the release on their own (`editor/src/updater.cpp`): they
-download `aven-<version>-<system>.zip`, so keep those names, and check it against the SHA-256 that
-GitHub lists for it.
+download `aven-<version>-<system>.zip`, so keep those names, and install it only if its `.sig` (made
+by the "Sign the updates" job with the update key) checks out.
 
 To try the build without publishing, open the Release workflow on the Actions tab and click
 **Run workflow**: the zips are attached to that run instead.

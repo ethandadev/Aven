@@ -5,6 +5,7 @@
 #include "editor.h"
 
 #include "aven/core/fs.h"
+#include "aven/core/update.h"
 #include "aven/runtime/native.h"
 
 #include <imgui.h>
@@ -77,6 +78,44 @@ std::map<std::string, int64_t> nativeLibraries(const stdfs::path& projectDir) {
     return out;
 }
 
+// What building runs besides the compiler: the CMake scripts in native/ (CMakeLists.txt and *.cmake,
+// leaving out build output). CMake scripts can run any command, so building someone else's project is
+// like running their code. A fingerprint of all of them, to remember which ones were allowed.
+std::string buildFingerprint(const stdfs::path& projectDir) {
+    std::error_code ec;
+    stdfs::path native = projectDir / "native";
+    std::vector<std::string> parts;
+    for (auto it = stdfs::recursive_directory_iterator(native, ec); !ec && it != stdfs::recursive_directory_iterator(); it.increment(ec)) {
+        std::string name = it->path().filename().string();
+        if (it->is_directory(ec) && (name == "build" || name == "bin")) {
+            it.disable_recursion_pending();
+            continue;
+        }
+        if (it->is_regular_file(ec) && (name == "CMakeLists.txt" || fs::extension(name) == ".cmake"))
+            parts.push_back(fs::relativePath(it->path(), native) + "=" + update::sha256File(it->path()));
+    }
+    std::sort(parts.begin(), parts.end());
+    std::string all;
+    for (auto& p : parts)
+        all += p + "\n";
+    return "build:" + update::sha256(all.data(), all.size());
+}
+
+// The native/ project exactly as Aven makes it: nothing to ask about.
+bool isAvensBuild(const stdfs::path& projectDir) {
+    std::error_code ec;
+    stdfs::path native = projectDir / "native";
+    for (auto it = stdfs::recursive_directory_iterator(native, ec); !ec && it != stdfs::recursive_directory_iterator(); it.increment(ec)) {
+        std::string name = it->path().filename().string();
+        if (it->is_directory(ec) && (name == "build" || name == "bin"))
+            it.disable_recursion_pending();
+        else if (it->is_regular_file(ec) && fs::extension(name) == ".cmake")
+            return false;
+    }
+    auto mine = fs::readText(native / "CMakeLists.txt"), avens = fs::readText(sdkDir() / "template" / "CMakeLists.txt");
+    return mine && avens && *mine == *avens;
+}
+
 } // namespace
 
 void Editor::loadNativeTrust() {
@@ -97,23 +136,64 @@ void Editor::trustNative(const std::vector<stdfs::path>& libraries) {
         if (!h.empty())
             trustedNative_.insert(h);
     }
-    Json j = Json::object();
-    Json list = Json::array();
-    for (auto& h : trustedNative_)
-        list.push(h);
-    j["about"] = "Compiled libraries Aven may load: ones built in the editor or allowed by you (content fingerprints).";
-    j["allowed"] = list;
-    fs::writeText(trustFile(), j.dump(1));
+    saveNativeTrust();
     if (!playing_) {
         NativeModules::get().unloadAll(); // load again with the new list
         NativeModules::get().refresh(projectDir_);
     }
 }
 
+void Editor::saveNativeTrust() {
+    Json j = Json::object();
+    Json list = Json::array();
+    for (auto& h : trustedNative_)
+        list.push(h);
+    j["about"] = "Compiled libraries Aven may load (built in the editor or allowed by you), and native/ build scripts "
+                 "you allowed to run: SHA-256 fingerprints.";
+    j["allowed"] = list;
+    fs::writeText(trustFile(), j.dump(1));
+}
+
 void Editor::drawNativeTrustPrompt() {
     NativeModules& modules = NativeModules::get();
     if (playing_ || nativeBuild_ || projectDir_.empty())
         return;
+    // Before building a native/ project that isn't Aven's own template (see buildNativeModule).
+    if (confirmNativeBuild_) {
+        ImGui::OpenPopup("Build this project's C/C++ code?");
+        confirmNativeBuild_ = false;
+    }
+    ImGui::SetNextWindowSize({ui::px(560), 0});
+    if (ImGui::BeginPopupModal("Build this project's C/C++ code?", nullptr, ImGuiWindowFlags_NoResize)) {
+        ImGui::PushTextWrapPos(0);
+        ImGui::TextUnformatted("Building runs this project's native/CMakeLists.txt, and CMake scripts can run any command on "
+                               "your computer, not just the compiler. This one isn't the one Aven makes, or it changed since "
+                               "you last built it.");
+        ImGui::Spacing();
+        ImGui::TextColored({1, 0.8f, 0.35f, 1}, "If this project came from someone else, build it only if you trust them "
+                                                 "(or after reading native/CMakeLists.txt).");
+        ImGui::PopTextWrapPos();
+        ImGui::Spacing();
+        float w = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2) / 3;
+        if (ImGui::Button("Don't build", {w, 32}))
+            ImGui::CloseCurrentPopup();
+        ImGui::SameLine();
+        if (ImGui::Button("Show CMakeLists.txt", {w, 32})) {
+            openExternal((projectDir_ / "native" / "CMakeLists.txt").string());
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.55f, 0.3f, 0.2f, 1));
+        if (ImGui::Button("I trust it: build", {w, 32})) {
+            ImGui::CloseCurrentPopup();
+            trustedNative_.insert(buildFingerprint(projectDir_));
+            saveNativeTrust();
+            buildNativeModule();
+        }
+        ImGui::PopStyleColor();
+        ImGui::EndPopup();
+        return;
+    }
     if (modules.blockedCount() > 0 && !nativePromptDismissed_ && !ImGui::IsPopupOpen("Compiled code in this project"))
         ImGui::OpenPopup("Compiled code in this project");
     ImGui::SetNextWindowSize({ui::px(560), 0});
@@ -206,6 +286,12 @@ void Editor::buildNativeModule() {
         createNativeModule();
     if (!stdfs::exists(projectDir_ / "native" / "CMakeLists.txt"))
         return;
+    // CMake scripts can run anything: ask first unless they're Aven's own, or these exact ones were allowed.
+    if (!isAvensBuild(projectDir_) && !trustedNative_.count(buildFingerprint(projectDir_))) {
+        confirmNativeBuild_ = true;
+        showNativeCode_ = true;
+        return;
+    }
     saveAllScripts();
     std::error_code ec;
     stdfs::copy_file(sdkDir() / "include" / "aven.h", projectDir_ / "native" / "include" / "aven.h",

@@ -574,6 +574,8 @@ private:
     std::set<std::string> trustedNative_;
     std::map<std::string, int64_t> nativeBeforeBuild_; // native/bin as it was when the build started
     bool nativePromptDismissed_ = false;
+    bool confirmNativeBuild_ = false; // ask before running a native/ build script that isn't Aven's
+    void saveNativeTrust();
     void loadNativeTrust();
     void trustNative(const std::vector<stdfs::path>& libraries);
     void drawNativeTrustPrompt();

@@ -2,6 +2,7 @@
 
 #include "aven/core/fs.h"
 #include "aven/core/log.h"
+#include "aven/core/update.h"
 #include "aven/runtime/game.h"
 #include "aven/runtime/script_system.h"
 #include "aven/scene/components.h"
@@ -411,22 +412,9 @@ int NativeModules::blockedCount() const {
 }
 
 std::string NativeModules::fileHash(const stdfs::path& file) {
-    // FNV-1a over the whole file (64-bit), plus its size.
-    std::FILE* f = std::fopen(file.string().c_str(), "rb");
-    if (!f)
-        return {};
-    uint64_t h = 1469598103934665603ull, size = 0;
-    unsigned char buf[65536];
-    size_t n;
-    while ((n = std::fread(buf, 1, sizeof buf, f)) > 0) {
-        for (size_t i = 0; i < n; ++i)
-            h = (h ^ buf[i]) * 1099511628211ull;
-        size += n;
-    }
-    std::fclose(f);
-    char out[48];
-    std::snprintf(out, sizeof out, "%016llx-%llu", static_cast<unsigned long long>(h), static_cast<unsigned long long>(size));
-    return out;
+    // SHA-256, so a different library can't be made to match a trusted one's fingerprint.
+    std::string sha = update::sha256File(file);
+    return sha.empty() ? sha : "sha256:" + sha;
 }
 
 bool NativeModules::changedOnDisk(const stdfs::path& projectDir) const {

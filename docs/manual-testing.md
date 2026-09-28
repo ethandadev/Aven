@@ -86,7 +86,16 @@ Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should 
 - [ ] macOS Window menu: Minimize (Cmd+M), Zoom, Enter Full Screen (Ctrl+Cmd+F).
 - [ ] Linux: `flatpak install Aven-<version>-linux.flatpak`, then run it from the app menu.
 
+## Opening someone else's project
+- [ ] Open a project zip made on another computer (File > Export Project as .zip there): it opens,
+      and nothing runs by itself. With compiled native code in it, Aven asks before loading it.
+- [ ] With a changed native/CMakeLists.txt in it, the Native Code window's Build asks first ("Build
+      this project's C/C++ code?"), and Don't build runs nothing.
+
 ## Updates
+- [ ] **On each system, update from the previous release** (with the update key set up): the
+      installed copy (Setup.exe, the .dmg's app in Applications, the zip) finds the new version,
+      installs it, restarts into it, and Preferences > Updates > Go back returns to the old one.
 - [ ] With a release download of the previous version: the **Update to ...** button shows in the menu
       bar and on the start screen; the Update window shows the notes; **Download and install**
       shows progress (and Cancel stops it); **Restart now** opens the new version with the same game.

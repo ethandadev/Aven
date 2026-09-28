@@ -57,12 +57,21 @@ struct Physics2D::Impl {
 
     bool running() const { return B2_IS_NON_NULL(world); }
 
+    uint64_t staticChanges = 0; // walls and floors made or taken away (pathfinding looks again)
+
+    void destroyB2(b2BodyId id) {
+        if (!b2Body_IsValid(id))
+            return;
+        if (b2Body_GetType(id) == b2_staticBody)
+            ++staticChanges;
+        b2DestroyBody(id);
+    }
+
     void destroyBody(Entity e) {
         auto it = bodies.find(e);
         if (it == bodies.end())
             return;
-        if (b2Body_IsValid(it->second.id))
-            b2DestroyBody(it->second.id);
+        destroyB2(it->second.id);
         bodies.erase(it);
     }
 
@@ -92,6 +101,8 @@ struct Physics2D::Impl {
             bd.linearDamping = rb->linearDamping;
         }
         b2BodyId id = b2CreateBody(world, &bd);
+        if (bd.type == b2_staticBody)
+            ++staticChanges;
 
         float area = 0;
         if (box)
@@ -167,8 +178,7 @@ struct Physics2D::Impl {
                 if (auto* tm = reg.tryGet<Tilemap>(e); tm && tm->shapeSignature() != it->second.tilemapSignature)
                     keep = false;
             if (!keep) {
-                if (b2Body_IsValid(it->second.id))
-                    b2DestroyBody(it->second.id);
+                destroyB2(it->second.id);
                 it = bodies.erase(it);
             } else {
                 ++it;
@@ -330,6 +340,7 @@ void Physics2D::setGravity(Vec2 g) {
 Vec2 Physics2D::gravity() const { return impl_->gravity; }
 
 void Physics2D::onDestroy(Entity e) { impl_->destroyBody(e); }
+uint64_t Physics2D::staticChanges() const { return impl_->staticChanges; }
 
 void Physics2D::refresh(Entity e) {
     if (impl_->bodies.count(e))

@@ -13,6 +13,31 @@ works without signing; signed apps just open without warnings. Signing is set up
 **secrets** in the GitHub repository: **Settings > Secrets and variables > Actions > New repository
 secret**. Nothing secret goes in the code.
 
+## Update signing (do this first)
+
+The editor installs an update only if it's signed with Aven's **update key**: an Ed25519 key pair
+that belongs to you, not to GitHub. So even someone who managed to publish a release on this
+repository (a leaked token, a compromised action) couldn't get it onto anyone's computer. The
+public half is built into the editor; the private half signs each release. Until both are set,
+releases still work, but editors built from them don't install updates themselves (they link to
+the release page instead).
+
+1. On your computer, make the key pair (Python 3, nothing to install):
+   `python3 tools/release/update_key.py new`
+2. Add the **public key** as a repository *variable* (Settings > Secrets and variables > Actions >
+   **Variables** tab): `UPDATE_PUBLIC_KEY`.
+3. Add the **private key** as a repository *secret* (same page, **Secrets** tab):
+   `UPDATE_SIGNING_KEY`. Also keep a copy somewhere safe and offline (a password manager). If it's
+   lost, make a new pair: editors from then on use the new key, and older ones need one manual
+   download.
+4. The next release is signed: the "Sign the updates" job adds `aven-<version>-<system>.zip.sig`
+   next to each zip, and checks the signatures against the public key before publishing.
+
+Only a small job with this repository's own script and GitHub's artifact actions sees the private
+key. Every third-party action in the workflows is pinned to a full commit SHA (Dependabot proposes
+updates as pull requests), the workflows can only read the repository, and only the final
+"Publish the release" job can write releases.
+
 ## macOS: Developer ID and notarization
 
 With a paid Apple Developer account, Aven.app is signed with your **Developer ID** and

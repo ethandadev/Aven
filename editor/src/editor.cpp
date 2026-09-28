@@ -236,6 +236,10 @@ void Editor::openPanels(const std::string& list) {
             downloadUpdate(true);
             Log::info("update: ", updateStatus());
         }
+        else if (p == "buildnative") { // the Native Code window's Build button (automated tests)
+            buildNativeModule();
+            Log::info("native build: ", confirmNativeBuild_ ? "asks first" : nativeBuild_ ? "started" : "didn't start");
+        }
         else if (p == "rollback") rollbackPending_ = true; // Preferences > Updates > Go back (automated tests)
         else if (p == "gamedetails") { showExport_ = true; exportTab_ = 3; }
         else if (p == "projectzip") { std::string m; exportProjectZip(m); Log::info(m); } // File > Export Project as .zip
@@ -1820,12 +1824,11 @@ void Editor::onFilesDropped(const std::vector<std::string>& files) {
     // A game in a .zip (File > Export Project as .zip, or zipped by hand) opens as a project.
     if (files.size() == 1 && fs::extension(files[0]) == ".zip") {
         std::string error;
-        std::vector<zip::Entry> entries;
-        auto bytes = fs::readBinary(files[0]);
+        std::vector<std::string> names; // just the list: nothing is unpacked to look
         bool hasGame = false;
-        if (bytes && zip::read(*bytes, entries, error))
-            for (auto& e : entries)
-                hasGame = hasGame || e.name == "project.aven" || (e.name.find('/') == e.name.rfind('/') && e.name.ends_with("/project.aven"));
+        if (zip::list(files[0], names, error))
+            for (auto& name : names)
+                hasGame = hasGame || name == "project.aven" || (name.find('/') == name.rfind('/') && name.ends_with("/project.aven"));
         if (hasGame || !hasProject()) {
             importProjectZip(files[0]);
             return;

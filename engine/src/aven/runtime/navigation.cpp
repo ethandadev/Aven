@@ -22,7 +22,13 @@ bool sameOptions(const PathOptions& a, const PathOptions& b) {
 
 void Navigation::update(float dt) {
     ++frame_;
-    // Walls can move or be destroyed: look again now and then.
+    // A wall or floor appeared or went away (a door destroyed, a platform spawned): look again now.
+    uint64_t changes = game_.physics2D().staticChanges() + game_.physics3D().staticChanges();
+    if (changes != staticChanges_) {
+        staticChanges_ = changes;
+        cells_.clear();
+    }
+    // Walls can also be moved by scripts: look again now and then (refresh_paths() does it at once).
     age_ += dt;
     if (age_ > 3.0f) {
         age_ = 0;

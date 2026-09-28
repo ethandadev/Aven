@@ -30,11 +30,16 @@ struct Entry {
     bool executable = false; // marked as a program (Unix permissions, from zips made on macOS/Linux)
 };
 
-// All the files in a zip held in memory. False (with a reason) for anything broken or unsafe.
+// All the files in a zip held in memory. False (with a reason) for anything broken or unsafe. For
+// small zips; extract() and list() read big ones piece by piece.
 bool read(const std::vector<uint8_t>& zipBytes, std::vector<Entry>& files, std::string& error);
 
-// Unpacks into a folder (made if needed). If every file sits in one top folder ("My Game/..."),
-// that folder is dropped, so the files land straight in the destination. Programs stay runnable.
+// The names of the files in a zip, without unpacking anything.
+bool list(const stdfs::path& zipPath, std::vector<std::string>& names, std::string& error);
+
+// Unpacks into a folder (made if needed), one file at a time, so only one is ever in memory. If
+// every file sits in one top folder ("My Game/..."), that folder is dropped, so the files land
+// straight in the destination. Programs stay runnable.
 bool extract(const stdfs::path& zipPath, const stdfs::path& folder, std::string& error);
 
 } // namespace aven::zip

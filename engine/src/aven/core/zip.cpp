@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <fstream>
 
 // From stb_image_write (compiled in aven/assets/stb_impl.cpp): a zlib stream, freed with free().
 extern "C" unsigned char* stbi_zlib_compress(unsigned char* data, int data_len, int* out_len, int quality);
@@ -59,18 +60,23 @@ bool safeName(const std::string& name) {
 
 } // namespace
 
-uint32_t crc32(const void* data, size_t size) {
-    static uint32_t table[256];
-    static bool ready = false;
-    if (!ready) {
+namespace {
+struct CrcTable {
+    uint32_t v[256];
+    CrcTable() {
         for (uint32_t i = 0; i < 256; ++i) {
             uint32_t c = i;
             for (int k = 0; k < 8; ++k)
                 c = (c & 1) ? 0xEDB88320u ^ (c >> 1) : c >> 1;
-            table[i] = c;
+            v[i] = c;
         }
-        ready = true;
     }
+};
+} // namespace
+
+uint32_t crc32(const void* data, size_t size) {
+    static const CrcTable crcs; // made once, safely, even with several threads zipping at the same time
+    const uint32_t* table = crcs.v;
     uint32_t crc = 0xFFFFFFFFu;
     const auto* p = static_cast<const uint8_t*>(data);
     for (size_t i = 0; i < size; ++i)
@@ -178,141 +184,259 @@ bool write(const stdfs::path& zipPath, const stdfs::path& folder, const std::fun
     return fs::writeBinary(zipPath, out.data(), out.size());
 }
 
-bool read(const std::vector<uint8_t>& zip, std::vector<Entry>& files, std::string& error) {
-    files.clear();
-    const size_t n = zip.size();
+namespace {
+
+// Where a zip's bytes come from: memory, or a file read piece by piece (so a big zip isn't all in memory).
+struct Source {
+    virtual ~Source() = default;
+    virtual uint64_t size() const = 0;
+    virtual bool readAt(uint64_t at, void* out, size_t n) = 0;
+};
+
+struct MemorySource : Source {
+    const std::vector<uint8_t>& bytes;
+    explicit MemorySource(const std::vector<uint8_t>& b) : bytes(b) {}
+    uint64_t size() const override { return bytes.size(); }
+    bool readAt(uint64_t at, void* out, size_t n) override {
+        if (at > bytes.size() || n > bytes.size() - at)
+            return false;
+        if (n)
+            std::memcpy(out, bytes.data() + at, n);
+        return true;
+    }
+};
+
+struct FileSource : Source {
+    std::ifstream in;
+    uint64_t length = 0;
+    explicit FileSource(const stdfs::path& path) : in(path, std::ios::binary) {
+        std::error_code ec;
+        length = stdfs::file_size(path, ec);
+        if (ec)
+            length = 0;
+    }
+    uint64_t size() const override { return length; }
+    bool readAt(uint64_t at, void* out, size_t n) override {
+        if (!in || at > length || n > length - at)
+            return false;
+        in.seekg(static_cast<std::streamoff>(at));
+        in.read(static_cast<char*>(out), static_cast<std::streamsize>(n));
+        return static_cast<size_t>(in.gcount()) == n;
+    }
+};
+
+// One file in the zip, from its central directory.
+struct Item {
+    std::string name;
+    uint16_t method = 0;
+    uint32_t crc = 0, packedSize = 0, size = 0;
+    uint64_t dataAt = 0;
+    bool executable = false;
+};
+
+// Deflate can't shrink data more than about 1032 to 1: an entry claiming more is lying (a "zip bomb"),
+// and is refused before any memory is set aside for it.
+bool plausible(const Item& it) {
+    return it.method == 0 ? it.packedSize == it.size : static_cast<uint64_t>(it.size) <= 1100ull * it.packedSize + 1024;
+}
+
+// The list of files: names checked, sizes limited, nothing unpacked yet.
+bool directory(Source& src, std::vector<Item>& items, std::string& error) {
+    items.clear();
+    const uint64_t n = src.size();
+    if (n < 22) {
+        error = "it isn't a zip file";
+        return false;
+    }
     // The end record is in the last 22 bytes, plus up to 64 KB of comment.
+    uint64_t tailAt = n > 22 + 0xFFFF ? n - (22 + 0xFFFF) : 0;
+    std::vector<uint8_t> tail(static_cast<size_t>(n - tailAt));
+    if (!src.readAt(tailAt, tail.data(), tail.size())) {
+        error = "the file couldn't be read";
+        return false;
+    }
     size_t end = std::string::npos;
-    for (size_t i = n >= 22 ? n - 22 : std::string::npos; i != std::string::npos; --i) {
-        if (get32(&zip[i]) == kEnd) {
+    for (size_t i = tail.size() - 22 + 1; i-- > 0;)
+        if (get32(&tail[i]) == kEnd) {
             end = i;
             break;
         }
-        if (i == 0 || n - i > 22 + 0xFFFF)
-            break;
-    }
     if (end == std::string::npos) {
         error = "it isn't a zip file";
         return false;
     }
-    uint16_t count = get16(&zip[end + 10]);
-    uint32_t centralSize = get32(&zip[end + 12]), at = get32(&zip[end + 16]);
-    if (at == 0xFFFFFFFFu || count == 0xFFFF) {
+    uint64_t endAt = tailAt + end;
+    uint16_t count = get16(&tail[end + 10]);
+    uint32_t centralSize = get32(&tail[end + 12]), centralAt = get32(&tail[end + 16]);
+    if (centralAt == 0xFFFFFFFFu || count == 0xFFFF) {
         error = "it's a ZIP64 archive (over 4 GB), which isn't supported";
         return false;
     }
-    if (static_cast<uint64_t>(at) + centralSize > end) {
+    if (static_cast<uint64_t>(centralAt) + centralSize > endAt) {
+        error = "the zip file is damaged";
+        return false;
+    }
+    std::vector<uint8_t> central(centralSize);
+    if (!src.readAt(centralAt, central.data(), central.size())) {
         error = "the zip file is damaged";
         return false;
     }
     uint64_t total = 0;
+    size_t at = 0;
     for (uint16_t e = 0; e < count; ++e) {
-        if (static_cast<uint64_t>(at) + 46 > end || get32(&zip[at]) != kCentralHeader) {
+        if (at + 46 > central.size() || get32(&central[at]) != kCentralHeader) {
             error = "the zip file is damaged";
             return false;
         }
-        const uint8_t* h = &zip[at];
-        uint16_t madeBy = get16(h + 4), flags = get16(h + 8), method = get16(h + 10);
-        uint32_t crc = get32(h + 16), packedSize = get32(h + 20), size = get32(h + 24);
+        const uint8_t* h = &central[at];
+        uint16_t madeBy = get16(h + 4), flags = get16(h + 8);
         uint16_t nameLen = get16(h + 28), extraLen = get16(h + 30), commentLen = get16(h + 32);
+        Item it;
+        it.method = get16(h + 10);
+        it.crc = get32(h + 16);
+        it.packedSize = get32(h + 20);
+        it.size = get32(h + 24);
         uint32_t attributes = get32(h + 38), local = get32(h + 42);
-        if (static_cast<uint64_t>(at) + 46 + nameLen > end) {
+        if (at + 46 + nameLen > central.size()) {
             error = "the zip file is damaged";
             return false;
         }
-        std::string name(reinterpret_cast<const char*>(h + 46), nameLen);
+        it.name.assign(reinterpret_cast<const char*>(h + 46), nameLen);
         at += 46u + nameLen + extraLen + commentLen;
-        std::replace(name.begin(), name.end(), '\\', '/'); // some Windows tools
-        if (name.empty() || name.back() == '/')
+        std::replace(it.name.begin(), it.name.end(), '\\', '/'); // some Windows tools
+        if (it.name.empty() || it.name.back() == '/')
             continue; // a folder
-        if (!safeName(name)) {
-            error = "it has a file that would go outside its folder (" + name + ")";
+        if (!safeName(it.name)) {
+            error = "it has a file that would go outside its folder (" + it.name + ")";
             return false;
         }
         if (flags & 1) {
             error = "it's password-protected";
             return false;
         }
-        if (method != 0 && method != 8) {
-            error = "it uses a kind of compression Aven can't read (" + name + ")";
+        if (it.method != 0 && it.method != 8) {
+            error = "it uses a kind of compression Aven can't read (" + it.name + ")";
             return false;
         }
-        if (size > kMaxFile || (total += size) > kMaxTotal) {
+        if (it.size > kMaxFile || (total += it.size) > kMaxTotal) {
             error = "it's too big to unpack";
             return false;
         }
-        if (static_cast<uint64_t>(local) + 30 > n || get32(&zip[local]) != kLocalHeader) {
+        if (!plausible(it)) {
+            error = "the zip file is damaged (" + it.name + " claims to unpack to far more than it could)";
+            return false;
+        }
+        uint8_t localHeader[30];
+        if (!src.readAt(local, localHeader, 30) || get32(localHeader) != kLocalHeader) {
             error = "the zip file is damaged";
             return false;
         }
-        uint64_t dataAt = static_cast<uint64_t>(local) + 30 + get16(&zip[local + 26]) + get16(&zip[local + 28]);
-        if (dataAt + packedSize > n) {
+        it.dataAt = static_cast<uint64_t>(local) + 30 + get16(localHeader + 26) + get16(localHeader + 28);
+        if (it.dataAt + it.packedSize > n) {
             error = "the zip file is cut short";
             return false;
         }
+        it.executable = (madeBy >> 8) == 3 && ((attributes >> 16) & 0111) != 0; // made on Unix, with an x bit
+        items.push_back(std::move(it));
+    }
+    return true;
+}
+
+// One file's contents, checked against its CRC.
+bool unpack(Source& src, const Item& it, std::vector<uint8_t>& out, std::string& error) {
+    std::vector<uint8_t> packed(it.packedSize);
+    if (!src.readAt(it.dataAt, packed.data(), packed.size())) {
+        error = "the zip file is cut short";
+        return false;
+    }
+    if (it.method == 0) {
+        out = std::move(packed);
+    } else {
+        // Into a buffer of the promised size: a stream that unpacks to more fails instead of growing.
+        out.assign(it.size, 0);
+        if (it.size) {
+            int got = stbi_zlib_decode_noheader_buffer(reinterpret_cast<char*>(out.data()), static_cast<int>(it.size),
+                                                       reinterpret_cast<const char*>(packed.data()), static_cast<int>(packed.size()));
+            if (got != static_cast<int>(it.size)) {
+                error = "the zip file is damaged (" + it.name + ")";
+                return false;
+            }
+        }
+    }
+    if (crc32(out.data(), out.size()) != it.crc) {
+        error = "the zip file is damaged (" + it.name + " doesn't match its checksum)";
+        return false;
+    }
+    return true;
+}
+
+} // namespace
+
+bool read(const std::vector<uint8_t>& zip, std::vector<Entry>& files, std::string& error) {
+    files.clear();
+    MemorySource src(zip);
+    std::vector<Item> items;
+    if (!directory(src, items, error))
+        return false;
+    for (auto& it : items) {
         Entry entry;
-        entry.name = name;
-        entry.executable = (madeBy >> 8) == 3 && ((attributes >> 16) & 0111) != 0; // made on Unix, with an x bit
-        entry.data.resize(size);
-        const char* packed = reinterpret_cast<const char*>(&zip[dataAt]);
-        if (method == 0) {
-            if (packedSize != size) {
-                error = "the zip file is damaged";
-                return false;
-            }
-            if (size)
-                std::memcpy(entry.data.data(), packed, size);
-        } else if (size) {
-            // Into a buffer of the promised size: a stream that unpacks to more fails instead of growing.
-            int got = stbi_zlib_decode_noheader_buffer(reinterpret_cast<char*>(entry.data.data()), static_cast<int>(size), packed,
-                                                       static_cast<int>(packedSize));
-            if (got != static_cast<int>(size)) {
-                error = "the zip file is damaged (" + name + ")";
-                return false;
-            }
-        }
-        if (crc32(entry.data.data(), entry.data.size()) != crc) {
-            error = "the zip file is damaged (" + name + " doesn't match its checksum)";
+        entry.name = it.name;
+        entry.executable = it.executable;
+        if (!unpack(src, it, entry.data, error))
             return false;
-        }
         files.push_back(std::move(entry));
     }
     return true;
 }
 
+bool list(const stdfs::path& zipPath, std::vector<std::string>& names, std::string& error) {
+    names.clear();
+    FileSource src(zipPath);
+    std::vector<Item> items;
+    if (!directory(src, items, error))
+        return false;
+    for (auto& it : items)
+        names.push_back(it.name);
+    return true;
+}
+
 bool extract(const stdfs::path& zipPath, const stdfs::path& folder, std::string& error) {
-    auto bytes = fs::readBinary(zipPath);
-    if (!bytes) {
+    FileSource src(zipPath);
+    if (!src.in) {
         error = "the file couldn't be read";
         return false;
     }
-    std::vector<Entry> files;
-    if (!read(*bytes, files, error))
+    std::vector<Item> items;
+    if (!directory(src, items, error))
         return false;
-    if (files.empty()) {
+    if (items.empty()) {
         error = "the zip is empty";
         return false;
     }
     // "My Game/project.aven", "My Game/scenes/..." unpack as "project.aven", "scenes/...".
-    std::string top = files[0].name.substr(0, files[0].name.find('/') + 1);
+    std::string top = items[0].name.substr(0, items[0].name.find('/') + 1);
     bool shared = top.size() > 1 && top.back() == '/';
-    for (auto& f : files)
-        shared = shared && f.name.rfind(top, 0) == 0 && f.name.size() > top.size();
+    for (auto& it : items)
+        shared = shared && it.name.rfind(top, 0) == 0 && it.name.size() > top.size();
     std::error_code ec;
     stdfs::create_directories(folder, ec);
-    for (auto& f : files) {
-        std::string name = shared ? f.name.substr(top.size()) : f.name;
+    // One file at a time: only one is ever in memory.
+    std::vector<uint8_t> data;
+    for (auto& it : items) {
+        std::string name = shared ? it.name.substr(top.size()) : it.name;
         stdfs::path to = fs::insideFolder(folder, name);
         if (to.empty()) {
-            error = "it has a file that would go outside its folder (" + f.name + ")";
+            error = "it has a file that would go outside its folder (" + it.name + ")";
             return false;
         }
+        if (!unpack(src, it, data, error))
+            return false;
         stdfs::create_directories(to.parent_path(), ec);
-        if (!fs::writeBinary(to, f.data.data(), f.data.size())) {
+        if (!fs::writeBinary(to, data.data(), data.size())) {
             error = "couldn't write " + name;
             return false;
         }
-        if (f.executable) {
+        if (it.executable) {
             stdfs::permissions(to, stdfs::perms::owner_exec | stdfs::perms::group_exec | stdfs::perms::others_exec,
                                stdfs::perm_options::add, ec);
         }

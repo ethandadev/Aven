@@ -354,6 +354,34 @@ def test_update_downloads_and_installs(editor):
             return what + " must not change anything"
 
 
+def test_native_build_asks_before_running_someone_elses_cmake(editor):
+    """A project's own native/CMakeLists.txt can run any command while building, so Build asks first
+    (and runs nothing) unless it's the one Aven makes."""
+    work = tempfile.mkdtemp(prefix="aven-native-test-")
+    project = os.path.join(work, "game")
+    shutil.copytree(os.path.join(ROOT, "templates", "platformer"), project)
+    os.makedirs(os.path.join(project, "native", "src"))
+    ran = os.path.join(work, "cmake-ran")
+    with open(os.path.join(project, "native", "CMakeLists.txt"), "w") as f:
+        f.write('cmake_minimum_required(VERSION 3.10)\nproject(x C)\nfile(WRITE "%s" "yes")\n' % ran.replace("\\", "/"))
+    with open(os.path.join(project, "native", "src", "behaviors.c"), "w") as f:
+        f.write("int x;\n")
+    cmd = [editor, project, "--screenshot", os.path.join(work, "shot.png"), "--frames", "8", "--panel", "@3:buildnative"]
+    if sys.platform.startswith("linux") and not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
+        cmd = ["xvfb-run", "-a", "-s", "-screen 0 1920x1080x24"] + cmd
+    run = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    log = run.stdout + run.stderr
+    if "native build: asks first" not in log:
+        return "Build should ask before running this CMakeLists.txt:\n" + log[-1500:]
+    if os.path.exists(ran):
+        return "the project's CMake script ran without asking"
+    # Aven's own CMakeLists.txt builds straight away.
+    shutil.copy2(os.path.join(ROOT, "sdk", "template", "CMakeLists.txt"), os.path.join(project, "native", "CMakeLists.txt"))
+    run = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    if "native build: started" not in run.stdout + run.stderr:
+        return "Aven's own CMakeLists.txt should build without asking:\n" + (run.stdout + run.stderr)[-1500:]
+
+
 def test_monkey(editor):
     """Random clicks, drags, keys and typing for a while, editing and playing: no crash."""
     for seed, template, play in ((1, "platformer", False), (2, "obby-3d", True)):

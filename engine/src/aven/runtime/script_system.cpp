@@ -1965,6 +1965,11 @@ void ScriptSystem::registerApi() {
             points.push_back(fromVec3(p, o.threeD ? 3 : 2));
         return Value::list(std::move(points));
     });
+    // Paths see new and removed walls by themselves; this is for walls a script moved.
+    def("refresh_paths", "refresh_paths()", 0, 0, [&g](CallArgs&) {
+        g.navigation().clear();
+        return Value();
+    });
     def("raycast", "raycast(from, to, layers=None)", 2, 3, [this, &g](CallArgs& a) {
         Vec3 from = toVec3(a[0], "raycast() start"), to = toVec3(a[1], "raycast() end");
         bool twoD = a[0].isVec() && a[0].vecObj().components == 2;
