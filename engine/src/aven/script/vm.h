@@ -131,6 +131,7 @@ public:
     void setIndex(const Value& obj, const Value& index, const Value& value);
     Value binary(Op op, const Value& a, const Value& b);
     bool lessThan(const Value& a, const Value& b);
+    int compareLists(const Value& a, const Value& b); // -1, 0 or 1
     bool contains(const Value& container, const Value& item);
     Value iterate(const Value& v); // returns an iterator value
     bool next(const Value& iterator, Value& out);
@@ -167,6 +168,9 @@ public:
 
     uint64_t instructionBudget = 20'000'000; // per resume, protects against endless loops
     int maxCallDepth = 200;
+    // Script -> engine -> script calls inside each other (sorted(key=...) calling sorted, start_task
+    // starting itself): each one is a C++ call, so they're limited to keep the stack safe.
+    int maxNativeDepth = 48;
 
 private:
     enum class Status { Done, Waiting, Paused };
@@ -187,6 +191,8 @@ private:
     std::unordered_map<Symbol, Value> listMethods_, stringMethods_, dictMethods_, vecMethods_;
     std::vector<std::unique_ptr<Task>> waiting_;
     Task* current_ = nullptr;
+    int nativeDepth_ = 0;
+    struct NativeDepth; // counts nativeDepth_ while a call runs
 
     std::map<std::string, std::set<int>> breakpoints_;
     bool debugging_ = false; // breakpoints set or stepping: run() checks each new line

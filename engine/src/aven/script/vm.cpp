@@ -34,9 +34,15 @@ long long toIndex(const Value& v, const char* what) {
     if (!v.isNumber())
         raise(std::string(what) + " positions must be whole numbers, but got " + v.typeDescription() + ".");
     double d = v.number();
-    if (d != std::floor(d))
+    if (d != std::floor(d)) // (also NaN)
         raise(std::string(what) + " positions must be whole numbers, but got " + formatNumber(d) + ".");
-    return static_cast<long long>(d);
+    // Far past the end of anything (and infinity) stays far past the end, without overflowing.
+    return static_cast<long long>(std::clamp(d, -9007199254740992.0, 9007199254740992.0));
+}
+
+// How many times to repeat something ("ab" * n, [0] * n): whole, not negative, never NaN.
+size_t repeatCount(double n) {
+    return n >= 1 ? static_cast<size_t>(std::min(std::floor(n), 1e15)) : 0;
 }
 
 size_t resolveIndex(long long i, size_t size, const char* what) {
@@ -68,6 +74,12 @@ const char* opSymbol(Op op) {
     }
 }
 
+std::string printed(const char* format, int precision, double n) {
+    char buf[512]; // "%.20f" of 1e300 is over 300 characters
+    std::snprintf(buf, sizeof buf, format, precision, n);
+    return buf;
+}
+
 std::string formatWithSpec(const Value& v, const std::string& spec) {
     // Mini format spec: [0][width][.precision][f|d|%]
     size_t i = 0;
@@ -79,12 +91,12 @@ std::string formatWithSpec(const Value& v, const std::string& spec) {
         ++i;
     }
     while (i < spec.size() && std::isdigit(static_cast<unsigned char>(spec[i])))
-        width = width * 10 + (spec[i++] - '0');
+        width = std::min(width * 10 + (spec[i++] - '0'), 1000);
     if (i < spec.size() && spec[i] == '.') {
         ++i;
         precision = 0;
         while (i < spec.size() && std::isdigit(static_cast<unsigned char>(spec[i])))
-            precision = precision * 10 + (spec[i++] - '0');
+            precision = std::min(precision * 10 + (spec[i++] - '0'), 20);
     }
     if (i < spec.size())
         type = spec[i++];
@@ -93,16 +105,12 @@ std::string formatWithSpec(const Value& v, const std::string& spec) {
     std::string out;
     if (v.isNumber() || v.isBool()) {
         double n = v.isBool() ? (v.boolean() ? 1 : 0) : v.number();
-        char buf[64];
         if (type == '%') {
-            std::snprintf(buf, sizeof buf, "%.*f%%", precision < 0 ? 0 : precision, n * 100);
-            out = buf;
+            out = printed("%.*f%%", precision < 0 ? 0 : precision, n * 100);
         } else if (type == 'd' || (precision < 0 && type == 0 && n == std::floor(n))) {
-            std::snprintf(buf, sizeof buf, "%.0f", std::trunc(n));
-            out = buf;
+            out = printed("%.*f", 0, std::trunc(n));
         } else if (precision >= 0 || type == 'f') {
-            std::snprintf(buf, sizeof buf, "%.*f", precision < 0 ? 6 : precision, n);
-            out = buf;
+            out = printed("%.*f", precision < 0 ? 6 : precision, n);
         } else {
             out = formatNumber(n);
         }
@@ -122,6 +130,19 @@ std::string formatWithSpec(const Value& v, const std::string& spec) {
 } // namespace
 
 // ---------------------------------------------------------------- Instance
+
+struct VM::NativeDepth {
+    VM& vm;
+    explicit NativeDepth(VM& v) : vm(v) {
+        if (vm.nativeDepth_ >= vm.maxNativeDepth)
+            raise("Functions called each other too many times (through sorted(), start_task() or similar). "
+                  "Does a function keep calling itself forever?");
+        ++vm.nativeDepth_;
+    }
+    ~NativeDepth() { --vm.nativeDepth_; }
+    NativeDepth(const NativeDepth&) = delete;
+    NativeDepth& operator=(const NativeDepth&) = delete;
+};
 
 Value* Instance::find(Symbol s) {
     auto it = vars.find(s);
@@ -422,7 +443,12 @@ Value VM::importModule(const std::string& name) {
     if (path.empty())
         raise("There's no script called '" + name + "' to import. It looks for " + name +
               ".es next to this script, then in scripts/.");
-    std::string shortName = name.substr(name.find_last_of("./") == std::string::npos ? 0 : name.find_last_of("./") + 1);
+    // utils, folder.utils or "folder/utils.es": the last part, without .es
+    std::string shortName = name;
+    if (shortName.size() > 3 && shortName.compare(shortName.size() - 3, 3, ".es") == 0)
+        shortName.resize(shortName.size() - 3);
+    if (size_t cut = shortName.find_last_of("./\\"); cut != std::string::npos)
+        shortName = shortName.substr(cut + 1);
     if (auto it = imports_.find(path); it != imports_.end()) {
         if (!it->second)
             raise("'" + path + "' imports a script that imports it back (directly or through others). Move what "
@@ -478,6 +504,17 @@ VM::Result VM::call(const Value& fn, std::vector<Value> args, std::shared_ptr<In
     for (auto& a : args)
         task->stack.push_back(std::move(a));
     int argc = static_cast<int>(task->stack.size() - 1);
+    if (nativeDepth_ >= maxNativeDepth) {
+        // Started from inside a script (start_task(f) in f): too deep to run it here.
+        ScriptError e("Functions started each other too many times (through start_task() or similar). Does a "
+                      "function keep starting itself?");
+        if (current_)
+            report(e, *current_);
+        if (onError)
+            onError(e);
+        return {false, false, {}};
+    }
+    NativeDepth depth(*this);
     try {
         TaskGuard guard(current_, task.get());
         if (fn.type() == Type::Function) {
@@ -516,6 +553,7 @@ Value VM::callNow(const Value& fn, std::vector<Value> args) {
     for (auto& a : args)
         task.stack.push_back(std::move(a));
     int argc = static_cast<int>(task.stack.size() - 1);
+    NativeDepth depth(*this); // (raises when too deep: callNow's callers expect that)
     try {
         TaskGuard guard(current_, &task);
         if (fn.type() != Type::Function) {
@@ -544,28 +582,32 @@ void VM::update(double dt) {
     time_ += dt;
     ++frame_;
 
-    // Timers created by after() and every().
-    std::vector<Timer> due;
-    for (auto it = timers_.begin(); it != timers_.end();) {
-        bool dead = it->hasOwner && (it->owner.expired() || !it->owner.lock()->alive);
-        if (dead) {
-            it = timers_.erase(it);
-        } else if (it->fireAt <= time_) {
-            due.push_back(*it);
-            if (it->interval > 0) {
-                it->fireAt += it->interval;
-                if (it->fireAt <= time_)
-                    it->fireAt = time_ + it->interval;
-                ++it;
-            } else {
-                it = timers_.erase(it);
-            }
+    // Timers created by after() and every(). One timer's function may stop another that's also due,
+    // or destroy its object, so each is looked up again just before it runs.
+    auto dead = [](const Timer& t) { return t.hasOwner && (t.owner.expired() || !t.owner.lock()->alive); };
+    std::erase_if(timers_, dead);
+    std::vector<int> due;
+    for (auto& t : timers_)
+        if (t.fireAt <= time_)
+            due.push_back(t.id);
+    for (int id : due) {
+        auto it = std::find_if(timers_.begin(), timers_.end(), [&](const Timer& t) { return t.id == id; });
+        if (it == timers_.end())
+            continue; // stopped meanwhile
+        Timer t = *it;
+        if (it->interval > 0) {
+            it->fireAt += it->interval;
+            if (it->fireAt <= time_)
+                it->fireAt = time_ + it->interval;
         } else {
-            ++it;
+            timers_.erase(it);
         }
-    }
-    for (auto& t : due)
+        if (dead(t))
+            continue;
         call(t.fn, t.args, t.owner.lock());
+        if (paused_)
+            return; // stopped at a breakpoint: the rest waits until the game carries on
+    }
 
     std::vector<std::unique_ptr<Task>> ready;
     for (auto it = waiting_.begin(); it != waiting_.end();) {
@@ -580,8 +622,16 @@ void VM::update(double dt) {
             ++it;
         }
     }
-    for (auto& t : ready)
+    for (auto& t : ready) {
+        if (paused_) { // stopped at a breakpoint: the others go back to waiting, due at once
+            waiting_.push_back(std::move(t));
+            continue;
+        }
+        auto owner = t->owner.lock();
+        if (owner && !owner->alive)
+            continue; // an earlier one destroyed its object
         runTask(std::move(t));
+    }
 }
 
 void VM::cancelTasks(const Instance* instance) {
@@ -598,8 +648,11 @@ void VM::cancelTasks(const Instance* instance) {
         if (t.get() == stepTask_ && belongs(t))
             stepTask_ = nullptr;
     std::erase_if(waiting_, belongs);
-    if (paused_ && belongs(paused_))
+    if (paused_ && belongs(paused_)) {
+        if (stepTask_ == paused_.get())
+            stepTask_ = nullptr;
         paused_.reset();
+    }
     std::erase_if(timers_, [&](const Timer& t) { return t.hasOwner && t.owner.lock().get() == instance; });
 }
 
@@ -1165,13 +1218,14 @@ Value VM::binary(Op op, const Value& a, const Value& b) {
         return Value(a.toString() + b.toString());
     if (op == Op::Mul && ((a.isString() && b.isNumber()) || (a.isNumber() && b.isString()))) {
         const std::string& s = a.isString() ? a.string() : b.string();
-        double n = a.isNumber() ? a.number() : b.number();
-        if (n * static_cast<double>(s.size()) > 10'000'000)
+        size_t n = s.empty() ? 0 : repeatCount(a.isNumber() ? a.number() : b.number());
+        if (static_cast<double>(n) * static_cast<double>(s.size()) > 10'000'000)
             raise("That text would be over 10 million characters long. Is the number right?");
         std::string out;
-        for (int i = 0; i < static_cast<int>(n); ++i)
+        out.reserve(n * s.size());
+        for (size_t i = 0; i < n; ++i)
             out += s;
-        return Value(out);
+        return Value(std::move(out));
     }
     if (a.isList() && b.isList() && op == Op::Add) {
         std::vector<Value> items = a.listObj().items;
@@ -1180,11 +1234,12 @@ Value VM::binary(Op op, const Value& a, const Value& b) {
     }
     if (op == Op::Mul && ((a.isList() && b.isNumber()) || (a.isNumber() && b.isList()))) {
         const auto& src = a.isList() ? a.listObj().items : b.listObj().items;
-        double n = a.isNumber() ? a.number() : b.number();
-        if (n * static_cast<double>(src.size()) > 10'000'000)
+        size_t n = src.empty() ? 0 : repeatCount(a.isNumber() ? a.number() : b.number());
+        if (static_cast<double>(n) * static_cast<double>(src.size()) > 10'000'000)
             raise("That list would have over 10 million items. Is the number right?");
         std::vector<Value> items;
-        for (int i = 0; i < static_cast<int>(n); ++i)
+        items.reserve(n * src.size());
+        for (size_t i = 0; i < n; ++i)
             items.insert(items.end(), src.begin(), src.end());
         return Value::list(std::move(items));
     }
@@ -1224,6 +1279,31 @@ Value VM::binary(Op op, const Value& a, const Value& b) {
           b.typeDescription() + " (" + a.repr() + " " + opSymbol(op) + " " + b.repr() + ")." + hint);
 }
 
+// Orders two lists item by item: -1, 0 or 1. Each level is visited once (asking "less?" both
+// ways at every level would double the work per level).
+int VM::compareLists(const Value& a, const Value& b) {
+    auto& x = a.listObj().items;
+    auto& y = b.listObj().items;
+    if (&x == &y)
+        return 0;
+    static thread_local int depth = 0; // lists inside themselves would go round forever
+    if (depth >= 100)
+        raise("These lists are nested too deeply to compare. Does a list hold itself?");
+    struct Deeper {
+        Deeper() { ++depth; }
+        ~Deeper() { --depth; }
+    } deeper;
+    for (size_t i = 0; i < std::min(x.size(), y.size()); ++i) {
+        int c = x[i].isList() && y[i].isList() ? compareLists(x[i], y[i])
+                : lessThan(x[i], y[i])        ? -1
+                : lessThan(y[i], x[i])        ? 1
+                                              : 0;
+        if (c)
+            return c;
+    }
+    return x.size() < y.size() ? -1 : x.size() > y.size() ? 1 : 0;
+}
+
 bool VM::lessThan(const Value& a, const Value& b) {
     if (a.isNumber() && b.isNumber())
         return a.number() < b.number();
@@ -1233,17 +1313,8 @@ bool VM::lessThan(const Value& a, const Value& b) {
         double x = a.isBool() ? a.boolean() : a.number(), y = b.isBool() ? b.boolean() : b.number();
         return x < y;
     }
-    if (a.isList() && b.isList()) {
-        auto& x = a.listObj().items;
-        auto& y = b.listObj().items;
-        for (size_t i = 0; i < std::min(x.size(), y.size()); ++i) {
-            if (lessThan(x[i], y[i]))
-                return true;
-            if (lessThan(y[i], x[i]))
-                return false;
-        }
-        return x.size() < y.size();
-    }
+    if (a.isList() && b.isList())
+        return compareLists(a, b) < 0;
     std::string tip = (a.isString() && b.isNumber()) || (a.isNumber() && b.isString())
                           ? " Tip: use int(text) to turn text into a number."
                           : "";
@@ -1482,13 +1553,14 @@ Value VM::fromJson(const Json& j) {
     }
     case Json::Type::Object: {
         // {"$color": [r,g,b,a]} and {"$vec": [...]} round-trip colors and vectors.
-        if (j.size() == 1 && j.contains("$color")) {
+        if (j.size() == 1 && j.contains("$color") && j["$color"].isArray()) {
             auto& c = j["$color"];
             return Value::color(c[0].asNumber(), c[1].asNumber(), c[2].asNumber(), c[3].asNumber(1));
         }
-        if (j.size() == 1 && j.contains("$vec")) {
+        if (j.size() == 1 && j.contains("$vec") && j["$vec"].isArray()) {
             auto& c = j["$vec"];
-            return Value::vec(c[0].asNumber(), c[1].asNumber(), c[2].asNumber(), static_cast<int>(c.size()));
+            return Value::vec(c[0].asNumber(), c[1].asNumber(), c[2].asNumber(),
+                              std::clamp(static_cast<int>(c.size()), 2, 3));
         }
         Value d = Value::dict();
         for (auto& m : j.members())
@@ -1500,6 +1572,22 @@ Value VM::fromJson(const Json& j) {
 }
 
 Json VM::toJson(const Value& v) {
+    // A list or dict inside itself (directly or through others) is saved as null the second time.
+    static thread_local std::vector<const Obj*> saving;
+    bool container = v.isList() || v.isDict();
+    if (container && (saving.size() >= 100 || std::find(saving.begin(), saving.end(), v.obj().get()) != saving.end()))
+        return Json();
+    struct Saving {
+        bool on;
+        Saving(bool container, const Obj* o) : on(container) {
+            if (on)
+                saving.push_back(o);
+        }
+        ~Saving() {
+            if (on)
+                saving.pop_back();
+        }
+    } here(container, v.obj().get());
     switch (v.type()) {
     case Type::None: return Json();
     case Type::Bool: return Json(v.boolean());

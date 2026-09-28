@@ -38,6 +38,9 @@ std::optional<std::string> readText(const stdfs::path& path) {
     std::ostringstream ss;
     ss << in.rdbuf();
     std::string text = ss.str();
+    // Notepad and some other editors start UTF-8 files with a byte order mark; it isn't text.
+    if (text.compare(0, 3, "\xEF\xBB\xBF") == 0)
+        text.erase(0, 3);
     // Normalize Windows line endings so scripts behave the same everywhere.
     text.erase(std::remove(text.begin(), text.end(), '\r'), text.end());
     return text;

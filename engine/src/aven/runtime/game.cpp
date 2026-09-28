@@ -113,6 +113,10 @@ void Game::stopSystems() {
 void Game::update(float dt) {
     if (!running_ || scripts_->vm().debugPaused())
         return; // (a script stopped at a breakpoint: everything waits for the debugger)
+    // A frame time from a damaged replay or a clock that jumped: never negative, NaN or huge.
+    if (!(dt >= 0.0f))
+        dt = 0.0f;
+    dt = std::min(dt, 0.25f);
     if (!pendingScene_.empty()) {
         std::string next = std::move(pendingScene_);
         pendingScene_.clear();
@@ -142,6 +146,7 @@ void Game::update(float dt) {
     gameplay_->updateBehaviors(scaled);
     gameplay_->updateWalkers(scaled);
     navigation_->update(scaled);
+    scene_->keepTransformsFinite(); // (a script's nan must not reach the physics engines)
     auto t2 = Clock::now();
     physics3D_->updateCharacters(scaled);
     auto t3 = Clock::now();

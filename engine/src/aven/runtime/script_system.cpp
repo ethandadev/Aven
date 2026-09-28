@@ -77,16 +77,20 @@ float applyEasing(Easing e, float t) {
 // ---------------------------------------------------------------- value conversions
 
 Vec3 ScriptSystem::toVec3(const Value& v, const char* context, Vec3 fallback) {
+    auto ordinary = [&](double d) {
+        if (!std::isfinite(d) || std::abs(d) > 3e38)
+            raise(std::string(context) + " should be a position made of ordinary numbers, but got " + v.repr() + ".");
+        return static_cast<float>(d);
+    };
     if (v.isVec()) {
         auto& o = v.vecObj();
-        return {static_cast<float>(o.v[0]), static_cast<float>(o.v[1]),
-                o.components > 2 ? static_cast<float>(o.v[2]) : fallback.z};
+        return {ordinary(o.v[0]), ordinary(o.v[1]), o.components > 2 ? ordinary(o.v[2]) : fallback.z};
     }
     if (v.isList()) {
         auto& items = v.listObj().items;
         if (items.size() >= 2 && items[0].isNumber() && items[1].isNumber())
-            return {static_cast<float>(items[0].number()), static_cast<float>(items[1].number()),
-                    items.size() > 2 && items[2].isNumber() ? static_cast<float>(items[2].number()) : fallback.z};
+            return {ordinary(items[0].number()), ordinary(items[1].number()),
+                    items.size() > 2 && items[2].isNumber() ? ordinary(items[2].number()) : fallback.z};
     }
     raise(std::string(context) + " should be a position like vec(1, 2), but got " + v.typeDescription() + ".");
 }
@@ -103,9 +107,21 @@ Value ScriptSystem::fromColor(Color c) { return Value::color(c.r, c.g, c.b, c.a)
 
 static std::string toText(const Value& v) { return v.toString(); }
 
+// A script number used as a whole number (a frame, a tile, an amount): NaN is 0, and anything too
+// big for an int stops at the int limits instead of overflowing.
+static int toInt(double d) {
+    if (std::isnan(d))
+        return 0;
+    return static_cast<int>(std::clamp(std::trunc(d), -2147483648.0, 2147483647.0));
+}
+
 static float toNumber(const Value& v, const char* what) {
-    if (v.isNumber())
+    if (v.isNumber()) {
+        // Engine settings are floats: nan, inf or 1e300 there would break physics and drawing.
+        if (!std::isfinite(v.number()) || std::abs(v.number()) > 3e38)
+            raise(std::string("'") + what + "' should be an ordinary number, but got " + v.repr() + ".");
         return static_cast<float>(v.number());
+    }
     if (v.isBool())
         return v.boolean() ? 1.0f : 0.0f;
     raise(std::string("'") + what + "' should be a number, but got " + v.typeDescription() + " (" + v.repr() + ").");
@@ -234,7 +250,7 @@ public:
         std::string what = info_->name + "." + name;
         switch (f->type) {
         case FieldType::Bool: f->ref<bool>(c) = v.truthy(); break;
-        case FieldType::Int: f->ref<int>(c) = static_cast<int>(toNumber(v, what.c_str())); break;
+        case FieldType::Int: f->ref<int>(c) = toInt(toNumber(v, what.c_str())); break;
         case FieldType::Float: f->ref<float>(c) = toNumber(v, what.c_str()); break;
         case FieldType::Vec2: {
             Vec3 p = ScriptSystem::toVec3(v, what.c_str());
@@ -247,7 +263,8 @@ public:
         case FieldType::Asset: f->ref<std::string>(c) = toText(v); break;
         case FieldType::Enum: {
             if (v.isNumber()) {
-                f->ref<int32_t>(c) = static_cast<int32_t>(v.number());
+                // (kept to the choices there are: other code looks things up by it)
+                f->ref<int32_t>(c) = std::clamp(toInt(v.number()), 0, std::max(0, static_cast<int>(f->options.enumNames.size()) - 1));
                 break;
             }
             std::string wanted = toSnakeCase(toText(v));
@@ -498,13 +515,13 @@ const std::vector<MethodDef>& entityMethods() {
         {"damage", "self.damage(amount)", 1, 1,
          [](ScriptSystem& s, Entity e, CallArgs& a) {
              // Works with the Health behavior; without it, the scene restarts.
-             s.game().gameplay().damage(e, static_cast<int>(a.number(0, "amount")), s.game().scene().worldPosition(e), 0);
+             s.game().gameplay().damage(e, toInt(a.number(0, "amount")), s.game().scene().worldPosition(e), 0);
              return Value();
          }},
         {"heal", "self.heal(amount)", 1, 1,
          [](ScriptSystem& s, Entity e, CallArgs& a) {
              if (auto* h = s.game().scene().registry().tryGet<Health>(e))
-                 h->current = std::min(h->maxHealth, h->current + static_cast<int>(a.number(0, "amount")));
+                 h->current = static_cast<int>(std::min<long long>(h->maxHealth, static_cast<long long>(h->current) + toInt(a.number(0, "amount"))));
              return Value();
          }},
         // The Animator: set_param("running", True), trigger("attack"), play_state("Hurt").
@@ -687,7 +704,7 @@ const std::vector<MethodDef>& entityMethods() {
         {"play_animation", "self.play_animation(first_frame, last_frame, fps=10, loop=True)", 2, 4,
          [](ScriptSystem& s, Entity e, CallArgs& a) {
              auto& anim = s.game().scene().registry().getOrEmplace<SpriteAnimator>(e);
-             int first = static_cast<int>(a.number(0, "first_frame")), last = static_cast<int>(a.number(1, "last_frame"));
+             int first = toInt(a.number(0, "first_frame")), last = toInt(a.number(1, "last_frame"));
              bool loop = a.has(3) ? a[3].truthy() : true;
              if (const Value* k = a.keyword("loop"))
                  loop = k->truthy();
@@ -709,8 +726,8 @@ const std::vector<MethodDef>& entityMethods() {
              auto* tm = s.game().scene().registry().tryGet<Tilemap>(e);
              if (!tm)
                  raise("set_tile(): this object has no Tilemap.");
-             int tile = a[2].isNone() ? -1 : static_cast<int>(a.number(2, "tile"));
-             tm->set(static_cast<int>(std::floor(a.number(0, "column"))), static_cast<int>(std::floor(a.number(1, "row"))), tile);
+             int tile = a[2].isNone() ? -1 : toInt(a.number(2, "tile"));
+             tm->set(toInt(std::floor(a.number(0, "column"))), toInt(std::floor(a.number(1, "row"))), tile);
              return Value();
          }},
         {"get_tile", "tilemap.get_tile(column, row)  (-1 if empty)", 2, 2,
@@ -719,7 +736,7 @@ const std::vector<MethodDef>& entityMethods() {
              if (!tm)
                  raise("get_tile(): this object has no Tilemap.");
              return Value(static_cast<double>(
-                 tm->get(static_cast<int>(std::floor(a.number(0, "column"))), static_cast<int>(std::floor(a.number(1, "row"))))));
+                 tm->get(toInt(std::floor(a.number(0, "column"))), toInt(std::floor(a.number(1, "row"))))));
          }},
         {"set_tile_at", "tilemap.set_tile_at(x, y, tile)  (a world position; tile -1 erases)", 3, 3,
          [](ScriptSystem& s, Entity e, CallArgs& a) {
@@ -729,8 +746,8 @@ const std::vector<MethodDef>& entityMethods() {
              Vec3 local = transformPoint(inverse(s.game().scene().worldMatrix(e)),
                                          {static_cast<float>(a.number(0, "x")), static_cast<float>(a.number(1, "y")), 0});
              float ts = std::max(tm->tileSize, 0.001f);
-             int tile = a[2].isNone() ? -1 : static_cast<int>(a.number(2, "tile"));
-             tm->set(static_cast<int>(std::floor(local.x / ts)), static_cast<int>(std::floor(local.y / ts)), tile);
+             int tile = a[2].isNone() ? -1 : toInt(a.number(2, "tile"));
+             tm->set(toInt(std::floor(local.x / ts)), toInt(std::floor(local.y / ts)), tile);
              return Value();
          }},
         {"get_tile_at", "tilemap.get_tile_at(x, y)  (a world position; -1 if empty)", 2, 2,
@@ -741,7 +758,7 @@ const std::vector<MethodDef>& entityMethods() {
              Vec3 local = transformPoint(inverse(s.game().scene().worldMatrix(e)),
                                          {static_cast<float>(a.number(0, "x")), static_cast<float>(a.number(1, "y")), 0});
              float ts = std::max(tm->tileSize, 0.001f);
-             return Value(static_cast<double>(tm->get(static_cast<int>(std::floor(local.x / ts)), static_cast<int>(std::floor(local.y / ts)))));
+             return Value(static_cast<double>(tm->get(toInt(std::floor(local.x / ts)), toInt(std::floor(local.y / ts)))));
          }},
         {"stop_animation", "self.stop_animation()", 0, 0,
          [](ScriptSystem& s, Entity e, CallArgs&) {
@@ -896,7 +913,7 @@ const std::vector<MethodDef>& entityMethods() {
          }},
         {"emit", "self.emit(count)", 0, 1,
          [](ScriptSystem& s, Entity e, CallArgs& a) {
-             s.game().gameplay().burst(e, static_cast<int>(a.numberOr(0, "count", 20)));
+             s.game().gameplay().burst(e, toInt(a.numberOr(0, "count", 20)));
              return Value();
          }},
     };
@@ -1228,10 +1245,10 @@ bool ScriptSystem::setProperty(Entity e, const std::string& name, const Value& v
         if (!found)
             raise("Unknown shape \"" + toText(v) +
                   "\". Try \"square\", \"circle\", \"triangle\", \"rounded_square\", \"diamond\", \"star\" or \"heart\".");
-    } else if (name == "frame") reg.getOrEmplace<SpriteRenderer>(e).frame = static_cast<int>(num("frame"));
+    } else if (name == "frame") reg.getOrEmplace<SpriteRenderer>(e).frame = toInt(num("frame"));
     else if (name == "flip_x") reg.getOrEmplace<SpriteRenderer>(e).flipX = v.truthy();
     else if (name == "flip_y") reg.getOrEmplace<SpriteRenderer>(e).flipY = v.truthy();
-    else if (name == "order") reg.getOrEmplace<SpriteRenderer>(e).order = static_cast<int>(num("order"));
+    else if (name == "order") reg.getOrEmplace<SpriteRenderer>(e).order = toInt(num("order"));
     else if (name == "velocity") setVelocityOf(game_, e, toVec3(v, "velocity", velocityOf(game_, e)));
     else if (name == "velocity_x" || name == "velocity_y" || name == "velocity_z") {
         Vec3 vel = velocityOf(game_, e);
@@ -1904,13 +1921,13 @@ void ScriptSystem::registerApi() {
     };
     def("host_game", "host_game(port=4242)", 0, 1, [&g, netError](CallArgs& a) {
         std::string error;
-        bool ok = g.network().host(static_cast<int>(a.has(0) ? a.number(0, "port") : Network::kDefaultPort), error);
+        bool ok = g.network().host(toInt(a.has(0) ? a.number(0, "port") : Network::kDefaultPort), error);
         netError("host_game()", error);
         return Value(ok);
     });
     def("join_game", "join_game(\"192.168.1.20\", port=4242)", 1, 2, [&g, netError](CallArgs& a) {
         std::string error;
-        bool ok = g.network().join(a.string(0, "address"), static_cast<int>(a.has(1) ? a.number(1, "port") : a.keywordNumber("port", Network::kDefaultPort)), error);
+        bool ok = g.network().join(a.string(0, "address"), toInt(a.has(1) ? a.number(1, "port") : a.keywordNumber("port", Network::kDefaultPort)), error);
         netError("join_game()", error);
         return Value(ok);
     });

@@ -52,6 +52,17 @@ bool wordAt(const std::string& s, int col, int& from, int& to) {
     return to > from && !std::isdigit(static_cast<unsigned char>(s[static_cast<size_t>(from)]));
 }
 
+// Column of `word` on a line as a whole word (not inside a longer one), or 0 if it isn't there.
+int wordColumn(const std::string& s, const std::string& word) {
+    for (size_t at = s.find(word); at != std::string::npos && !word.empty(); at = s.find(word, at + 1)) {
+        bool left = at == 0 || !isWord(s[at - 1]);
+        bool right = at + word.size() >= s.size() || !isWord(s[at + word.size()]);
+        if (left && right)
+            return static_cast<int>(at);
+    }
+    return 0;
+}
+
 // Where the text before `col` is: in code, in a string (and where it opened), or in a comment.
 struct LineState {
     bool comment = false;
@@ -1549,7 +1560,7 @@ bool CodeIntel::definition(const std::vector<std::string>& lines, int line, int 
                           t.find("double") == 0);
             if (isDef || (t.find("} " + word + ";") != std::string::npos)) {
                 outLine = l;
-                outCol = static_cast<int>(isDef ? at : t.find(word));
+                outCol = isDef ? static_cast<int>(at) : wordColumn(t, word);
                 return true;
             }
         }
@@ -1567,7 +1578,7 @@ bool CodeIntel::definition(const std::vector<std::string>& lines, int line, int 
                         names.push_back(n);
                 if (std::find(names.begin(), names.end(), word) != names.end()) {
                     outLine = l;
-                    outCol = static_cast<int>(lines[static_cast<size_t>(l)].find(word));
+                    outCol = wordColumn(lines[static_cast<size_t>(l)], word);
                     return true;
                 }
             }
@@ -1575,13 +1586,13 @@ bool CodeIntel::definition(const std::vector<std::string>& lines, int line, int 
     for (auto& f : info.functions)
         if (f.name == word) {
             outLine = f.line;
-            outCol = static_cast<int>(lines[static_cast<size_t>(f.line)].find(word));
+            outCol = wordColumn(lines[static_cast<size_t>(f.line)], word);
             return true;
         }
     for (auto& v : info.vars)
         if (v.name == word) {
             outLine = v.line;
-            outCol = static_cast<int>(lines[static_cast<size_t>(v.line)].find(word));
+            outCol = wordColumn(lines[static_cast<size_t>(v.line)], word);
             return true;
         }
     return false;

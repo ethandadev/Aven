@@ -1,6 +1,7 @@
 #include "aven/script/ast.h"
 #include "aven/script/errors.h"
 
+#include <cctype>
 #include <filesystem>
 #include <unordered_set>
 
@@ -41,6 +42,32 @@ private:
     size_t p_ = 0;
     int functionDepth_ = 0;
     int loopDepth_ = 0;
+    int nesting_ = 0; // brackets, blocks and operator chains inside each other
+
+    // Deeply nested code would run the parser (and the compiler after it) out of stack space,
+    // which crashes instead of giving an error. Real scripts come nowhere near the limit.
+    static constexpr int kMaxNesting = 200;
+    void nestDeeper() {
+        if (++nesting_ > kMaxNesting)
+            error("This is nested too deeply, or has too many operators in a row, to understand in one piece. "
+                  "Split it into smaller steps with a few variables.");
+    }
+    // Counts levels while alive: one for a bracket or block, one per link of a chain like a + b + c.
+    struct Nest {
+        Parser& p;
+        int count = 0;
+        explicit Nest(Parser& parser, bool now = true) : p(parser) {
+            if (now)
+                more();
+        }
+        ~Nest() { p.nesting_ -= count; }
+        Nest(const Nest&) = delete;
+        Nest& operator=(const Nest&) = delete;
+        void more() {
+            ++count;
+            p.nestDeeper();
+        }
+    };
 
     const Token& peek(size_t ahead = 0) const { return t_[std::min(p_ + ahead, t_.size() - 1)]; }
     const Token& previous() const { return t_[p_ - 1]; }
@@ -106,6 +133,7 @@ private:
     // --- statements
 
     void statement(std::vector<StmtPtr>& out) {
+        Nest nest(*this);
         const Token& tok = peek();
         switch (tok.type) {
         case Tok::If: out.push_back(ifStatement()); return;
@@ -144,6 +172,15 @@ private:
         while (peek(i).type == Tok::Name && peek(i + 1).type == Tok::Dot)
             i += 2;
         return peek(i).type == Tok::Name && peek(i + 1).type == Tok::Name && peek(i + 1).text == "import";
+    }
+
+    static bool validName(const std::string& name) {
+        if (name.empty() || std::isdigit(static_cast<unsigned char>(name[0])))
+            return false;
+        for (char c : name)
+            if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_')
+                return false;
+        return true;
     }
 
     // utils, folder.utils or "folder/utils.es"
@@ -196,6 +233,9 @@ private:
             if (check(Tok::Name) && peek().text == "as") {
                 advance();
                 target = expect(Tok::Name, "Expected a name after 'as', like: import utils as u");
+            } else if (!validName(last)) {
+                error("The script name '" + last + "' can't be used as a name in code. Give it one with 'as', "
+                      "like: import \"" + module + "\" as helpers");
             }
             out.push_back(assignName(target, importCall(module, line), line));
         } while (match(Tok::Comma));
@@ -450,6 +490,7 @@ private:
             t->b = std::move(e);
             t->a = orExpr();
             expect(Tok::Else, "Expected 'else' in the one-line if, like: a if condition else b");
+            Nest nest(*this);
             t->c = expression();
             return t;
         }
@@ -458,7 +499,9 @@ private:
 
     ExprPtr orExpr() {
         ExprPtr e = andExpr();
+        Nest chain(*this, false);
         while (check(Tok::Or)) {
+            chain.more();
             int line = advance().line;
             auto n = std::make_unique<Expr>(ExprKind::Or, line);
             n->a = std::move(e);
@@ -470,7 +513,9 @@ private:
 
     ExprPtr andExpr() {
         ExprPtr e = notExpr();
+        Nest chain(*this, false);
         while (check(Tok::And)) {
+            chain.more();
             int line = advance().line;
             auto n = std::make_unique<Expr>(ExprKind::And, line);
             n->a = std::move(e);
@@ -485,6 +530,7 @@ private:
             int line = advance().line;
             auto n = std::make_unique<Expr>(ExprKind::Unary, line);
             n->op = Tok::Not;
+            Nest nest(*this);
             n->a = notExpr();
             return n;
         }
@@ -523,7 +569,9 @@ private:
 
     ExprPtr sum() {
         ExprPtr e = term();
+        Nest chain(*this, false);
         while (check(Tok::Plus) || check(Tok::Minus)) {
+            chain.more();
             const Token& op = advance();
             auto n = std::make_unique<Expr>(ExprKind::Binary, op.line);
             n->op = op.type;
@@ -536,7 +584,9 @@ private:
 
     ExprPtr term() {
         ExprPtr e = unary();
+        Nest chain(*this, false);
         while (check(Tok::Star) || check(Tok::Slash) || check(Tok::SlashSlash) || check(Tok::Percent)) {
+            chain.more();
             const Token& op = advance();
             auto n = std::make_unique<Expr>(ExprKind::Binary, op.line);
             n->op = op.type;
@@ -552,6 +602,7 @@ private:
             const Token& op = advance();
             auto n = std::make_unique<Expr>(ExprKind::Unary, op.line);
             n->op = op.type;
+            Nest nest(*this);
             n->a = unary();
             // Fold negative number literals so defaults like `speed = -5` show in the inspector.
             if (n->a->kind == ExprKind::Number) {
@@ -570,6 +621,7 @@ private:
             auto n = std::make_unique<Expr>(ExprKind::Binary, op.line);
             n->op = Tok::StarStar;
             n->a = std::move(e);
+            Nest nest(*this);
             n->b = unary();
             return n;
         }
@@ -578,7 +630,10 @@ private:
 
     ExprPtr postfix() {
         ExprPtr e = atom();
+        Nest chain(*this, false);
         while (true) {
+            if (check(Tok::LParen) || check(Tok::Dot) || check(Tok::LBracket))
+                chain.more(); // a.b.c(d)[e] is a chain too
             if (check(Tok::LParen)) {
                 int line = advance().line;
                 auto call = std::make_unique<Expr>(ExprKind::Call, line);
@@ -624,6 +679,10 @@ private:
         bool keywords = false;
         while (!check(Tok::RParen)) {
             if (check(Tok::Name) && peek(1).type == Tok::Assign) {
+                Symbol name = intern(peek().text);
+                for (Symbol given : call.kwNames)
+                    if (given == name)
+                        error("The value '" + peek().text + "' is given twice in this call.");
                 call.kwNames.push_back(intern(advance().text));
                 advance(); // =
                 call.items.push_back(expression());
@@ -670,6 +729,7 @@ private:
             return e;
         }
         case Tok::LParen: {
+            Nest nest(*this);
             if (match(Tok::RParen)) {
                 auto e = std::make_unique<Expr>(ExprKind::List, tok.line);
                 e->isTuple = true;
@@ -680,6 +740,7 @@ private:
             return e;
         }
         case Tok::LBracket: {
+            Nest nest(*this);
             auto e = std::make_unique<Expr>(ExprKind::List, tok.line);
             while (!check(Tok::RBracket)) {
                 e->items.push_back(expression());
@@ -690,6 +751,7 @@ private:
             return e;
         }
         case Tok::LBrace: {
+            Nest nest(*this);
             auto e = std::make_unique<Expr>(ExprKind::Dict, tok.line);
             while (!check(Tok::RBrace)) {
                 e->items.push_back(expression());
@@ -738,11 +800,20 @@ private:
                 continue;
             }
             size_t depth = 1, j = i + 1;
+            char inQuote = 0; // braces inside text in the expression don't count: {d["}"]}
             while (j < s.size() && depth > 0) {
-                if (s[j] == '{')
+                if (inQuote) {
+                    if (s[j] == '\\')
+                        ++j;
+                    else if (s[j] == inQuote)
+                        inQuote = 0;
+                } else if (s[j] == '"' || s[j] == '\'') {
+                    inQuote = s[j];
+                } else if (s[j] == '{') {
                     ++depth;
-                else if (s[j] == '}')
+                } else if (s[j] == '}') {
                     --depth;
+                }
                 if (depth > 0)
                     ++j;
             }
@@ -775,6 +846,7 @@ private:
             if (inner.find_first_not_of(" \t") == std::string::npos)
                 error("An f-string has empty '{ }'. Put a value inside, like {score}.", tok.line);
             Parser sub(tokenize(inner, tok.line));
+            sub.nesting_ = nesting_ + 1;
             e->literalParts.push_back(literal);
             literal.clear();
             e->items.push_back(sub.singleExpression());

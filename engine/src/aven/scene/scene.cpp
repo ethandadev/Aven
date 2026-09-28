@@ -4,6 +4,7 @@
 #include "aven/scene/reflection.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace aven {
 
@@ -173,9 +174,44 @@ std::vector<Entity> Scene::findAllWithTag(std::string_view tag) const {
     return out;
 }
 
+namespace {
+
+// A position, rotation or scale that isn't a number (nan, inf from a script's maths) would spread
+// to physics and drawing; it's put back to an ordinary value, and the Console says where.
+void keepFinite(Transform& t, const std::string& name) {
+    bool fixed = false;
+    auto fix = [&](Vec3& v, float fallback) {
+        for (float* c : {&v.x, &v.y, &v.z})
+            if (!std::isfinite(*c)) {
+                *c = fallback;
+                fixed = true;
+            }
+    };
+    fix(t.position, 0.0f);
+    fix(t.rotation, 0.0f);
+    fix(t.scale, 1.0f);
+    if (fixed)
+        Log::warn("'", name, "' got a position, rotation or scale that isn't a number (like nan or inf, often from "
+                  "dividing by zero), so it was reset.");
+}
+
+} // namespace
+
+void Scene::keepTransformsFinite() {
+    registry_.each<Transform, EntityInfo>([](Entity, Transform& t, EntityInfo& info) {
+        if (!std::isfinite(t.position.x + t.position.y + t.position.z + t.rotation.x + t.rotation.y + t.rotation.z +
+                           t.scale.x + t.scale.y + t.scale.z))
+            keepFinite(t, info.name);
+    });
+}
+
 void Scene::updateTransforms() {
     std::function<void(Entity, const Mat4&)> visit = [&](Entity e, const Mat4& parentWorld) {
-        Mat4 world = parentWorld * registry_.get<Transform>(e).localMatrix();
+        Transform& t = registry_.get<Transform>(e);
+        if (!std::isfinite(t.position.x + t.position.y + t.position.z + t.rotation.x + t.rotation.y + t.rotation.z +
+                           t.scale.x + t.scale.y + t.scale.z))
+            keepFinite(t, registry_.get<EntityInfo>(e).name);
+        Mat4 world = parentWorld * t.localMatrix();
         registry_.get<WorldTransform>(e).matrix = world;
         for (Entity c : registry_.get<Hierarchy>(e).children)
             visit(c, world);

@@ -15,6 +15,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <map>
 #include <set>
@@ -78,8 +79,12 @@ std::string fmtNum(double v) {
     char buf[40];
     if (std::abs(v - std::round(v)) < 1e-9 && std::abs(v) < 1e15)
         std::snprintf(buf, sizeof buf, "%lld", static_cast<long long>(std::llround(v)));
-    else
-        std::snprintf(buf, sizeof buf, "%g", v);
+    else // as few digits as give the same number back (plain %g would turn 3.14159265 into 3.14159)
+        for (int precision = 6; precision <= 17; ++precision) {
+            std::snprintf(buf, sizeof buf, "%.*g", precision, v);
+            if (std::strtod(buf, nullptr) == v)
+                break;
+        }
     return buf;
 }
 
@@ -2297,7 +2302,10 @@ private:
             const Expr* toE = it->items.size() >= 2 ? it->items[1].get() : e0;
             std::string to = ex(toE, 6);
             std::string step = it->items.size() == 3 ? ex(it->items[2].get()) : "";
-            bool down = it->items.size() == 3 && it->items[2]->kind == ExprKind::Unary && it->items[2]->op == Tok::Minus;
+            // (the parser turns a written -1 into the number -1, so both forms count as going down)
+            const Expr* stepE = it->items.size() == 3 ? it->items[2].get() : nullptr;
+            bool down = stepE && ((stepE->kind == ExprKind::Number && stepE->number < 0) ||
+                                  (stepE->kind == ExprKind::Unary && stepE->op == Tok::Minus));
             switch (lang_) {
             case L::Unity:
             case L::Unreal: {

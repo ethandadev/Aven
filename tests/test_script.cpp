@@ -2,6 +2,8 @@
 
 #include "aven/script/vm.h"
 
+#include <cstdio>
+
 using namespace aven::script;
 
 namespace {
@@ -169,6 +171,54 @@ colon = f"{'time: ' + str(3)}"
     CHECK_EQ(h.var(inst, "colon").string(), std::string("time: 3"));
 }
 
+// Files from other editors: a byte order mark, Windows line endings, numbers written in
+// different ways, and characters written by number.
+AVEN_TEST(script_source_text_edge_cases) {
+    Harness h;
+    auto inst = h.load("\xEF\xBB\xBF" "a = 0xFF + 0x_10\r\nb = 1_000.000_5\r\n"
+                       "c = 1 + \\\r\n    2\r\nd = \"caf\\u00e9 \\\r\nbar\"\r\ne = '''x\r\ny'''\r\n");
+    CHECK(inst != nullptr);
+    CHECK_EQ(h.firstError(), std::string());
+    if (!inst)
+        return;
+    CHECK_EQ(h.var(inst, "a").number(), 271.0);
+    CHECK_EQ(h.var(inst, "b").number(), 1000.0005);
+    CHECK_EQ(h.var(inst, "c").number(), 3.0);
+    CHECK_EQ(h.var(inst, "d").string(), std::string("caf\xC3\xA9 bar"));
+    CHECK_EQ(h.var(inst, "e").string(), std::string("x\ny"));
+}
+
+// Absurdly nested code gives an error instead of running out of stack space (the web player's
+// stack is small), and so does a very long chain of operators.
+AVEN_TEST(script_deep_nesting_is_an_error) {
+    for (std::string src : {"x = " + std::string(5000, '(') + "1" + std::string(5000, ')') + "\n",
+                            [] {
+                                std::string s = "x = ";
+                                for (int i = 0; i < 5000; ++i)
+                                    s += i < 2500 ? "not " : "- ";
+                                return s + "1\n";
+                            }(),
+                            "x = " + std::string(3000, '[') + std::string(3000, ']') + "\n",
+                            [] {
+                                std::string s = "x = 1";
+                                for (int i = 0; i < 20000; ++i)
+                                    s += " + 1";
+                                return s + "\n";
+                            }()}) {
+        Harness h;
+        h.load(src);
+        CHECK(h.firstError().find("nested too deeply") != std::string::npos);
+    }
+    Harness h; // ordinary code is nowhere near the limit
+    auto inst = h.load("x = ((((((((((1 + 2) * 3))))))))) + [[[[[[4]]]]]][0][0][0][0][0][0]\n"
+                       "d = {\"}\": 1}\nt = f\"{d['}']} and {d[\\\"}\\\"]}\"\n");
+    CHECK_EQ(h.firstError(), std::string());
+    if (inst) {
+        CHECK_EQ(h.var(inst, "x").number(), 13.0);
+        CHECK_EQ(h.var(inst, "t").string(), std::string("1 and 1"));
+    }
+}
+
 AVEN_TEST(script_c_style_aliases) {
     Harness h;
     auto inst = h.load("a = true && !false\nb = false || null == None;\nif a: c = 1\nelse if b: c = 2\n");
@@ -260,6 +310,11 @@ AVEN_TEST(script_errors_are_friendly) {
         {"  x = 1\n", "indented", 1},
         {"print(\xE2\x80\x9Chello\xE2\x80\x9D)\n", "Use straight quotes", 1},
         {"x = 5 \xE2\x80\x93 2\n", "Type - instead", 1},
+        {"x = 0x\n", "hexadecimal", 1},
+        {"x = 1e999\n", "too big", 1},
+        {"x = \"\\u12\"\n", "four hexadecimal digits", 1},
+        {"f(a=1, a=2)\n", "given twice", 1},
+        {"import \"my-tools.es\"\n", "Give it one with 'as'", 1},
     };
     for (auto& c : cases) {
         Harness h;
@@ -352,6 +407,109 @@ def on_start():
     for (int i = 0; i < 20; ++i)
         h.vm.update(0.1);
     CHECK_EQ(h.var(inst, "ticks").number(), 3.0);
+}
+
+// A timer can stop another timer that's due in the same frame; the stopped one doesn't run.
+AVEN_TEST(script_timer_stopped_by_another_in_the_same_frame) {
+    Harness h;
+    auto inst = h.load(R"(
+fired = []
+second_id = 0
+def first():
+    fired.append("first")
+    stop_timer(second_id)
+def second():
+    fired.append("second")
+def on_start():
+    after(1, first)
+    second_id = after(1, second)
+)");
+    h.vm.callFunction(inst, intern("on_start"), {});
+    for (int i = 0; i < 15; ++i)
+        h.vm.update(0.1);
+    CHECK_EQ(h.firstError(), std::string());
+    CHECK_EQ(h.var(inst, "fired").repr(), std::string("[\"first\"]"));
+}
+
+// Odd values that used to be able to crash: lists inside themselves, huge or missing numbers,
+// and functions that start themselves through the engine.
+AVEN_TEST(script_odd_values_give_errors_not_crashes) {
+    Harness h;
+    auto inst = h.load(R"(
+a = [1]
+a.append(a)
+b = [a]
+a.append(b)
+shown = str(a)
+same = a == a
+c = [1]
+c.append(c)
+alike = a == c
+t1 = "ab" * float("nan")
+t2 = "" * 1e300
+t3 = [] * 1e300
+padded = f"{1e300:.2f}"
+wide = len(f"{1:99999999999}")
+zf = len("7".zfill(1e300))
+r = round(1e300, 2)
+m = max(5)
+p = [1]
+q = [p, p]
+p.append(q)
+p.append(q)
+r1 = [1]
+r2 = [r1, r1]
+r1.append(r2)
+r1.append(r2)
+twins = p == r1
+twin_text = str(p) == str(r1)
+)");
+    CHECK_EQ(h.firstError(), std::string());
+    if (!inst)
+        return;
+    CHECK(h.var(inst, "shown").string().find("[...]") != std::string::npos);
+    CHECK(h.var(inst, "same").boolean());
+    CHECK(!h.var(inst, "alike").boolean());
+    CHECK_EQ(h.var(inst, "t1").string(), std::string());
+    CHECK_EQ(h.var(inst, "t2").string(), std::string());
+    CHECK(h.var(inst, "padded").string().size() > 300);
+    CHECK_EQ(h.var(inst, "wide").number(), 1000.0);
+    CHECK_EQ(h.var(inst, "zf").number(), 100000.0);
+    CHECK_EQ(h.var(inst, "r").number(), 1e300);
+    CHECK_EQ(h.var(inst, "m").number(), 5.0);
+    // Two lists holding each other twice over: answered quickly, not by going round every path.
+    CHECK(h.var(inst, "twins").boolean());
+    CHECK(h.var(inst, "twin_text").boolean());
+    CHECK(VM::toJson(h.var(inst, "p")).isArray());
+    aven::Json j = VM::toJson(h.var(inst, "a")); // a list inside itself: cut off, not endless
+    CHECK(j.isArray());
+
+    struct Case {
+        const char* src;
+        const char* expect;
+    };
+    Case cases[] = {
+        {"x = [1, 2][1e300]\n", "doesn't exist"},
+        {"x = [1, 2][float(\"inf\")]\n", "doesn't exist"},
+        {"x = [1, 2][float(\"nan\")]\n", "whole numbers"},
+        {"a = [1]\na.append(a)\nb = [1]\nb.append(b)\nx = a < b\n", "nested too deeply"},
+        {"def f(x):\n    return sorted([1, 2], key=f)\nx = f(1)\n", "too many times"},
+        {"x = int(\"1e999\")\n", "isn't a number"},
+    };
+    for (auto& c : cases) {
+        Harness e;
+        e.load(c.src);
+        if (e.firstError().find(c.expect) == std::string::npos)
+            std::printf("  %s -> %s\n", c.src, e.firstError().c_str());
+        CHECK(e.firstError().find(c.expect) != std::string::npos);
+    }
+
+    Harness tasks; // start_task starting itself, forever, all in one go
+    auto t = tasks.load("n = 0\ndef go():\n    n += 1\n    start_task(go)\n");
+    CHECK(t != nullptr);
+    tasks.vm.callFunction(t, intern("go"), {});
+    CHECK(tasks.firstError().find("too many times") != std::string::npos);
+    CHECK(tasks.var(t, "n").number() < 100);
 }
 
 AVEN_TEST(script_hot_reload_keeps_changed_state) {

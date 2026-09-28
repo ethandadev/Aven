@@ -2,12 +2,14 @@
 
 #include "aven/assets/assets.h"
 #include "aven/core/fs.h"
+#include "aven/core/log.h"
 #include "aven/platform/input.h"
 #include "aven/runtime/game.h"
 #include "aven/runtime/script_system.h"
 #include "aven/runtime/systems.h"
 #include "aven/scene/scene.h"
 
+#include <cmath>
 #include <filesystem>
 
 using namespace aven;
@@ -112,4 +114,34 @@ AVEN_TEST(velocity_set_right_after_spawning_a_3d_body_is_kept) {
     CHECK(copy);
     float moved = run.game.scene().worldPosition(copy).x - run.game.scene().worldPosition(run.hero).x;
     CHECK(moved > 3.0f);
+}
+
+// Numbers that aren't numbers never reach the transforms: properties refuse them, and a nan made by
+// a script's own maths (self.move) is put back before physics and drawing see it.
+AVEN_TEST(nan_and_huge_numbers_stay_out_of_the_scene) {
+    std::vector<std::string> log;
+    int sink = Log::addSink([&](const LogMessage& m) { log.push_back(m.text); });
+    auto logged = [&](const char* text) {
+        for (auto& m : log)
+            if (m.find(text) != std::string::npos)
+                return true;
+        return false;
+    };
+    {
+        ScriptRun run("aven_nan_test", "def on_start():\n"
+                                       "    self.move(float(\"nan\"), 1)\n"
+                                       "    self.play_animation(1e300, float(\"nan\"))\n");
+        run.frames(2);
+        Transform& t = run.game.scene().transform(run.hero);
+        CHECK(std::isfinite(t.position.x));
+        CHECK_EQ(t.position.y, 1.0f);
+        CHECK(logged("isn't a number"));
+    }
+    {
+        ScriptRun run("aven_nan_prop_test", "def on_start():\n    self.x = float(\"inf\")\n");
+        run.frames(1);
+        CHECK(logged("should be an ordinary number"));
+        CHECK(std::isfinite(run.game.scene().transform(run.hero).position.x));
+    }
+    Log::removeSink(sink);
 }

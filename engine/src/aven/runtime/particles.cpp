@@ -78,6 +78,8 @@ void simulateParticles(Scene& scene, Entity e, ParticleEmitter& emitter, float d
     state.wasEmitting = active;
     if (active && emitter.rate > 0) {
         state.emitAccumulator += emitter.rate * dt;
+        // (at most one full set per frame: a huge rate can't make a huge loop)
+        state.emitAccumulator = std::min(state.emitAccumulator, static_cast<float>(std::max(emitter.maxParticles, 1)));
         int n = static_cast<int>(state.emitAccumulator);
         state.emitAccumulator -= static_cast<float>(n);
         if (n > 0)

@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
+#include <set>
 
 namespace aven::script {
 
@@ -302,6 +303,51 @@ std::string Value::toString() const {
     }
 }
 
+namespace {
+
+// Lists and dicts can hold themselves (a.append(a)), directly or through others, so walking into
+// them has to notice where it has already been; a plain depth limit isn't enough, because
+// a = [b, b] with b = [a, a] doubles the work at every level.
+constexpr size_t kMaxValueDepth = 100; // (also keeps the stack safe for very deep nesting)
+
+// The containers being printed, outermost first: one met again prints as [...].
+thread_local std::vector<const Obj*> printing;
+struct Printing {
+    explicit Printing(const Obj* o) { printing.push_back(o); }
+    ~Printing() { printing.pop_back(); }
+    Printing(const Printing&) = delete;
+    Printing& operator=(const Printing&) = delete;
+};
+bool alreadyPrinting(const Obj* o) {
+    return printing.size() >= kMaxValueDepth || std::find(printing.begin(), printing.end(), o) != printing.end();
+}
+
+// Pairs of containers compared so far in one comparison. A pair met again counts as equal: if
+// anything differs, the comparison that found it answers "not equal" for the whole thing, so each
+// pair is looked into once.
+thread_local std::set<std::pair<const Obj*, const Obj*>>* comparing = nullptr;
+thread_local size_t compareDepth = 0;
+struct Comparing {
+    std::set<std::pair<const Obj*, const Obj*>> pairs;
+    bool outermost;
+    Comparing() : outermost(comparing == nullptr) {
+        if (outermost)
+            comparing = &pairs;
+        ++compareDepth;
+    }
+    ~Comparing() {
+        --compareDepth;
+        if (outermost)
+            comparing = nullptr;
+    }
+    Comparing(const Comparing&) = delete;
+    Comparing& operator=(const Comparing&) = delete;
+    // False when this pair is already being compared (so it counts as equal).
+    bool first(const Obj* a, const Obj* b) const { return comparing->insert({a, b}).second; }
+};
+
+} // namespace
+
 std::string Value::repr() const {
     switch (type_) {
     case Type::String: {
@@ -318,23 +364,28 @@ std::string Value::repr() const {
         return out + "\"";
     }
     case Type::List: {
+        if (alreadyPrinting(obj_.get()))
+            return "[...]";
+        Printing here(obj_.get());
         std::string out = "[";
         auto& items = listObj().items;
         for (size_t i = 0; i < items.size(); ++i) {
             if (i)
                 out += ", ";
-            out += items[i].obj_.get() == obj_.get() ? "[...]" : items[i].repr();
+            out += items[i].repr();
         }
         return out + "]";
     }
     case Type::Dict: {
+        if (alreadyPrinting(obj_.get()))
+            return "{...}";
+        Printing here(obj_.get());
         std::string out = "{";
         auto& entries = dictObj().entries;
         for (size_t i = 0; i < entries.size(); ++i) {
             if (i)
                 out += ", ";
-            out += entries[i].first.repr() + ": " +
-                   (entries[i].second.obj_.get() == obj_.get() ? "{...}" : entries[i].second.repr());
+            out += entries[i].first.repr() + ": " + entries[i].second.repr();
         }
         return out + "}";
     }
@@ -407,6 +458,11 @@ bool Value::operator==(const Value& o) const {
             return true;
         if (a.size() != b.size())
             return false;
+        Comparing pair;
+        if (!pair.first(obj_.get(), o.obj_.get()))
+            return true;
+        if (compareDepth > kMaxValueDepth)
+            return false; // nested deeper than anything real (and the stack has limits)
         for (size_t i = 0; i < a.size(); ++i)
             if (a[i] != b[i])
                 return false;
@@ -418,6 +474,11 @@ bool Value::operator==(const Value& o) const {
         if (&a == &b)
             return true;
         if (a.entries.size() != b.entries.size())
+            return false;
+        Comparing pair;
+        if (!pair.first(obj_.get(), o.obj_.get()))
+            return true;
+        if (compareDepth > kMaxValueDepth)
             return false;
         for (auto& [k, v] : a.entries) {
             Value* other = b.find(k);
@@ -444,6 +505,8 @@ std::string Value::hashKey() const {
     case Type::None: return "z";
     case Type::Bool: return b_ ? "n1" : "n0"; // True == 1 as a key, like Python
     case Type::Number: {
+        if (n_ == 0)
+            return "n0"; // -0 and 0 are the same key
         char buf[48];
         std::snprintf(buf, sizeof buf, "n%.17g", n_);
         return buf;
@@ -491,7 +554,8 @@ size_t RangeObj::length() const {
     if (step == 0)
         return 0;
     double n = std::ceil((stop - start) / step);
-    return n > 0 ? static_cast<size_t>(n) : 0;
+    // (NaN is not > 0; a range too long to finish is capped rather than overflowing)
+    return n > 0 ? static_cast<size_t>(std::min(n, 9007199254740992.0)) : 0;
 }
 
 // ---------------------------------------------------------------- native calls

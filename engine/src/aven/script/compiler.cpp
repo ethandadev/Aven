@@ -147,16 +147,22 @@ private:
 
     // Pre-declare every local of a function so slots are known before use.
     void declareLocals(const std::vector<StmtPtr>& stmts) {
-        for (auto& s : stmts) {
-            if (s->kind == StmtKind::Global)
-                for (Symbol g : s->globals)
-                    declaredGlobals_.insert(g);
-        }
+        collectGlobals(stmts); // anywhere in the function, even inside an if
         std::unordered_set<Symbol> assigned;
         collectAssigned(stmts, assigned);
         for (Symbol s : assigned)
             if (!scriptVars_.count(s) && !declaredGlobals_.count(s))
                 declareLocal(s);
+    }
+
+    void collectGlobals(const std::vector<StmtPtr>& stmts) {
+        for (auto& s : stmts) {
+            if (s->kind == StmtKind::Global)
+                for (Symbol g : s->globals)
+                    declaredGlobals_.insert(g);
+            collectGlobals(s->body);
+            collectGlobals(s->orelse);
+        }
     }
 
     static void collectAssigned(const std::vector<StmtPtr>& stmts, std::unordered_set<Symbol>& out) {
@@ -607,7 +613,7 @@ void readHints(std::string_view source, ExportedVar& var) {
     size_t last = c.find_last_not_of(" \t");
     c = first == std::string::npos ? "" : c.substr(first, last - first + 1);
     // "# @header Movement" on the line just above.
-    std::string_view above = lineText(source, var.line - 1);
+    std::string_view above = var.line > 1 ? lineText(source, var.line - 1) : std::string_view();
     size_t hash = above.find_first_not_of(" \t");
     if (hash != std::string_view::npos && above[hash] == '#') {
         std::string_view rest = above.substr(hash + 1);

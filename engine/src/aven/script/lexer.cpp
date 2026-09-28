@@ -3,6 +3,8 @@
 #include "aven/script/errors.h"
 
 #include <cctype>
+#include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <unordered_map>
@@ -53,6 +55,8 @@ public:
     Lexer(std::string_view src, int firstLine) : s_(src), line_(firstLine) {}
 
     std::vector<Token> run() {
+        if (s_.substr(0, 3) == "\xEF\xBB\xBF")
+            pos_ = lineStart_ = 3; // a byte order mark, added by some editors
         indents_.push_back(0);
         atLineStart_ = true;
         while (true) {
@@ -74,8 +78,8 @@ public:
                 lineStart_ = pos_;
                 continue;
             }
-            if (c == '\\' && pos_ + 1 < s_.size() && s_[pos_ + 1] == '\n') {
-                pos_ += 2; // explicit line continuation
+            if (c == '\\' && lineBreakAt(pos_ + 1)) {
+                pos_ = lineBreakAt(pos_ + 1); // explicit line continuation
                 ++line_;
                 lineStart_ = pos_;
                 continue;
@@ -114,6 +118,17 @@ private:
     std::vector<Token> tokens_;
 
     int column() const { return static_cast<int>(pos_ - lineStart_) + 1; }
+
+    static int hexDigit(char c) {
+        return std::isdigit(static_cast<unsigned char>(c)) ? c - '0' : std::tolower(static_cast<unsigned char>(c)) - 'a' + 10;
+    }
+
+    // If a line break (\n or \r\n) starts at p, the position just after it; otherwise 0.
+    size_t lineBreakAt(size_t p) const {
+        if (p < s_.size() && s_[p] == '\r')
+            ++p;
+        return p < s_.size() && s_[p] == '\n' ? p + 1 : 0;
+    }
 
     Token& push(Tok t, std::string text = {}) {
         Token tok;
@@ -230,17 +245,23 @@ private:
         double value;
         if (s_[pos_] == '0' && pos_ + 1 < s_.size() && (s_[pos_ + 1] == 'x' || s_[pos_ + 1] == 'X')) {
             pos_ += 2;
-            while (pos_ < s_.size() && std::isxdigit(static_cast<unsigned char>(s_[pos_])))
-                ++pos_;
-            value = static_cast<double>(std::strtoull(std::string(s_.substr(start + 2, pos_ - start - 2)).c_str(),
-                                                      nullptr, 16));
+            value = 0;
+            bool any = false;
+            for (; pos_ < s_.size() && (std::isxdigit(static_cast<unsigned char>(s_[pos_])) || s_[pos_] == '_'); ++pos_) {
+                if (s_[pos_] == '_')
+                    continue;
+                value = value * 16 + hexDigit(s_[pos_]);
+                any = true;
+            }
+            if (!any)
+                error("'0x' starts a hexadecimal number, so digits 0-9 or letters A-F should follow, like 0xFF.");
         } else {
             while (pos_ < s_.size() && (std::isdigit(static_cast<unsigned char>(s_[pos_])) || s_[pos_] == '_'))
                 ++pos_;
             if (pos_ < s_.size() && s_[pos_] == '.' &&
                 !(pos_ + 1 < s_.size() && std::isalpha(static_cast<unsigned char>(s_[pos_ + 1])))) {
                 ++pos_;
-                while (pos_ < s_.size() && std::isdigit(static_cast<unsigned char>(s_[pos_])))
+                while (pos_ < s_.size() && (std::isdigit(static_cast<unsigned char>(s_[pos_])) || s_[pos_] == '_'))
                     ++pos_;
             }
             if (pos_ < s_.size() && (s_[pos_] == 'e' || s_[pos_] == 'E')) {
@@ -261,6 +282,8 @@ private:
                     text += ch;
             value = std::strtod(text.c_str(), nullptr);
         }
+        if (!std::isfinite(value))
+            error("This number is too big. Numbers go up to about 1.8e308.");
         if (pos_ < s_.size() && (std::isalpha(static_cast<unsigned char>(s_[pos_])) || s_[pos_] == '_'))
             error("Names can't start with a number. Try putting the number at the end, like 'player2'.");
         Token& t = push(Tok::Number, std::string(s_.substr(start, pos_ - start)));
@@ -287,6 +310,10 @@ private:
                 ++pos_;
                 break;
             }
+            if (c == '\r' && pos_ + 1 < s_.size() && s_[pos_ + 1] == '\n') {
+                ++pos_; // Windows line ending: keep just the \n
+                continue;
+            }
             if (c == '\n') {
                 if (!triple)
                     throw ScriptError("This text is missing its closing " + std::string(1, quote) +
@@ -294,6 +321,12 @@ private:
                                       startLine);
                 ++line_;
                 lineStart_ = pos_ + 1;
+            }
+            if (c == '\\' && lineBreakAt(pos_ + 1)) {
+                pos_ = lineBreakAt(pos_ + 1); // the text continues on the next line
+                ++line_;
+                lineStart_ = pos_;
+                continue;
             }
             if (c == '\\' && pos_ + 1 < s_.size()) {
                 char e = s_[pos_ + 1];
@@ -306,10 +339,31 @@ private:
                 case '\\': out += '\\'; break;
                 case '\'': out += '\''; break;
                 case '"': out += '"'; break;
-                case '\n':
-                    ++line_;
-                    lineStart_ = pos_;
+                case 'u': {
+                    // \u00E9: a character by its Unicode number, written as UTF-8.
+                    uint32_t cp = 0;
+                    int n = 0;
+                    while (n < 4 && pos_ < s_.size() && std::isxdigit(static_cast<unsigned char>(s_[pos_]))) {
+                        cp = cp * 16 + static_cast<uint32_t>(hexDigit(s_[pos_]));
+                        ++pos_;
+                        ++n;
+                    }
+                    if (n < 4)
+                        error("'\\u' needs four hexadecimal digits after it, like \\u00E9 for \xC3\xA9.");
+                    if (cp >= 0xD800 && cp <= 0xDFFF)
+                        cp = 0xFFFD;
+                    if (cp < 0x80) {
+                        out += static_cast<char>(cp);
+                    } else if (cp < 0x800) {
+                        out += static_cast<char>(0xC0 | (cp >> 6));
+                        out += static_cast<char>(0x80 | (cp & 0x3F));
+                    } else {
+                        out += static_cast<char>(0xE0 | (cp >> 12));
+                        out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+                        out += static_cast<char>(0x80 | (cp & 0x3F));
+                    }
                     break;
+                }
                 // Keep braces escaped so f-string parsing can tell them apart.
                 case '{': out += isFormat ? "{{" : "{"; break;
                 case '}': out += isFormat ? "}}" : "}"; break;

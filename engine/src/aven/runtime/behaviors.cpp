@@ -193,7 +193,9 @@ void GameplaySystems::damage(Entity victim, int amount, Vec3 from, float knockba
     BehaviorState& st = state(victim);
     if (st.invincible > 0 || health->current <= 0)
         return;
-    health->current = std::max(0, health->current - amount);
+    // (in wide numbers: a huge amount can't overflow; a negative one heals, up to the maximum)
+    long long left = static_cast<long long>(health->current) - amount;
+    health->current = static_cast<int>(std::clamp<long long>(left, 0, std::max(health->current, health->maxHealth)));
     st.invincible = health->invincibleTime;
     shake(0.25f, 0.25f);
     if (knockback > 0) {

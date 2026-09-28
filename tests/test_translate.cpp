@@ -136,6 +136,18 @@ def on_trigger(other):
     CHECK(contains(e.code, "GetGameInstance<UMyGameInstance>()->Coins += 1;"));
 }
 
+// Counting down (range(10, 0, -1)) stays counting down, and numbers keep all their digits.
+AVEN_TEST(translate_counts_down_and_keeps_digits) {
+    const char* source = "tau = 6.2831853\ndef on_start():\n    for i in range(10, 0, -1):\n        print(i)\n";
+    Translation u = translate(source, TargetLanguage::Unity, {"Countdown", false});
+    CHECK(u.ok);
+    CHECK(contains(u.code, "for (int i = 10; i > 0; i += -1)"));
+    CHECK(contains(u.code, "6.2831853f"));
+    Translation r = translate(source, TargetLanguage::Roblox, {"Countdown", false});
+    CHECK(r.ok);
+    CHECK(contains(r.code, "for i = 10, 1, -1 do"));
+}
+
 AVEN_TEST(translate_reports_syntax_errors) {
     Translation t = translate("def on_update(dt)\n    pass\n", TargetLanguage::Unity);
     CHECK(!t.ok);

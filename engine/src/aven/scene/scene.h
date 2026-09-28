@@ -56,6 +56,8 @@ public:
 
     // --- Transforms
     void updateTransforms();
+    // Puts back any position, rotation or scale that isn't a number (nan, inf), with a warning.
+    void keepTransformsFinite();
     Mat4 worldMatrix(Entity e) const; // walks parents; always up to date
     Vec3 worldPosition(Entity e) const;
     void setWorldPosition(Entity e, Vec3 position);

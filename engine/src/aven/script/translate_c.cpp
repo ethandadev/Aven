@@ -778,7 +778,8 @@ private:
             if (t == CT::Str) {
                 format += "%s";
                 args += ", " + sx(v);
-            } else if (spec.size() >= 3 && spec[0] == '.' && spec.back() == 'f') {
+            } else if (spec.size() >= 3 && spec.size() <= 4 && spec[0] == '.' && spec.back() == 'f' &&
+                       std::all_of(spec.begin() + 1, spec.end() - 1, [](char c) { return std::isdigit(static_cast<unsigned char>(c)); })) {
                 format += "%" + spec;
                 args += ", (double)(" + ex(v) + ")";
             } else {
@@ -1205,7 +1206,10 @@ private:
             std::string from = n >= 2 ? ex(it->items[0].get()) : "0";
             std::string to = n >= 2 ? ex(it->items[1].get()) : n ? ex(it->items[0].get()) : "0";
             std::string step = n >= 3 ? ex(it->items[2].get()) : "1";
-            bool down = n >= 3 && it->items[2]->kind == ExprKind::Unary && it->items[2]->op == Tok::Minus;
+            // (the parser turns a written -1 into the number -1, so both forms count as going down)
+            const Expr* stepE = n >= 3 ? it->items[2].get() : nullptr;
+            bool down = stepE && ((stepE->kind == ExprKind::Number && stepE->number < 0) ||
+                                  (stepE->kind == ExprKind::Unary && stepE->op == Tok::Minus));
             Scoped scoped{*this, raw, paramTypes_.count(raw) > 0};
             if (!declared) {
                 paramTypes_[raw] = CT::Num;

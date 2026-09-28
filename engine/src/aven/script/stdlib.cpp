@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <random>
 
@@ -20,6 +21,13 @@ std::mt19937& rng() {
 
 double requireNumber(const CallArgs& a, size_t i, const char* param) {
     return a.number(i, param);
+}
+
+// A number used as a position or a count, as a whole number that can't overflow (NaN is 0).
+long long wholeNumber(double d) {
+    if (std::isnan(d))
+        return 0;
+    return static_cast<long long>(std::clamp(std::trunc(d), -9007199254740992.0, 9007199254740992.0));
 }
 
 ListObj& requireList(const CallArgs& a, size_t i, const char* param) {
@@ -140,7 +148,7 @@ void VM::registerBuiltins() {
     });
     method(L, "insert", 2, 2, "my_list.insert(position, item)", [](CallArgs& a) {
         auto& items = a[0].listObj().items;
-        long long i = static_cast<long long>(a.number(1, "position"));
+        long long i = wholeNumber(a.number(1, "position"));
         long long n = static_cast<long long>(items.size());
         if (i < 0)
             i += n;
@@ -153,7 +161,7 @@ void VM::registerBuiltins() {
         if (items.empty())
             raise("Can't pop() from an empty list.");
         long long n = static_cast<long long>(items.size());
-        long long i = a.has(1) ? static_cast<long long>(a.number(1, "position")) : n - 1;
+        long long i = a.has(1) ? wholeNumber(a.number(1, "position")) : n - 1;
         if (i < 0)
             i += n;
         if (i < 0 || i >= n)
@@ -204,8 +212,10 @@ void VM::registerBuiltins() {
             keyed.emplace_back(key && !key->isNone() ? vm.callNow(*key, {item}) : item, item);
         std::stable_sort(keyed.begin(), keyed.end(),
                          [&](auto& x, auto& y) { return reverse ? vm.lessThan(y.first, x.first) : vm.lessThan(x.first, y.first); });
-        for (size_t i = 0; i < items.size(); ++i)
-            items[i] = keyed[i].second;
+        // (a key function could have added to or emptied the list meanwhile: the sorted copy wins)
+        items.clear();
+        for (auto& k : keyed)
+            items.push_back(std::move(k.second));
         return Value();
     });
 
@@ -321,7 +331,7 @@ void VM::registerBuiltins() {
     });
     method(S, "zfill", 1, 1, "text.zfill(width)", [](CallArgs& a) {
         std::string s = a[0].string();
-        size_t w = static_cast<size_t>(std::max(0.0, a.number(1, "width")));
+        size_t w = static_cast<size_t>(std::clamp(wholeNumber(a.number(1, "width")), 0LL, 100000LL));
         if (s.size() < w)
             s = std::string(w - s.size(), '0') + s;
         return Value(s);
@@ -469,7 +479,7 @@ void registerStdlib(VM& vm) {
             double d = std::strtod(s.c_str(), &end);
             while (end && *end && std::isspace(static_cast<unsigned char>(*end)))
                 ++end;
-            if (s.empty() || !end || *end)
+            if (s.empty() || !end || *end || !std::isfinite(d))
                 raise("int(): \"" + s + "\" isn't a number.");
             return Value(std::trunc(d));
         }
@@ -547,8 +557,9 @@ void registerStdlib(VM& vm) {
         double x = a.number(0, "x");
         if (!a.has(1))
             return Value(std::round(x));
-        double f = std::pow(10.0, a.number(1, "digits"));
-        return Value(std::round(x * f) / f);
+        double f = std::pow(10.0, static_cast<double>(std::clamp(wholeNumber(a.number(1, "digits")), -15LL, 15LL)));
+        double r = std::round(x * f) / f;
+        return Value(std::isfinite(r) ? r : x); // (x * f can overflow for huge x: it's whole anyway)
     });
     vm.defineFunction("clamp", "clamp(value, low, high)", 3, 3, [](CallArgs& a) {
         double v = a.number(0, "value"), lo = a.number(1, "low"), hi = a.number(2, "high");
@@ -571,6 +582,8 @@ void registerStdlib(VM& vm) {
     auto minmax = [&vm](const char* name, bool wantMax) {
         vm.defineFunction(name, std::string(name) + "(a, b, ...) or " + name + "(my_list)", 1, -1,
                           [wantMax, name](CallArgs& a) {
+                              if (a.size() == 1 && (a[0].isNumber() || a[0].isBool()))
+                                  return a[0]; // max(5) is 5
                               std::vector<Value> items = a.size() == 1 ? toItems(a.vm, a[0], name) : a.args;
                               if (items.empty())
                                   raise(std::string(name) + "() needs at least one value.");
@@ -597,13 +610,15 @@ void registerStdlib(VM& vm) {
     });
     vm.defineFunction("random_range", "random_range(low, high)", 2, 2, [](CallArgs& a) {
         double lo = a.number(0, "low"), hi = a.number(1, "high");
+        if (!std::isfinite(lo) || !std::isfinite(hi))
+            raise("random_range(): low and high should be ordinary numbers.");
         if (hi < lo)
             std::swap(lo, hi);
-        return Value(lo == hi ? lo : std::uniform_real_distribution<double>(lo, hi)(rng()));
+        return Value(lo == hi ? lo : lo + (hi - lo) * std::uniform_real_distribution<double>(0.0, 1.0)(rng()));
     });
     vm.defineFunction("random_int", "random_int(low, high)", 2, 2, [](CallArgs& a) {
-        long long lo = static_cast<long long>(std::floor(a.number(0, "low")));
-        long long hi = static_cast<long long>(std::floor(a.number(1, "high")));
+        long long lo = wholeNumber(std::floor(a.number(0, "low")));
+        long long hi = wholeNumber(std::floor(a.number(1, "high")));
         if (hi < lo)
             std::swap(lo, hi);
         return Value(static_cast<double>(std::uniform_int_distribution<long long>(lo, hi)(rng())));
@@ -620,7 +635,7 @@ void registerStdlib(VM& vm) {
         return Value();
     });
     vm.defineFunction("random_seed", "random_seed(number)", 1, 1, [](CallArgs& a) {
-        rng().seed(static_cast<unsigned>(a.number(0, "number")));
+        rng().seed(static_cast<unsigned>(static_cast<unsigned long long>(wholeNumber(a.number(0, "number")))));
         return Value();
     });
 
@@ -690,7 +705,7 @@ void registerStdlib(VM& vm) {
         if (!a[1].isCallable())
             raise("every(): the second value should be a function name (without the parentheses), like: every(1, spawn_enemy)");
         double interval = a.number(0, "seconds");
-        if (interval <= 0)
+        if (!(interval > 0)) // (also NaN)
             raise("every(): the time between calls must be more than 0 seconds.");
         std::vector<Value> extra(a.args.begin() + 2, a.args.end());
         return Value(a.vm.addTimer(interval, interval, a[1], std::move(extra)));
@@ -704,7 +719,10 @@ void registerStdlib(VM& vm) {
         return Value();
     });
     vm.defineFunction("stop_timer", "stop_timer(timer)", 1, 1,
-                      [](CallArgs& a) { return Value(a.vm.stopTimer(static_cast<int>(a.number(0, "timer")))); });
+                      [](CallArgs& a) {
+                          long long id = wholeNumber(a.number(0, "timer"));
+                          return Value(id > 0 && id <= INT32_MAX && a.vm.stopTimer(static_cast<int>(id)));
+                      });
 }
 
 } // namespace aven::script
