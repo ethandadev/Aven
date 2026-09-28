@@ -1,6 +1,6 @@
 ; The Windows installer (Inno Setup 6): Aven-<version>-Setup.exe.
 ;
-;   iscc /DVersion=0.4.0 /DSource=dist\aven-0.4.0-windows-x64 /DOutput=dist tools\release\windows\aven.iss
+; iscc /DVersion=0.4.0 /DNumericVersion=0.4.0 /DSource=dist\aven-0.4.0-windows-x64 /DOutput=dist tools\release\windows\aven.iss
 ;
 ; Installs for the current user (no administrator needed) into %LOCALAPPDATA%\Programs\Aven, with
 ; Start menu and optional desktop shortcuts and an uninstaller. The files are the same as in the zip,
@@ -8,6 +8,10 @@
 
 #ifndef Version
   #define Version "0.0.0"
+#endif
+; Numbers only (0.4.0 for 0.4.0-beta.1), for the installer's file version.
+#ifndef NumericVersion
+  #define NumericVersion "0.0.0"
 #endif
 #ifndef Source
   #error Pass /DSource=<the release folder>
@@ -25,7 +29,7 @@ AppPublisher=Aven
 AppPublisherURL=https://github.com/ethandadev/Aven
 AppSupportURL=https://github.com/ethandadev/Aven/issues
 AppUpdatesURL=https://github.com/ethandadev/Aven/releases
-VersionInfoVersion={#Version}.0
+VersionInfoVersion={#NumericVersion}.0
 VersionInfoDescription=Aven installer
 DefaultDirName={localappdata}\Programs\Aven
 DefaultGroupName=Aven

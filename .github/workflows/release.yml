@@ -265,7 +265,8 @@ jobs:
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y; }
-          & $iscc "/DVersion=$env:VERSION" "/DSource=$pwd\stage\$env:PKG" "/DOutput=$pwd\out" tools\release\windows\aven.iss
+          $numeric = $env:VERSION.Split('-')[0]
+          & $iscc "/DVersion=$env:VERSION" "/DNumericVersion=$numeric" "/DSource=$pwd\stage\$env:PKG" "/DOutput=$pwd\out" tools\release\windows\aven.iss
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
       - name: Sign the installer (Azure Trusted Signing)
         if: env.AZURE_CLIENT_ID != ''
