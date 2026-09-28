@@ -206,6 +206,38 @@ def test_script_variable_on_two_objects(editor):
         return "both spinners should have speed 45: %s" % speeds
 
 
+def test_export_desktop_app(editor):
+    """Build & Share > Desktop apps makes this system's app: a zip whose program runs the game."""
+    import zipfile
+    project, log, code = run_editor(editor, "platformer", 8, "", "@3:exportapps")
+    exports = os.path.join(project, "exports")
+    zips = [f for f in os.listdir(exports) if f.endswith(".zip")] if os.path.isdir(exports) else []
+    if not zips:
+        return "no app zip was made:\n" + log[-1500:]
+    if not sys.platform.startswith("linux"):
+        return None
+    z = zipfile.ZipFile(os.path.join(exports, zips[0]))
+    if z.testzip() is not None:
+        return "the zip is damaged"
+    out = tempfile.mkdtemp(prefix="aven-app-")
+    program = None
+    for info in z.infolist():
+        path = z.extract(info, out)
+        mode = info.external_attr >> 16
+        if mode:
+            os.chmod(path, mode & 0o777)
+        if mode & 0o111:
+            program = path
+    if not program:
+        return "the program in the zip isn't marked runnable"
+    cmd = [program, "--screenshot", os.path.join(out, "shot.png"), "--frames", "10", "--size", "320x180", "--hidden"]
+    if not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
+        cmd = ["xvfb-run", "-a"] + cmd
+    run = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    if run.returncode != 0 or not os.path.exists(os.path.join(out, "shot.png")):
+        return "the exported game didn't run:\n" + (run.stdout + run.stderr)[-1500:]
+
+
 def test_monkey(editor):
     """Random clicks, drags, keys and typing for a while, editing and playing: no crash."""
     for seed, template, play in ((1, "platformer", False), (2, "obby-3d", True)):

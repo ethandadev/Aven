@@ -51,7 +51,10 @@ know how the bigger engines think.
   working without code.
 - **Code:** a built-in code editor with colors, autocomplete, parameter hints, live problem checks
   and go to definition, and a block editor.
-- **Sharing:** export to desktop, the web and itch.io, or send the whole project as a .zip.
+- **Sharing:** Windows, macOS and Linux apps from any computer (with your icon, name and
+  description, optionally signed and notarized), a web version that installs on phones, an
+  itch.io zip, or the whole project as a .zip. Exported games can open with a title screen, and
+  say "Made with Aven" for a moment.
 - **Asset Library:** 69 ready-made, free-to-use (CC0) assets: pixel-art sprites and animations,
   parallax backgrounds, 19 low-poly 3D models (trees, rocks, houses, props, a stand-in character)
   and 18 tileable 3D textures (grass, stone, bricks, wood, metal, prototype grids...). Click to

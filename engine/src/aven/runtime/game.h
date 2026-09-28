@@ -4,6 +4,7 @@
 #include "aven/platform/input.h"
 #include "aven/render/debug_draw.h"
 #include "aven/render/scene_renderer.h"
+#include "aven/runtime/intro.h"
 #include "aven/runtime/navigation.h"
 #include "aven/runtime/network.h"
 #include "aven/runtime/project.h"
@@ -76,6 +77,11 @@ public:
     GameplaySystems& gameplay() { return *gameplay_; }
     Navigation& navigation() { return *navigation_; } // pathfinding
     TouchControls& touchControls() { return touch_; } // on-screen stick and buttons (phones)
+    // The "Made with Aven" splash and the optional title screen (exported games only; call after
+    // start()). The game doesn't update until they're over. windowSize: in mouse pixels.
+    void startIntro(bool canQuit) { intro_.begin(settings_, assets_, canQuit); }
+    Intro& intro() { return intro_; }
+    void setWindowSize(Vec2 size) { windowSize_ = size; }
     Network& network() { return *network_; }          // multiplayer on the local network
     // Seeds every random number source so the same inputs replay the same game.
     void setRandomSeed(uint32_t seed);
@@ -83,7 +89,7 @@ public:
     // Requests from scripts that the host (player or editor) carries out.
     void requestSceneChange(const std::string& path) { pendingScene_ = path; }
     void requestQuit() { quitRequested_ = true; }
-    bool quitRequested() const { return quitRequested_; }
+    bool quitRequested() const { return quitRequested_ || intro_.quitRequested(); }
     bool paused() const { return paused_; }
     void setPaused(bool p) { paused_ = p; }
     float timeScale = 1.0f;
@@ -122,6 +128,8 @@ private:
     std::unique_ptr<GameplaySystems> gameplay_;
     std::unique_ptr<Navigation> navigation_;
     TouchControls touch_;
+    Intro intro_;
+    Vec2 windowSize_{0, 0};
     std::unique_ptr<Network> network_;
 
     void startSystems();

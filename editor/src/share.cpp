@@ -11,6 +11,7 @@
 
 #include "aven/core/embedded.h"
 #include "aven/core/fs.h"
+#include "aven/core/icons.h"
 #include "aven/core/zip.h"
 #include "aven/render/scene_renderer.h"
 
@@ -691,7 +692,9 @@ bool Editor::exportWeb(const stdfs::path& folder, std::string& message) {
 // and its icons, the icons (pictures of the start scene), and a service worker that keeps every
 // file so it plays offline. Each export gets a new cache name, so players get the new version.
 void Editor::writeWebAppFiles(const stdfs::path& out, const std::string& color, const std::string& orientation) {
-    std::vector<uint8_t> big = renderStartScene(512, 512, false);
+    int iw = 0, ih = 0;
+    std::vector<uint8_t> source = gameIconPixels(iw, ih); // the chosen icon, or the start scene
+    std::vector<uint8_t> big = source.empty() ? source : icons::resize(source.data(), iw, ih, 512);
     if (!big.empty()) {
         Assets::savePng(out / "icon-512.png", big.data(), 512, 512, false);
         // 192 x 192, sampled down.
@@ -962,23 +965,16 @@ void Editor::drawExport() {
         exportFolder_ = (projectDir_ / "exports").string();
     if (ImGui::BeginTabBar("##exporttabs", ImGuiTabBarFlags_DrawSelectedOverline)) {
         bool desktop = unlocked(Feature::Export);
-        if (desktop && ImGui::BeginTabItem("This computer", nullptr, exportTab_ == 0 ? ImGuiTabItemFlags_SetSelected : 0)) {
+        if (desktop && ImGui::BeginTabItem("Desktop apps", nullptr, exportTab_ == 0 ? ImGuiTabItemFlags_SetSelected : 0)) {
             if (exportTab_ == 0)
                 exportTab_ = -1;
-            ImGui::TextWrapped("Makes a folder with your game that runs on this kind of computer without Aven. Zip it up and share it!");
-            ImGui::Spacing();
-            ImGui::InputText("Output folder", &exportFolder_);
-            ImGui::TextDisabled("Game name: %s  |  Start scene: %s", settings_.name.c_str(), settings_.startScene.c_str());
-            ImGui::Spacing();
-            if (ImGui::Button("Export game", {ui::px(160), ui::px(34)})) {
-                saveScene();
-                saveAllScripts();
-                exportGame(exportFolder_, exportResult_);
-            }
-            if (!exportResult_.empty()) {
-                ImGui::Spacing();
-                ImGui::TextWrapped("%s", exportResult_.c_str());
-            }
+            drawDesktopExport();
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Game details", nullptr, exportTab_ == 3 ? ImGuiTabItemFlags_SetSelected : 0)) {
+            if (exportTab_ == 3)
+                exportTab_ = -1;
+            drawGameDetails();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Web browser", nullptr, exportTab_ == 1 ? ImGuiTabItemFlags_SetSelected : 0)) {

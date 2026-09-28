@@ -92,12 +92,30 @@ The **Tools** menu has creators for your own content:
 
 Press **Build & Share**:
 
-- **This computer:** a folder with your game and the player, ready to zip and send to friends
-  (Windows, macOS or Linux, whichever you're on).
+- **Desktop apps:** your game as a Windows program (with its icon in the .exe), a macOS app and a
+  Linux program, each in a zip ready to upload. Any computer can make all three: Aven's downloads
+  carry the player for each system in `players/`. (A build of Aven you compiled yourself has only
+  its own system's player.)
+- **Game details:** the name, version, description, who made it, website and copyright, the app
+  icon (any picture in your project; empty uses a picture of the start scene), a moment of "Made
+  with Aven" when the game starts (any key skips it), and an optional title screen with Play and
+  Quit over the game's thumbnail or a picture you pick.
 - **Web browser:** a web version that runs in any modern browser. It needs the web player (see
   below).
 - **Share:** a game card picture with a QR code, a link anyone on the same Wi-Fi can open, and a
   zip ready to upload to itch.io.
+
+**Signing** (Desktop apps > Signing) stops "unknown developer" warnings:
+
+- **macOS:** on a Mac with Xcode's command-line tools, enter your Apple Developer **Team ID**; Aven
+  signs with your "Developer ID Application" certificate from the keychain. To also notarize (so
+  the app opens on any Mac without a warning), run once in Terminal
+  `xcrun notarytool store-credentials MyProfile --apple-id you@example.com --team-id TEAMID` and
+  enter `MyProfile` as the notary profile. Without a Team ID, apps are signed ad hoc: they run, but
+  other Macs ask first (right-click > Open). macOS apps can only be signed on a Mac.
+- **Windows:** a code signing certificate as a `.pfx` file (its password is asked for each time and
+  never saved) or a certificate thumbprint from the Windows certificate store. Aven runs `signtool`
+  from the Windows SDK, or `osslsigncode` (on any system).
 
 To share the project itself (so someone can open and change it in Aven), use **File > Export
 Project as .zip**. They open the zip from **Open a game** in the start screen, or drop it on the

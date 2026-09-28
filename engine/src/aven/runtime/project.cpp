@@ -20,6 +20,28 @@ Json ProjectSettings::toJson() const {
     if (!description.empty())
         j["description"] = description;
     j["start_scene"] = startScene;
+    if (!(publish == PublishSettings{})) {
+        Json p = Json::object();
+        auto str = [&](const char* key, const std::string& v) {
+            if (!v.empty())
+                p[key] = v;
+        };
+        str("author", publish.author);
+        str("website", publish.website);
+        str("copyright", publish.copyright);
+        str("bundle_id", publish.bundleId);
+        str("icon", publish.icon);
+        p["splash"] = publish.splash;
+        p["title_screen"] = publish.titleScreen;
+        str("title_image", publish.titleImage);
+        str("apple_team_id", publish.appleTeamId);
+        str("apple_identity", publish.appleIdentity);
+        str("notary_profile", publish.notaryProfile);
+        str("windows_certificate", publish.windowsCertificate);
+        if (publish.timestampUrl != PublishSettings{}.timestampUrl)
+            p["timestamp_url"] = publish.timestampUrl;
+        j["publish"] = std::move(p);
+    }
     Json w = Json::object();
     w["width"] = width;
     w["height"] = height;
@@ -90,6 +112,21 @@ void ProjectSettings::fromJson(const Json& j) {
     version = j["version"].asString(version);
     description = j["description"].asString("");
     startScene = j["start_scene"].asString(startScene);
+    const Json& p = j["publish"];
+    PublishSettings d;
+    publish.author = p["author"].asString("");
+    publish.website = p["website"].asString("");
+    publish.copyright = p["copyright"].asString("");
+    publish.bundleId = p["bundle_id"].asString("");
+    publish.icon = p["icon"].asString("");
+    publish.splash = p["splash"].asBool(d.splash);
+    publish.titleScreen = p["title_screen"].asBool(d.titleScreen);
+    publish.titleImage = p["title_image"].asString("");
+    publish.appleTeamId = p["apple_team_id"].asString("");
+    publish.appleIdentity = p["apple_identity"].asString("");
+    publish.notaryProfile = p["notary_profile"].asString("");
+    publish.windowsCertificate = p["windows_certificate"].asString("");
+    publish.timestampUrl = p["timestamp_url"].asString(d.timestampUrl);
     const Json& w = j["window"];
     width = w["width"].asInt(width);
     height = w["height"].asInt(height);

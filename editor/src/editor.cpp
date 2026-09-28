@@ -223,6 +223,14 @@ void Editor::openPanels(const std::string& list) {
             for (auto& u : assistant_.unknown)
                 Log::info("ask unknown: ", u);
         }
+        else if (p == "exportapps") { // every desktop app this editor has a player for (automated tests)
+            std::vector<std::string> all;
+            for (const char* t : {"windows-x64", "macos-arm64", "linux-x64"})
+                if (!playerFolder(t).empty())
+                    all.push_back(t);
+            startDesktopExport(all, true);
+        }
+        else if (p == "gamedetails") { showExport_ = true; exportTab_ = 3; }
         else if (p == "projectzip") { std::string m; exportProjectZip(m); Log::info(m); } // File > Export Project as .zip
         else if (p == "dump") { // for tests: the hierarchy, with * on selected objects
             scene_->walk([&](Entity e, int depth) {

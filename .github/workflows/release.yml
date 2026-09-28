@@ -111,8 +111,6 @@ jobs:
           if (-not $dlls) { throw "Couldn't find the Visual C++ runtime DLLs." }
           $stage = "dist\$env:PACKAGE"
           Copy-Item $dlls $stage
-          Remove-Item "dist\$env:PACKAGE.zip"
-          Compress-Archive -Path $stage -DestinationPath "dist\$env:PACKAGE.zip"
 
       - name: Check the download works on its own
         if: runner.os == 'Linux'
@@ -138,22 +136,70 @@ jobs:
             editor.png
             player.png
 
+      # For the bundle job: this system's download, and its player (with the Windows runtime DLLs),
+      # as tar files, which keep the programs' permissions (artifacts on their own don't).
+      - name: Keep the download and the player
+        shell: bash
+        run: |
+          mkdir -p "players/${{ matrix.suffix }}"
+          for f in aven-player aven-player.exe; do
+            if [ -e "dist/$PACKAGE/$f" ]; then cp "dist/$PACKAGE/$f" "players/${{ matrix.suffix }}/"; fi
+          done
+          for f in dist/$PACKAGE/*.dll; do if [ -e "$f" ]; then cp "$f" "players/${{ matrix.suffix }}/"; fi; done
+          tar -cf "stage-${{ matrix.suffix }}.tar" -C dist "$PACKAGE"
+          tar -cf "player-${{ matrix.suffix }}.tar" -C players "${{ matrix.suffix }}"
+
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.PACKAGE }}
-          path: dist/${{ env.PACKAGE }}.zip
+          name: stage-${{ matrix.suffix }}
+          path: stage-${{ matrix.suffix }}.tar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: player-${{ matrix.suffix }}
+          path: player-${{ matrix.suffix }}.tar
+
+  # Every download gets every system's player in players/, so Build & Share can make Windows, macOS
+  # and Linux apps from any of them.
+  bundle:
+    name: Bundle the downloads
+    needs: desktop
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "*-*64"
+          path: parts
+          merge-multiple: true
+      - name: Add every system's player to every download
+        run: |
+          mkdir -p players dist
+          for p in parts/player-*.tar; do tar -xf "$p" -C players; done
+          for s in parts/stage-*.tar; do tar -xf "$s" -C dist; done
+          cd dist
+          for pkg in */; do
+            pkg="${pkg%/}"
+            mkdir -p "$pkg/players"
+            for sys in ../players/*; do cp -R "$sys" "$pkg/players/$(basename "$sys")"; done
+            ls -R "$pkg/players"
+            zip -qry "$pkg.zip" "$pkg" # -y and zip's Unix attributes keep the programs runnable
+          done
+          ls -la
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aven-packages
+          path: dist/*.zip
 
   publish:
     name: Publish the release
-    needs: desktop
+    needs: bundle
     if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: aven-*
+          name: aven-packages
           path: dist
-          merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*.zip

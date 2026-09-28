@@ -38,6 +38,29 @@ struct TouchSettings {
     bool operator==(const TouchSettings&) const = default;
 };
 
+// How an exported game presents itself (Build & Share): who made it, its icon, what shows before it
+// starts, and how the apps are signed. Nothing secret is kept here: signing passwords are asked for
+// when exporting.
+struct PublishSettings {
+    std::string author;    // you or your studio, e.g. "Sam's Games"
+    std::string website;
+    std::string copyright; // empty: "(c) <year> <author>"
+    std::string bundleId;  // reverse-domain id, e.g. "com.samsgames.obby" (macOS); empty: made from the names
+    std::string icon;      // a picture in the project (square, 512 px or more is best); empty: the thumbnail
+    bool splash = true;    // a moment of "Made with Aven" when the game starts (skippable)
+    bool titleScreen = false; // a start menu with the game's name, Play and Quit
+    std::string titleImage;   // the title screen's background; empty: the thumbnail
+    // Signing. macOS: your Apple Developer Team ID, the signing identity (empty: the "Developer ID
+    // Application" certificate for that team) and a notarytool keychain profile to notarize with.
+    std::string appleTeamId;
+    std::string appleIdentity;
+    std::string notaryProfile;
+    // Windows: a .pfx certificate file (or a certificate's SHA-1 thumbprint) and a timestamp server.
+    std::string windowsCertificate;
+    std::string timestampUrl = "http://timestamp.digicert.com";
+    bool operator==(const PublishSettings&) const = default;
+};
+
 struct ProjectSettings {
     static constexpr const char* kFileName = "project.aven";
 
@@ -56,6 +79,7 @@ struct ProjectSettings {
     std::string templateName;  // which starter template the project came from
     Json inputActions = Json::object();
     TouchSettings touch;
+    PublishSettings publish;
 
     // The folder name for this game's save data: its name plus the start of its id.
     std::string saveFolderName() const;

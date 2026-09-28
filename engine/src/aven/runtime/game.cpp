@@ -118,6 +118,12 @@ void Game::update(float dt) {
         pendingScene_.clear();
         loadScene(next);
     }
+    if (intro_.active()) {
+        // The splash and title screen come first; the game itself waits.
+        intro_.update(dt, input_, windowSize_.x > 0 ? windowSize_ : screenSize_);
+        if (intro_.active())
+            return;
+    }
     float scaled = paused_ ? 0.0f : dt * timeScale;
     time_ += scaled;
     if (!paused_)
@@ -186,7 +192,13 @@ void Game::render(SceneRenderer& renderer, int width, int height, const RenderOp
     CameraView cam = camera(static_cast<float>(width) / std::max(height, 1));
     renderer.debugDraw = options.debugDraw ? &debugDraw_ : nullptr;
     auto overlay = renderer.screenOverlay;
-    if (touch_.visible() && options.drawUI)
+    if (intro_.active())
+        renderer.screenOverlay = [&](const CameraView& c) {
+            if (overlay)
+                overlay(c);
+            intro_.draw(renderer.renderer2D(), assets_, screenSize_);
+        };
+    else if (touch_.visible() && options.drawUI)
         renderer.screenOverlay = [&](const CameraView& c) {
             if (overlay)
                 overlay(c);

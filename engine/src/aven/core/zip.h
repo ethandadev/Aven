@@ -18,8 +18,11 @@ namespace stdfs = std::filesystem;
 uint32_t crc32(const void* data, size_t size);
 
 // Every file in the folder (paths inside use '/'). include(relativePath) can leave some out.
+// Files are marked as programs (executable once unzipped on macOS and Linux) when executable()
+// says so, or, without it, when they're executable here.
 bool write(const stdfs::path& zipPath, const stdfs::path& folder,
-           const std::function<bool(const std::string&)>& include = {});
+           const std::function<bool(const std::string&)>& include = {},
+           const std::function<bool(const std::string&)>& executable = {});
 
 struct Entry {
     std::string name; // "scenes/main.scene"

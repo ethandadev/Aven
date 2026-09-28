@@ -227,6 +227,16 @@ public:
     bool exportProjectZip(std::string& message);
     bool importProjectZip(const stdfs::path& zipPath);
     void openAsset(const std::string& path); // a folder goes in; a file opens in its editor
+    // Desktop apps (Build & Share): Windows, macOS and Linux, zipped (export_desktop.cpp).
+    struct DesktopJob;
+    stdfs::path playerFolder(const std::string& target) const; // players/<target>, or this editor's own
+    std::vector<uint8_t> gameIconPixels(int& w, int& h);        // the chosen icon, or the start scene
+    bool startDesktopExport(const std::vector<std::string>& targets, bool wait);
+    void drawDesktopExport();
+    void drawGameDetails();
+    std::shared_ptr<DesktopJob> desktopJob_;
+    std::map<std::string, bool> exportTargets_{{"windows-x64", true}, {"macos-arm64", true}, {"linux-x64", true}};
+    std::string signPassword_; // for this export only; never saved
     bool startSharing(std::string& message);
     void stopSharing();
     std::string gameControls();         // "Arrow keys to run · Space to jump", from the start scene

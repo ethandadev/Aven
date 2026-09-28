@@ -4,10 +4,18 @@
 #include "aven/core/fs.h"
 #include "aven/core/json.h"
 #include "aven/core/uuid.h"
+#include "aven/core/icons.h"
 #include "aven/core/zip.h"
 #include "aven/math/math.h"
 
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 using namespace aven;
 
@@ -228,4 +236,62 @@ AVEN_TEST(zip_roundtrip_and_safety) {
     CHECK(!zip::read(cut, files, error));
     CHECK(!zip::read(std::vector<uint8_t>{'h', 'i'}, files, error));
     stdfs::remove_all(dir, ec);
+}
+
+// App icons: resizing keeps a picture's look; .icns files are laid out right; the icon inside a
+// Windows program can be swapped (tested on aven-player.exe on Windows, or AVEN_TEST_EXE).
+AVEN_TEST(icons_resize_icns_and_exe) {
+    // A 40 x 20 picture: the middle 20 x 20 square is red, the sides blue.
+    std::vector<uint8_t> px(40 * 20 * 4);
+    for (int y = 0; y < 20; ++y)
+        for (int x = 0; x < 40; ++x) {
+            uint8_t* p = &px[(y * 40 + x) * 4];
+            bool middle = x >= 10 && x < 30;
+            p[0] = middle ? 255 : 0;
+            p[2] = middle ? 0 : 255;
+            p[3] = 255;
+        }
+    auto small = icons::resize(px.data(), 40, 20, 8);
+    CHECK(small[0] == 255 && small[2] == 0 && small[3] == 255); // cropped to the red square
+    auto big = icons::resize(px.data(), 40, 20, 64);
+    CHECK(big[(32 * 64 + 32) * 4] == 255);
+    auto png = icons::encodePng(big.data(), 64, 64);
+    CHECK(png.size() > 8 && png[1] == 'P' && png[2] == 'N' && png[3] == 'G');
+    auto icns = icons::makeIcns({{64, png}, {128, png}});
+    CHECK(icns.size() == 8 + 2 * (8 + png.size()) + (8 + png.size())); // icp6, ic12 and ic07
+    CHECK(std::string(icns.begin(), icns.begin() + 4) == "icns");
+    CHECK_EQ((icns[4] << 24 | icns[5] << 16 | icns[6] << 8 | icns[7]), static_cast<int>(icns.size()));
+
+    std::string error;
+    std::vector<uint8_t> notExe(100, 0);
+    CHECK(!icons::replaceExeIcon(notExe, png, error));
+    std::filesystem::path exePath = std::getenv("AVEN_TEST_EXE") ? std::filesystem::path(std::getenv("AVEN_TEST_EXE"))
+                                                                  : fs::executableDir() / "aven-player.exe";
+    auto exe = fs::readBinary(exePath);
+    if (!exe) {
+        std::printf("  (no Windows program to try the icon on here)\n");
+        return;
+    }
+    CHECK(icons::replaceExeIcon(*exe, png, error));
+    std::vector<uint8_t> huge(400000, 1);
+    std::vector<uint8_t> copy = *exe;
+    CHECK(!icons::replaceExeIcon(copy, huge, error) && error.find("too big") != std::string::npos);
+    std::filesystem::path out = std::filesystem::temp_directory_path() / "aven_icon_test.exe";
+    CHECK(fs::writeBinary(out, exe->data(), exe->size()));
+#ifdef _WIN32
+    // Windows reads it back the way Explorer does.
+    HMODULE m = LoadLibraryExW(out.wstring().c_str(), nullptr, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE);
+    CHECK(m != nullptr);
+    if (m) {
+        HRSRC group = FindResourceW(m, MAKEINTRESOURCEW(1), MAKEINTRESOURCEW(14));
+        CHECK(group != nullptr);
+        HRSRC icon = FindResourceW(m, MAKEINTRESOURCEW(1), MAKEINTRESOURCEW(3));
+        CHECK(icon != nullptr && SizeofResource(m, icon) == png.size());
+        if (icon) {
+            const void* data = LockResource(LoadResource(m, icon));
+            CHECK(data && std::memcmp(data, png.data(), png.size()) == 0);
+        }
+        FreeLibrary(m);
+    }
+#endif
 }

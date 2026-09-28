@@ -78,7 +78,8 @@ uint32_t crc32(const void* data, size_t size) {
     return crc ^ 0xFFFFFFFFu;
 }
 
-bool write(const stdfs::path& zipPath, const stdfs::path& folder, const std::function<bool(const std::string&)>& include) {
+bool write(const stdfs::path& zipPath, const stdfs::path& folder, const std::function<bool(const std::string&)>& include,
+           const std::function<bool(const std::string&)>& executable) {
     // MS-DOS date and time: now.
     std::time_t now = std::time(nullptr);
     std::tm local{};
@@ -130,6 +131,11 @@ bool write(const stdfs::path& zipPath, const stdfs::path& folder, const std::fun
         if (method == 0)
             packed.assign(reinterpret_cast<const char*>(data->data()), data->size());
         uint32_t offset = static_cast<uint32_t>(out.size());
+        std::error_code permEc;
+        bool program = executable ? executable(name)
+                                  : (stdfs::status(folder / stdfs::path(name), permEc).permissions() & stdfs::perms::owner_exec) !=
+                                        stdfs::perms::none;
+        uint32_t unixMode = 0100000u | (program ? 0755u : 0644u); // a regular file, rwxr-xr-x or rw-r--r--
         auto common = [&](std::string& s) {
             put16(s, 0x0800); // UTF-8 names
             put16(s, method);
@@ -147,13 +153,13 @@ bool write(const stdfs::path& zipPath, const stdfs::path& folder, const std::fun
         out += name;
         out += packed;
         put32(central, kCentralHeader);
-        put16(central, 20); // made by
+        put16(central, (3 << 8) | 20); // made by: Unix, so the permissions below count
         put16(central, 20); // needed
         common(central);
         put16(central, 0); // comment
         put16(central, 0); // disk
         put16(central, 0); // internal attributes
-        put32(central, 0); // external attributes
+        put32(central, unixMode << 16); // external attributes: the Unix permissions
         put32(central, offset);
         central += name;
     }

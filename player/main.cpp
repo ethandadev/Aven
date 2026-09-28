@@ -40,6 +40,7 @@ struct Options {
     int width = 0, height = 0;
     bool hidden = false;
     bool debugDraw = false; // show scripts' debug_line() shapes
+    bool intro = false;     // --intro: show the splash and title screen even in --screenshot runs
     struct KeyPress {
         int frame;
         std::string key;
@@ -85,7 +86,8 @@ stdfs::path findProject(const stdfs::path& hint) {
     return "/game"; // the web page downloads the game's files here before starting
 #endif
     stdfs::path exe = fs::executableDir();
-    for (const stdfs::path& p : {exe / "game", exe, stdfs::current_path()})
+    // Beside the program, or inside a macOS app (Game.app/Contents/MacOS/Game -> Contents/Resources/game).
+    for (const stdfs::path& p : {exe / "game", exe.parent_path() / "Resources" / "game", exe, stdfs::current_path()})
         if (ProjectSettings::isProject(p))
             return p;
     return {};
@@ -105,6 +107,8 @@ bool parseArgs(int argc, char** argv, Options& o) {
             o.hidden = true;
         else if (a == "--debug-draw")
             o.debugDraw = true;
+        else if (a == "--intro")
+            o.intro = true;
         else if (a == "--size") {
             std::string s = next();
             std::sscanf(s.c_str(), "%dx%d", &o.width, &o.height);
@@ -132,7 +136,7 @@ bool parseArgs(int argc, char** argv, Options& o) {
         } else if (a == "--help" || a == "-h") {
             std::printf("usage: aven-player [project_folder] [--scene path] [--screenshot out.png --frames N]\n"
                         "                   [--size WxH] [--hidden] [--press FRAME:KEY[:FRAMES]] [--touch FRAME:X,Y[:FRAMES]]\n"
-                        "                   [--debug-draw]\n");
+                        "                   [--debug-draw] [--intro]\n");
             return false;
         } else if (!a.empty() && a[0] != '-') {
             o.project = a;
@@ -169,6 +173,12 @@ struct Player {
         wd.visible = !opt.hidden;
         if (!window.create(wd))
             return false;
+        // The game's icon (Build & Share writes app-icon.png), or Aven's.
+        for (const std::string& icon : {std::string("app-icon.png"), settings.publish.icon})
+            if (!icon.empty() && stdfs::exists(projectDir / icon)) {
+                window.setIconFromFile((projectDir / icon).string());
+                break;
+            }
         device = rhi::createDevice(rhi::Backend::OpenGL, Window::glProcLoader());
         if (!device)
             return false;
@@ -185,6 +195,14 @@ struct Player {
         if (!game->loadScene(opt.scene.empty() ? settings.startScene : opt.scene))
             return false;
         capture = !opt.screenshot.empty();
+        // "Made with Aven" and the title screen. Automated screenshots go straight to the game.
+        if (!capture || opt.intro) {
+#ifdef __EMSCRIPTEN__
+            game->startIntro(false); // a web page can't close its own tab: no Quit button
+#else
+            game->startIntro(true);
+#endif
+        }
         last = Window::time();
 #ifdef __EMSCRIPTEN__
         emscripten_set_touchstart_callback("#canvas", nullptr, true, onTouch);
@@ -242,6 +260,7 @@ struct Player {
             return true;
         }
         game->setScreenSize(fb);
+        game->setWindowSize(window.windowSize());
         game->update(dt);
         window.endFrame(); // browsers: input from here on belongs to the next frame
         device->beginFrame();
