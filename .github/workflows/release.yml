@@ -29,7 +29,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ninja-build
       - name: Build the web player
         run: tools/web/build_web_player.sh web-player
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: web-player
           path: web-player
@@ -141,7 +141,7 @@ jobs:
 
       - name: Upload screenshots of the packaged build
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-screenshots
           path: |
@@ -162,12 +162,12 @@ jobs:
           tar -cf "stage-${{ matrix.suffix }}.tar" -C dist "$PACKAGE"
           tar -cf "player-${{ matrix.suffix }}.tar" -C players "${{ matrix.suffix }}"
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: stage-${{ matrix.suffix }}
           path: stage-${{ matrix.suffix }}.tar
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: player-${{ matrix.suffix }}
           path: player-${{ matrix.suffix }}.tar
@@ -204,11 +204,11 @@ jobs:
             zip -qry "../out/$pkg.zip" "$pkg" # -y and zip's Unix attributes keep the programs runnable
           done
           ls -la ../out
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: bundled
           path: out/bundled-*.tar
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-linux-zip
           path: out/*.zip
@@ -312,7 +312,7 @@ jobs:
             if (-not (Test-Path (Join-Path $dir $f))) { throw "The installer didn't install $f" }
           }
           Get-ChildItem out
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-windows
           path: out/*
@@ -380,7 +380,7 @@ jobs:
           "$app/Contents/MacOS/aven-editor" --help > /dev/null
           hdiutil detach /tmp/aven-dmg
           ls -la out
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-macos
           path: out/*
@@ -414,7 +414,7 @@ jobs:
           manifest-path: tools/release/flatpak/io.github.ethandadev.Aven.yml
           cache: false
           upload-artifact: false
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-flatpak
           path: Aven-*.flatpak
@@ -453,7 +453,7 @@ jobs:
           # The signatures must check out with the key built into the editor.
           python3 tools/release/update_key.py verify "$UPDATE_PUBLIC_KEY" $zips
           mv dist/*.sig sigs/
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-signatures
           path: sigs/*.sig
