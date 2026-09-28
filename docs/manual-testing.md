@@ -81,7 +81,9 @@ Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should 
       Check for Updates..., Hide, Quit), File, Edit, Create, Window, Tools, Help. Items grey out
       and tick as they should; Cmd+S, Cmd+Z, Cmd+C in a text box vs in the scene; Cmd+Q asks about
       unsaved changes.
-- [ ] macOS on a Retina screen: the editor is the normal size, and the text is sharp.
+- [ ] macOS on a Retina screen: the editor is the normal size, and the text is sharp. Drag the
+      window to an external monitor (and Windows: between 100% and 150% screens): it rescales.
+- [ ] macOS Window menu: Minimize (Cmd+M), Zoom, Enter Full Screen (Ctrl+Cmd+F).
 - [ ] Linux: `flatpak install Aven-<version>-linux.flatpak`, then run it from the app menu.
 
 ## Updates

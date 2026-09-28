@@ -130,6 +130,12 @@ dmg_root="$work/dmg"
 mkdir -p "$dmg_root"
 ditto "$app" "$dmg_root/Aven.app"
 ln -s /Applications "$dmg_root/Applications"
+# The mounted disk shows Aven's icon (SetFile comes with Xcode's command line tools).
+cp "$root/resources/icon/aven.icns" "$dmg_root/.VolumeIcon.icns"
+if command -v SetFile > /dev/null; then
+    SetFile -c icnC "$dmg_root/.VolumeIcon.icns" || true
+    SetFile -a C "$dmg_root" || true
+fi
 dmg="$out/Aven-$version-macOS.dmg"
 rm -f "$dmg"
 hdiutil create -volname "Aven" -srcfolder "$dmg_root" -ov -format UDZO "$dmg"

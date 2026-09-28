@@ -20,17 +20,23 @@ renames it to the version (see [CONTRIBUTING.md](CONTRIBUTING.md#making-a-releas
 - **The Mac menu bar**: on a Mac, Aven's menus are in the menu bar at the top of the screen, with
   the usual Aven menu (About, Settings, Check for Updates, Hide, Quit). Shortcuts read Cmd and
   Option there, and code editor replace is Cmd+Option+F (Cmd+H hides the app).
+- On a Mac, the Window menu has Minimize (Cmd+M), Zoom and Enter Full Screen (Ctrl+Cmd+F), and
+  the disk image shows Aven's icon.
 - Release builds can be code signed on Windows too (see docs/releasing.md).
 - The editor's Windows program has Aven's icon.
 
 ### Fixed
 - **Everything was twice as big on Retina Macs** (and on Linux with Wayland scaling). The layout now
   follows the screen's points and only the text is drawn at the higher resolution, so it's sharp.
+  Moving the window to a screen with different scaling (a laptop and a monitor, 100% and 150%)
+  resizes the editor to match.
 - A game exported for Windows from a signed Aven would have had a broken signature after getting
   its icon; the export now removes it (and signs again with your certificate, if set).
 - A build folder made before a version change kept showing the old version number.
 - Automated editor runs (tests) no longer add their throwaway projects to the Recent list.
 - Unpacking a zip now keeps programs runnable on macOS and Linux.
+- After an update, Settings > Apps on Windows shows the new version; on a Mac, running Aven from
+  the disk image explains that it has to go into Applications before it can update.
 
 ## 0.3.0
 

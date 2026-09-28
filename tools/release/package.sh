@@ -45,11 +45,16 @@ Aven - a 2D and 3D game engine for beginners
 Open the editor:
   Windows  double-click aven-editor.exe
            (if Windows SmartScreen warns you, click "More info", then "Run anyway")
-  macOS    the first time, open Terminal in this folder and run:
-             xattr -dr com.apple.quarantine .
-           then double-click aven-editor (or run ./aven-editor)
   Linux    run ./aven-editor
            (needs OpenGL 3.3 and the usual desktop libraries; tested on Ubuntu 24.04)
+
+Installing instead: the releases page also has a Setup program for Windows
+(Aven-<version>-Setup.exe, with a Start menu shortcut), a disk image for macOS
+(Aven-<version>-macOS.dmg: drag Aven into Applications) and a Flatpak for Linux:
+  https://github.com/ethandadev/Aven/releases
+
+Aven checks for new versions when it starts and offers to install them
+(Help > Check for Updates).
 
 Pick a template, press Play, and change things. The Learn button in the top right
 walks you through the editor.

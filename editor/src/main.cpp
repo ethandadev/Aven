@@ -21,6 +21,7 @@
 #include <GLFW/glfw3.h>
 
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -253,10 +254,21 @@ int main(int argc, char** argv) {
         // Windows and X11 measure windows in pixels, so a 150% screen needs everything 1.5x bigger.
         // macOS (and Wayland) measure in points and draw into a bigger framebuffer (2x on Retina):
         // there the layout stays at 1x and only the text is rasterized at 2x, or everything is double size.
-        Vec2 points = window.windowSize(), pixels = window.framebufferSize();
-        float density = points.x > 0 && pixels.x > 0 ? pixels.x / points.x : 1.0f;
-        float layout = std::max(1.0f, window.contentScale() / std::max(1.0f, density));
-        editor.setDpiScale(args.scale > 0 ? args.scale : layout, std::max(1.0f, density));
+        // Checked every frame: dragging the window to another screen can change both.
+        float layoutNow = 0, densityNow = 0;
+        auto updateScale = [&] {
+            Vec2 points = window.windowSize(), pixels = window.framebufferSize();
+            if (points.x <= 0 || pixels.x <= 0)
+                return; // minimized
+            float density = std::max(1.0f, std::round(pixels.x / points.x * 4.0f) / 4.0f);
+            float layout = args.scale > 0 ? args.scale : std::max(1.0f, window.contentScale() / density);
+            if (std::abs(layout - layoutNow) > 0.01f || std::abs(density - densityNow) > 0.01f) {
+                layoutNow = layout;
+                densityNow = density;
+                editor.setDpiScale(layout, density);
+            }
+        };
+        updateScale();
         if (!editor.init(args.editor)) {
             exitCode = 1;
         } else {
@@ -282,6 +294,7 @@ int main(int argc, char** argv) {
                     continue;
                 }
 
+                updateScale();
                 editor.beginFrame();
                 ImGui_ImplOpenGL3_NewFrame();
                 ImGui_ImplGlfw_NewFrame();

@@ -251,7 +251,7 @@ public:
     void checkForUpdates(bool manual, bool wait = false);
     void downloadUpdate(bool wait = false);
     void drawUpdater();
-    void drawUpdateBadge(); // "Update to 0.3.1" in the menu bar and on the start screen
+    void drawUpdateBadge(bool small = true); // "Update to 0.3.1": menu bar, start screen, Mac toolbar
     void drawAppDialogs();  // About, and the Aven menu's commands on a Mac (chrome.cpp)
     bool updateAvailable() const; // a new version to show the badge for
     float updateBadgeWidth() const;

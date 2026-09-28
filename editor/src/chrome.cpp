@@ -209,9 +209,11 @@ void Editor::drawMenuBar() {
         }
         if (unlocked(Feature::CommandPalette) && menu::item("Command Palette...", key("command_palette")))
             showPalette_ = true;
-        menu::separator();
-        if (menu::item("Preferences...", key("preferences")))
-            showPrefs_ = true;
+        if (!menu::native()) { // on a Mac: Aven > Settings
+            menu::separator();
+            if (menu::item("Preferences...", key("preferences")))
+                showPrefs_ = true;
+        }
         menu::end();
     }
     if (menu::begin("Create")) {
@@ -534,7 +536,7 @@ void Editor::drawToolbar() {
     ImGui::SameLine(std::max(ImGui::GetCursorPosX() + 20, ImGui::GetWindowWidth() - rightWidth - 10));
     float rightStart = ImGui::GetCursorScreenPos().x;
     if (menu::native() && updateAvailable()) { // no menu bar in the window on a Mac
-        drawUpdateBadge();
+        drawUpdateBadge(false);
         ImGui::SameLine();
     }
     if (!tutorial_.isNull()) {

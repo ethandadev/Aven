@@ -19,11 +19,22 @@ With a paid Apple Developer account, Aven.app is signed with your **Developer ID
 **notarized** (checked by Apple), so it opens with a double-click on any Mac. Without it, the app
 is ad-hoc signed, and people have to right-click > Open it the first time.
 
-1. **Make the certificate** (once, on your Mac). In Xcode: **Settings > Accounts**, pick your
-   team, **Manage Certificates... > + > Developer ID Application**. (Only the account holder can
-   make one.)
-2. **Export it**: open **Keychain Access**, find "Developer ID Application: *your name* (*TEAMID*)"
-   under My Certificates, right-click > **Export...** as a `.p12`, and choose a password.
+1. **Make the certificate** (once, on your Mac). Only the account holder can make one. Either:
+   - **In Xcode** (easiest): **Xcode > Settings > Accounts**, add your Apple ID if it isn't there,
+     select your team, **Manage Certificates...**, click **+** and choose **Developer ID
+     Application**. Xcode makes it and puts it in your keychain.
+   - **On the website**: at [developer.apple.com/account/resources/certificates](https://developer.apple.com/account/resources/certificates/list)
+     click **+**, pick **Developer ID Application** (G2 Sub-CA), and upload a certificate signing
+     request. Make the request in **Keychain Access > Certificate Assistant > Request a Certificate
+     From a Certificate Authority...** (your email, "Saved to disk"). Download the `.cer` and
+     double-click it to add it to your keychain.
+
+   (It's *Developer ID Application*, for apps shared outside the App Store; not "Apple
+   Development" or "Mac App Distribution". Your Team ID is under **Membership details** at
+   [developer.apple.com/account](https://developer.apple.com/account).)
+2. **Export it**: open **Keychain Access**, choose **login** and **My Certificates**, find
+   "Developer ID Application: *your name* (*TEAMID*)" (it has a triangle: the private key is inside),
+   right-click > **Export...** as a `.p12`, and choose a password.
 3. **Add two secrets**:
    - `MACOS_CERTIFICATE`: the `.p12` as text. In Terminal: `base64 -i Certificates.p12 | pbcopy`,
      then paste.

@@ -100,6 +100,11 @@ UpdateInstall thisInstall() {
         if (in.root.string().find("/AppTranslocation/") != std::string::npos)
             in.cantUpdate = "macOS is running Aven from a temporary read-only copy, because it hasn't been moved since it "
                             "was downloaded. Drag Aven into your Applications folder, open it from there, and update again.";
+#if !defined(_WIN32)
+        else if (access(in.root.parent_path().c_str(), W_OK) != 0) // e.g. still on the .dmg it came in
+            in.cantUpdate = "Aven can't update itself where it is (" + in.root.parent_path().string() +
+                            "). Drag Aven into your Applications folder, open it from there, and update again.";
+#endif
     } else if (stdfs::exists(dir / "START HERE.txt", ec) && stdfs::exists(dir / editorProgram(), ec)) {
         in.root = dir; // a release zip (or the Windows installer, which installs the same files)
         in.work = dir / ".aven-update";
@@ -490,6 +495,23 @@ std::string Editor::installPendingUpdate() {
         return "";
     }
     Log::info("Update: installed Aven ", job->release.version, ".");
+#if defined(_WIN32)
+    // Installed with the Setup program: Settings > Apps should show the new version too.
+    HKEY key = nullptr;
+    const wchar_t* uninstall = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{6F6D3C2B-3E1A-4B8E-9E36-6A0B5F1D2C47}_is1";
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, uninstall, 0, KEY_QUERY_VALUE | KEY_SET_VALUE, &key) == ERROR_SUCCESS) {
+        wchar_t location[1024] = {};
+        DWORD size = sizeof location - sizeof(wchar_t);
+        std::error_code same;
+        if (RegQueryValueExW(key, L"InstallLocation", nullptr, nullptr, reinterpret_cast<BYTE*>(location), &size) == ERROR_SUCCESS &&
+            stdfs::equivalent(stdfs::path(location), job->install.root, same)) {
+            std::wstring version(job->release.version.begin(), job->release.version.end()); // digits and dots
+            RegSetValueExW(key, L"DisplayVersion", 0, REG_SZ, reinterpret_cast<const BYTE*>(version.c_str()),
+                           static_cast<DWORD>((version.size() + 1) * sizeof(wchar_t)));
+        }
+        RegCloseKey(key);
+    }
+#endif
     if (!updateRestart_)
         return "";
 #if defined(__APPLE__)
@@ -533,13 +555,14 @@ float Editor::updateBadgeWidth() const {
     return ImGui::CalcTextSize(badgeLabel(updateJob_->stage == UpdateJob::Ready, updateJob_->release.version).c_str()).x + ImGui::GetStyle().FramePadding.x * 2;
 }
 
-void Editor::drawUpdateBadge() {
+void Editor::drawUpdateBadge(bool small) {
     if (!updateAvailable())
         return;
     auto job = updateJob_;
     ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
-    if (ImGui::SmallButton((badgeLabel(job->stage == UpdateJob::Ready, job->release.version) + "##updatebadge").c_str()))
+    std::string label = badgeLabel(job->stage == UpdateJob::Ready, job->release.version) + "##updatebadge";
+    if (small ? ImGui::SmallButton(label.c_str()) : ImGui::Button(label.c_str()))
         showUpdater_ = true;
     ImGui::PopStyleColor(2);
     if (ImGui::IsItemHovered())

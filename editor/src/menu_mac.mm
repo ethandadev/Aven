@@ -21,6 +21,9 @@ using aven::editor::menu::detail::Node;
 }
 @end
 
+// macOS's own items (Minimize, Zoom, Full Screen) in the editor's menus: these answer to their keys.
+static const NSInteger kSystemItem = 7;
+
 // The editor's menus show their shortcuts but let the keys through to the editor, which knows
 // when they apply (Cmd+C copies text in a text box, objects in the scene).
 @interface AvenShowOnlyMenu : NSMenu
@@ -28,7 +31,16 @@ using aven::editor::menu::detail::Node;
 
 @implementation AvenShowOnlyMenu
 - (BOOL)performKeyEquivalent:(NSEvent*)event {
-    (void)event;
+    const NSEventModifierFlags relevant =
+        NSEventModifierFlagCommand | NSEventModifierFlagShift | NSEventModifierFlagOption | NSEventModifierFlagControl;
+    NSEventModifierFlags mods = event.modifierFlags & relevant;
+    NSString* key = event.charactersIgnoringModifiers.lowercaseString;
+    for (NSMenuItem* item in self.itemArray)
+        if (item.tag == kSystemItem && item.keyEquivalent.length && [item.keyEquivalent isEqualToString:key] &&
+            (item.keyEquivalentModifierMask & relevant) == mods) {
+            [NSApp sendAction:item.action to:nil from:item];
+            return YES;
+        }
     return NO;
 }
 @end
@@ -153,9 +165,26 @@ void build(const Node& bar) {
         appHolder.submenu = app;
         [main addItem:appHolder];
 
-        for (const Node& n : bar.children)
-            if (n.kind == Node::Menu)
-                [main addItem:makeItem(n)];
+        for (const Node& n : bar.children) {
+            if (n.kind != Node::Menu)
+                continue;
+            NSMenuItem* top = makeItem(n);
+            if (n.label == "Window") {
+                // The standard window commands first, as in every Mac app; macOS lists the windows below.
+                NSMenu* w = top.submenu;
+                NSMenuItem* minimize = [[NSMenuItem alloc] initWithTitle:@"Minimize" action:@selector(performMiniaturize:) keyEquivalent:@"m"];
+                NSMenuItem* zoom = [[NSMenuItem alloc] initWithTitle:@"Zoom" action:@selector(performZoom:) keyEquivalent:@""];
+                NSMenuItem* full = [[NSMenuItem alloc] initWithTitle:@"Enter Full Screen" action:@selector(toggleFullScreen:) keyEquivalent:@"f"];
+                full.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagControl;
+                NSArray* standard = @[minimize, zoom, full, [NSMenuItem separatorItem]];
+                for (NSUInteger i = 0; i < standard.count; ++i) {
+                    [standard[i] setTag:kSystemItem];
+                    [w insertItem:standard[i] atIndex:static_cast<NSInteger>(i)];
+                }
+                NSApp.windowsMenu = w;
+            }
+            [main addItem:top];
+        }
 
         NSApp.mainMenu = main;
     }
@@ -168,6 +197,13 @@ namespace aven::editor::menu {
 void installNative() {
     if (!NSApp)
         return;
+    // No "Start Dictation" and "Emoji & Symbols" in the Edit menu, nor a second "Enter Full Screen":
+    // macOS adds those on its own, and they'd act on the editor's canvas rather than a text field.
+    [[NSUserDefaults standardUserDefaults] registerDefaults:@{
+        @"NSDisabledDictationMenuItem" : @YES,
+        @"NSDisabledCharacterPaletteMenuItem" : @YES,
+        @"NSFullScreenMenuItemEverywhere" : @NO,
+    }];
     target = [[AvenMenuTarget alloc] init];
     detail::nativeOn = true;
     detail::apply = build;
