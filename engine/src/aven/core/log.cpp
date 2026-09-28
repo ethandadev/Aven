@@ -6,6 +6,16 @@
 #include <mutex>
 #include <vector>
 
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 namespace aven {
 
 namespace {
@@ -26,7 +36,13 @@ struct LogState {
 };
 
 LogState& state() {
-    static LogState s;
+    static LogState s = [] {
+#if defined(_WIN32)
+        // Messages are UTF-8 (names in any alphabet, emoji): a Windows console shows them as such.
+        SetConsoleOutputCP(CP_UTF8);
+#endif
+        return LogState{};
+    }();
     return s;
 }
 

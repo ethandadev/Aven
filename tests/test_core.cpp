@@ -64,6 +64,19 @@ AVEN_TEST(math_decompose) {
     CHECK_NEAR(std::abs(dot(r, r2)), 1, 1e-4);
 }
 
+AVEN_TEST(math_rotation_of_a_damaged_matrix_is_not_nan) {
+    // A matrix with nan in it (from maths gone wrong somewhere) reads as no rotation, not nan.
+    Mat4 bad = Mat4::trs({0, 0, 0}, Quat::fromEuler({10, 20, 30}), {1, 1, 1});
+    bad.m[0] = std::nanf("");
+    Quat q = quatFromMatrix(bad);
+    CHECK(std::isfinite(q.x) && std::isfinite(q.y) && std::isfinite(q.z) && std::isfinite(q.w));
+    // Squashed flat or mirrored: still a real rotation.
+    for (Vec3 scale : {Vec3{0, 0, 0}, Vec3{-1, -1, -1}}) {
+        q = quatFromMatrix(Mat4::trs({0, 0, 0}, Quat::fromEuler({0, 180, 0}), scale));
+        CHECK(std::isfinite(q.x) && std::isfinite(q.y) && std::isfinite(q.z) && std::isfinite(q.w));
+    }
+}
+
 AVEN_TEST(math_projection) {
     Mat4 p = Mat4::perspective(radians(90), 1, 0.1f, 100);
     Vec4 nearPt = p * Vec4(0, 0, -0.1f, 1);

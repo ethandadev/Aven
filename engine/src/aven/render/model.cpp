@@ -159,6 +159,7 @@ bool Model::load(rhi::Device* device, const std::filesystem::path& path, std::st
     // Meshes: each primitive becomes a part; remember which parts belong to each mesh.
     std::vector<std::vector<int>> meshParts(data->meshes_count);
     bool anyBounds = false;
+    bool tooManyJoints = false;
     for (cgltf_size mi = 0; mi < data->meshes_count; ++mi) {
         const cgltf_mesh& mesh = data->meshes[mi];
         for (cgltf_size pi = 0; pi < mesh.primitives_count; ++pi) {
@@ -191,10 +192,21 @@ bool Model::load(rhi::Device* device, const std::filesystem::path& path, std::st
                 mv.normal = v < normals.size() ? normals[v] : Vec3(0, 1, 0);
                 mv.uv = v < uvs.size() ? uvs[v] : Vec2();
                 if (v < joints.size() && v < weights.size()) {
+                    // The shader holds 128 joints: a bone past that (rare: very detailed rigs) can't
+                    // move the vertex, so its weight goes to the others.
+                    float total = 0;
                     for (int k = 0; k < 4; ++k) {
-                        mv.joints[k] = joints[v][k];
-                        mv.weights[k] = weights[v][k];
+                        bool usable = joints[v][k] >= 0 && joints[v][k] < 128 && std::isfinite(weights[v][k]) && weights[v][k] > 0;
+                        mv.joints[k] = usable ? joints[v][k] : 0;
+                        mv.weights[k] = usable ? weights[v][k] : 0;
+                        total += mv.weights[k];
+                        tooManyJoints = tooManyJoints || joints[v][k] >= 128;
                     }
+                    if (total > 0)
+                        for (int k = 0; k < 4; ++k)
+                            mv.weights[k] /= total;
+                    else
+                        mv.weights[0] = 1; // (all on the first joint rather than collapsing to the origin)
                     part.skinned = true;
                 }
             }
@@ -232,6 +244,9 @@ bool Model::load(rhi::Device* device, const std::filesystem::path& path, std::st
             parts.push_back(std::move(part));
         }
     }
+    if (tooManyJoints)
+        Log::warn(fs::toUtf8(path.filename()), ": some parts are moved by more than 128 bones; those bones are left out, "
+                  "so they may not bend. (Fewer bones, or a simpler rig, fixes it.)");
     for (auto& part : parts)
         if (device)
             part.gpu.upload(*device, part.data);
