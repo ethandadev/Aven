@@ -6,40 +6,48 @@ renames it to the version (see [CONTRIBUTING.md](CONTRIBUTING.md#making-a-releas
 
 ## Next
 
+## 0.4.0
+
+Aven installs properly now (a Setup program, a Mac app, a Flatpak) and updates itself. There's a
+script debugger, `import` for sharing code between scripts, online multiplayer with room codes,
+and crash recovery. On a Mac, the editor is the right size on Retina screens and its menus are in
+the menu bar. This release also has a round of security fixes.
+
+**Coming from 0.3.0?** 0.3.0 can't update itself, so download 0.4.0 below once. From 0.4.0 on,
+Aven offers each new version when it starts.
+
 ### New
+- **A script debugger**: click a line number in the code editor (or press F9) to add a breakpoint.
+  When the game reaches that line, everything stops, the script opens at the line, and the
+  Debugger window shows the values there and the calls that led to it. Continue (F5), Step Over
+  (F10), Step Into (F11), Step Out (Shift+F11).
+- **`import` in EasyScript**: put shared functions in one script and use them from others with
+  `import utils`, `from utils import jump`, `import utils as u` or `import "folder/utils.es"`.
+  Every script that imports it shares one copy, so its variables are shared too. Mistakes (a
+  missing script, two scripts importing each other) get plain messages.
+- **Online multiplayer**: `host_online()` gives the host a room code, and friends anywhere join
+  with `join_online(code)`. It goes through a small relay server, `aven-relay` (in the Linux
+  download), so nobody opens ports on their router. Set its address in Project Settings > Game >
+  Online relay; docs/online-multiplayer.md explains how to run one.
+- **Crash recovery**: while you have unsaved changes, Aven keeps a copy of them (the scene and any
+  edited scripts) every 30 seconds, away from your files. If it closes unexpectedly, opening the
+  project again offers them back.
 - **Updates inside Aven**: when a new version is out, an "Update to ..." button appears in the menu
   bar and on the start screen. It shows what's new, downloads the new version, checks it's the real
-  one (its SHA-256 has to match the release's), and puts it in place when you restart or close Aven.
-  Your games and anything else you keep in Aven's folder are left alone. Help > Check for Updates
-  looks any time; Preferences > Behavior > Updates turns the check off or adds beta versions.
+  one, and puts it in place when you restart or close Aven. Your games and anything else you keep
+  in Aven's folder are left alone. Help > Check for Updates looks any time; Preferences > Behavior
+  > Updates turns the check off, adds beta versions, or goes back to the version an update replaced.
 - **Installers**: a Setup program for Windows (no administrator needed, Start menu shortcut,
   uninstaller), a .dmg for macOS (drag Aven into Applications) and a Flatpak for Linux. The zips
   are still there.
 - **A real Mac app**: Aven.app, with its icon and its name in the Dock and the menu bar (not
   "Terminal"), signed and notarized when the release has a Developer ID set up.
 - **The Mac menu bar**: on a Mac, Aven's menus are in the menu bar at the top of the screen, with
-  the usual Aven menu (About, Settings, Check for Updates, Hide, Quit). Shortcuts read Cmd and
-  Option there, and code editor replace is Cmd+Option+F (Cmd+H hides the app).
-- On a Mac, the Window menu has Minimize (Cmd+M), Zoom and Enter Full Screen (Ctrl+Cmd+F), and
-  the disk image shows Aven's icon.
-- Release builds can be code signed on Windows too (see docs/releasing.md).
-- The editor's Windows program has Aven's icon.
-- **Go back after an update**: Preferences > Behavior > Updates > Go back to Aven ... restarts with
-  the version the last update replaced.
-- **Crash recovery**: while you have unsaved changes, Aven keeps a copy of them (the scene and any
-  edited scripts) every 30 seconds, away from your files. If it closes unexpectedly, opening the
-  project again offers them back.
-- **`import` in EasyScript**: put shared functions in one script and use them from others with
-  `import utils`, `from utils import jump`, `import utils as u` or `import "folder/utils.es"`.
-  Every importer shares one copy, so its variables are shared too. Mistakes (a missing script, two
-  scripts importing each other) get plain messages.
-- **A script debugger**: click a line number (or F9) for a breakpoint. When the game reaches it,
-  everything stops and the Debugger shows the values there and the calls that led to it. Continue
-  (F5), Step Over (F10), Step Into (F11), Step Out (Shift+F11).
-- **Online multiplayer**: `host_online()` gives the host a room code; friends anywhere join with
-  `join_online(code)`. It goes through a small relay server, `aven-relay` (in the Linux download),
-  so nobody opens ports on their router. Set its address in Project Settings > Game > Online
-  relay; docs/online-multiplayer.md explains running one.
+  the usual Aven menu (About, Settings, Check for Updates, Hide, Quit). Shortcuts show Cmd and
+  Option, and the code editor's replace is Cmd+Option+F (Cmd+H hides the app). The Window menu has
+  Minimize (Cmd+M), Zoom and Enter Full Screen (Ctrl+Cmd+F).
+- The editor's Windows program has Aven's icon, and release builds can be code signed on Windows
+  too (docs/releasing.md).
 - `refresh_paths()` for scripts that move walls; paths already notice walls and floors that are
   made or destroyed, straight away.
 
@@ -47,7 +55,7 @@ renames it to the version (see [CONTRIBUTING.md](CONTRIBUTING.md#making-a-releas
 - **Updates are signed with a key that isn't on GitHub.** The editor installs a download only if
   its signature (Ed25519, over its name and SHA-256) checks out with the key built into it, so
   publishing a release isn't enough to reach anyone's computer. The name has the version in it, so
-  an old signed download can't pose as a new one. (docs/releasing.md: making the key.)
+  an old signed download can't pose as a new one.
 - The release workflow pins every action to a full commit SHA, can only read the repository
   except in its last step, and gives signing secrets only to the steps that use them.
 - Building a project's C/C++ code asks first when its native/CMakeLists.txt isn't the one Aven
@@ -68,11 +76,9 @@ renames it to the version (see [CONTRIBUTING.md](CONTRIBUTING.md#making-a-releas
   resizes the editor to match.
 - A game exported for Windows from a signed Aven would have had a broken signature after getting
   its icon; the export now removes it (and signs again with your certificate, if set).
+- Unpacking a zip now keeps programs runnable on macOS and Linux.
 - A build folder made before a version change kept showing the old version number.
 - Automated editor runs (tests) no longer add their throwaway projects to the Recent list.
-- Unpacking a zip now keeps programs runnable on macOS and Linux.
-- After an update, Settings > Apps on Windows shows the new version; on a Mac, running Aven from
-  the disk image explains that it has to go into Applications before it can update.
 
 ## 0.3.0
 
@@ -107,3 +113,56 @@ icon. Plus a long list of editor fixes, many of them for working with several ob
 - Several crashes and memory bugs (Asset Library dragging, the command palette while playing, the
   scene view after play mode, missing sounds).
 - Opening someone else's project asks before running its native code; scripts stay inside the game folder.
+
+## 0.2.0
+
+The first release: a 2D and 3D game engine for beginners, with an editor that starts you off with
+templates and blocks and teaches its way up to real code.
+
+### The engine
+- **2D**: sprites and sprite sheets, tilemaps, text, particles and Box2D physics.
+- **3D**: a PBR renderer with shadows, a sky and fog, glTF models with animation, and Jolt physics
+  with a ready-made character controller.
+- **Post-processing**: bloom, tonemapping, color grading, vignette, SSAO and FXAA.
+- **Game UI**: text, buttons, panels, images, value bars and anchors. Buttons work without code:
+  **Click Actions** list what a click does.
+- **Audio** (2D and 3D sound, music), **save data**, scenes, prefabs and an object hierarchy.
+- **Three ways to code, one runtime**: **blocks** that snap together like Scratch; **EasyScript**,
+  a Python-like language with events like `on_update(dt)` and `wait()`; and **native C/C++**
+  modules through a stable C API that uses EasyScript's names.
+- **Behaviors**: gameplay from settings instead of code (platformer and top-down controllers,
+  collectibles, hazards, health, spawners, scene links and more).
+- Runs on **Windows, macOS and Linux**, and in **web browsers** (WebGL2).
+
+### The editor
+- Hierarchy with folders, an Inspector (several objects at once, prefab overrides, copy/paste/reset
+  for any setting), a scene view with move/rotate/scale handles, assets, console, undo history,
+  find in project, a command palette and a profiler.
+- A **built-in code editor** with colors, suggestions, parameter hints, live problem checks and go
+  to definition, and a **block editor**.
+- **Eight starter templates**: Blank 2D, Blank 3D, Platformer, Gem Quest (top-down), Space
+  Shooter, Cookie Clicker, 3D Obby and Crystal Forest (3D exploring).
+- **Asset Library**: 69 free (CC0) sprites, backgrounds, low-poly 3D models and textures to click
+  or drag into a scene.
+- **Creator tools**: a Pixel Editor with animation frames, a Sprite Sheet slicer, a Tile Painter,
+  a Sound Maker, particle presets, and screenshot and GIF capture.
+- **Ready-made UI**: Start Menu, Pause Menu, Health Bar and Score Text, working without code.
+- **Export** to desktop, the web and itch.io.
+- **Your way**: themes, accent colors, font sizes, UI scale, shortcuts and layouts.
+- **For experienced developers**: collision layers, debug drawing from scripts, Inspector hints in
+  comments (`# @range(0, 10)`), Hierarchy filters, your own code editor, and
+  `aven-editor --check` for CI.
+
+### Made for learning
+- **Learn mode** opens up the editor a level at a time: Starter, Explorer, Creator, then Pro.
+- **Game recipes** build a working game from a few choices ("a platformer where you collect coins
+  and avoid spikes"), with every part explained.
+- **The Error Doctor** explains errors in plain words, points at the line and offers a fix.
+- **Play-and-edit**: pause the game, change anything, then keep or undo the changes.
+- **Ask Aven** changes objects from plain words ("make it faster and bouncier"), and **Explain my
+  game** says what each object, or the whole game, does.
+- **The Code Ladder** shows one script as blocks, EasyScript, C, and then as C# (Unity), GDScript
+  (Godot), Luau (Roblox) and C++ (Unreal).
+- **Game cards**: a picture with a QR code; anyone on your Wi-Fi can play from a link.
+- **Bug replay** records the last 20 seconds of play and replays a bug exactly.
+- **Contributor quests**: small, guided ways to help improve Aven itself.
