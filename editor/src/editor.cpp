@@ -32,6 +32,10 @@ Editor::Editor(Window& window, rhi::Device& device)
     : window_(window), device_(device), assets_(&device), scene_(std::make_unique<Scene>()) {}
 
 Editor::~Editor() {
+    // A normal exit: unsaved changes were saved or thrown away on purpose. (Unless the recovery
+    // question wasn't answered yet: then the copy waits for next time.)
+    if (!pendingRecovery_.isObject())
+        clearRecovery();
     if (gifThread_.joinable())
         gifThread_.join();
     if (nativeThread_.joinable())
@@ -240,7 +244,13 @@ void Editor::openPanels(const std::string& list) {
             buildNativeModule();
             Log::info("native build: ", confirmNativeBuild_ ? "asks first" : nativeBuild_ ? "started" : "didn't start");
         }
-        else if (p == "rollback") rollbackPending_ = true; // Preferences > Updates > Go back (automated tests)
+        else if (p == "rollback") rollbackPending_ = true;
+        else if (p == "recoverysnapshot") writeRecovery(); // what the 30-second timer does (automated tests)
+        else if (p == "recover") recover(true);            // the recovery prompt's buttons
+        else if (p == "discard") recover(false);
+#if AVEN_TEST_HOOKS
+        else if (p == "crash") std::_Exit(3); // closing without cleaning up, as a crash would (tests)
+#endif // Preferences > Updates > Go back (automated tests)
         else if (p == "gamedetails") { showExport_ = true; exportTab_ = 3; }
         else if (p == "projectzip") { std::string m; exportProjectZip(m); Log::info(m); } // File > Export Project as .zip
         else if (p == "dump") { // for tests: the hierarchy, with * on selected objects
@@ -547,6 +557,7 @@ bool Editor::createProject(const stdfs::path& dir, const std::string& name, cons
 bool Editor::openProject(const stdfs::path& dir) {
     if (deferIfUnsaved([this, dir] { openProject(dir); }, true))
         return false;
+    clearRecovery(); // the project being left: its unsaved changes were answered for
     ProjectSettings s;
     std::string error;
     if (!s.load(dir, &error)) {
@@ -586,6 +597,7 @@ bool Editor::openProject(const stdfs::path& dir) {
     checkLastSession();
     nativePromptDismissed_ = false;
     NativeModules::get().refresh(projectDir_); // C/C++ behaviors it has, if built here or allowed
+    checkRecovery(); // unsaved changes from a time Aven closed unexpectedly
     Log::info("Opened project '", settings_.name, "'");
     return true;
 }
@@ -593,6 +605,7 @@ bool Editor::openProject(const stdfs::path& dir) {
 void Editor::closeProject() {
     if (deferIfUnsaved([this] { closeProject(); }, true))
         return;
+    clearRecovery();
     if (playing_)
         stop();
     tabs_.clear();
@@ -2205,6 +2218,8 @@ void Editor::frame(float dt) {
         drawPreferences();
     if (showLevels_ || levelUpTo_)
         drawLevels();
+    updateRecovery(dt);
+    drawRecoveryPrompt();
     drawAppDialogs();
     drawUpdater();
     drawKeepChangesDialog();

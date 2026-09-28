@@ -14,6 +14,9 @@ Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should 
       on the window). It opens with everything there.
 - [ ] Close with unsaved changes: you're asked to save; Cancel really cancels.
 - [ ] Autosave (Preferences > Behavior) saves after the set minutes.
+- [ ] Crash recovery: make a change, wait 30 seconds, then end Aven from the task manager (Activity
+      Monitor on a Mac). Opening the project again offers the change back; Recover brings it back
+      unsaved, Throw away doesn't. Closing Aven normally leaves nothing to recover.
 
 ## Hierarchy
 - [ ] Click, Ctrl+click, Shift+click ranges (also across open folders).

@@ -382,6 +382,36 @@ def test_native_build_asks_before_running_someone_elses_cmake(editor):
         return "Aven's own CMakeLists.txt should build without asking:\n" + (run.stdout + run.stderr)[-1500:]
 
 
+def test_crash_recovery(editor):
+    """Unsaved changes survive Aven closing unexpectedly: the next time the project opens, they're
+    offered back; a normal close leaves nothing behind."""
+    work = tempfile.mkdtemp(prefix="aven-recovery-test-")
+    project = os.path.join(work, "game")
+    shutil.copytree(os.path.join(ROOT, "templates", "platformer"), project)
+
+    def run(panels, frames=10):
+        cmd = [editor, project, "--screenshot", os.path.join(work, "shot.png"), "--frames", str(frames), "--panel", panels]
+        if sys.platform.startswith("linux") and not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
+            cmd = ["xvfb-run", "-a", "-s", "-screen 0 1920x1080x24"] + cmd
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        return r.returncode, r.stdout + r.stderr
+
+    code, log = run("@3:create:Star,@5:recoverysnapshot,@6:crash")
+    if code != 3:
+        return "the pretend crash should end the editor (exit 3), got %d:\n%s" % (code, log[-1500:])
+    code, log = run("@4:dump") # closed without answering: still offered next time
+    code, log = run("@4:recover,@7:dump")
+    if "recovery: unsaved changes" not in log:
+        return "reopening should offer the unsaved changes:\n" + log[-1500:]
+    if "dump: Star" not in log:
+        return "recovering should bring back the new Star:\n" + log[-1500:]
+    if "Star" in open(os.path.join(project, "scenes", "main.scene")).read():
+        return "recovering must not save over the scene by itself"
+    code, log = run("@4:dump")
+    if "recovery:" in log:
+        return "after a normal close, there should be nothing left to recover"
+
+
 def test_monkey(editor):
     """Random clicks, drags, keys and typing for a while, editing and playing: no crash."""
     for seed, template, play in ((1, "platformer", False), (2, "obby-3d", True)):

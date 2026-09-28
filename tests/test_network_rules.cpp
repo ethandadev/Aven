@@ -207,3 +207,29 @@ AVEN_TEST(multiplayer_host_only_lets_players_change_their_own_things) {
     CHECK(ownedByThem);
     host.stop();
 }
+
+// A player who stops reading isn't queued for forever: once 8 MB waits for them, they're let go.
+AVEN_TEST(multiplayer_host_lets_go_of_a_player_who_stops_reading) {
+    Assets assets;
+    Input input;
+    Game host(assets, input);
+    host.settings().name = "Queue Test";
+    host.start(std::make_unique<Scene>(), "test.scene");
+    std::string error;
+    const int port = 45132;
+    if (!host.network().host(port, error)) {
+        std::printf("  (skipped: %s)\n", error.c_str());
+        return;
+    }
+    auto frame = [&] { host.update(1.0f / 60.0f); };
+    RawPlayer p(port);
+    p.send(R"({"t":"hello","game":"Queue Test"})");
+    pumpFor(frame, [&] { return host.network().players().size() == 2; }, 5.0);
+    CHECK_EQ(host.network().players().size(), size_t(2));
+    // From now on the player reads nothing, while the host sends it 256 KB a frame.
+    Json big(std::string(256 * 1024, 'x'));
+    bool letGo = pumpFor([&] { host.network().send("big", big); frame(); },
+                         [&] { return host.network().players().size() == 1; }, 20.0);
+    CHECK(letGo);
+    host.stop();
+}

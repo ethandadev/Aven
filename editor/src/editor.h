@@ -758,6 +758,18 @@ private:
     std::vector<std::string> extraPanels_; // panel names for tools added later
     std::vector<std::pair<int, std::string>> deferredPanels_; // "@N:command" automation
     void autosave(float dt);
+    // Crash recovery (recovery.cpp): copies of unsaved work, offered back after a crash.
+    stdfs::path recoveryDir() const;
+    bool hasUnsavedWork() const;
+    void updateRecovery(float dt);
+    void writeRecovery();
+    void clearRecovery();
+    void checkRecovery();
+    void recover(bool keep);
+    void drawRecoveryPrompt();
+    Json pendingRecovery_;
+    bool recoveryWritten_ = false;
+    float recoveryTimer_ = 0;
     void drawMenuBar();
     void drawToolbar();
     void drawHub();
