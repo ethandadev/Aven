@@ -8,6 +8,12 @@
 #include <stb_image_write.h>
 
 #include <cmath>
+#include <cstdlib>
+#include <cstring>
+
+// From stb_image_write (compiled in stb_impl.cpp): PNG bytes, freed with free().
+extern "C" unsigned char* stbi_write_png_to_mem(const unsigned char* pixels, int stride_bytes, int x, int y, int n,
+                                                int* out_len);
 
 namespace aven {
 
@@ -162,13 +168,26 @@ bool Assets::loadImage(const std::filesystem::path& path, std::vector<uint8_t>& 
 }
 
 bool Assets::savePng(const std::filesystem::path& path, const uint8_t* rgba, int w, int h, bool flipY) {
-    std::error_code ec;
-    if (path.has_parent_path())
-        std::filesystem::create_directories(path.parent_path(), ec);
-    stbi_flip_vertically_on_write(flipY ? 1 : 0);
-    int ok = stbi_write_png(path.string().c_str(), w, h, 4, rgba, w * 4);
-    stbi_flip_vertically_on_write(0);
-    return ok != 0;
+    if (!rgba || w <= 0 || h <= 0)
+        return false;
+    // Flipped here rather than with stb's switch, which is shared by every thread; written by
+    // fs::writeBinary, which handles any folder name (stb's fopen can't on Windows).
+    const size_t row = static_cast<size_t>(w) * 4;
+    std::vector<uint8_t> flipped;
+    const uint8_t* pixels = rgba;
+    if (flipY) {
+        flipped.resize(row * static_cast<size_t>(h));
+        for (int y = 0; y < h; ++y)
+            std::memcpy(&flipped[row * static_cast<size_t>(y)], rgba + row * static_cast<size_t>(h - 1 - y), row);
+        pixels = flipped.data();
+    }
+    int len = 0;
+    unsigned char* png = stbi_write_png_to_mem(pixels, static_cast<int>(row), w, h, 4, &len);
+    if (!png)
+        return false;
+    bool ok = fs::writeBinary(path, png, static_cast<size_t>(len));
+    std::free(png);
+    return ok;
 }
 
 const TextureAsset& Assets::missingTexture() {
@@ -297,9 +316,13 @@ TextureAsset Assets::uploadImage(const std::string& path, std::vector<uint8_t>& 
     TextureAsset t;
     t.width = w; // the size the image is, even when it's shrunk on the GPU
     t.height = h;
-    // Shrink by halves until it fits.
+    // Shrink by halves until it fits: the size asked for, and what the graphics card can take (an
+    // 8000-pixel photo would otherwise show up black on a phone).
+    int limit = device_ ? device_->maxTextureSize() : 0;
+    if (is.maxSize > 0)
+        limit = limit > 0 ? std::min(limit, is.maxSize) : is.maxSize;
     int gw = w, gh = h;
-    while (is.maxSize > 0 && std::max(gw, gh) > is.maxSize && gw > 1 && gh > 1) {
+    while (limit > 0 && std::max(gw, gh) > limit && (gw > 1 || gh > 1)) {
         int nw = std::max(1, gw / 2), nh = std::max(1, gh / 2);
         std::vector<uint8_t> half(static_cast<size_t>(nw) * nh * 4);
         for (int y = 0; y < nh; ++y)

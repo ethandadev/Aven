@@ -302,8 +302,6 @@ bool unpackPoint(Point& out, const uint8_t in[32]) {
     return true;
 }
 
-bool unpackPoint(Point& out, const uint8_t in[32]);
-
 void computeConstants() {
     std::memset(kPminus2, 0xff, 32);
     kPminus2[0] = 0xeb;

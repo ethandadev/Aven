@@ -166,6 +166,8 @@ public:
     virtual void destroy(FramebufferHandle h) = 0;
 
     virtual TextureInfo textureInfo(TextureHandle h) const = 0;
+    // The biggest texture side the GPU takes (4096 on many phones, 16384 on most computers).
+    virtual int maxTextureSize() const { return 4096; }
     // Backend object id, e.g. the GL texture name (used to show textures in the editor UI).
     virtual uint64_t nativeTexture(TextureHandle h) const = 0;
 

@@ -176,8 +176,8 @@ bool replaceExeIcon(std::vector<uint8_t>& exe, const std::vector<uint8_t>& png, 
                     std::to_string(room / 1024) + " KB fits)");
     if (!iconData || !fits(iconData, room))
         return fail("its icon is damaged");
-    std::copy(png.begin(), png.end(), exe.begin() + static_cast<long>(iconData));
-    std::fill(exe.begin() + static_cast<long>(iconData + png.size()), exe.begin() + static_cast<long>(iconData + room), 0);
+    std::copy(png.begin(), png.end(), exe.begin() + static_cast<std::ptrdiff_t>(iconData));
+    std::fill(exe.begin() + static_cast<std::ptrdiff_t>(iconData + png.size()), exe.begin() + static_cast<std::ptrdiff_t>(iconData + room), 0);
     set32(icon + 4, static_cast<uint32_t>(png.size()));
     exe[entry] = 0;      // width 256
     exe[entry + 1] = 0;  // height 256

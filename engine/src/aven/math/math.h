@@ -237,6 +237,8 @@ struct Mat4 {
     static Mat4 lookAt(Vec3 eye, Vec3 target, Vec3 up) {
         Vec3 f = normalize(target - eye);
         Vec3 s = normalize(cross(f, up));
+        if (lengthSquared(s) < 1e-12f) // looking straight along `up` (a camera pointing straight down)
+            s = normalize(cross(f, std::abs(f.z) < 0.9f ? Vec3{0, 0, 1} : Vec3{1, 0, 0}));
         Vec3 u = cross(s, f);
         Mat4 r;
         r.m[0] = s.x;

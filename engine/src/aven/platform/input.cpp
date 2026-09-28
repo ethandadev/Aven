@@ -357,11 +357,19 @@ bool Input::query(std::string_view raw, Phase phase) const {
         return check(mouse_[1], prevMouse_[1]);
     if (name == "mouse_middle")
         return check(mouse_[2], prevMouse_[2]);
-    if (name == "any") {
+    if (name == "any") { // "press any key": a click, a tap or a gamepad button counts too
         bool now = false, before = false;
         for (size_t i = 0; i < keys_.size(); ++i) {
             now |= keys_[i];
             before |= prevKeys_[i];
+        }
+        for (int i = 0; i < 3; ++i) {
+            now |= mouse_[static_cast<size_t>(i)];
+            before |= prevMouse_[static_cast<size_t>(i)];
+        }
+        for (int i = 0; i < static_cast<int>(PadButton::Count); ++i) {
+            now |= pad_[i];
+            before |= prevPad_[i];
         }
         return check(now, before);
     }

@@ -29,6 +29,9 @@
 namespace aven::fs {
 
 std::optional<std::string> readText(const stdfs::path& path) {
+    std::error_code ec;
+    if (stdfs::is_directory(path, ec))
+        return std::nullopt; // (a folder opens as a stream on some systems, and reads as nothing)
     std::ifstream in(path, std::ios::binary);
     if (!in)
         return std::nullopt;
@@ -41,10 +44,15 @@ std::optional<std::string> readText(const stdfs::path& path) {
 }
 
 std::optional<std::vector<uint8_t>> readBinary(const stdfs::path& path) {
+    std::error_code ec;
+    if (stdfs::is_directory(path, ec))
+        return std::nullopt;
     std::ifstream in(path, std::ios::binary | std::ios::ate);
     if (!in)
         return std::nullopt;
     auto size = in.tellg();
+    if (size < 0)
+        return std::nullopt; // not something with a size (a device, a pipe)
     std::vector<uint8_t> data(static_cast<size_t>(size));
     in.seekg(0);
     if (size > 0 && !in.read(reinterpret_cast<char*>(data.data()), size))
@@ -68,13 +76,20 @@ bool writeBinary(const stdfs::path& path, const void* data, size_t size) {
         if (!out)
             return false;
         out.write(static_cast<const char*>(data), static_cast<std::streamsize>(size));
-        if (!out)
+        out.close(); // (flushes: a full disk shows up here)
+        if (!out) {
+            stdfs::remove(tmp, ec);
             return false;
+        }
     }
     stdfs::rename(tmp, path, ec);
     if (ec) {
-        stdfs::remove(path, ec);
-        stdfs::rename(tmp, path, ec);
+        // Renaming over the old file can fail (another program has it open on Windows, a
+        // different drive): copy instead. The old file stays as it was if that fails too.
+        ec.clear();
+        stdfs::copy_file(tmp, path, stdfs::copy_options::overwrite_existing, ec);
+        std::error_code ignored;
+        stdfs::remove(tmp, ignored);
     }
     return !ec;
 }
@@ -94,9 +109,18 @@ int64_t modifiedTime(const stdfs::path& path) {
 
 stdfs::path executableDir() {
 #if defined(_WIN32)
-    wchar_t buf[MAX_PATH];
-    DWORD n = GetModuleFileNameW(nullptr, buf, MAX_PATH);
-    return stdfs::path(std::wstring(buf, n)).parent_path();
+    // Paths can be longer than MAX_PATH: grow until the whole name fits.
+    std::wstring buf(MAX_PATH, L'\0');
+    for (;;) {
+        DWORD n = GetModuleFileNameW(nullptr, buf.data(), static_cast<DWORD>(buf.size()));
+        if (n == 0)
+            return stdfs::current_path();
+        if (n < buf.size())
+            return stdfs::path(buf.substr(0, n)).parent_path();
+        if (buf.size() >= 32768)
+            return stdfs::current_path();
+        buf.resize(buf.size() * 2);
+    }
 #elif defined(__APPLE__)
     char buf[PATH_MAX];
     uint32_t size = sizeof buf;
@@ -173,10 +197,32 @@ void persist() {
 #endif
 }
 
+std::string safeFolderName(const std::string& name) {
+    std::string safe;
+    for (char c : name)
+        safe += (std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == ' ') ? c : '_';
+    // Windows drops spaces at the ends of folder names, and some names are devices, not folders.
+    while (!safe.empty() && safe.back() == ' ')
+        safe.pop_back();
+    while (!safe.empty() && safe.front() == ' ')
+        safe.erase(safe.begin());
+    if (safe.size() > 64)
+        safe.resize(64);
+    std::string lower = safe;
+    for (char& c : lower)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    static const char* reserved[] = {"con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7",
+                                     "com8", "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9"};
+    for (const char* r : reserved)
+        if (lower == r)
+            safe += '_';
+    return safe.empty() ? "Game" : safe;
+}
+
 stdfs::path userDataDir(const std::string& gameName) {
     stdfs::path base;
 #if defined(_WIN32)
-    if (const char* appdata = std::getenv("APPDATA"))
+    if (const wchar_t* appdata = _wgetenv(L"APPDATA")) // (wide: a name like 张伟 doesn't fit the ANSI code page)
         base = appdata;
 #elif defined(__APPLE__)
     if (const char* home = std::getenv("HOME"))
@@ -191,11 +237,14 @@ stdfs::path userDataDir(const std::string& gameName) {
 #endif
     if (base.empty())
         base = stdfs::temp_directory_path();
-    std::string safe;
+    // Before 0.4.1 names weren't trimmed or shortened: a folder made then keeps being used.
+    std::string legacy;
     for (char c : gameName)
-        safe += (std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == ' ') ? c : '_';
-    if (safe.empty())
-        safe = "Game";
+        legacy += (std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == ' ') ? c : '_';
+    std::string safe = safeFolderName(gameName);
+    std::error_code ec;
+    if (!legacy.empty() && legacy != safe && stdfs::is_directory(base / "Aven" / legacy, ec))
+        return base / "Aven" / legacy;
     return base / "Aven" / safe;
 }
 

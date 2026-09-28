@@ -25,6 +25,14 @@ std::string identifier(const std::string& raw, const std::string& fallback) {
     }
     if (out.empty() || std::isdigit(static_cast<unsigned char>(out[0])))
         out = fallback + out;
+    // Words EasyScript already uses ("if", "for"...) and names the blocks' code needs can't be
+    // variable names: "if = 0" wouldn't run. A variable called "if" becomes "if_".
+    static const char* reserved[] = {"def", "if", "elif", "else", "while", "for", "in", "return", "break", "continue",
+                                     "pass", "and", "or", "not", "True", "False", "None", "global", "true", "false",
+                                     "none", "null", "self", "game", "is_clone"};
+    for (const char* r : reserved)
+        if (out == r)
+            return out + "_";
     return out;
 }
 

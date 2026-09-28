@@ -123,7 +123,7 @@ bool write(const stdfs::path& zipPath, const stdfs::path& folder, const std::fun
         uint32_t size = static_cast<uint32_t>(data->size());
         uint16_t method = 0;
         std::string packed;
-        if (!alreadyCompressed(name) && size > 64) {
+        if (!alreadyCompressed(name) && size > 64 && size < 0x7FFFFFFFu) { // (the compressor counts in int)
             int zlen = 0;
             if (unsigned char* z = stbi_zlib_compress(data->data(), static_cast<int>(size), &zlen, 8)) {
                 // A zlib stream is 2 bytes of header, the deflate data, and 4 bytes of checksum.
@@ -237,7 +237,11 @@ struct Item {
 // Deflate can't shrink data more than about 1032 to 1: an entry claiming more is lying (a "zip bomb"),
 // and is refused before any memory is set aside for it.
 bool plausible(const Item& it) {
-    return it.method == 0 ? it.packedSize == it.size : static_cast<uint64_t>(it.size) <= 1100ull * it.packedSize + 1024;
+    if (it.method == 0)
+        return it.packedSize == it.size;
+    // ...and it never grows data by more than a little (stored blocks have 5 bytes of header per 64 KB).
+    return static_cast<uint64_t>(it.size) <= 1100ull * it.packedSize + 1024 &&
+           static_cast<uint64_t>(it.packedSize) <= static_cast<uint64_t>(it.size) + it.size / 64 + 1024;
 }
 
 // The list of files: names checked, sizes limited, nothing unpacked yet.

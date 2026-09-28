@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <type_traits>
 #include <utility>
@@ -108,11 +109,13 @@ public:
 private:
     std::vector<uint32_t> sparse_;
     std::vector<uint32_t> dense_;
-    std::vector<T> data_;
+    // A deque, not a vector: adding a component never moves the others, so the references a
+    // system holds stay good while it spawns things (a spawner making more spawners).
+    std::deque<T> data_;
 };
 
-// Note: references returned by get/emplace stay valid only until another
-// component of the same type is added or removed.
+// Note: references returned by get/emplace stay valid while other components are added, and
+// until a component of the same type is removed (removing one moves the last into its place).
 class Registry {
 public:
     Entity create() {

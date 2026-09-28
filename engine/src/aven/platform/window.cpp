@@ -6,6 +6,7 @@
 
 #include <stb_image.h>
 
+#include <algorithm>
 #include <cstring>
 
 #include <GLFW/glfw3.h>
@@ -231,9 +232,15 @@ void Window::pollEvents() {
         return;
     }
 #else
-    if (glfwJoystickIsGamepad(GLFW_JOYSTICK_1)) {
+    // The first joystick that's a gamepad (another device can sit in the first slot: a wheel, a
+    // drawing tablet's buttons...).
+    int padJoystick = -1;
+    for (int j = GLFW_JOYSTICK_1; j <= GLFW_JOYSTICK_LAST && padJoystick < 0; ++j)
+        if (glfwJoystickIsGamepad(j))
+            padJoystick = j;
+    if (padJoystick >= 0) {
         GLFWgamepadstate state;
-        if (glfwGetGamepadState(GLFW_JOYSTICK_1, &state)) {
+        if (glfwGetGamepadState(padJoystick, &state)) {
             bool buttons[static_cast<int>(PadButton::Count)];
             float axes[static_cast<int>(PadAxis::Count)];
             for (int i = 0; i < static_cast<int>(PadButton::Count); ++i)
@@ -336,8 +343,27 @@ void Window::setFullscreen(bool fullscreen) {
     if (fullscreen) {
         glfwGetWindowPos(handle_, &windowedX_, &windowedY_);
         glfwGetWindowSize(handle_, &windowedW_, &windowedH_);
+        // The screen the window is mostly on (not always the main one).
         GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+        int count = 0, best = 0;
+        GLFWmonitor** monitors = glfwGetMonitors(&count);
+        for (int i = 0; i < count; ++i) {
+            int mx = 0, my = 0;
+            glfwGetMonitorPos(monitors[i], &mx, &my);
+            const GLFWvidmode* m = glfwGetVideoMode(monitors[i]);
+            if (!m)
+                continue;
+            int overlapW = std::min(windowedX_ + windowedW_, mx + m->width) - std::max(windowedX_, mx);
+            int overlapH = std::min(windowedY_ + windowedH_, my + m->height) - std::max(windowedY_, my);
+            int area = std::max(0, overlapW) * std::max(0, overlapH);
+            if (area > best) {
+                best = area;
+                monitor = monitors[i];
+            }
+        }
+        const GLFWvidmode* mode = monitor ? glfwGetVideoMode(monitor) : nullptr;
+        if (!mode)
+            return; // no screen to fill (a headless session)
         glfwSetWindowMonitor(handle_, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
     } else {
         glfwSetWindowMonitor(handle_, nullptr, windowedX_, windowedY_, windowedW_, windowedH_, 0);

@@ -1,5 +1,6 @@
 #include "aven/core/log.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdio>
 #include <mutex>
@@ -16,6 +17,9 @@ struct SinkEntry {
 
 struct LogState {
     std::mutex mutex;
+    // Held while sinks run, and by removeSink: once removeSink returns, that sink is never called
+    // again, even by another thread that was logging at the time. Recursive: a sink may log.
+    std::recursive_mutex calling;
     std::vector<SinkEntry> sinks;
     int nextId = 1;
     std::atomic<bool> echo{true};
@@ -48,6 +52,7 @@ int Log::addSink(Sink sink) {
 
 void Log::removeSink(int id) {
     auto& s = state();
+    std::lock_guard wait(s.calling);
     std::lock_guard lock(s.mutex);
     std::erase_if(s.sinks, [id](const SinkEntry& e) { return e.id == id; });
 }
@@ -72,8 +77,15 @@ void Log::write(const LogMessage& message) {
             std::fprintf(out, "[%s] %s\n", levelTag(message.level), message.text.c_str());
         std::fflush(out);
     }
-    for (auto& e : sinks)
+    std::lock_guard calling(s.calling);
+    for (auto& e : sinks) {
+        {
+            std::lock_guard lock(s.mutex); // removed since the copy was made (by an earlier sink, say)?
+            if (std::none_of(s.sinks.begin(), s.sinks.end(), [&](const SinkEntry& live) { return live.id == e.id; }))
+                continue;
+        }
         e.sink(message);
+    }
 }
 
 void Log::write(LogLevel level, std::string text, std::string file, int line) {

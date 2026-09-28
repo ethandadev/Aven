@@ -41,5 +41,8 @@ void persist();
 
 // Per-user writable directory for save data: e.g. ~/.local/share/Aven/<game> on Linux.
 stdfs::path userDataDir(const std::string& gameName);
+// A name that works as a folder or file name on every system: letters, digits, - _ and spaces
+// (not at the ends), at most 64 characters, never a Windows device name like "con". "Game" if empty.
+std::string safeFolderName(const std::string& name);
 
 } // namespace aven::fs

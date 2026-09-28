@@ -42,7 +42,7 @@ public:
     bool asBool(bool fallback = false) const;
     double asNumber(double fallback = 0) const;
     float asFloat(float fallback = 0) const { return static_cast<float>(asNumber(fallback)); }
-    int asInt(int fallback = 0) const { return static_cast<int>(asNumber(fallback)); }
+    int asInt(int fallback = 0) const; // the fallback too when the number doesn't fit (1e20, a hand-edited file)
     const std::string& asString() const;
     std::string asString(std::string_view fallback) const;
 

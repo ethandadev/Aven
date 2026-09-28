@@ -191,6 +191,9 @@ public:
         GLint align = 256;
         glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &align);
         uboAlign_ = static_cast<size_t>(std::max(align, 16));
+        GLint maxTexture = 4096;
+        glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTexture);
+        maxTexture_ = std::max(1024, static_cast<int>(maxTexture));
         glGenBuffers(1, &ubo_);
         glBindBuffer(GL_UNIFORM_BUFFER, ubo_);
         glBufferData(GL_UNIFORM_BUFFER, static_cast<GLsizeiptr>(kUboSize), nullptr, GL_STREAM_DRAW);
@@ -209,6 +212,7 @@ public:
     }
 
     Backend backend() const override { return Backend::OpenGL; }
+    int maxTextureSize() const override { return maxTexture_; }
 
     std::string description() const override {
         auto str = [](GLenum e) {
@@ -816,6 +820,7 @@ private:
     size_t uboAlign_ = 256;
     size_t enabledAttribs_ = 0;
     float maxAniso_ = 1.0f;
+    int maxTexture_ = 4096;
     FrameStats stats_;
 };
 

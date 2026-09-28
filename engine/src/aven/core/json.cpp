@@ -278,12 +278,17 @@ private:
             case 'f': out += '\f'; break;
             case 'u': {
                 uint32_t cp = parseHex4();
-                if (cp >= 0xD800 && cp <= 0xDBFF && pos_ + 1 < s_.size() && s_[pos_] == '\\' &&
-                    s_[pos_ + 1] == 'u') {
+                if (cp >= 0xD800 && cp <= 0xDBFF && pos_ + 5 < s_.size() && s_[pos_] == '\\' && s_[pos_ + 1] == 'u') {
+                    size_t before = pos_;
                     pos_ += 2;
                     uint32_t lo = parseHex4();
-                    cp = lo >= 0xDC00 && lo <= 0xDFFF ? 0x10000 + ((cp - 0xD800) << 10) + (lo - 0xDC00) : 0xFFFD;
+                    if (lo >= 0xDC00 && lo <= 0xDFFF)
+                        cp = 0x10000 + ((cp - 0xD800) << 10) + (lo - 0xDC00);
+                    else
+                        pos_ = before; // not a pair: the next escape is read on its own
                 }
+                if (cp >= 0xD800 && cp <= 0xDFFF)
+                    cp = 0xFFFD; // half of a pair on its own isn't a character
                 appendUtf8(out, cp);
                 break;
             }
@@ -337,6 +342,13 @@ double Json::asNumber(double fallback) const {
     if (auto* b = std::get_if<bool>(&value_))
         return *b ? 1 : 0;
     return fallback;
+}
+
+int Json::asInt(int fallback) const {
+    double n = asNumber(fallback);
+    if (!(n >= -2147483648.0 && n <= 2147483647.0)) // (also catches NaN)
+        return fallback;
+    return static_cast<int>(n);
 }
 
 const std::string& Json::asString() const {
