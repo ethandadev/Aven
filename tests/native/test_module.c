@@ -73,6 +73,23 @@ static void fuse_destroyed(AvenEntity self, void* data) {
     aven_game_set("fuse_destroyed", 1);
 }
 
+/* API version 2: parents and children, and calls with text arguments. */
+static void family_start(AvenEntity self, void* data) {
+    (void)data;
+    aven_game_set("family_parent_ok", aven_parent(self) == aven_find("Home"));
+    aven_game_set("family_top_has_no_parent", aven_parent(aven_find("Home")) == 0);
+    AvenEntity kids[1];
+    aven_game_set("family_children", aven_children(self, kids, 1)); /* all of them, though only one fits */
+    AvenEntity grandchild = aven_find_child(self, "Grandchild");
+    if (grandchild)
+        aven_set(grandchild, "x", 7);
+    aven_game_set("family_missing_child", aven_find_child(self, "Nobody") == 0);
+    AvenArg name = aven_text_arg("C");
+    aven_game_set("family_greeting_ok", strcmp(aven_call_text(grandchild, "greet", &name, 1), "hi C") == 0);
+    AvenArg args[2] = {aven_number_arg(2), aven_number_arg(3)};
+    aven_game_set("family_sum", aven_call_with(grandchild, "add", args, 2));
+}
+
 static void setup(AvenModule* module) {
     AvenBehavior* mover = aven_behavior(module, "Mover", sizeof(Mover));
     aven_number(mover, "speed", offsetof(Mover, speed), 2, "Units per second");
@@ -89,6 +106,9 @@ static void setup(AvenModule* module) {
     AvenBehavior* fuse = aven_behavior(module, "Fuse", sizeof(Fuse));
     fuse->on_update = fuse_update;
     fuse->on_destroy = fuse_destroyed;
+
+    AvenBehavior* family = aven_behavior(module, "Family", 0);
+    family->on_start = family_start;
 }
 
 AVEN_MODULE(setup)

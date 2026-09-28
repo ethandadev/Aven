@@ -897,15 +897,28 @@ private:
             helpers_.insert("look_at");
             return "turn_toward(" + o + ", " + ex(e->items[0].get()) + ")";
         }
-        static const std::set<std::string> objectOnly = {"is_touching", "clone", "find_child", "get_component", "add_component",
-                                                         "has_component", "remove_component", "tween", "direction_to"};
+        if (m == "find_child")
+            return "aven_find_child(" + o + ", " + (n ? sx(e->items[0].get()) : "\"\"") + ")";
+        static const std::set<std::string> objectOnly = {"clone", "get_component", "add_component", "has_component",
+                                                         "remove_component", "tween", "direction_to"};
         if (objectOnly.count(m))
-            return "0 " + todo(e->line, "." + m + "() isn't in the C API yet (it needs objects, components or text).");
-        // Everything else takes numbers: aven_call runs the same method EasyScript would.
+            return "0 " + todo(e->line, "." + m + "() isn't in the C API yet (it needs objects or components).");
+        // Everything else takes numbers and text: aven_call runs the same method EasyScript would.
+        bool text = false;
         for (size_t i = 0; i < n; ++i) {
             CT t = ty(e->items[i].get());
-            if (t == CT::Str || t == CT::Ent)
-                return "0 " + todo(e->line, "aven_call() passes numbers only, and ." + m + "() is given text or an object here.");
+            if (t == CT::Ent)
+                return "0 " + todo(e->line, "the C API passes numbers and text, and ." + m + "() is given an object here.");
+            text = text || t == CT::Str;
+        }
+        if (text) { // (aven_call_with: API version 2)
+            std::string list;
+            for (size_t i = 0; i < n; ++i) {
+                const Expr* a = e->items[i].get();
+                list += std::string(i ? ", " : "") +
+                        (ty(a) == CT::Str ? "aven_text_arg(" + sx(a) + ")" : "aven_number_arg(" + ex(a) + ")");
+            }
+            return "aven_call_with(" + o + ", " + cQuote(m) + ", (const AvenArg[]){" + list + "}, " + std::to_string(n) + ")";
         }
         return "aven_call(" + o + ", " + cQuote(m) + ", " + doubles(numbers(e)) + ")";
     }

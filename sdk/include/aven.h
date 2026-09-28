@@ -47,7 +47,7 @@
 extern "C" {
 #endif
 
-#define AVEN_API_VERSION 1
+#define AVEN_API_VERSION 2 /* 2: parents and children, and calls with text arguments */
 
 #if defined(_WIN32)
 #define AVEN_EXPORT __declspec(dllexport)
@@ -78,6 +78,13 @@ typedef struct AvenBehavior {
     void (*on_destroy)(AvenEntity self, void* data);
     void* reserved[8]; /* room for new events without breaking modules built today */
 } AvenBehavior;
+
+/* One argument for aven_call_with: a number, or (when `text` isn't NULL) a text.
+ * Make them with aven_number_arg(3.5) and aven_text_arg("jump"). */
+typedef struct AvenArg {
+    const char* text;
+    double number;
+} AvenArg;
 
 typedef enum AvenPropertyType {
     AVEN_PROPERTY_NUMBER = 0,  /* float */
@@ -137,6 +144,18 @@ typedef struct AvenApi {
     double (*time)(void);
     double (*delta_time)(void);
     double (*random)(double low, double high);
+
+    /* ---- Added in API version 2 ---- */
+
+    /* The family: an object's parent (0 when it's at the top), its children, and the first object
+     * called `name` anywhere below it (children, their children...). */
+    AvenEntity (*parent)(AvenEntity e);
+    int (*children)(AvenEntity e, AvenEntity* out, int max);
+    AvenEntity (*find_child)(AvenEntity e, const char* name);
+    /* Calls an EasyScript method with numbers and texts (see AvenArg). call_with returns a number
+     * result (1/0 for true/false); call_text returns a text result ("" if there isn't one). */
+    double (*call_with)(AvenEntity e, const char* method, const AvenArg* args, int count);
+    const char* (*call_text)(AvenEntity e, const char* method, const AvenArg* args, int count);
 } AvenApi;
 
 /* Set by AVEN_MODULE when the engine loads the module. */
@@ -210,6 +229,29 @@ static inline void aven_load_scene(const char* path) { aven_api->load_scene(path
 static inline double aven_time(void) { return aven_api->time(); }
 static inline double aven_delta_time(void) { return aven_api->delta_time(); }
 static inline double aven_random(double low, double high) { return aven_api->random(low, high); }
+
+/* API version 2 */
+static inline AvenEntity aven_parent(AvenEntity e) { return aven_api->parent(e); }
+static inline int aven_children(AvenEntity e, AvenEntity* out, int max) { return aven_api->children(e, out, max); }
+static inline AvenEntity aven_find_child(AvenEntity e, const char* name) { return aven_api->find_child(e, name); }
+static inline AvenArg aven_number_arg(double number) {
+    AvenArg a;
+    a.text = 0;
+    a.number = number;
+    return a;
+}
+static inline AvenArg aven_text_arg(const char* text) {
+    AvenArg a;
+    a.text = text ? text : "";
+    a.number = 0;
+    return a;
+}
+static inline double aven_call_with(AvenEntity e, const char* method, const AvenArg* args, int count) {
+    return aven_api->call_with(e, method, args, count);
+}
+static inline const char* aven_call_text(AvenEntity e, const char* method, const AvenArg* args, int count) {
+    return aven_api->call_text(e, method, args, count);
+}
 
 #ifdef __cplusplus
 } /* extern "C" */

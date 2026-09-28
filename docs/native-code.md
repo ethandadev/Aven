@@ -100,6 +100,11 @@ obvious C spelling:
 | `find("Player")` | `aven_find("Player")` |
 | `spawn("prefabs/coin.prefab", x, y)` | `aven_spawn("prefabs/coin.prefab", x, y, 0);` |
 | `self.play_animation(0, 3)` | `aven_call(self, "play_animation", (const double[]){0, 3}, 2);` (in C++, pass an array variable) |
+| `self.play_state("Run")` | `AvenArg run = aven_text_arg("Run");`<br>`aven_call_with(self, "play_state", &run, 1);` |
+| `other.describe()` (a text result) | `aven_call_text(other, "describe", NULL, 0)` |
+| `self.parent` | `aven_parent(self)` (0 at the top) |
+| `self.find_child("Gun")` | `aven_find_child(self, "Gun")` |
+| `self.children` | `AvenEntity kids[16]; int n = aven_children(self, kids, 16);` |
 | `key_down("left")` | `aven_key_down("left")` |
 | `play_sound("sounds/hit.wav")` | `aven_play_sound("sounds/hit.wav");` |
 | `other.send("hurt", 1)` | `aven_send(other, "hurt", 1);` |
@@ -136,4 +141,6 @@ library with C functions can bind to it: Rust, Zig, Odin, or C# with NativeAOT.
 - **Desktop exports include `native/bin`** (not your source). **Web builds can't run native
   code**; objects using it sit still in the browser.
 - **The API is versioned** (`AVEN_API_VERSION`). Newer engines only add to the end of the table,
-  so modules built today keep working.
+  so modules built today keep working. Version 2 (the release after 0.4.0) added `aven_parent`, `aven_children`,
+  `aven_find_child`, and `aven_call_with` / `aven_call_text` for methods that take or give text.
+  A module built with version 2's header won't load in an older Aven, and says so.

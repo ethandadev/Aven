@@ -239,6 +239,21 @@ AVEN_TEST(translate_to_c_compiles) {
         fs::writeText(out, t.code);
         all += " \"" + out.string() + "\"";
     }
+    {
+        // API version 2: children by name, and methods given text.
+        std::string source = "def on_start():\n    gun = self.find_child(\"Gun\")\n    gun.x = 2\n"
+                             "    self.play_state(\"Run\")\n    if self.is_touching(\"coin\"):\n        print(\"coin\")\n";
+        TranslateOptions options;
+        options.className = "Family";
+        Translation t = translate(source, TargetLanguage::AvenC, options);
+        CHECK(t.ok);
+        CHECK(contains(t.code, "aven_find_child(self, \"Gun\")"));
+        CHECK(contains(t.code, "aven_call_with(self, \"play_state\", (const AvenArg[]){aven_text_arg(\"Run\")}, 1)"));
+        CHECK(contains(t.code, "aven_call_with(self, \"is_touching\""));
+        auto out = dir / "api2_family.c";
+        fs::writeText(out, t.code);
+        all += " \"" + out.string() + "\"";
+    }
     std::string log = (dir / "compile.log").string();
     std::string command = std::string("\"") + AVEN_C_COMPILER + "\" -std=c11 -fsyntax-only -Wall -Wno-unused-but-set-variable -I\"" +
                           AVEN_SOURCE_DIR + "/sdk/include\"" + all + " > \"" + log + "\" 2>&1";

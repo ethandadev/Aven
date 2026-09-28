@@ -10,6 +10,12 @@ A careful pass over every part of Aven: odd input, full disks, read-only folders
 moment and scripts that do strange things now get a clear message instead of a crash or a hang.
 The editor also fits better at bigger UI sizes.
 
+### New
+- **C API version 2** for native C/C++ behaviors: `aven_parent`, `aven_children` and
+  `aven_find_child` walk an object's family, and `aven_call_with` / `aven_call_text` call methods
+  that take or give text (`play_state("Run")`, or a script's own functions). Modules built for
+  version 1 keep working.
+
 ### Fixed
 - **Your work is never quietly lost.** When a script, scene, drawing or sound can't be saved (a
   read-only folder, a full disk), Aven says so and keeps it unsaved. Save and close, Save and

@@ -216,28 +216,84 @@ void apiSetText(AvenEntity e, const char* property, const char* value) {
     writeProperty(e, property, Value(safe(value)), "set_text");
 }
 
-double apiCall(AvenEntity handle, const char* method, const double* args, int count) {
-    if (!ready("call"))
-        return 0;
+// Calls an object's EasyScript method (aven_call, aven_call_with, aven_call_text); false when it can't.
+bool callMethod(const char* function, AvenEntity handle, const char* method, std::vector<Value> values, Value& result) {
+    if (!ready(function))
+        return false;
     Entity e = entityOf(handle);
     if (!e) {
-        reportOnce("aven_call(\"" + safe(method) + "\") was given an object that doesn't exist (any more).");
-        return 0;
+        reportOnce(std::string("aven_") + function + "(\"" + safe(method) + "\") was given an object that doesn't exist (any more).");
+        return false;
     }
     Value self = gScripts->entityValue(e), fn;
     if (!self.nativeObject().getAttr(gScripts->vm(), safe(method), fn) || !fn.isCallable()) {
-        reportOnce("aven_call(): objects have no method called \"" + safe(method) + "\".");
-        return 0;
+        reportOnce(std::string("aven_") + function + "(): objects have no method called \"" + safe(method) + "\".");
+        return false;
     }
+    try {
+        result = gScripts->vm().callNow(fn, std::move(values));
+        return true;
+    } catch (const script::ScriptError& err) {
+        reportOnce(std::string("aven_") + function + "(\"" + safe(method) + "\"): " + err.what());
+        return false;
+    }
+}
+
+double apiCall(AvenEntity handle, const char* method, const double* args, int count) {
     std::vector<Value> values;
     for (int i = 0; i < count && args; ++i)
         values.emplace_back(args[i]);
-    try {
-        return toNumber(gScripts->vm().callNow(fn, std::move(values)));
-    } catch (const script::ScriptError& err) {
-        reportOnce("aven_call(\"" + safe(method) + "\"): " + err.what());
+    Value result;
+    return callMethod("call", handle, method, std::move(values), result) ? toNumber(result) : 0;
+}
+
+std::vector<Value> argValues(const AvenArg* args, int count) {
+    std::vector<Value> values;
+    for (int i = 0; i < count && args; ++i)
+        values.push_back(args[i].text ? Value(std::string(args[i].text)) : Value(args[i].number));
+    return values;
+}
+
+double apiCallWith(AvenEntity handle, const char* method, const AvenArg* args, int count) {
+    Value result;
+    return callMethod("call_with", handle, method, argValues(args, count), result) ? toNumber(result) : 0;
+}
+
+const char* apiCallText(AvenEntity handle, const char* method, const AvenArg* args, int count) {
+    Value result;
+    if (!callMethod("call_text", handle, method, argValues(args, count), result) || result.isNone())
+        return keepText("");
+    return keepText(result.isString() ? result.string() : result.toString());
+}
+
+AvenEntity apiParent(AvenEntity handle) {
+    if (!ready("parent"))
         return 0;
+    Entity e = entityOf(handle);
+    return e ? gScripts->game().scene().parent(e).toHandle() : 0;
+}
+
+int apiChildren(AvenEntity handle, AvenEntity* out, int max) {
+    if (!ready("children"))
+        return 0;
+    Entity e = entityOf(handle);
+    if (!e)
+        return 0;
+    int n = 0;
+    for (Entity c : gScripts->game().scene().children(e)) {
+        if (out && n < max)
+            out[n] = c.toHandle();
+        ++n;
     }
+    return n; // (all of them, like aven_find_all: more than `max` means the list was cut short)
+}
+
+AvenEntity apiFindChild(AvenEntity handle, const char* name) {
+    // Through EasyScript's self.find_child(), so both find the same object.
+    Value found;
+    if (!callMethod("find_child", handle, "find_child", {Value(safe(name))}, found))
+        return 0;
+    return gScripts->entityFromValue(found).toHandle();
 }
 
 int apiKey(const char* function, const char* key) {
@@ -327,6 +383,11 @@ const AvenApi* engineApi() {
         a.time = apiTime;
         a.delta_time = apiDeltaTime;
         a.random = apiRandom;
+        a.parent = apiParent;
+        a.children = apiChildren;
+        a.find_child = apiFindChild;
+        a.call_with = apiCallWith;
+        a.call_text = apiCallText;
         return a;
     }();
     return &api;

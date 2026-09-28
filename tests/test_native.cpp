@@ -36,7 +36,7 @@ AVEN_TEST(native_module_loads_behaviors_and_properties) {
     CHECK(!modules.refresh(dir)); // nothing changed
     CHECK_EQ(modules.modules().size(), size_t(1));
     CHECK(modules.modules()[0].error.empty());
-    CHECK_EQ(modules.modules()[0].behaviors, 3);
+    CHECK_EQ(modules.modules()[0].behaviors, 4);
     const NativeBehaviorInfo* mover = modules.find("Mover");
     CHECK(mover != nullptr);
     CHECK(modules.find("Finder") != nullptr);
@@ -107,6 +107,16 @@ AVEN_TEST(native_behaviors_run_in_the_game) {
         reg.emplace<NativeScript>(missing).className = "Nope";
         Entity fuse = scene->create("Fuse");
         reg.emplace<NativeScript>(fuse).className = "Fuse"; // destroys itself mid-update
+        // API version 2: Home > Family > (Child, Middle > Grandchild with a script to call).
+        fs::writeText(dir / "scripts/greeter.es", "def greet(name):\n    return \"hi \" + name\n\n"
+                                                   "def add(a, b):\n    return a + b\n");
+        Entity home = scene->create("Home");
+        Entity family = scene->create("Family", home);
+        reg.emplace<NativeScript>(family).className = "Family";
+        scene->create("Child", family);
+        Entity middle = scene->create("Middle", family);
+        Entity grandchild = scene->create("Grandchild", middle);
+        reg.emplace<Script>(grandchild).path = "scripts/greeter.es";
 
         game.start(std::move(scene), "scenes/test.scene");
         for (int i = 0; i < 60; ++i)
@@ -123,6 +133,13 @@ AVEN_TEST(native_behaviors_run_in_the_game) {
         CHECK_NEAR(game.scripts().gameNumber("fuse_done"), 3.0, 1e-9);
         CHECK_NEAR(game.scripts().gameNumber("fuse_destroyed"), 1.0, 1e-9);
         CHECK(!s.findByName("Fuse"));
+        CHECK_NEAR(game.scripts().gameNumber("family_parent_ok"), 1.0, 1e-9);
+        CHECK_NEAR(game.scripts().gameNumber("family_top_has_no_parent"), 1.0, 1e-9);
+        CHECK_NEAR(game.scripts().gameNumber("family_children"), 2.0, 1e-9);
+        CHECK_NEAR(s.transform(s.findByName("Grandchild")).position.x, 7.0f, 1e-5f);
+        CHECK_NEAR(game.scripts().gameNumber("family_missing_child"), 1.0, 1e-9);
+        CHECK_NEAR(game.scripts().gameNumber("family_greeting_ok"), 1.0, 1e-9);
+        CHECK_NEAR(game.scripts().gameNumber("family_sum"), 5.0, 1e-9);
         for (int i = 0; i < 60; ++i) // boosted to 6 units per second by the EasyScript
             game.update(1.0f / 60.0f);
         CHECK_NEAR(s.transform(s.findByName("Mover")).position.x, 10.0f, 0.2f);

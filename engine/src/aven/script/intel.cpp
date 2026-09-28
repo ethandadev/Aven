@@ -947,7 +947,7 @@ std::vector<Suggestion> CodeIntel::suggest(const std::vector<std::string>& lines
             return out;
         for (auto& f : ix.cFunctions)
             add(out, seen, typed, {f.name, f.name + "($0)", f.signature, ix.doc(f.name.substr(5)), SuggestionKind::Function, 0}, 30);
-        for (const char* m : {"AVEN_MODULE", "AVEN_API_VERSION", "AvenBehavior", "AvenEntity", "AvenModule"})
+        for (const char* m : {"AVEN_MODULE", "AVEN_API_VERSION", "AvenBehavior", "AvenEntity", "AvenModule", "AvenArg"})
             add(out, seen, typed, {m, m, "Aven C API", "", SuggestionKind::Keyword, 0}, 25);
         for (const char* k : kCKeywords)
             add(out, seen, typed, {k, k, "keyword", "", SuggestionKind::Keyword, 0}, 10);
