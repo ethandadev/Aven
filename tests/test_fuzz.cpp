@@ -8,6 +8,7 @@
 #include "aven/blocks/blocks.h"
 #include "aven/core/fs.h"
 #include "aven/core/json.h"
+#include "aven/core/zip.h"
 #include "aven/scene/scene.h"
 #include "aven/script/intel.h"
 #include "aven/script/translate.h"
@@ -198,4 +199,47 @@ AVEN_TEST(fuzz_scene_load) {
         (void)other.instantiate(data, {});
         other.updateTransforms();
     }
+}
+
+// A game in a .zip someone sent: damaged zips (cut short, bytes changed, sizes that lie) are
+// refused, and nothing is ever written outside the folder it's unpacked into.
+AVEN_TEST(fuzz_zip_read_and_extract) {
+    namespace stdfs = std::filesystem;
+    stdfs::path work = stdfs::temp_directory_path() / ("aven_fuzz_zip_" + std::to_string(std::random_device{}()));
+    std::error_code ec;
+    stdfs::create_directories(work, ec);
+    stdfs::path good = work / "game.zip";
+    CHECK(zip::write(good, stdfs::path(AVEN_SOURCE_DIR) / "templates" / "platformer"));
+    auto original = fs::readBinary(good);
+    CHECK(original && !original->empty());
+    std::mt19937 rng(8080);
+    int n = rounds(200);
+    for (int i = 0; i < n && original; ++i) {
+        std::vector<uint8_t> bytes = *original;
+        int edits = 1 + static_cast<int>(rng() % 8);
+        for (int k = 0; k < edits && !bytes.empty(); ++k) {
+            size_t at = rng() % bytes.size();
+            switch (rng() % 4) {
+            case 0: bytes[at] = static_cast<uint8_t>(rng()); break;                                  // a changed byte
+            case 1: bytes.resize(at); break;                                                         // cut short
+            case 2: bytes.insert(bytes.begin() + static_cast<std::ptrdiff_t>(at), 0xFF); break;     // an extra byte
+            case 3: for (size_t b = at; b < std::min(bytes.size(), at + 4); ++b) bytes[b] = 0xFF; break; // a huge size
+            }
+        }
+        std::vector<zip::Entry> files;
+        std::string error;
+        (void)zip::read(bytes, files, error);
+        if (i % 10 == 0) { // (on disk too, now and then: extract() reads a piece at a time)
+            stdfs::path bad = work / "bad.zip", out = work / "out";
+            fs::writeBinary(bad, bytes.data(), bytes.size());
+            std::vector<std::string> names;
+            (void)zip::list(bad, names, error);
+            (void)zip::extract(bad, out, error);
+            for (auto it = stdfs::recursive_directory_iterator(out, ec); !ec && it != stdfs::recursive_directory_iterator();
+                 it.increment(ec))
+                CHECK(fs::insideFolder(out, fs::relativePath(it->path(), out)) != stdfs::path());
+            stdfs::remove_all(out, ec);
+        }
+    }
+    stdfs::remove_all(work, ec);
 }
