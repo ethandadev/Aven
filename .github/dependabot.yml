@@ -1,7 +1,11 @@
-# Keeps the workflows' pinned actions (full commit SHAs) up to date, one reviewed pull request at a time.
+# Keeps the workflows' pinned actions (full commit SHAs) up to date: once a week, all in one pull
+# request to review (CI runs on it; the release workflow can be tried from Actions > Release).
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
