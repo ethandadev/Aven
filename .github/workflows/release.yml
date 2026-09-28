@@ -231,7 +231,7 @@ jobs:
           echo "VERSION=$(echo "$pkg" | sed -E 's/^aven-(.*)-windows-x64$/\1/')" >> "$GITHUB_ENV"
       - name: Sign the programs (Azure Trusted Signing)
         if: env.AZURE_CLIENT_ID != ''
-        uses: azure/trusted-signing-action@v0
+        uses: azure/trusted-signing-action@v0.5.1
         with:
           azure-tenant-id: ${{ env.AZURE_TENANT_ID }}
           azure-client-id: ${{ env.AZURE_CLIENT_ID }}
@@ -269,7 +269,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
       - name: Sign the installer (Azure Trusted Signing)
         if: env.AZURE_CLIENT_ID != ''
-        uses: azure/trusted-signing-action@v0
+        uses: azure/trusted-signing-action@v0.5.1
         with:
           azure-tenant-id: ${{ env.AZURE_TENANT_ID }}
           azure-client-id: ${{ env.AZURE_CLIENT_ID }}

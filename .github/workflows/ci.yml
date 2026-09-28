@@ -73,18 +73,10 @@ jobs:
           # Hide the source folders, so the app can only use what's inside it (Contents/Resources).
           mv editor/data editor/data.hidden && mv templates templates.hidden && mv quests quests.hidden && mv sdk sdk.hidden
           app=dist/unzipped/Aven.app
-          "$app/Contents/MacOS/aven-editor" --screenshot "$PWD/mac-hub.png" --frames 20 2>&1 | tee mac.log || true
+          # (GitHub's Mac runners have no GPU for an OpenGL window, so no screenshot here.)
           "$app/Contents/MacOS/aven-editor" "$PWD/$app/Contents/Resources/templates/platformer" --check --strict
           mv editor/data.hidden editor/data && mv templates.hidden templates && mv quests.hidden quests && mv sdk.hidden sdk
-          if grep -h "\[error\]" mac.log; then echo "The app logged errors."; exit 1; fi
-
-      - name: Upload the macOS screenshot
-        if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
-        with:
-          name: mac-screenshot
-          path: mac-hub.png
-          if-no-files-found: ignore
+          codesign --verify --deep --strict "$app"
 
       - name: Upload screenshots
         if: runner.os == 'Linux'
