@@ -693,6 +693,20 @@ void Editor::drawGameDetails() {
             ImGui::TextDisabled("No picture chosen: the game's thumbnail.png, if it has one.");
     }
     ImGui::TextDisabled("Both show in exported games, not when you press Play here.");
+    stdfs::path player = playerFolder(hostTarget());
+    ImGui::BeginDisabled(player.empty());
+    if (ImGui::Button("Try it as players will see it")) {
+        saveScene();
+        saveAllScripts();
+        // The standalone player, straight from the project, with the splash and title screen.
+        stdfs::path program;
+        for (auto& t : kTargets)
+            if (hostTarget() == std::string(t.id))
+                program = player / t.program;
+        if (!launchCommand("\"" + program.string() + "\" \"" + projectDir_.string() + "\""))
+            notify("Couldn't start the player.", true);
+    }
+    ImGui::EndDisabled();
     if (changed) {
         settings_.save(projectDir_);
         refreshTitle();
