@@ -975,7 +975,7 @@ void Editor::drawAssistant() {
     ImVec4 accent = ImGui::GetStyleColorVec4(ImGuiCol_CheckMark);
     ImGui::TextColored(accent, "Ask Aven");
     ImGui::SameLine();
-    ImGui::TextDisabled("change this object by describing it");
+    ImGui::TextDisabled("%s", ui::ellipsize("change this object by describing it", ImGui::GetContentRegionAvail().x).c_str());
     ImGui::PushStyleColor(ImGuiCol_Border, accent);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
     ImGui::SetNextItemWidth(-ImGui::CalcTextSize("Ask").x - ImGui::GetStyle().FramePadding.x * 2 - ImGui::GetStyle().ItemSpacing.x);

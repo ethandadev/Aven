@@ -520,18 +520,24 @@ void Editor::drawLighting() {
         const LightingPreset& p = kPresets[i];
         ImGui::PushID(i);
         ImVec2 pos = ImGui::GetCursorScreenPos();
-        float w = ImGui::GetContentRegionAvail().x;
-        if (ImGui::InvisibleButton("##preset", {w, 52}) && !playing_)
+        float w = ImGui::GetContentRegionAvail().x, k = ui::px(1), h = 52 * k;
+        if (ImGui::InvisibleButton("##preset", {w, h}) && !playing_)
             applyLighting(i);
         bool hovered = ImGui::IsItemHovered();
         ImDrawList* dl = ImGui::GetWindowDrawList();
         auto col = [](uint32_t c) { return IM_COL32((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF, 255); };
-        dl->AddRectFilledMultiColor(pos, {pos.x + 90, pos.y + 52}, col(p.skyTop), col(p.skyTop), col(p.skyHorizon), col(p.skyHorizon));
-        dl->AddCircleFilled({pos.x + 64, pos.y + 18}, 7, col(p.sunColor));
-        dl->AddRect(pos, {pos.x + w, pos.y + 52}, ImGui::GetColorU32(hovered ? ImGuiCol_SliderGrab : ImGuiCol_Border), 4);
-        ImGui::GetWindowDrawList()->AddText(fonts.bold, fonts.bold ? fonts.bold->FontSize : ImGui::GetFontSize(),
-                                            {pos.x + 102, pos.y + 6}, ImGui::GetColorU32(ImGuiCol_Text), p.name);
-        dl->AddText({pos.x + 102, pos.y + 28}, ImGui::GetColorU32(ImGuiCol_TextDisabled), p.description);
+        // A little sky: its gradient and the sun.
+        dl->AddRectFilledMultiColor(pos, {pos.x + 90 * k, pos.y + h}, col(p.skyTop), col(p.skyTop), col(p.skyHorizon), col(p.skyHorizon));
+        dl->AddCircleFilled({pos.x + 64 * k, pos.y + 18 * k}, 7 * k, col(p.sunColor));
+        dl->AddRect(pos, {pos.x + w, pos.y + h}, ImGui::GetColorU32(hovered ? ImGuiCol_SliderGrab : ImGuiCol_Border), 4);
+        dl->PushClipRect(pos, {pos.x + w - 4 * k, pos.y + h}, true); // (long descriptions stop at the edge)
+        dl->AddText(fonts.bold, fonts.bold ? fonts.bold->FontSize : ImGui::GetFontSize(), {pos.x + 102 * k, pos.y + 6 * k},
+                    ImGui::GetColorU32(ImGuiCol_Text), p.name);
+        dl->AddText({pos.x + 102 * k, pos.y + 28 * k}, ImGui::GetColorU32(ImGuiCol_TextDisabled),
+                    ui::ellipsize(p.description, w - 110 * k).c_str());
+        dl->PopClipRect();
+        if (hovered)
+            ImGui::SetTooltip("%s%s", p.description, playing_ ? "\n(Stop playing to use it.)" : "");
         ImGui::PopID();
     }
     if (playing_)

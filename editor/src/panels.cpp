@@ -15,6 +15,7 @@
 #include <imgui_stdlib.h>
 
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
 #include <cstring>
 #include <set>
@@ -32,10 +33,15 @@ float gPixelScale = 1.0f;
 float px(float size) { return size * gPixelScale; }
 void setPixelScale(float scale) { gPixelScale = scale > 0 ? scale : 1.0f; }
 
+ImVec2 fitted(ImVec2 size) {
+    ImVec2 work = ImGui::GetMainViewport()->WorkSize;
+    return {std::min(px(size.x), work.x * 0.95f), std::min(px(size.y), work.y * 0.95f)};
+}
+
 void placeWindow(ImVec2 size, ImVec2 where) {
-    // First time a tool window opens: its size and a spot on screen (fractions of the window).
+    // First time a tool window opens: its size (at 100% UI scale) and a spot on screen (fractions of the window).
     ImGuiViewport* vp = ImGui::GetMainViewport();
-    ImGui::SetNextWindowSize(size, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(fitted(size), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos({vp->Pos.x + vp->Size.x * where.x, vp->Pos.y + vp->Size.y * where.y}, ImGuiCond_FirstUseEver,
                             {0.5f, 0.5f});
 }
@@ -45,6 +51,27 @@ void panelClass() {
     ImGuiWindowClass wc;
     wc.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_NoCloseButton;
     ImGui::SetNextWindowClass(&wc);
+}
+
+std::string ellipsize(const std::string& text, float width, ImFont* font) {
+    ImFont* f = font ? font : ImGui::GetFont();
+    float size = font ? font->FontSize : ImGui::GetFontSize();
+    auto measure = [&](const std::string& t) { return f->CalcTextSizeA(size, FLT_MAX, 0, t.c_str()).x; };
+    if (measure(text) <= width)
+        return text;
+    std::string cut = text;
+    while (!cut.empty()) {
+        // Back to the start of the last character (UTF-8 continuation bytes are 10xxxxxx).
+        size_t end = cut.size() - 1;
+        while (end > 0 && (static_cast<unsigned char>(cut[end]) & 0xC0) == 0x80)
+            --end;
+        cut.erase(end);
+        while (!cut.empty() && cut.back() == ' ')
+            cut.pop_back();
+        if (measure(cut + "...") <= width)
+            break;
+    }
+    return cut + "...";
 }
 
 void helpMarker(const char* text) {
@@ -186,11 +213,16 @@ bool vectorField(float* v, int count, float step) {
     static const char* kNames[3] = {"X", "Y", "Z"};
     bool changed = false;
     float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-    float width = (ImGui::GetContentRegionAvail().x - spacing * static_cast<float>(count - 1)) / static_cast<float>(count);
+    float avail = ImGui::GetContentRegionAvail().x;
+    float width = (avail - spacing * static_cast<float>(count - 1)) / static_cast<float>(count);
+    // Too narrow for "-12.50" side by side (a slim Inspector, big text): one under the other instead.
+    bool stacked = count > 1 && width < ImGui::CalcTextSize("-00.00").x + ImGui::GetStyle().FramePadding.x * 2 + px(3);
+    if (stacked)
+        width = avail;
     float h = ImGui::GetFrameHeight();
     for (int i = 0; i < count; ++i) {
         ImGui::PushID(i);
-        if (i)
+        if (i && !stacked)
             ImGui::SameLine(0, spacing);
         ImVec2 p = ImGui::GetCursorScreenPos();
         ImGui::SetNextItemWidth(width);
@@ -1085,7 +1117,7 @@ void Editor::drawScriptTabs() {
 // ---------------------------------------------------------------- windows
 
 void Editor::drawSettings() {
-    ImGui::SetNextWindowSize({ui::px(560), ui::px(680)}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ui::fitted({560, 680}), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_FirstUseEver, {0.5f, 0.5f});
     if (!ImGui::Begin("Project Settings", &showSettings_)) {
         ImGui::End();
@@ -1582,7 +1614,7 @@ void Editor::drawLearn() {
 }
 
 void Editor::drawReference() {
-    ImGui::SetNextWindowSize({ui::px(560), ui::px(620)}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ui::fitted({560, 620}), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_FirstUseEver, {0.5f, 0.5f});
     if (!ImGui::Begin("Scripting Reference", &showReference_)) {
         ImGui::End();

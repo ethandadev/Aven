@@ -113,7 +113,7 @@ void Editor::debugStep(VM::Step step) {
 void Editor::drawDebugger() {
     if (!debugPaused() || debugFrames_.empty())
         return;
-    ImGui::SetNextWindowSize({ui::px(440), ui::px(420)}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ui::fitted({440, 420}), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos({ImGui::GetMainViewport()->WorkPos.x + ImGui::GetMainViewport()->WorkSize.x - ui::px(470),
                              ImGui::GetMainViewport()->WorkPos.y + ui::px(90)},
                             ImGuiCond_FirstUseEver);

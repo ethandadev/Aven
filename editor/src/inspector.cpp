@@ -211,7 +211,14 @@ bool Editor::drawComponent(Entity e, const ComponentInfo& info, void* data) {
                 c |= ui::vectorField(&v.x, 3, f.options.step);
             break;
         }
-        case FieldType::Color: c |= ImGui::ColorEdit4("##v", &f.ref<Color>(data).r, ImGuiColorEditFlags_AlphaBar); break;
+        case FieldType::Color: {
+            // Narrow: just the swatch (click it for the picker) rather than four squeezed numbers.
+            ImGuiColorEditFlags flags = ImGuiColorEditFlags_AlphaBar;
+            if (ImGui::GetContentRegionAvail().x < ui::px(190))
+                flags |= ImGuiColorEditFlags_NoInputs;
+            c |= ImGui::ColorEdit4("##v", &f.ref<Color>(data).r, flags);
+            break;
+        }
         case FieldType::String:
             if (info.name == "AudioSource" && f.name == "bus") {
                 std::string& bus = f.ref<std::string>(data);
@@ -694,7 +701,7 @@ void Editor::drawScriptVariables(Entity e) {
         } else if (value.isVec() && value.vecObj().isColor) {
             auto& o = value.vecObj();
             float col[4] = {static_cast<float>(o.v[0]), static_cast<float>(o.v[1]), static_cast<float>(o.v[2]), static_cast<float>(o.v[3])};
-            if ((c = ImGui::ColorEdit4("##v", col)))
+            if ((c = ImGui::ColorEdit4("##v", col, ImGui::GetContentRegionAvail().x < ui::px(190) ? ImGuiColorEditFlags_NoInputs : 0)))
                 result = script::Value::color(col[0], col[1], col[2], col[3]);
         } else if (value.isVec()) {
             auto& o = value.vecObj();
@@ -752,11 +759,11 @@ void Editor::drawAddComponent(Entity e) {
     ImGui::Spacing();
     float w = ImGui::GetContentRegionAvail().x;
     std::string label = targets.size() > 1 ? "+ Add Component to " + std::to_string(targets.size()) + " objects" : "+ Add Component";
-    if (ImGui::Button(label.c_str(), {w, 30})) {
+    if (ImGui::Button(label.c_str(), {w, ui::px(30)})) {
         filter.clear();
         ImGui::OpenPopup("add_component");
     }
-    ImGui::SetNextWindowSize({w, 420});
+    ImGui::SetNextWindowSize({w, ui::px(420)});
     if (ImGui::BeginPopup("add_component")) {
         ImGui::SetNextItemWidth(-1);
         if (ImGui::IsWindowAppearing())

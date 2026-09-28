@@ -955,7 +955,7 @@ void Editor::stopSharing() {
 // ---------------------------------------------------------------- UI
 
 void Editor::drawExport() {
-    ImGui::SetNextWindowSize({ui::px(640), ui::px(560)}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ui::fitted({640, 560}), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_FirstUseEver, {0.5f, 0.5f});
     if (!ImGui::Begin("Build & Share###Export", &showExport_)) {
         ImGui::End();

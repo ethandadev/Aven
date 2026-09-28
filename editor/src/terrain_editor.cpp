@@ -49,7 +49,7 @@ void Editor::drawTerrainInspector(Entity e) {
         bool on = terrainTool_ == i;
         if (on)
             ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-        if (ImGui::Button(kToolNames[i], {w, 30}))
+        if (ImGui::Button(kToolNames[i], {w, ui::px(30)}))
             terrainTool_ = on ? -1 : i;
         if (on)
             ImGui::PopStyleColor();

@@ -991,7 +991,7 @@ void BlockEditor::drawPalette(ImVec2 origin, ImVec2 size) {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(c.r, c.g, c.b, active ? 1.0f : 0.45f));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(c.r, c.g, c.b, 0.85f));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(c.r, c.g, c.b, 1.0f));
-        if (ImGui::Button(cat.name.c_str(), {(size.x - 24) * 0.5f, 26}))
+        if (ImGui::Button(cat.name.c_str(), {(size.x - 24) * 0.5f, ui::px(26)}))
             category_ = cat.name;
         ImGui::PopStyleColor(3);
     }

@@ -879,7 +879,10 @@ const Json& editorData(const std::string& name);
 namespace ui {
 void panelClass();
 void placeWindow(ImVec2 size, ImVec2 where);
+ImVec2 fitted(ImVec2 size); // a window size at 100% UI scale, scaled, and no bigger than the screen
 void helpMarker(const char* text);
+// The text, or as much of it as fits in `width` pixels followed by "..." (never cutting a character in half).
+std::string ellipsize(const std::string& text, float width, ImFont* font = nullptr);
 bool iconButton(const char* id, int icon, const char* tooltip, bool active = false, float size = 0);
 void sectionHeader(const char* text);
 bool assetField(const char* label, std::string& value, const std::vector<std::string>& options, const char* dragType);

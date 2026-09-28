@@ -27,6 +27,16 @@ ImU32 toU32(Color c, float alphaScale = 1.0f) {
     return ImGui::ColorConvertFloat4ToU32({c.r, c.g, c.b, c.a * alphaScale});
 }
 
+// A hint along the bottom of the view, on a soft dark strip so it reads over any game.
+void viewHint(ImDrawList* dl, ImVec2 pos, ImVec2 size, const char* text, int alpha) {
+    std::string shown = ui::ellipsize(text, size.x - ui::px(28));
+    ImVec2 ts = ImGui::CalcTextSize(shown.c_str());
+    ImVec2 at{pos.x + ui::px(10), pos.y + size.y - ts.y - ui::px(8)};
+    dl->AddRectFilled({at.x - ui::px(6), at.y - ui::px(3)}, {at.x + ts.x + ui::px(6), at.y + ts.y + ui::px(3)},
+                      IM_COL32(15, 17, 22, 170), ui::px(4));
+    dl->AddText(at, IM_COL32(255, 255, 255, alpha), shown.c_str());
+}
+
 } // namespace
 
 CameraView Editor::editorCamera() const {
@@ -732,7 +742,8 @@ void Editor::drawViewport(float dt) {
             float dist = 8.0f;
             if (Entity sel = selected())
                 dist = std::max(1.0f, length(scene_->worldPosition(sel) - cam3D_));
-            ImGuizmo::ViewManipulate(view.m, dist, {pos.x + size.x - 104, pos.y + 8}, {96, 96}, 0x00000000);
+            float cube = ui::px(96);
+            ImGuizmo::ViewManipulate(view.m, dist, {pos.x + size.x - cube - ui::px(8), pos.y + ui::px(8)}, {cube, cube}, 0x00000000);
             if (ImGuizmo::IsUsingViewManipulate()) {
                 Mat4 camWorld = inverse(view);
                 Vec3 forward = normalize(-camWorld.column(2).xyz());
@@ -845,7 +856,7 @@ void Editor::drawViewport(float dt) {
                                : sculpting   ? "Terrain brush: hold the left button  |  Shift: the opposite  |  Esc: stop  |  Right-drag: look"
                                : view3D_     ? "Right-drag: look  |  Right-drag + WASD: fly  |  Alt+drag: orbit  |  F: focus"
                                              : "Right-drag: pan  |  Scroll: zoom  |  Drag: box select  |  W/E/R: move/rotate/scale";
-            dl->AddText({pos.x + 10, pos.y + size.y - 24}, IM_COL32(255, 255, 255, 110), hint);
+            viewHint(dl, pos, size, hint, 170);
         }
     } else {
         gizmoWasUsing_ = false;
@@ -863,7 +874,7 @@ void Editor::drawViewport(float dt) {
                            : viewportFocused_ ? "Playing - Ctrl+P or the stop button goes back to editing"
 #endif
                                               : "Click the game to control it";
-        dl->AddText({pos.x + 10, pos.y + size.y - 24}, IM_COL32(255, 255, 255, 140), hint);
+        viewHint(dl, pos, size, hint, 200);
         drawLiveChangesBar(pos, size);
         drawErrorBar(pos, size);
         drawReplayBar(pos, size);

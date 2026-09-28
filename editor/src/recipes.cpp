@@ -832,7 +832,7 @@ void Editor::loadRecipeCard(const std::string& scenePath) {
 }
 
 void Editor::drawRecipes() {
-    ImGui::SetNextWindowSize({ui::px(980), ui::px(660)}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ui::fitted({980, 660}), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_FirstUseEver, {0.5f, 0.5f});
     if (focusRecipes_) {
         ImGui::SetNextWindowFocus();

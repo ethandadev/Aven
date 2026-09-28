@@ -695,7 +695,7 @@ void Editor::drawUpdater() {
     auto job = updateJob_;
     ImGuiViewport* vp = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(vp->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
-    ImGui::SetNextWindowSize({ui::px(560), ui::px(460)}, ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize(ui::fitted({560, 460}), ImGuiCond_Appearing);
     if (!ImGui::Begin("Update Aven", &showUpdater_, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking)) {
         ImGui::End();
         return;

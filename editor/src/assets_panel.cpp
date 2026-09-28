@@ -326,7 +326,15 @@ void Editor::drawAssets() {
             break;
         start = slash + 1;
     }
-    ImGui::SameLine(std::max(ImGui::GetCursorPosX() + 10, ImGui::GetWindowWidth() - 390));
+    // Search and buttons at the right, or on a line of their own when the panel is too narrow for both.
+    const ImGuiStyle& style = ImGui::GetStyle();
+    float tools = ui::px(170 + 70) + ImGui::CalcTextSize("Size Library + Create").x + style.FramePadding.x * 4 +
+                  style.ItemSpacing.x * 5;
+    ImGui::SameLine();
+    if (ImGui::GetContentRegionAvail().x < tools + ui::px(10))
+        ImGui::NewLine();
+    else
+        ImGui::SameLine(std::max(ImGui::GetCursorPosX() + ui::px(10), ImGui::GetWindowWidth() - tools - style.WindowPadding.x));
     ImGui::SetNextItemWidth(ui::px(170));
     ImGui::InputTextWithHint("##assetsearch", "Search files", &assetSearch_);
     ImGui::SameLine();
@@ -403,12 +411,12 @@ void Editor::drawAssets() {
     for (auto& entry : entries)
         visible.push_back(fs::relativePath(entry.path(), projectDir_));
 
-    float cell = assetCell_;
-    int columns = std::max(1, static_cast<int>(ImGui::GetContentRegionAvail().x / (cell + 8)));
+    float k = ui::px(1), cell = assetCell_ * k; // (the size slider is at 100% UI scale)
+    int columns = std::max(1, static_cast<int>(ImGui::GetContentRegionAvail().x / (cell + ImGui::GetStyle().ItemSpacing.x)));
     int i = 0;
     std::vector<std::string> askDelete;
     for (auto& entry : entries) {
-        std::string name = entry.path().filename().string();
+        std::string name = fs::toUtf8(entry.path().filename());
         std::string rel = visible[static_cast<size_t>(i)];
         std::string ext = fs::extension(entry.path());
         bool isDir = entry.is_directory(ec);
@@ -422,10 +430,11 @@ void Editor::drawAssets() {
         bool hovered = ImGui::IsItemHovered();
         ImDrawList* dl = ImGui::GetWindowDrawList();
         dl->AddRectFilled(p, {p.x + cell, p.y + cell}, isSelected ? ImGui::GetColorU32(ImGuiCol_Header) : hovered ? ImGui::GetColorU32(ImGuiCol_FrameBgHovered) : 0, 6);
-        ImVec2 iconMin{p.x + 16, p.y + 8}, iconMax{p.x + cell - 16, p.y + cell - 30};
+        float label = ImGui::GetFontSize() + 8 * k; // room for the name under the picture
+        ImVec2 iconMin{p.x + 16 * k, p.y + 8 * k}, iconMax{p.x + cell - 16 * k, p.y + cell - label - 4 * k};
         if (isDir) {
-            dl->AddRectFilled({iconMin.x, iconMin.y + 6}, iconMax, IM_COL32(230, 180, 70, 255), 4);
-            dl->AddRectFilled(iconMin, {iconMin.x + 22, iconMin.y + 10}, IM_COL32(230, 180, 70, 255), 3);
+            dl->AddRectFilled({iconMin.x, iconMin.y + 6 * k}, iconMax, IM_COL32(230, 180, 70, 255), 4 * k);
+            dl->AddRectFilled(iconMin, {iconMin.x + 22 * k, iconMin.y + 10 * k}, IM_COL32(230, 180, 70, 255), 3 * k);
         } else if (isImageFile(ext)) {
             const TextureAsset& t = assets_.texture(rel, true);
             float aspect = t.height ? static_cast<float>(t.width) / t.height : 1.0f;
@@ -449,10 +458,9 @@ void Editor::drawAssets() {
             ImVec2 ts = ImGui::CalcTextSize(badge);
             dl->AddText({(iconMin.x + iconMax.x - ts.x) * 0.5f, (iconMin.y + iconMax.y - ts.y) * 0.5f}, IM_COL32(20, 20, 30, 255), badge);
         }
-        size_t maxChars = static_cast<size_t>(std::max(6.0f, cell / 7.0f));
-        std::string shown = name.size() > maxChars ? name.substr(0, maxChars - 2) + ".." : name;
+        std::string shown = ui::ellipsize(name, cell - 6 * k);
         ImVec2 ts = ImGui::CalcTextSize(shown.c_str());
-        dl->AddText({p.x + (cell - ts.x) * 0.5f, p.y + cell - 22}, ImGui::GetColorU32(ImGuiCol_Text), shown.c_str());
+        dl->AddText({p.x + (cell - ts.x) * 0.5f, p.y + cell - label}, ImGui::GetColorU32(ImGuiCol_Text), shown.c_str());
         if (hovered && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
             ImGui::SetTooltip("%s", assetSearch_.empty() ? name.c_str() : rel.c_str());
 
@@ -692,7 +700,7 @@ void Editor::drawImportSettings() {
     // Opens as a tab next to the Inspector.
     if (ImGuiWindow* inspector = ImGui::FindWindowByName("Inspector"); inspector && inspector->DockId)
         ImGui::SetNextWindowDockID(inspector->DockId, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize({ui::px(340), ui::px(420)}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ui::fitted({340, 420}), ImGuiCond_FirstUseEver);
     if (focusImport_) {
         ImGui::SetNextWindowFocus();
         focusImport_ = false;

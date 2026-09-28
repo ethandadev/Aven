@@ -730,7 +730,7 @@ void Editor::handleShortcuts() {
 // ---------------------------------------------------------------- preferences
 
 void Editor::drawPreferences() {
-    ImGui::SetNextWindowSize({ui::px(760), ui::px(560)}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ui::fitted({760, 560}), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_FirstUseEver, {0.5f, 0.5f});
     if (!ImGui::Begin("Preferences", &showPrefs_, ImGuiWindowFlags_NoDocking)) {
         ImGui::End();
@@ -756,28 +756,32 @@ void Editor::drawPreferences() {
 
     if (prefsSection_ == "Look") {
         ui::sectionHeader("Theme");
-        float w = ImGui::GetContentRegionAvail().x;
-        int perRow = std::max(1, static_cast<int>(w / 150));
+        float w = ImGui::GetContentRegionAvail().x, k = ui::px(1);
+        // A card: the theme in miniature (panel, field, accent) over its name.
+        float cardW = 140 * k, cardH = 50 * k + ImGui::GetFontSize() + 10 * k;
+        int perRow = std::max(1, static_cast<int>((w + ImGui::GetStyle().ItemSpacing.x) / (cardW + ImGui::GetStyle().ItemSpacing.x)));
         int i = 0;
         for (auto& t : themePresets()) {
             if (i++ % perRow)
                 ImGui::SameLine();
             ImGui::PushID(t.name);
             ImVec2 p = ImGui::GetCursorScreenPos();
-            if (ImGui::InvisibleButton("##theme", {ui::px(140), ui::px(74)})) {
+            if (ImGui::InvisibleButton("##theme", {cardW, cardH})) {
                 prefs.theme = t.name;
                 prefs.customAccent = false;
                 restyle = true;
             }
+            bool hovered = ImGui::IsItemHovered();
             ImDrawList* dl = ImGui::GetWindowDrawList();
             auto col = [](uint32_t c) { return IM_COL32((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF, 255); };
             bool current = prefs.theme == t.name;
-            dl->AddRectFilled(p, {p.x + 140, p.y + 74}, col(t.background), 6);
-            dl->AddRectFilled({p.x + 8, p.y + 8}, {p.x + 50, p.y + 50}, col(t.panel), 4);
-            dl->AddRectFilled({p.x + 56, p.y + 8}, {p.x + 132, p.y + 22}, col(t.frame), 3);
-            dl->AddRectFilled({p.x + 56, p.y + 28}, {p.x + 110, p.y + 42}, col(t.accent), 3);
-            dl->AddText({p.x + 8, p.y + 54}, col(t.text), t.name);
-            dl->AddRect(p, {p.x + 140, p.y + 74}, current ? ImGui::GetColorU32(ImGuiCol_CheckMark) : col(t.border), 6, 0,
+            dl->AddRectFilled(p, {p.x + cardW, p.y + cardH}, col(t.background), 6 * k);
+            dl->AddRectFilled({p.x + 8 * k, p.y + 8 * k}, {p.x + 50 * k, p.y + 42 * k}, col(t.panel), 4 * k);
+            dl->AddRectFilled({p.x + 56 * k, p.y + 8 * k}, {p.x + cardW - 8 * k, p.y + 20 * k}, col(t.frame), 3 * k);
+            dl->AddRectFilled({p.x + 56 * k, p.y + 26 * k}, {p.x + cardW - 30 * k, p.y + 38 * k}, col(t.accent), 3 * k);
+            dl->AddText({p.x + 8 * k, p.y + 48 * k}, col(t.text), ui::ellipsize(t.name, cardW - 16 * k).c_str());
+            dl->AddRect(p, {p.x + cardW, p.y + cardH},
+                        current ? ImGui::GetColorU32(ImGuiCol_CheckMark) : hovered ? col(t.accent) : col(t.border), 6 * k, 0,
                         current ? 2.5f : 1.0f);
             ImGui::PopID();
         }
@@ -849,18 +853,19 @@ void Editor::drawPreferences() {
             ImGui::PushID(p.name.c_str());
             ImVec2 pos = ImGui::GetCursorScreenPos();
             float w = ImGui::GetContentRegionAvail().x;
-            if (ImGui::InvisibleButton("##pal", {w, 58})) {
+            float cardH = ui::px(58);
+            if (ImGui::InvisibleButton("##pal", {w, cardH})) {
                 prefs.codeTheme = p.name;
                 CodeEditor::palette = p;
                 changed = true;
             }
             ImDrawList* dl = ImGui::GetWindowDrawList();
-            dl->AddRectFilled(pos, {pos.x + w, pos.y + 58}, p.background, 6);
+            dl->AddRectFilled(pos, {pos.x + w, pos.y + cardH}, p.background, 6);
             if (prefs.codeTheme == p.name)
-                dl->AddRect(pos, {pos.x + w, pos.y + 58}, ImGui::GetColorU32(ImGuiCol_CheckMark), 6, 0, 2.5f);
+                dl->AddRect(pos, {pos.x + w, pos.y + cardH}, ImGui::GetColorU32(ImGuiCol_CheckMark), 6, 0, 2.5f);
             ImFont* f = fonts.code;
             float fs = f ? f->FontSize : ImGui::GetFontSize();
-            float x = pos.x + 12, y = pos.y + 8;
+            float x = pos.x + ui::px(12), y = pos.y + ui::px(8);
             auto word = [&](const char* text, ImU32 c) {
                 dl->AddText(f, fs, {x, y}, c, text);
                 x += ImGui::CalcTextSize(text).x * (f ? fs / ImGui::GetFontSize() : 1) + 2;
@@ -870,8 +875,8 @@ void Editor::drawPreferences() {
             word("(dt):  ", p.text);
             word("# ", p.comment);
             word(p.name.c_str(), p.comment);
-            x = pos.x + 40;
-            y += fs + 6;
+            x = pos.x + ui::px(40);
+            y += fs + ui::px(6);
             word("self", p.self);
             word(".x += ", p.text);
             word("axis", p.builtin);
@@ -1114,7 +1119,7 @@ void Editor::drawLevels() {
 
     if (!showLevels_)
         return;
-    ImGui::SetNextWindowSize({ui::px(860), ui::px(580)}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ui::fitted({860, 580}), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_FirstUseEver, {0.5f, 0.5f});
     if (!ImGui::Begin("Learn mode", &showLevels_, ImGuiWindowFlags_NoDocking)) {
         ImGui::End();

@@ -177,16 +177,16 @@ void Editor::drawNativeTrustPrompt() {
         ImGui::PopTextWrapPos();
         ImGui::Spacing();
         float w = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2) / 3;
-        if (ImGui::Button("Don't build", {w, 32}))
+        if (ImGui::Button("Don't build", {w, ui::px(32)}))
             ImGui::CloseCurrentPopup();
         ImGui::SameLine();
-        if (ImGui::Button("Show CMakeLists.txt", {w, 32})) {
+        if (ImGui::Button("Show CMakeLists.txt", {w, ui::px(32)})) {
             openExternal((projectDir_ / "native" / "CMakeLists.txt").string());
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.55f, 0.3f, 0.2f, 1));
-        if (ImGui::Button("I trust it: build", {w, 32})) {
+        if (ImGui::Button("I trust it: build", {w, ui::px(32)})) {
             ImGui::CloseCurrentPopup();
             trustedNative_.insert(buildFingerprint(projectDir_));
             saveNativeTrust();
@@ -222,14 +222,14 @@ void Editor::drawNativeTrustPrompt() {
     ImGui::PopTextWrapPos();
     ImGui::Spacing();
     float w = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2) / 3;
-    if (ImGui::Button("Keep it off", {w, 32})) {
+    if (ImGui::Button("Keep it off", {w, ui::px(32)})) {
         nativePromptDismissed_ = true;
         ImGui::CloseCurrentPopup();
     }
     ImGui::SameLine();
     std::error_code ec;
     ImGui::BeginDisabled(!stdfs::exists(projectDir_ / "native" / "src", ec));
-    if (ImGui::Button("Look at the code", {w, 32})) {
+    if (ImGui::Button("Look at the code", {w, ui::px(32)})) {
         nativePromptDismissed_ = true;
         openNativeCode();
         ImGui::CloseCurrentPopup();
@@ -237,7 +237,7 @@ void Editor::drawNativeTrustPrompt() {
     ImGui::EndDisabled();
     ImGui::SameLine();
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.55f, 0.3f, 0.2f, 1));
-    if (ImGui::Button("I trust it: load it", {w, 32})) {
+    if (ImGui::Button("I trust it: load it", {w, ui::px(32)})) {
         nativePromptDismissed_ = true;
         ImGui::CloseCurrentPopup();
         trustNative(blocked);
