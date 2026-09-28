@@ -1,7 +1,6 @@
 file(GLOB_RECURSE AVEN_EDITOR_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
 if(APPLE)
-    # The real macOS menu bar (menu.h).
-    enable_language(OBJCXX)
+    # The real macOS menu bar (menu.h). (OBJCXX is enabled in the top-level CMakeLists.txt.)
     list(APPEND AVEN_EDITOR_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/menu_mac.mm)
     set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/menu_mac.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
 endif()
