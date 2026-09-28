@@ -143,6 +143,7 @@ uses Emscripten: `tools/web/build_web_player.sh`.
 - [Moving to other engines](docs/migrating.md): Unity, Godot, Roblox and Unreal, side by side.
 - [Architecture](docs/architecture.md): how the code is organized.
 - [Roadmap](docs/roadmap.md): what's done, and what isn't yet.
+- [Things to test by hand](docs/manual-testing.md): a checklist for a manual pass before a release.
 - [Contributing](CONTRIBUTING.md): how to help, starting with the in-editor Contributor Quests.
 
 ## License
