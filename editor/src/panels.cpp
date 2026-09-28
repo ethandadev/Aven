@@ -242,6 +242,13 @@ bool anchorGrid(int32_t& anchor) {
 
 } // namespace ui
 
+std::string lowered(std::string text) {
+    for (char& c : text)
+        if (c >= 'A' && c <= 'Z')
+            c = static_cast<char>(c - 'A' + 'a');
+    return text;
+}
+
 // "RigidBody2D" -> "Rigid Body 2D", "UIElement" -> "UI Element": easier to read in the Inspector.
 std::string displayName(const std::string& name) {
     auto at = [&](size_t i) { return i < name.size() ? static_cast<unsigned char>(name[i]) : ' '; };
@@ -268,8 +275,9 @@ ImU32 entityColor(Registry& reg, Entity e) {
     if (reg.has<UIElement>(e)) return IM_COL32(120, 230, 170, 255);
     if (reg.has<MeshRenderer>(e)) return IM_COL32(180, 150, 255, 255);
     if (reg.has<SpriteRenderer>(e)) {
-        Color c = reg.get<SpriteRenderer>(e).color;
-        return IM_COL32(static_cast<int>(c.r * 255), static_cast<int>(c.g * 255), static_cast<int>(c.b * 255), 255);
+        Color c = reg.get<SpriteRenderer>(e).color; // (can be above 1 for a glow)
+        auto byte = [](float v) { return static_cast<int>(std::clamp(v, 0.0f, 1.0f) * 255.0f); };
+        return IM_COL32(byte(c.r), byte(c.g), byte(c.b), 255);
     }
     if (reg.has<Script>(e)) return IM_COL32(255, 140, 90, 255);
     return IM_COL32(150, 155, 165, 255);
@@ -301,14 +309,10 @@ void drawFolderIcon(ImDrawList* dl, ImVec2 c, bool open, ImU32 col) {
 // Does an object match a Hierarchy search? Words must all match: plain words search names,
 // t:Component, tag:name and layer:name filter (all ignoring case).
 bool Editor::matchesSearch(Entity e, const std::string& query) {
-    auto lower = [](std::string t) {
-        std::transform(t.begin(), t.end(), t.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        return t;
-    };
     Scene& s = scene();
     auto& reg = s.registry();
     const EntityInfo& info = s.info(e);
-    std::string q = lower(query);
+    std::string q = lowered(query);
     size_t start = 0;
     while (start < q.size()) {
         size_t space = q.find(' ', start);
@@ -324,18 +328,18 @@ bool Editor::matchesSearch(Entity e, const std::string& query) {
             for (auto& ci : ComponentRegistry::all()) {
                 if (found || !ci.get(reg, e))
                     continue;
-                std::string name = lower(ci.name), spaced = lower(displayName(ci.name));
+                std::string name = lowered(ci.name), spaced = lowered(displayName(ci.name));
                 found = name.find(want) != std::string::npos || spaced.find(want) != std::string::npos;
             }
             if (!found)
                 return false;
         } else if (std::string want = after("tag:"); want != "\x01") {
-            if (lower(info.tag).find(want) == std::string::npos || (want.empty() && !info.tag.empty()))
+            if (lowered(info.tag).find(want) == std::string::npos || (want.empty() && !info.tag.empty()))
                 return false;
         } else if (std::string want = after("layer:"); want != "\x01") {
-            if (lower(info.layer.empty() ? "Default" : info.layer).find(want) == std::string::npos)
+            if (lowered(info.layer.empty() ? "Default" : info.layer).find(want) == std::string::npos)
                 return false;
-        } else if (lower(info.name).find(term) == std::string::npos) {
+        } else if (lowered(info.name).find(term) == std::string::npos) {
             return false;
         }
     }
@@ -929,14 +933,14 @@ void Editor::drawConsole() {
     ImGui::PushFont(fonts.code);
     int index = 0;
     std::string needle = consoleFilter_;
-    std::transform(needle.begin(), needle.end(), needle.begin(), ::tolower);
+    needle = lowered(needle);
     for (auto& l : console_) {
         bool show = l.level == LogLevel::Error ? showErrors_ : l.level == LogLevel::Warning ? showWarnings_ : showInfo_;
         if (!show)
             continue;
         if (!needle.empty()) {
             std::string hay = l.file + " " + l.text;
-            std::transform(hay.begin(), hay.end(), hay.begin(), ::tolower);
+            hay = lowered(hay);
             if (hay.find(needle) == std::string::npos)
                 continue;
         }
@@ -991,20 +995,16 @@ void Editor::drawScriptTabs() {
         ImGui::PopStyleVar();
         if (visible) {
             if (tab.code) {
-                if (ImGui::Button(keyText("Save (Ctrl+S)").c_str())) {
-                    fs::writeText(projectDir_ / tab.path, tab.code->text());
-                    tab.modified = false;
-                }
+                if (ImGui::Button(keyText("Save (Ctrl+S)").c_str()))
+                    saveTab(tab);
                 ImGui::SameLine();
                 if (isNativeSource(tab.path)) {
                     ImGui::TextDisabled("C/C++");
                     ImGui::SameLine();
                     ImGui::BeginDisabled(nativeBuild_ != nullptr);
-                    if (ImGui::SmallButton(keyText(nativeBuild_ ? "Building..." : "Save and Build (Ctrl+B)").c_str())) {
-                        fs::writeText(projectDir_ / tab.path, tab.code->text());
-                        tab.modified = false;
+                    if (ImGui::SmallButton(keyText(nativeBuild_ ? "Building..." : "Save and Build (Ctrl+B)").c_str()) &&
+                        saveTab(tab))
                         buildNativeModule();
-                    }
                     ImGui::EndDisabled();
                     ImGui::SameLine();
                     if (ImGui::SmallButton("aven.h"))
@@ -1049,10 +1049,8 @@ void Editor::drawScriptTabs() {
                         checkScript(tab); // with code intelligence, problems are checked as you type
                 }
             } else if (tab.blocks) {
-                if (ImGui::Button(keyText("Save (Ctrl+S)").c_str())) {
-                    fs::writeText(projectDir_ / tab.path, tab.blocks->save().dump(2));
-                    tab.modified = false;
-                }
+                if (ImGui::Button(keyText("Save (Ctrl+S)").c_str()))
+                    saveTab(tab);
                 ImGui::SameLine();
                 ImGui::Checkbox("Show code", &tab.blocks->showCode);
                 if (unlocked(Feature::CodeLadder)) {
@@ -1069,19 +1067,14 @@ void Editor::drawScriptTabs() {
                     tab.modified = true;
                     checkScript(tab);
                     // Blocks save as you go so Play always uses the latest version.
-                    fs::writeText(projectDir_ / tab.path, tab.blocks->save().dump(2));
-                    tab.modified = false;
+                    saveTab(tab);
                 }
             }
         }
         ImGui::End();
+        if (!tab.open && tab.modified && !saveTab(tab))
+            tab.open = true; // (closing would lose the changes it couldn't save)
         if (!tab.open) {
-            if (tab.modified) {
-                if (tab.code)
-                    fs::writeText(projectDir_ / tab.path, tab.code->text());
-                else if (tab.blocks)
-                    fs::writeText(projectDir_ / tab.path, tab.blocks->save().dump(2));
-            }
             it = tabs_.erase(it);
         } else {
             ++it;
@@ -1132,8 +1125,16 @@ void Editor::drawSettings() {
                            "runs on any server; the online multiplayer guide explains how. Games on the same Wi-Fi "
                            "don't need one (host_game and join_game).");
             ui::sectionHeader("Window");
-            changed |= ImGui::InputInt("Width", &settings_.width);
-            changed |= ImGui::InputInt("Height", &settings_.height);
+            // Kept to what a window can be once typing is done (not on each key: "1920" starts as "1").
+            auto windowSide = [&](const char* label, int& value, int low) {
+                changed |= ImGui::InputInt(label, &value, 10, 100);
+                if (!ImGui::IsItemActive() && (value < low || value > 16384)) { // (also after the - and + buttons)
+                    value = std::clamp(value, low, 16384);
+                    changed = true;
+                }
+            };
+            windowSide("Width", settings_.width, 160);
+            windowSide("Height", settings_.height, 120);
             changed |= ImGui::Checkbox("Resizable", &settings_.resizable);
             changed |= ImGui::Checkbox("Start fullscreen", &settings_.fullscreen);
             changed |= ImGui::Checkbox("VSync (smooth, no tearing)", &settings_.vsync);
@@ -1306,6 +1307,8 @@ void Editor::renameLayer(const std::string& from, const std::string& to) {
         if (fix(data))
             fs::writeText(projectDir_ / path, data.dump(2) + "\n");
     }
+    if (editingPrefab())
+        fix(prefabReturnScene_); // (the scene waiting behind the prefab, which is saved from memory)
     bool any = false;
     scene().walk([&](Entity e, int) {
         any |= scene().info(e).layer == from;
@@ -1352,6 +1355,18 @@ bool Editor::drawMixer() {
                 ImGui::AlignTextToFramePadding();
                 ImGui::TextUnformatted(b.name.c_str());
             } else if (ImGui::InputText("##name", &b.name, ImGuiInputTextFlags_EnterReturnsTrue) || ImGui::IsItemDeactivatedAfterEdit()) {
+                // Sounds pick a bus by name, so each needs one of its own.
+                b.name.erase(0, b.name.find_first_not_of(' '));
+                b.name.erase(b.name.find_last_not_of(' ') + 1);
+                auto taken = [&](const std::string& name) {
+                    for (size_t k = 0; k < buses.size(); ++k)
+                        if (k != i && buses[k].name == name)
+                            return true;
+                    return false;
+                };
+                std::string base = b.name.empty() ? "Bus" : b.name;
+                for (int n = 2; b.name.empty() || taken(b.name); ++n)
+                    b.name = base + " " + std::to_string(n);
                 changed = true;
             }
             ImGui::TableSetColumnIndex(1);
@@ -1383,6 +1398,8 @@ bool Editor::drawMixer() {
     }
     if (ImGui::Button("+ Add bus")) {
         std::string name = "Bus " + std::to_string(buses.size() + 1);
+        for (size_t n = buses.size() + 2; std::any_of(buses.begin(), buses.end(), [&](auto& b) { return b.name == name; }); ++n)
+            name = "Bus " + std::to_string(n);
         buses.push_back({name});
         changed = true;
     }
@@ -1578,7 +1595,7 @@ void Editor::drawReference() {
     ImGui::BeginChild("##list");
     ImGui::PushFont(fonts.code);
     std::string filter = referenceFilter_;
-    std::transform(filter.begin(), filter.end(), filter.begin(), ::tolower);
+    filter = lowered(filter);
     std::vector<std::string> groups;
     for (auto& e : api_)
         if (std::find(groups.begin(), groups.end(), e.group) == groups.end())
@@ -1589,7 +1606,7 @@ void Editor::drawReference() {
             if (e.group != g)
                 continue;
             std::string hay = e.name + " " + e.signature + " " + e.help;
-            std::transform(hay.begin(), hay.end(), hay.begin(), ::tolower);
+            hay = lowered(hay);
             if (!filter.empty() && hay.find(filter) == std::string::npos)
                 continue;
             if (!header) {

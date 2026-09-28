@@ -273,16 +273,22 @@ void Editor::drawSceneOverlay(const CameraView& cam) {
             float step = camZoom_ > 40 ? 10.0f : camZoom_ > 12 ? 5.0f : 1.0f;
             float x0 = std::floor((cam2D_.x - halfW) / step) * step, x1 = cam2D_.x + halfW;
             float y0 = std::floor((cam2D_.y - halfH) / step) * step, y1 = cam2D_.y + halfH;
-            for (float x = x0; x <= x1; x += step)
-                line(r, cam, {x, cam2D_.y - halfH, -50}, {x, cam2D_.y + halfH, -50}, 1.0f,
-                     x == 0 ? axisColor(1, 0.55f)
-                            : Color{g.r, g.g, g.b, (std::fmod(std::abs(x), step * 5) < 0.01f ? 0.16f : 0.07f) * k},
-                     vh, white);
-            for (float y = y0; y <= y1; y += step)
-                line(r, cam, {cam2D_.x - halfW, y, -50}, {cam2D_.x + halfW, y, -50}, 1.0f,
-                     y == 0 ? axisColor(0, 0.55f)
-                            : Color{g.r, g.g, g.b, (std::fmod(std::abs(y), step * 5) < 0.01f ? 0.16f : 0.07f) * k},
-                     vh, white);
+            // Counted, not stepped: far from the middle a float plus 1 can be the same float.
+            int columns = std::clamp(static_cast<int>((x1 - x0) / step) + 1, 0, 2000);
+            int rows = std::clamp(static_cast<int>((y1 - y0) / step) + 1, 0, 2000);
+            auto gridColor = [&](float at, int axis) {
+                if (at == 0)
+                    return axisColor(axis, 0.55f);
+                return Color{g.r, g.g, g.b, (std::fmod(std::abs(at), step * 5) < 0.01f ? 0.16f : 0.07f) * k};
+            };
+            for (int i = 0; i < columns; ++i) {
+                float x = x0 + static_cast<float>(i) * step;
+                line(r, cam, {x, cam2D_.y - halfH, -50}, {x, cam2D_.y + halfH, -50}, 1.0f, gridColor(x, 1), vh, white);
+            }
+            for (int i = 0; i < rows; ++i) {
+                float y = y0 + static_cast<float>(i) * step;
+                line(r, cam, {cam2D_.x - halfW, y, -50}, {cam2D_.x + halfW, y, -50}, 1.0f, gridColor(y, 0), vh, white);
+            }
         }
     }
 
@@ -874,7 +880,7 @@ void Editor::drawStats(ImVec2 pos) {
     int n = std::snprintf(text, sizeof text, "%.0f FPS  (%.1f ms)\nDraw calls: %u   Triangles: %llu\nObjects: %d\nRender: %.2f ms",
                           ImGui::GetIO().Framerate, 1000.0f / std::max(ImGui::GetIO().Framerate, 1.0f), st.drawCalls,
                           static_cast<unsigned long long>(st.triangles), static_cast<int>(s.registry().aliveCount()), renderMs_);
-    if (playing_ && game_) {
+    if (playing_ && game_ && n > 0 && n < static_cast<int>(sizeof text)) {
         const GameProfile& p = game_->profile();
         std::snprintf(text + n, sizeof text - static_cast<size_t>(n), "\nScripts: %.2f ms  Physics: %.2f ms\nGameplay: %.2f ms",
                       p.scripts, p.physics, p.gameplay);

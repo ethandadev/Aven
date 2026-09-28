@@ -660,8 +660,10 @@ void Editor::drawScriptVariables(Entity e) {
             bool whole = ex.rangeMin == std::floor(ex.rangeMin) && ex.rangeMax == std::floor(ex.rangeMax) &&
                          value.number() == std::floor(value.number());
             if (whole) {
-                int i = static_cast<int>(value.number());
-                if ((c = ImGui::SliderInt("##v", &i, static_cast<int>(ex.rangeMin), static_cast<int>(ex.rangeMax))))
+                // (clamped first: a number outside int's range can't be converted)
+                double low = std::clamp(ex.rangeMin, -1e9, 1e9), high = std::clamp(ex.rangeMax, -1e9, 1e9);
+                int i = static_cast<int>(std::clamp(value.number(), low, high));
+                if ((c = ImGui::SliderInt("##v", &i, static_cast<int>(low), static_cast<int>(high))))
                     result = script::Value(static_cast<double>(i));
             } else {
                 float f = static_cast<float>(value.number());
@@ -788,10 +790,8 @@ void Editor::drawAddComponent(Entity e) {
             std::vector<Entity> into = missing(info);
             if (into.empty())
                 continue;
-            std::string hay = info.name + " " + displayName(info.name) + " " + info.description + " " + info.category;
-            std::string needle = filter;
-            std::transform(hay.begin(), hay.end(), hay.begin(), ::tolower);
-            std::transform(needle.begin(), needle.end(), needle.begin(), ::tolower);
+            std::string hay = lowered(info.name + " " + displayName(info.name) + " " + info.description + " " + info.category);
+            std::string needle = lowered(filter);
             if (!needle.empty() && hay.find(needle) == std::string::npos)
                 continue;
             if (info.category != lastCategory) {
@@ -1074,7 +1074,9 @@ void Editor::drawInspector() {
             ImGui::PopID();
             continue;
         }
-        if (open) {
+        // "Reset to defaults" removes and adds it again, which can move it in memory.
+        data = ci.get(reg, e);
+        if (open && data) {
             if (ci.name == "ParticleEmitter")
                 drawParticlePresets(e, selection);
             if (ci.name == "Tilemap" && unlocked(Feature::Tilemap)) {

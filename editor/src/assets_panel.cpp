@@ -376,10 +376,10 @@ void Editor::drawAssets() {
     if (!assetSearch_.empty()) {
         // Searching looks through every folder.
         std::string needle = assetSearch_;
-        std::transform(needle.begin(), needle.end(), needle.begin(), ::tolower);
+        needle = lowered(needle);
         for (auto& f : assetFiles_) {
             std::string hay = f;
-            std::transform(hay.begin(), hay.end(), hay.begin(), ::tolower);
+            hay = lowered(hay);
             if (hay.find(needle) != std::string::npos)
                 entries.emplace_back(projectDir_ / f, ec);
         }

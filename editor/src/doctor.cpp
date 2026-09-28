@@ -594,7 +594,7 @@ std::vector<Editor::Diagnosis> Editor::checkup() {
                         std::vector<UUID> same;
                         s.walk([&](Entity o, int) {
                             std::string on = s.info(o).name;
-                            std::transform(on.begin(), on.end(), on.begin(), ::tolower);
+                            on = lowered(on);
                             if (on == t && s.info(o).tag.empty())
                                 same.push_back(s.info(o).uuid);
                             return true;

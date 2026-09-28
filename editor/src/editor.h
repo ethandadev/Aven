@@ -126,7 +126,7 @@ public:
 
     // --- scenes
     bool openScene(const std::string& path);
-    bool saveScene();
+    bool saveScene(bool quiet = false); // quiet: no "Saved" message (problems are still said)
     void newScene(bool is3D);
     Scene& scene() { return playing() ? game_->scene() : *scene_; }
     Scene& editScene() { return *scene_; }
@@ -846,7 +846,8 @@ private:
     void drawParticlePresets(Entity e, const std::vector<Entity>& selection);
     void previewParticles(float dt);
     uint32_t previewRng_ = 99991;
-    void saveAllScripts();
+    bool saveTab(ScriptTab& tab); // false (and says so) when the file couldn't be written
+    bool saveAllScripts();
     bool exportGame(const stdfs::path& folder, std::string& message);
     void loadTutorial();
     void onFilesDropped(const std::vector<std::string>& files);
@@ -866,6 +867,7 @@ stdfs::path sourceDir(); // Aven's source code, when the editor was built from i
 stdfs::path sdkDir();    // aven.h and the native module template
 void openExternal(const std::string& target); // a file, folder or link in the system's app
 std::string displayName(const std::string& componentName); // "RigidBody2D" -> "Rigid Body 2D"
+std::string lowered(std::string text); // A-Z to a-z; other bytes (UTF-8 too) stay as they are
 bool launchCommand(const std::string& commandLine); // runs a program with arguments (no shell)
 // "1 object", "3 objects"
 inline std::string plural(size_t n, const std::string& word) { return std::to_string(n) + " " + word + (n == 1 ? "" : "s"); }

@@ -268,7 +268,8 @@ std::string copyright(const ProjectSettings& s) {
     if (s.publish.author.empty())
         return "";
     std::time_t now = std::time(nullptr);
-    return "Copyright (c) " + std::to_string(1900 + std::localtime(&now)->tm_year) + " " + s.publish.author;
+    const std::tm* local = std::localtime(&now);
+    return "Copyright (c) " + (local ? std::to_string(1900 + local->tm_year) + " " : std::string()) + s.publish.author;
 }
 
 bool exportWindows(Editor::DesktopJob& job, const DesktopPlan& p, const stdfs::path& player) {
@@ -292,7 +293,10 @@ bool exportWindows(Editor::DesktopJob& job, const DesktopPlan& p, const stdfs::p
     if (icon256 != p.icons.end() && !icons::replaceExeIcon(*exe, icon256->second, error))
         job.say("The icon couldn't go into the .exe (" + error + "); it still shows on the window.");
     stdfs::path exePath = dir / (p.name + ".exe");
-    fs::writeBinary(exePath, exe->data(), exe->size());
+    if (!fs::writeBinary(exePath, exe->data(), exe->size())) {
+        job.say("Couldn't write " + exePath.string() + " (is the disk full?)");
+        return false;
+    }
     fs::writeText(dir / "README.txt", readme(p.settings, "Double-click " + exePath.filename().string() + " to play.\n"
                                                          "If Windows says it protected your PC (SmartScreen), click More info > Run anyway."));
 
@@ -502,7 +506,13 @@ bool exportLinux(Editor::DesktopJob& job, const DesktopPlan& p, const stdfs::pat
     if (auto it = p.icons.find(256); it != p.icons.end())
         fs::writeBinary(dir / (file + ".png"), it->second.data(), it->second.size());
     // A launcher: copy it to ~/.local/share/applications (and fix the paths) to get a menu entry.
-    std::string desktop = "[Desktop Entry]\nType=Application\nName=" + p.settings.name + "\nComment=" + p.settings.description +
+    auto oneLine = [](std::string s) { // (a line break would end the entry's value)
+        std::replace(s.begin(), s.end(), '\n', ' ');
+        std::replace(s.begin(), s.end(), '\r', ' ');
+        return s;
+    };
+    std::string desktop = "[Desktop Entry]\nType=Application\nName=" + oneLine(p.settings.name) +
+                          "\nComment=" + oneLine(p.settings.description) +
                           "\nExec=./" + file + "\nIcon=" + file + "\nTerminal=false\nCategories=Game;\n";
     fs::writeText(dir / (file + ".desktop"), desktop);
     fs::writeText(dir / "README.txt", readme(p.settings, "Run ./" + file + " to play. " + file +
@@ -564,7 +574,9 @@ bool Editor::startDesktopExport(const std::vector<std::string>& targets, bool wa
         plan->name.pop_back();
     if (plan->name.empty())
         plan->name = "Game";
-    plan->out = exportFolder_.empty() ? projectDir_ / "exports" : stdfs::path(exportFolder_);
+    plan->out = exportFolder_.empty() ? projectDir_ / "exports" : fs::fromUtf8(exportFolder_);
+    if (plan->out.is_relative())
+        plan->out = projectDir_ / plan->out; // ("exports" means the project's, not wherever Aven started)
     plan->windowsPassword = signPassword_;
     for (auto& t : targets) {
         stdfs::path folder = playerFolder(t);

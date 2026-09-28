@@ -336,8 +336,10 @@ void drawNotes(const std::string& notes, ImFont* bold) {
             for (size_t at; (at = t.find(mark)) != std::string::npos;)
                 t.erase(at, std::strlen(mark));
         for (size_t bracket = t.find('['); bracket != std::string::npos; bracket = t.find('[', bracket + 1)) {
-            size_t close = t.find("](", bracket), end = close == std::string::npos ? close : t.find(')', close);
-            if (end != std::string::npos)
+            size_t close = t.find(']', bracket), end = std::string::npos;
+            if (close != std::string::npos && close + 1 < t.size() && t[close + 1] == '(')
+                end = t.find(')', close);
+            if (end != std::string::npos) // (a lone [ or [words] stays as it is)
                 t = t.substr(0, bracket) + t.substr(bracket + 1, close - bracket - 1) + t.substr(end + 1);
         }
         if (b.kind == 1) {
@@ -529,6 +531,8 @@ void Editor::downloadUpdate(bool wait) {
             return job->fail("The download stopped: " + problem);
         job->stage = UpdateJob::Unpacking;
         uint64_t size = stdfs::file_size(job->part, e);
+        if (e)
+            return job->fail("The download went missing before it could be checked. Try again.");
         if (r.size && size != r.size)
             return job->fail("The download came in cut short (" + megabytes(size) + " of " + megabytes(r.size) + "). Try again.");
         std::string sha = update::sha256File(job->part);
@@ -582,12 +586,15 @@ void Editor::saveAndRestart() {
     // As "Save and close" does.
     if (playing_)
         stop();
+    bool ok = true;
     if (hasProject()) {
-        saveScene();
-        saveAllScripts();
+        ok = !dirty_ || saveScene();
+        ok = saveAllScripts() && ok;
     }
     if (pixel_.dirty)
-        savePixelImage();
+        ok = savePixelImage() && ok;
+    if (!ok)
+        return; // (what couldn't be saved is said; restarting would lose it)
     updateRestart_ = true;
     quit_ = true;
 }
@@ -650,8 +657,10 @@ std::string Editor::updateStatus() const {
     if (!job)
         return "none";
     const char* names[] = {"checking", "up to date", "available", "downloading", "unpacking", "ready", "failed"};
-    std::string status = job->release.version.empty() ? names[job->stage] : job->release.version + " " + names[job->stage];
-    return job->stage == UpdateJob::Failed ? status + ": " + job->why() : status;
+    int stage = job->stage; // (the release is written before the stage moves past Checking)
+    std::string status = stage == UpdateJob::Checking || job->release.version.empty() ? names[stage]
+                                                                                      : job->release.version + " " + names[stage];
+    return stage == UpdateJob::Failed ? status + ": " + job->why() : status;
 }
 
 namespace {
@@ -693,7 +702,8 @@ void Editor::drawUpdater() {
     }
     const float buttonH = ui::px(32);
     int stage = job ? job->stage.load() : UpdateJob::UpToDate;
-    bool known = job && !job->release.version.empty();
+    // (the checking thread writes the release until the stage moves on)
+    bool known = job && stage != UpdateJob::Checking && !job->release.version.empty();
 
     if (!job || stage == UpdateJob::Checking) {
         ImGui::TextUnformatted(job ? "Looking for a new version..." : "");

@@ -195,13 +195,11 @@ void Editor::autosave(float dt) {
         anyScript = anyScript || t->modified;
     if (!dirty_ && !anyScript)
         return;
-    saveAllScripts();
-    if (dirty_ && !scenePath_.empty()) {
-        fs::writeText(projectDir_ / scenePath_, scene_->save().dump(2) + "\n");
-        dirty_ = false;
-        refreshTitle();
-    }
-    notify("Autosaved.");
+    bool ok = saveAllScripts();
+    if (dirty_ && !scenePath_.empty()) // (saveScene writes a prefab being edited as a prefab)
+        ok = saveScene(true) && ok;
+    if (ok)
+        notify("Autosaved.");
 }
 
 // For automated screenshots and quick starts: --panel prefs,profiler,history...
@@ -695,7 +693,7 @@ bool Editor::openScene(const std::string& path) {
     return true;
 }
 
-bool Editor::saveScene() {
+bool Editor::saveScene(bool quiet) {
     if (!hasProject())
         return false;
     if (editingPrefab()) {
@@ -706,7 +704,8 @@ bool Editor::saveScene() {
         }
         dirty_ = false;
         refreshTitle();
-        notify("Saved prefab " + prefabPath_);
+        if (!quiet)
+            notify("Saved prefab " + prefabPath_);
         return true;
     }
     if (scenePath_.empty())
@@ -717,7 +716,8 @@ bool Editor::saveScene() {
     }
     dirty_ = false;
     refreshTitle();
-    notify("Saved " + scenePath_);
+    if (!quiet)
+        notify("Saved " + scenePath_);
     return true;
 }
 
@@ -1822,16 +1822,24 @@ void Editor::checkScript(ScriptTab& tab) {
         tab.blocks->setCodeError(failed ? error.line : 0, failed ? error.what() : "");
 }
 
-void Editor::saveAllScripts() {
-    for (auto& t : tabs_) {
-        if (!t->modified)
-            continue;
-        if (t->code)
-            fs::writeText(projectDir_ / t->path, t->code->text());
-        else if (t->blocks)
-            fs::writeText(projectDir_ / t->path, t->blocks->save().dump(2));
-        t->modified = false;
+bool Editor::saveTab(ScriptTab& tab) {
+    bool written = tab.code     ? fs::writeText(projectDir_ / tab.path, tab.code->text())
+                   : tab.blocks ? fs::writeText(projectDir_ / tab.path, tab.blocks->save().dump(2))
+                                : true;
+    if (!written) {
+        notify("Couldn't save " + tab.path + ". Is the folder read-only, or the disk full? Your changes are still here.", true);
+        return false;
     }
+    tab.modified = false;
+    return true;
+}
+
+bool Editor::saveAllScripts() {
+    bool ok = true;
+    for (auto& t : tabs_)
+        if (t->modified)
+            ok = saveTab(*t) && ok;
+    return ok;
 }
 
 // ---------------------------------------------------------------- misc
@@ -2322,9 +2330,11 @@ void Editor::drawSwitchDialog() {
     if (ImGui::Button("Save", {ui::px(110), 0})) {
         bool ok = !dirty_ || saveScene();
         if (pendingSwitchScripts_)
-            saveAllScripts();
+            ok = saveAllScripts() && ok;
         if (ok)
             proceed();
+        else
+            ImGui::CloseCurrentPopup(); // (the message says what went wrong; nothing is lost)
     }
     ImGui::SameLine();
     if (ImGui::Button("Don't save", {ui::px(110), 0})) {
@@ -2353,11 +2363,14 @@ void Editor::drawQuitDialog() {
         if (ImGui::Button("Save and close", {ui::px(150), 0})) {
             if (playing_)
                 stop();
-            saveScene();
-            saveAllScripts();
+            bool ok = !hasProject() || !dirty_ || saveScene();
+            ok = saveAllScripts() && ok;
             if (pixel_.dirty)
-                savePixelImage();
-            quit_ = true;
+                ok = savePixelImage() && ok;
+            if (ok)
+                quit_ = true;
+            else
+                ImGui::CloseCurrentPopup(); // stays open, so the unsaved work isn't lost
         }
         ImGui::SameLine();
         if (ImGui::Button("Don't save", {ui::px(110), 0}))
