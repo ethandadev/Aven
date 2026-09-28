@@ -9,6 +9,7 @@
 
 #include <imgui.h>
 
+#include <algorithm>
 #include <cmath>
 
 namespace aven::editor {
@@ -237,6 +238,8 @@ void Editor::sculptTerrainInViewport(const CameraView& cam, float dt) {
         sculptStroke_ = true; // a stroke starts on the ground, not when dragging in from elsewhere
     if (sculptStroke_ && !io.KeyAlt) {
         edited(tool == TerrainTool::Paint ? "Paint terrain" : "Sculpt terrain"); // one undo step per stroke
+        // (the layer picked can be gone: removed, or undone, since)
+        paintLayer_ = std::clamp(paintLayer_, 0, std::max(0, static_cast<int>(t.layers.size()) - 1));
         terrainBrush(t, tool, hit.x, hit.z, radius, brushStrength_, std::min(dt, 0.05f), paintLayer_, flattenLevel_);
     }
 }

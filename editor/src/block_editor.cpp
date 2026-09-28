@@ -5,6 +5,7 @@
 #include "aven/platform/input.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -37,6 +38,10 @@ std::vector<Segment> parseLabel(const std::string& label) {
         if (open > i)
             out.push_back({false, label.substr(i, open - i)});
         size_t close = label.find('}', open);
+        if (close == std::string::npos) { // (an unclosed brace is just text)
+            out.push_back({false, label.substr(open)});
+            break;
+        }
         out.push_back({true, label.substr(open + 1, close - open - 1)});
         i = close + 1;
     }
@@ -94,6 +99,18 @@ const char* kKeys[] = {"space", "left", "right", "up", "down", "enter", "escape"
                        "w", "x", "y", "z", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
 const char* kColorNames[] = {"red", "orange", "yellow", "lime", "green", "teal", "cyan", "sky", "blue", "navy",
                              "purple", "magenta", "pink", "brown", "gold", "white", "gray", "black"};
+
+// A name typed for a new variable, made into one scripts can use: "high score" -> high_score, "2x" -> _2x.
+std::string variableName(const char* typed) {
+    std::string name;
+    for (const char* c = typed; *c; ++c) {
+        unsigned char ch = static_cast<unsigned char>(*c);
+        name += std::isalnum(ch) || ch == '_' ? static_cast<char>(ch) : '_';
+    }
+    if (!name.empty() && std::isdigit(static_cast<unsigned char>(name[0])))
+        name.insert(name.begin(), '_');
+    return name;
+}
 
 } // namespace
 
@@ -169,6 +186,16 @@ BlockEditor::BlockPtr BlockEditor::clone(const Block& b) {
 }
 
 bool BlockEditor::load(const Json& doc) {
+    // Everything that points into the old blocks goes (undo can run with a popup open or mid-drag).
+    editBlock_ = contextBlock_ = nullptr;
+    pressed_ = pressedOnSlot_ = dragging_ = false;
+    pressedHit_ = {};
+    pressedSlot_ = {};
+    dragStack_.clear();
+    dragReporter_.reset();
+    hits_.clear();
+    slotHits_.clear();
+    attach_.clear();
     stacks_.clear();
     variables_.clear();
     for (auto& v : doc["variables"].elements())
@@ -840,7 +867,7 @@ void BlockEditor::drawEditPopup() {
             std::string s = editBuffer_;
             char* end = nullptr;
             double n = std::strtod(s.c_str(), &end);
-            bool numeric = !s.empty() && end && *end == '\0';
+            bool numeric = !s.empty() && end && *end == '\0' && std::isfinite(n); // ("inf" and "nan" stay words)
             if (in->type == InputType::Name)
                 setValue(Json(s));
             else if (numeric && in->type != InputType::Text)
@@ -864,8 +891,13 @@ void BlockEditor::drawEditPopup() {
         ImGui::SameLine();
         if (ImGui::Button("New variable") && newVarName_[0]) {
             snapshot();
-            variables_.push_back({newVarName_, Json(0)});
-            literal = Json(std::string(newVarName_));
+            std::string name = variableName(newVarName_);
+            bool exists = false;
+            for (auto& v : variables_)
+                exists = exists || v.first == name;
+            if (!exists)
+                variables_.push_back({name, Json(0)});
+            literal = Json(name);
             modified();
             ImGui::CloseCurrentPopup();
         }
@@ -939,7 +971,7 @@ void BlockEditor::drawContextMenu() {
             }
             stacks_.erase(std::remove_if(stacks_.begin(), stacks_.end(), [](const Stack& s) { return s.blocks.empty(); }),
                           stacks_.end());
-            contextBlock_ = nullptr;
+            contextBlock_ = editBlock_ = nullptr; // (either could be inside what was deleted)
             modified();
         }
     }
@@ -970,9 +1002,7 @@ void BlockEditor::drawPalette(ImVec2 origin, ImVec2 size) {
         ImGui::SameLine();
         if (ImGui::Button("+ Variable") && newVarName_[0]) {
             snapshot();
-            std::string name;
-            for (char ch : std::string(newVarName_))
-                name += (ch == ' ') ? '_' : ch;
+            std::string name = variableName(newVarName_);
             bool exists = false;
             for (auto& v : variables_)
                 exists = exists || v.first == name;
@@ -991,7 +1021,7 @@ void BlockEditor::drawPalette(ImVec2 origin, ImVec2 size) {
             if (ImGui::InputText("##start", buf, sizeof buf)) {
                 char* end = nullptr;
                 double n = std::strtod(buf, &end);
-                variables_[v].second = (end && *end == '\0' && buf[0]) ? Json(n) : Json(std::string(buf));
+                variables_[v].second = (end && *end == '\0' && buf[0] && std::isfinite(n)) ? Json(n) : Json(std::string(buf));
                 modified();
             }
             ImGui::SameLine();

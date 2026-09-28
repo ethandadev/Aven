@@ -185,13 +185,18 @@ void Editor::drawSoundMaker() {
         if (base.empty())
             base = "sound";
         std::string path = uniqueName("sounds", base, ".wav");
-        writeWav(projectDir_ / path, sfxSamples_);
+        std::error_code ec;
+        stdfs::create_directories((projectDir_ / path).parent_path(), ec);
         // The settings too, so the sound can be opened and changed later.
-        fs::writeText(projectDir_ / (path.substr(0, path.size() - 4) + ".sfx"), sfx_.toJson().dump(2));
-        sfxLastSaved_ = path;
-        scanAssets();
-        milestone("sounds_made");
-        notify("Saved " + path);
+        if (writeWav(projectDir_ / path, sfxSamples_) &&
+            fs::writeText(projectDir_ / (path.substr(0, path.size() - 4) + ".sfx"), sfx_.toJson().dump(2))) {
+            sfxLastSaved_ = path;
+            scanAssets();
+            milestone("sounds_made");
+            notify("Saved " + path);
+        } else {
+            notify("Couldn't save " + path + ". Is the folder read-only, or the disk full?", true);
+        }
     }
     ImGui::SameLine();
     if (ImGui::BeginCombo("##opensfx", "Open one you made...", ImGuiComboFlags_WidthFitPreview)) {

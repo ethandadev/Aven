@@ -32,8 +32,9 @@ std::string clock(float seconds) {
 
 std::string timestamp() {
     std::time_t t = std::time(nullptr);
-    char buf[32];
-    std::strftime(buf, sizeof buf, "%Y-%m-%d_%H-%M-%S", std::localtime(&t));
+    char buf[32] = "capture";
+    if (const std::tm* local = std::localtime(&t)) // (null when the clock is out of range)
+        std::strftime(buf, sizeof buf, "%Y-%m-%d_%H-%M-%S", local);
     return buf;
 }
 

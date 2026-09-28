@@ -45,6 +45,14 @@ void Editor::PixelDoc::resize(int frameW, int frameH, int frameCount) {
     px.assign(static_cast<size_t>(fw) * frames * fh, 0);
 }
 
+// After undo or redo: adding and removing frames is undoable too, so the frame count follows the pixels.
+void Editor::PixelDoc::matchFrames() {
+    size_t frameSize = static_cast<size_t>(std::max(fw, 1)) * static_cast<size_t>(std::max(fh, 1));
+    frames = std::max(1, static_cast<int>(px.size() / frameSize));
+    px.resize(frameSize * static_cast<size_t>(frames), 0);
+    frame = std::clamp(frame, 0, frames - 1);
+}
+
 uint32_t& Editor::PixelDoc::at(int f, int x, int y) { return px[static_cast<size_t>(y) * fw * frames + f * fw + x]; }
 
 void Editor::openPixelEditor(const std::string& imagePath) {
@@ -69,6 +77,13 @@ void Editor::openPixelEditor(const std::string& imagePath) {
         unsigned char* data = bytes ? stbi_load_from_memory(bytes->data(), static_cast<int>(bytes->size()), &w, &h, &n, 4) : nullptr;
         if (!data) {
             notify("Couldn't open " + imagePath, true);
+            return;
+        }
+        if (w > 1024 || h > 1024) { // (every undo step keeps a copy: pixel art is small)
+            stbi_image_free(data);
+            notify(imagePath + " is " + std::to_string(w) + " x " + std::to_string(h) +
+                       ", too big for the Pixel Editor (up to 1024 x 1024). A paint program suits it better.",
+                   true);
             return;
         }
         // A sprite sheet laid out in a row opens as animation frames (if the selected sprite says so).
@@ -208,6 +223,7 @@ void Editor::drawPixelEditor() {
             d.px = d.undo.back();
             d.undo.pop_back();
             d.textureDirty = d.dirty = true;
+            d.matchFrames();
         }
         if ((ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Y) || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Z)) &&
             !d.redo.empty()) {
@@ -215,6 +231,7 @@ void Editor::drawPixelEditor() {
             d.px = d.redo.back();
             d.redo.pop_back();
             d.textureDirty = d.dirty = true;
+            d.matchFrames();
         }
         if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_S))
             savePixelImage();
@@ -338,7 +355,10 @@ void Editor::drawPixelEditor() {
     ImGui::AlignTextToFramePadding();
     ImGui::Text("Frame %d of %d", d.frame + 1, d.frames);
     ImGui::SameLine();
-    if (ImGui::SmallButton("+ Frame")) {
+    ImGui::BeginDisabled(d.fw * (d.frames + 1) > 4096); // (the frames sit side by side in one picture)
+    bool addFrame = ImGui::SmallButton("+ Frame");
+    ImGui::EndDisabled();
+    if (addFrame) {
         pixelSnapshot();
         // Frames sit side by side; the new one starts as a copy of the current one.
         std::vector<uint32_t> old = d.px;
@@ -356,7 +376,7 @@ void Editor::drawPixelEditor() {
         d.frame = cur + 1;
         d.textureDirty = d.dirty = true;
     }
-    if (ImGui::IsItemHovered())
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
         ImGui::SetTooltip("Add an animation frame (a copy of this one)");
     if (d.frames > 1) {
         ImGui::SameLine();
@@ -383,8 +403,8 @@ void Editor::drawPixelEditor() {
         ImGui::SetNextItemWidth(ui::px(90));
         ImGui::SliderFloat("##pfps", &d.fps, 1, 24, "%.0f fps");
         if (d.playing) {
-            d.playTime += io.DeltaTime * d.fps;
-            d.frame = static_cast<int>(d.playTime) % d.frames;
+            d.playTime = std::fmod(d.playTime + io.DeltaTime * d.fps, static_cast<float>(d.frames));
+            d.frame = std::clamp(static_cast<int>(d.playTime), 0, d.frames - 1);
         }
     }
 
@@ -494,8 +514,9 @@ void Editor::drawPixelEditor() {
             if (d.tool == PixelTool::Line) {
                 pixelLine(d.start.first, d.start.second, mx, my, paint);
             } else {
-                int x0 = std::min(d.start.first, mx), x1 = std::max(d.start.first, mx);
-                int y0 = std::min(d.start.second, my), y1 = std::max(d.start.second, my);
+                // (only the part on the canvas: the mouse can be far outside it)
+                int x0 = std::max(std::min(d.start.first, mx), -d.brush), x1 = std::min(std::max(d.start.first, mx), d.fw);
+                int y0 = std::max(std::min(d.start.second, my), -d.brush), y1 = std::min(std::max(d.start.second, my), d.fh);
                 for (int y = y0; y <= y1; ++y)
                     for (int x = x0; x <= x1; ++x)
                         if (d.filledRect || x == x0 || x == x1 || y == y0 || y == y1)

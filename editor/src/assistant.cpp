@@ -141,7 +141,8 @@ std::optional<double> numberIn(const std::string& text) {
             while (end < text.size() && (std::isdigit(static_cast<unsigned char>(text[end])) || text[end] == '.'))
                 ++end;
             bool negative = i > 0 && text[i - 1] == '-';
-            double v = std::atof(text.substr(i, end - i).c_str());
+            // (kept to sizes a game can use: "make it 1e400 big" shouldn't put infinity in the scene)
+            double v = std::clamp(std::atof(text.substr(i, end - i).c_str()), 0.0, 1e6);
             return negative ? -v : v;
         }
     }
@@ -445,7 +446,7 @@ void Editor::askAven(const std::string& request) {
             // --- speed
             if (any(c, {"faster", "quicker", "slower", "speed"}) && !any(c, {"jump"})) {
                 double factor = any(c, {"slower", "slow"}) ? 1.0 / more : more;
-                if (times && number)
+                if (times && number && *number > 0) // ("0 times slower" isn't a speed)
                     factor = any(c, {"slower"}) ? 1.0 / *number : *number;
                 bool spinning = any(c, {"spin", "rotat", "turn"});
                 bool bobbing = any(c, {"bob", "float"});

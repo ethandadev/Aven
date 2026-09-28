@@ -524,6 +524,7 @@ private:
         rhi::TextureHandle texture;
         int texW = 0, texH = 0;
         void resize(int frameW, int frameH, int frameCount);
+        void matchFrames(); // after undo/redo
         uint32_t& at(int f, int x, int y);
     } pixel_;
     bool showPixelEditor_ = false, focusPixelEditor_ = false, pixelEditorFocused_ = false;
