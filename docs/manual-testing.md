@@ -119,6 +119,16 @@ Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should 
 
 ## Multiplayer
 - [ ] Two computers on the same Wi-Fi: host, find the game, join, see each other move, leave.
+- [ ] Online: run `aven-relay`, set it in Project Settings > Game > Online relay, host with
+      `host_online()`, join from another network with the room code.
+
+## When things go wrong
+- [ ] Make the project folder read-only (or fill a USB stick), change a script and the scene, then
+      Save, Save and close, and close a script tab: each says it couldn't save, and nothing closes
+      or loses your changes.
+- [ ] Preferences > Look > UI size at 1.5x and 2x on a small screen: tool windows open on screen,
+      nothing runs off the edge of the Assets panel or the Inspector.
+- [ ] A file or project folder with accents or emoji in its name (Café, 🎮): open, rename, export.
 
 ## Hardware
 - [ ] A gamepad (and one that's plugged in but not touched: nothing should move by itself).

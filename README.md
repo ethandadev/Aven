@@ -37,7 +37,8 @@ know how the bigger engines think.
   component shows up in the Inspector and in scripts.
 - **Three ways to code, one runtime:**
   - **Blocks** snap together like Scratch.
-  - **EasyScript** is Python-like, with events such as `on_update(dt)` and `wait()`.
+  - **EasyScript** is Python-like, with events such as `on_update(dt)` and `wait()`, and
+    `import` to share code between scripts.
   - **Native C/C++** is a stable C API (`sdk/include/aven.h`). It uses EasyScript's names, so
     `aven_get(self, "x")` does what `self.x` does.
 - **Behaviors** give an object gameplay with settings instead of code: platformer and top-down
@@ -52,7 +53,10 @@ know how the bigger engines think.
 - **Ready-made UI:** Start Menu, Pause Menu, Health Bar and Score Text in the Create menu, all
   working without code.
 - **Code:** a built-in code editor with colors, autocomplete, parameter hints, live problem checks
-  and go to definition, and a block editor.
+  and go to definition, a block editor, and a debugger (breakpoints, stepping, and every value
+  the paused code can see).
+- **Safety nets:** crash recovery offers your unsaved scene and scripts back after a crash, and a
+  save that fails (a full disk, a read-only folder) says so and keeps your work.
 - **Sharing:** Windows, macOS and Linux apps from any computer (with your icon, name and
   description, optionally signed and notarized), a web version that installs on phones, an
   itch.io zip, or the whole project as a .zip. Exported games can open with a title screen, and
