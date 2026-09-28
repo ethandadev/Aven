@@ -1,0 +1,7 @@
+# Keeps the workflows' pinned actions (full commit SHAs) up to date, one reviewed pull request at a time.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

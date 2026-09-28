@@ -247,6 +247,9 @@ public:
     std::shared_ptr<UpdateJob> updateJob_;
     bool showUpdater_ = false;
     bool updateRestart_ = false; // start the new version after installing it
+    bool rollbackPending_ = false; // "Go back to Aven ...": put the previous version back when quitting
+    std::string previousVersion() const; // the version an update replaced, while it's kept ("" if none)
+    void saveAndRestart();
     void startUpdater();         // at startup: tidy up after an update, say what's new, check for one
     void checkForUpdates(bool manual, bool wait = false);
     void downloadUpdate(bool wait = false);

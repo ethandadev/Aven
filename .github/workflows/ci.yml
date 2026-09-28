@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   desktop:
     name: ${{ matrix.name }}
@@ -19,7 +22,7 @@ jobs:
           - name: macOS
             os: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install Linux packages
         if: runner.os == 'Linux'
@@ -29,7 +32,7 @@ jobs:
             libgl-dev libwayland-dev libxkbcommon-dev wayland-protocols xvfb libgl1-mesa-dri
 
       - name: Cache downloaded libraries
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: build/_deps
           key: deps-${{ matrix.os }}-${{ hashFiles('cmake/AvenDependencies.cmake') }}
@@ -80,7 +83,7 @@ jobs:
 
       - name: Upload screenshots
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: screenshots
           path: |
@@ -94,14 +97,14 @@ jobs:
     name: Sanitizers (Linux)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install Linux packages
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
             libgl-dev libwayland-dev libxkbcommon-dev wayland-protocols
       - name: Cache downloaded libraries
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: build/_deps
           key: deps-sanitizers-${{ hashFiles('cmake/AvenDependencies.cmake') }}
@@ -123,13 +126,13 @@ jobs:
     name: Web player
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: mymindstorm/setup-emsdk@v14
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: mymindstorm/setup-emsdk@6ab9eb1bda2574c4ddb79809fc9247783eaf9021 # v14
       - name: Install Ninja
         run: sudo apt-get update && sudo apt-get install -y ninja-build
       - name: Build the web player
         run: tools/web/build_web_player.sh web-player
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: web-player
           path: web-player

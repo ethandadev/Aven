@@ -956,6 +956,14 @@ void Editor::drawPreferences() {
             checkForUpdates(true);
         label("Include beta versions", "Try new features before they're finished. Betas can have more bugs.");
         changed |= ImGui::Checkbox("##betaupdates", &prefs.betaUpdates);
+        if (std::string previous = previousVersion(); !previous.empty()) {
+            label("Go back", "The version the last update replaced is kept until the next update. Going back\n"
+                             "restarts Aven with it (your projects aren't changed).");
+            if (ImGui::SmallButton(("Go back to Aven " + previous + "##rollback").c_str())) {
+                rollbackPending_ = true;
+                saveAndRestart();
+            }
+        }
         if (!prefs.skippedUpdate.empty()) {
             label("Skipped version");
             ImGui::TextDisabled("%s", prefs.skippedUpdate.c_str());

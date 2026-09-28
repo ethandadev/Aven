@@ -236,6 +236,7 @@ void Editor::openPanels(const std::string& list) {
             downloadUpdate(true);
             Log::info("update: ", updateStatus());
         }
+        else if (p == "rollback") rollbackPending_ = true; // Preferences > Updates > Go back (automated tests)
         else if (p == "gamedetails") { showExport_ = true; exportTab_ = 3; }
         else if (p == "projectzip") { std::string m; exportProjectZip(m); Log::info(m); } // File > Export Project as .zip
         else if (p == "dump") { // for tests: the hierarchy, with * on selected objects

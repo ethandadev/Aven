@@ -10,7 +10,13 @@
 // editor needs no HTTPS code of its own. Only release downloads (a folder with "START HERE.txt")
 // update themselves; a build from source just says there's a new version.
 //
-// AVEN_UPDATE_URL replaces GitHub's release list (for testing; file:// links work then).
+// Every download must come with its .sig: an Ed25519 signature, by the release key, of the file's
+// name and SHA-256 (tools/release/update_key.py). The public key is built in (AVEN_UPDATE_PUBLIC_KEY,
+// set by the release workflow); a build without one doesn't install updates itself. So publishing a
+// release on GitHub isn't enough to reach people's computers: it also takes the private key.
+//
+// Test builds (AVEN_TEST_HOOKS, off for releases) also read AVEN_UPDATE_URL, which replaces GitHub's
+// release list (file:// links work then), and AVEN_UPDATE_PUBLIC_KEY.
 
 #include "editor.h"
 
@@ -72,6 +78,27 @@ const char* editorProgram() {
 #endif
 }
 
+// A test build's stand-in for GitHub (AVEN_UPDATE_URL), or nothing.
+const char* testReleases() {
+#if AVEN_TEST_HOOKS
+    const char* custom = std::getenv("AVEN_UPDATE_URL");
+    return custom && *custom ? custom : nullptr;
+#else
+    return nullptr;
+#endif
+}
+
+std::string releasesUrl() { return testReleases() ? testReleases() : kReleases; }
+
+// The key release downloads are signed with (64 hex digits), or "" in builds made without one.
+std::string updateKey() {
+#if AVEN_TEST_HOOKS
+    if (const char* key = std::getenv("AVEN_UPDATE_PUBLIC_KEY"))
+        return key;
+#endif
+    return AVEN_UPDATE_PUBLIC_KEY;
+}
+
 } // namespace
 
 // How this copy of Aven was installed, and so how it's updated.
@@ -113,13 +140,12 @@ UpdateInstall thisInstall() {
         in.cantUpdate = "This copy of Aven was built from its source code, so it doesn't replace itself: pull the new "
                         "code, or download Aven from the release page.";
     }
+    if (in.cantUpdate.empty() && updateKey().size() != 64)
+        in.cantUpdate = "This copy of Aven was built without the key that proves an update really comes from Aven's "
+                        "release, so it doesn't install updates itself: download the new version from the release page.";
     return in;
 }
 
-std::string releasesUrl() {
-    const char* custom = std::getenv("AVEN_UPDATE_URL");
-    return custom && *custom ? custom : kReleases;
-}
 
 stdfs::path findCurl() {
     std::error_code ec;
@@ -229,8 +255,8 @@ std::string fetch(const std::string& url, const stdfs::path& to, bool big, const
     if (curl.empty())
         return "Aven uses curl to download, and it isn't installed here (on Linux: sudo apt install curl).";
     stdfs::path err = to.string() + ".log";
-    // https only (file:// too when testing with AVEN_UPDATE_URL), also after redirects.
-    const char* protocols = std::getenv("AVEN_UPDATE_URL") ? "=https,file" : "=https";
+    // https only (file:// too in a test build with AVEN_UPDATE_URL), also after redirects.
+    const char* protocols = testReleases() ? "=https,file" : "=https";
     std::vector<std::string> args = {curl.string(), "--fail", "--silent", "--show-error", "--location", "--proto", protocols,
                                      "--proto-redir", protocols, "--retry", "2", "--connect-timeout", "20",
                                      "--user-agent", std::string("Aven-Editor/") + AVEN_VERSION, "--stderr", err.string(),
@@ -362,6 +388,56 @@ struct Editor::UpdateJob {
     bool busy() const { return stage == Checking || stage == Downloading || stage == Unpacking; }
 };
 
+namespace {
+
+// Everything in the work folder but the previous version (kept so "Go back" can restore it).
+void tidyWork(const stdfs::path& work) {
+    std::error_code ec;
+    std::vector<stdfs::path> leftovers;
+    for (auto& e : stdfs::directory_iterator(work, ec))
+        if (e.path().filename() != "old" && e.path().filename() != "old-version.txt")
+            leftovers.push_back(e.path());
+    for (auto& p : leftovers)
+        stdfs::remove_all(p, ec);
+}
+
+// Installed with the Setup program: Settings > Apps should show the version that's there now.
+void setInstalledVersion(const stdfs::path& root, const std::string& version) {
+#if defined(_WIN32)
+    HKEY key = nullptr;
+    const wchar_t* uninstall = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{6F6D3C2B-3E1A-4B8E-9E36-6A0B5F1D2C47}_is1";
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, uninstall, 0, KEY_QUERY_VALUE | KEY_SET_VALUE, &key) != ERROR_SUCCESS)
+        return;
+    wchar_t location[1024] = {};
+    DWORD size = sizeof location - sizeof(wchar_t);
+    std::error_code same;
+    if (RegQueryValueExW(key, L"InstallLocation", nullptr, nullptr, reinterpret_cast<BYTE*>(location), &size) == ERROR_SUCCESS &&
+        stdfs::equivalent(stdfs::path(location), root, same)) {
+        std::wstring wide(version.begin(), version.end()); // digits, dots and letters
+        RegSetValueExW(key, L"DisplayVersion", 0, REG_SZ, reinterpret_cast<const BYTE*>(wide.c_str()),
+                       static_cast<DWORD>((wide.size() + 1) * sizeof(wchar_t)));
+    }
+    RegCloseKey(key);
+#else
+    (void)root;
+    (void)version;
+#endif
+}
+
+std::string restartCommand(const UpdateInstall& in, const stdfs::path& project) {
+#if defined(__APPLE__)
+    // Through Launch Services, so it starts as the app (its name in the menu bar, its icon in the Dock).
+    std::string command = "/usr/bin/open -n \"" + in.root.string() + "\" --args";
+#else
+    std::string command = "\"" + (in.root / in.program).string() + "\"";
+#endif
+    if (!project.empty())
+        command += " \"" + project.string() + "\"";
+    return command;
+}
+
+} // namespace
+
 void Editor::startUpdater() {
     UpdateInstall install = thisInstall();
     if (!install.work.empty()) {
@@ -369,8 +445,7 @@ void Editor::startUpdater() {
         stdfs::path work = install.work;
         if (auto failed = fs::readText(work / "failed.txt"))
             notify("The update couldn't be installed: " + *failed, true);
-        std::error_code ec;
-        stdfs::remove_all(work, ec);
+        tidyWork(work); // the previous version stays, for Preferences > Updates > Go back
     }
     if (!options_.screenshot.empty())
         return;
@@ -429,8 +504,8 @@ void Editor::downloadUpdate(bool wait) {
         return;
     stdfs::path work = job->install.work;
     std::error_code ec;
-    stdfs::remove_all(work, ec);
     stdfs::create_directories(work, ec);
+    tidyWork(work);
     bool writable = fs::writeText(work / "can-write", "yes");
     stdfs::remove(work / "can-write", ec);
     if (!writable) {
@@ -456,11 +531,28 @@ void Editor::downloadUpdate(bool wait) {
         uint64_t size = stdfs::file_size(job->part, e);
         if (r.size && size != r.size)
             return job->fail("The download came in cut short (" + megabytes(size) + " of " + megabytes(r.size) + "). Try again.");
-        if (!r.sha256.empty() && update::sha256File(job->part) != r.sha256) {
+        std::string sha = update::sha256File(job->part);
+        if (sha.empty() || (!r.sha256.empty() && sha != r.sha256)) {
             stdfs::remove(job->part, e);
             return job->fail("The download doesn't match the release (its SHA-256 is different), so it wasn't installed. Try again.");
         }
+        // The signature: made with the release key, which isn't on GitHub, so a release someone else
+        // managed to publish (or change) is refused here.
+        if (r.signatureUrl.empty()) {
+            stdfs::remove(job->part, e);
+            return job->fail("This release isn't signed, so it wasn't installed. Download it from the release page if you trust it.");
+        }
+        stdfs::path sigFile = work / (r.fileName + ".sig");
+        problem = fetch(r.signatureUrl, sigFile, false, &job->cancel);
         std::string error;
+        if (problem.empty() && !update::checkSignature(updateKey(), r.fileName, sha, fs::readText(sigFile).value_or(""), error))
+            problem = error;
+        stdfs::remove(sigFile, e);
+        if (!problem.empty()) {
+            stdfs::remove(job->part, e);
+            Log::error("Update: refused Aven ", r.version, ": ", problem);
+            return job->fail("This download couldn't be confirmed as a real Aven release (" + problem + "), so it wasn't installed.");
+        }
         if (!zip::extract(job->part, work / "new", error))
             return job->fail("Couldn't unpack the download: " + error + ".");
         stdfs::remove(job->part, e);
@@ -475,6 +567,31 @@ void Editor::downloadUpdate(bool wait) {
         std::thread(run).detach();
 }
 
+std::string Editor::previousVersion() const {
+    UpdateInstall in = thisInstall();
+    std::error_code ec;
+    if (in.work.empty() || !stdfs::exists(in.work / "old", ec))
+        return "";
+    std::string version = fs::readText(in.work / "old-version.txt").value_or("");
+    while (!version.empty() && std::isspace(static_cast<unsigned char>(version.back())))
+        version.pop_back();
+    return version;
+}
+
+void Editor::saveAndRestart() {
+    // As "Save and close" does.
+    if (playing_)
+        stop();
+    if (hasProject()) {
+        saveScene();
+        saveAllScripts();
+    }
+    if (pixel_.dirty)
+        savePixelImage();
+    updateRestart_ = true;
+    quit_ = true;
+}
+
 std::string Editor::installPendingUpdate() {
     auto job = updateJob_;
     if (job && job->stage == UpdateJob::Downloading) {
@@ -483,10 +600,29 @@ std::string Editor::installPendingUpdate() {
         for (int i = 0; i < 50 && job->stage == UpdateJob::Downloading; ++i)
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
+    std::error_code ec;
+    if (rollbackPending_) {
+        // "Go back": the previous version's files swap back in, the same way an update goes in.
+        UpdateInstall in = thisInstall();
+        std::string previous = previousVersion();
+        if (previous.empty() || in.root.empty() || in.work.empty())
+            return "";
+        std::string error;
+        if (!update::swapIn(in.root, in.work / "old", in.work / "undone", error)) {
+            Log::error("Update: couldn't go back to Aven ", previous, ": ", error);
+            fs::writeText(in.work / "failed.txt", error);
+            return "";
+        }
+        stdfs::remove_all(in.work / "undone", ec);
+        stdfs::remove_all(in.work / "old", ec);
+        stdfs::remove(in.work / "old-version.txt", ec);
+        setInstalledVersion(in.root, previous);
+        Log::info("Update: went back to Aven ", previous, ".");
+        return updateRestart_ ? restartCommand(in, projectDir_) : "";
+    }
     if (!job || job->stage != UpdateJob::Ready || !job->install.cantUpdate.empty())
         return "";
     stdfs::path work = job->install.work;
-    std::error_code ec;
     stdfs::remove_all(work / "old", ec);
     std::string error;
     if (!update::swapIn(job->install.root, work / "new", work / "old", error)) {
@@ -494,35 +630,10 @@ std::string Editor::installPendingUpdate() {
         fs::writeText(work / "failed.txt", error); // said when Aven next starts
         return "";
     }
+    fs::writeText(work / "old-version.txt", AVEN_VERSION); // for "Go back to Aven ..."
     Log::info("Update: installed Aven ", job->release.version, ".");
-#if defined(_WIN32)
-    // Installed with the Setup program: Settings > Apps should show the new version too.
-    HKEY key = nullptr;
-    const wchar_t* uninstall = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{6F6D3C2B-3E1A-4B8E-9E36-6A0B5F1D2C47}_is1";
-    if (RegOpenKeyExW(HKEY_CURRENT_USER, uninstall, 0, KEY_QUERY_VALUE | KEY_SET_VALUE, &key) == ERROR_SUCCESS) {
-        wchar_t location[1024] = {};
-        DWORD size = sizeof location - sizeof(wchar_t);
-        std::error_code same;
-        if (RegQueryValueExW(key, L"InstallLocation", nullptr, nullptr, reinterpret_cast<BYTE*>(location), &size) == ERROR_SUCCESS &&
-            stdfs::equivalent(stdfs::path(location), job->install.root, same)) {
-            std::wstring version(job->release.version.begin(), job->release.version.end()); // digits and dots
-            RegSetValueExW(key, L"DisplayVersion", 0, REG_SZ, reinterpret_cast<const BYTE*>(version.c_str()),
-                           static_cast<DWORD>((version.size() + 1) * sizeof(wchar_t)));
-        }
-        RegCloseKey(key);
-    }
-#endif
-    if (!updateRestart_)
-        return "";
-#if defined(__APPLE__)
-    // Through Launch Services, so it starts as the app (its name in the menu bar, its icon in the Dock).
-    std::string command = "/usr/bin/open -n \"" + job->install.root.string() + "\" --args";
-#else
-    std::string command = "\"" + (job->install.root / job->install.program).string() + "\"";
-#endif
-    if (hasProject())
-        command += " \"" + projectDir_.string() + "\"";
-    return command;
+    setInstalledVersion(job->install.root, job->release.version);
+    return updateRestart_ ? restartCommand(job->install, projectDir_) : "";
 }
 
 bool Editor::updateAvailable() const {
@@ -632,19 +743,8 @@ void Editor::drawUpdater() {
             bool unsaved = (dirty_ && hasProject()) || pixel_.dirty;
             for (auto& t : tabs_)
                 unsaved = unsaved || t->modified;
-            if (ImGui::Button(unsaved ? "Save and restart" : "Restart now", {ui::px(180), buttonH})) {
-                // As "Save and close" does.
-                if (playing_)
-                    stop();
-                if (hasProject()) {
-                    saveScene();
-                    saveAllScripts();
-                }
-                if (pixel_.dirty)
-                    savePixelImage();
-                updateRestart_ = true;
-                quit_ = true;
-            }
+            if (ImGui::Button(unsaved ? "Save and restart" : "Restart now", {ui::px(180), buttonH}))
+                saveAndRestart();
             ImGui::SameLine();
             if (ImGui::Button("Later", {ui::px(100), buttonH}))
                 showUpdater_ = false;

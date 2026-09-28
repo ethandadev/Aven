@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <ctime>
+#include <fstream>
 #include <sstream>
 #include <thread>
 
@@ -157,7 +158,9 @@ struct Editor::DesktopJob {
         std::string cmd, q;
         for (size_t i = 0; i < args.size(); ++i) {
             if (!quote(args[i], q)) {
-                say("Can't pass this safely to " + args[0] + ": " + args[i]);
+                // Never the argument itself: it can be a password.
+                say("Can't pass one of the settings to " + stdfs::path(args[0]).filename().string() +
+                    " safely (it has a quote, % or line break in it). Change it and export again.");
                 return -1;
             }
             cmd += (i ? " " : "") + q;
@@ -189,6 +192,30 @@ struct Editor::DesktopJob {
             status = WEXITSTATUS(status);
 #endif
         return status;
+    }
+};
+
+// Environment variables for the programs run while this is alive (and not after): how secrets such as a
+// certificate's password reach signing tools without being on a command line, where other programs
+// on the computer can see them.
+struct ScopedEnv {
+    std::vector<std::string> names;
+    void set(const std::string& name, const std::string& value) {
+#if defined(_WIN32)
+        _putenv_s(name.c_str(), value.c_str());
+#else
+        setenv(name.c_str(), value.c_str(), 1);
+#endif
+        names.push_back(name);
+    }
+    ~ScopedEnv() {
+        for (auto& n : names) {
+#if defined(_WIN32)
+            _putenv_s(n.c_str(), ""); // removes it
+#else
+            unsetenv(n.c_str());
+#endif
+        }
     }
 };
 
@@ -275,13 +302,27 @@ bool exportWindows(Editor::DesktopJob& job, const DesktopPlan& p, const stdfs::p
         bool file = fs::extension(pub.windowsCertificate) == ".pfx" || fs::extension(pub.windowsCertificate) == ".p12";
         stdfs::path signtool = findTool("signtool"), ossl = findTool("osslsigncode");
         int code = -1;
+#if defined(_WIN32)
+        if (file && !p.windowsPassword.empty()) {
+            // signtool only takes a .pfx password on its command line, so PowerShell signs instead,
+            // reading the password (and the paths) from environment variables set for this run alone.
+            ScopedEnv env;
+            env.set("AVEN_SIGN_PFX", pub.windowsCertificate);
+            env.set("AVEN_SIGN_PASSWORD", p.windowsPassword);
+            env.set("AVEN_SIGN_FILE", exePath.string());
+            env.set("AVEN_SIGN_TIMESTAMP", pub.timestampUrl);
+            code = job.run({"powershell", "-NoProfile", "-NonInteractive", "-Command",
+                            "$c = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($env:AVEN_SIGN_PFX, "
+                            "$env:AVEN_SIGN_PASSWORD); $r = Set-AuthenticodeSignature -FilePath $env:AVEN_SIGN_FILE -Certificate $c "
+                            "-HashAlgorithm SHA256 -TimestampServer $env:AVEN_SIGN_TIMESTAMP; if ($r.Status -ne 'Valid') "
+                            "{ Write-Output $r.StatusMessage; exit 1 }"});
+        } else
+#endif
         if (!signtool.empty()) {
             std::vector<std::string> a = {signtool.string(), "sign", "/fd", "SHA256", "/tr", pub.timestampUrl, "/td", "SHA256",
                                           "/d", p.settings.name};
             if (file) {
-                a.insert(a.end(), {"/f", pub.windowsCertificate});
-                if (!p.windowsPassword.empty())
-                    a.insert(a.end(), {"/p", p.windowsPassword});
+                a.insert(a.end(), {"/f", pub.windowsCertificate}); // no password (with one: PowerShell, above)
             } else {
                 a.insert(a.end(), {"/sha1", pub.windowsCertificate});
             }
@@ -291,11 +332,23 @@ bool exportWindows(Editor::DesktopJob& job, const DesktopPlan& p, const stdfs::p
             stdfs::path signedExe = exePath.string() + ".signed";
             std::vector<std::string> a = {ossl.string(), "sign", "-pkcs12", pub.windowsCertificate, "-n", p.settings.name,
                                           "-h", "sha256", "-ts", pub.timestampUrl, "-in", exePath.string(), "-out", signedExe.string()};
-            if (!p.windowsPassword.empty())
-                a.insert(a.begin() + 4, {"-pass", p.windowsPassword});
+            // The password goes through a file only this user can read, deleted right after.
+            stdfs::path passFile;
+            if (!p.windowsPassword.empty()) {
+                // In this user's own folder (the shared temp folder could hold someone else's link by that name).
+                passFile = fs::userDataDir("Aven Editor") / "signing-password.tmp";
+                stdfs::create_directories(passFile.parent_path(), ec);
+                stdfs::remove(passFile, ec);
+                { std::ofstream(passFile, std::ios::binary); } // empty, then owner-only, then the password
+                stdfs::permissions(passFile, stdfs::perms::owner_read | stdfs::perms::owner_write, ec);
+                std::ofstream(passFile, std::ios::binary | std::ios::trunc) << p.windowsPassword;
+                a.insert(a.begin() + 4, {"-readpass", passFile.string()});
+            }
             if (!pub.website.empty())
                 a.insert(a.begin() + 2, {"-i", pub.website});
             code = job.run(a);
+            if (!passFile.empty())
+                stdfs::remove(passFile, ec);
             if (code == 0)
                 stdfs::rename(signedExe, exePath, ec);
         } else {

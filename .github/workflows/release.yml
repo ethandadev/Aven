@@ -13,21 +13,23 @@ on:
         required: true
         default: "0.0.0-test"
 
+# Read-only everywhere; only the publish job (which runs no third-party code before it uploads) can
+# write releases. Third-party actions are pinned to full commit SHAs (Dependabot keeps them current).
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   web:
     name: Web player
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: mymindstorm/setup-emsdk@v14
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: mymindstorm/setup-emsdk@6ab9eb1bda2574c4ddb79809fc9247783eaf9021 # v14
       - name: Install Ninja
         run: sudo apt-get update && sudo apt-get install -y ninja-build
       - name: Build the web player
         run: tools/web/build_web_player.sh web-player
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: web-player
           path: web-player
@@ -53,7 +55,7 @@ jobs:
             suffix: macos-arm64
             bin: build/bin
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Version
         shell: bash
@@ -71,16 +73,27 @@ jobs:
             libgl-dev libwayland-dev libxkbcommon-dev wayland-protocols xvfb libgl1-mesa-dri
 
       - name: Cache downloaded libraries
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: build/_deps
           key: deps-${{ matrix.os }}-${{ hashFiles('cmake/AvenDependencies.cmake') }}
 
       - name: Configure
         shell: bash
+        env:
+          # The public half of the update signing key (tools/release/update_key.py). Not secret.
+          UPDATE_PUBLIC_KEY: ${{ vars.UPDATE_PUBLIC_KEY }}
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then generator="-G Ninja"; fi
-          cmake -S . -B build $generator -DCMAKE_BUILD_TYPE=Release -DAVEN_VERSION="$VERSION"
+          if [ -n "$UPDATE_PUBLIC_KEY" ] && ! [[ "$UPDATE_PUBLIC_KEY" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::The UPDATE_PUBLIC_KEY variable should be 64 lowercase hex digits."; exit 1
+          fi
+          if [ -z "$UPDATE_PUBLIC_KEY" ]; then
+            echo "::warning::No UPDATE_PUBLIC_KEY variable: this build won't install updates itself (docs/releasing.md)."
+          fi
+          # Release builds leave out the test hooks (AVEN_UPDATE_URL and friends).
+          cmake -S . -B build $generator -DCMAKE_BUILD_TYPE=Release -DAVEN_VERSION="$VERSION" \
+            -DAVEN_TEST_HOOKS=OFF -DAVEN_UPDATE_PUBLIC_KEY="$UPDATE_PUBLIC_KEY"
 
       - name: Build
         run: cmake --build build --config Release --parallel
@@ -92,7 +105,7 @@ jobs:
           "$tests"
 
       - name: Get the web player
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: web-player
           path: web-player
@@ -128,7 +141,7 @@ jobs:
 
       - name: Upload screenshots of the packaged build
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-screenshots
           path: |
@@ -149,12 +162,12 @@ jobs:
           tar -cf "stage-${{ matrix.suffix }}.tar" -C dist "$PACKAGE"
           tar -cf "player-${{ matrix.suffix }}.tar" -C players "${{ matrix.suffix }}"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: stage-${{ matrix.suffix }}
           path: stage-${{ matrix.suffix }}.tar
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: player-${{ matrix.suffix }}
           path: player-${{ matrix.suffix }}.tar
@@ -167,7 +180,7 @@ jobs:
     needs: desktop
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: "*-*64"
           path: parts
@@ -191,11 +204,11 @@ jobs:
             zip -qry "../out/$pkg.zip" "$pkg" # -y and zip's Unix attributes keep the programs runnable
           done
           ls -la ../out
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: bundled
           path: out/bundled-*.tar
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-linux-zip
           path: out/*.zip
@@ -207,17 +220,12 @@ jobs:
     needs: bundle
     runs-on: windows-latest
     env:
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
-      AZURE_SIGNING_ACCOUNT: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
-      AZURE_SIGNING_PROFILE: ${{ secrets.AZURE_SIGNING_PROFILE }}
-      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      # Only whether signing is set up; the secrets themselves go to the signing steps alone.
+      HAS_AZURE: ${{ secrets.AZURE_CLIENT_ID != '' }}
+      HAS_PFX: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bundled
           path: parts
@@ -230,15 +238,15 @@ jobs:
           echo "PKG=$pkg" >> "$GITHUB_ENV"
           echo "VERSION=$(echo "$pkg" | sed -E 's/^aven-(.*)-windows-x64$/\1/')" >> "$GITHUB_ENV"
       - name: Sign the programs (Azure Trusted Signing)
-        if: env.AZURE_CLIENT_ID != ''
-        uses: azure/trusted-signing-action@v0.5.1
+        if: env.HAS_AZURE == 'true'
+        uses: azure/trusted-signing-action@0d74250c661747df006298d0fb49944c10f16e03 # v0.5.1
         with:
-          azure-tenant-id: ${{ env.AZURE_TENANT_ID }}
-          azure-client-id: ${{ env.AZURE_CLIENT_ID }}
-          azure-client-secret: ${{ env.AZURE_CLIENT_SECRET }}
-          endpoint: ${{ env.AZURE_SIGNING_ENDPOINT }}
-          trusted-signing-account-name: ${{ env.AZURE_SIGNING_ACCOUNT }}
-          certificate-profile-name: ${{ env.AZURE_SIGNING_PROFILE }}
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_SIGNING_PROFILE }}
           files-folder: stage/${{ env.PKG }}
           files-folder-filter: exe
           files-folder-recurse: true
@@ -246,8 +254,11 @@ jobs:
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
       - name: Sign the programs (.pfx certificate)
-        if: env.AZURE_CLIENT_ID == '' && env.WINDOWS_CERTIFICATE != ''
+        if: env.HAS_AZURE != 'true' && env.HAS_PFX == 'true'
         shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
           $pfx = Join-Path $env:RUNNER_TEMP "cert.pfx"
           [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
@@ -269,23 +280,25 @@ jobs:
           & $iscc "/DVersion=$env:VERSION" "/DNumericVersion=$numeric" "/DSource=$pwd\stage\$env:PKG" "/DOutput=$pwd\out" tools\release\windows\aven.iss
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
       - name: Sign the installer (Azure Trusted Signing)
-        if: env.AZURE_CLIENT_ID != ''
-        uses: azure/trusted-signing-action@v0.5.1
+        if: env.HAS_AZURE == 'true'
+        uses: azure/trusted-signing-action@0d74250c661747df006298d0fb49944c10f16e03 # v0.5.1
         with:
-          azure-tenant-id: ${{ env.AZURE_TENANT_ID }}
-          azure-client-id: ${{ env.AZURE_CLIENT_ID }}
-          azure-client-secret: ${{ env.AZURE_CLIENT_SECRET }}
-          endpoint: ${{ env.AZURE_SIGNING_ENDPOINT }}
-          trusted-signing-account-name: ${{ env.AZURE_SIGNING_ACCOUNT }}
-          certificate-profile-name: ${{ env.AZURE_SIGNING_PROFILE }}
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_SIGNING_PROFILE }}
           files-folder: out
           files-folder-filter: exe
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
       - name: Sign the installer (.pfx certificate)
-        if: env.AZURE_CLIENT_ID == '' && env.WINDOWS_CERTIFICATE != ''
+        if: env.HAS_AZURE != 'true' && env.HAS_PFX == 'true'
         shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
           & $env:SIGNTOOL sign /f $env:PFX /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 (Get-ChildItem out\*.exe).FullName
           if ($LASTEXITCODE -ne 0) { throw "signtool failed" }
@@ -299,7 +312,7 @@ jobs:
             if (-not (Test-Path (Join-Path $dir $f))) { throw "The installer didn't install $f" }
           }
           Get-ChildItem out
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-windows
           path: out/*
@@ -311,17 +324,11 @@ jobs:
     needs: bundle
     runs-on: macos-latest
     env:
-      MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      # Only whether signing is set up; the secrets themselves go to the steps that use them.
+      HAS_MAC_CERT: ${{ secrets.MACOS_CERTIFICATE != '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bundled
           path: parts
@@ -333,7 +340,11 @@ jobs:
           echo "PKG=$pkg" >> "$GITHUB_ENV"
           echo "VERSION=$(echo "$pkg" | sed -E 's/^aven-(.*)-macos-arm64$/\1/')" >> "$GITHUB_ENV"
       - name: Load the signing certificate
-        if: env.MACOS_CERTIFICATE != ''
+        if: env.HAS_MAC_CERT == 'true'
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
         run: |
           keychain="$RUNNER_TEMP/signing.keychain-db"
           password="$(openssl rand -hex 16)"
@@ -352,6 +363,12 @@ jobs:
             echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/api_key.p8" >> "$GITHUB_ENV"
           fi
       - name: Make Aven.app, the zip and the installer
+        env:
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: tools/release/make_mac_app.sh "stage/$PKG" "$VERSION" out
       - name: Check the app
         run: |
@@ -363,7 +380,7 @@ jobs:
           "$app/Contents/MacOS/aven-editor" --help > /dev/null
           hdiutil detach /tmp/aven-dmg
           ls -la out
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-macos
           path: out/*
@@ -374,11 +391,11 @@ jobs:
     needs: bundle
     runs-on: ubuntu-24.04
     container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-24.08
+      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-24.08@sha256:66eb59fd5d923833e8e4142f60e542156aad4b8b1d5db38149d814c659e274bc
       options: --privileged
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bundled
           path: parts
@@ -391,31 +408,74 @@ jobs:
           # Only this system's player: a Flatpak runs on Linux (and exports for other systems use players/).
           cp -a "stage/$pkg" tools/release/flatpak/aven
           cp resources/icon/aven_512.png tools/release/flatpak/
-      - uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
+      - uses: flathub-infra/flatpak-github-actions/flatpak-builder@933e9e8ca36e85046ebca8e211f0785c6becac40 # master, 2026-09
         with:
           bundle: Aven-${{ env.VERSION }}-linux.flatpak
           manifest-path: tools/release/flatpak/io.github.ethandadev.Aven.yml
           cache: false
           upload-artifact: false
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-flatpak
           path: Aven-*.flatpak
 
-  publish:
-    name: Publish the release
-    needs: [bundle, windows, macos, flatpak]
-    if: github.ref_type == 'tag'
+  # Signs what the editor's updater downloads (the three zips) with the release key. Its own job, so
+  # the key is only ever next to this repository's script and GitHub's own artifact actions.
+  sign-updates:
+    name: Sign the updates
+    needs: [bundle, windows, macos]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: release-*
           path: dist
           merge-multiple: true
-      - uses: actions/checkout@v4
+      - name: Sign
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+          UPDATE_PUBLIC_KEY: ${{ vars.UPDATE_PUBLIC_KEY }}
+        run: |
+          mkdir -p sigs
+          zips=$(ls dist/aven-*-windows-x64.zip dist/aven-*-macos-arm64.zip dist/aven-*-linux-x64.zip)
+          if [ -z "$UPDATE_SIGNING_KEY" ]; then
+            if [ -n "$UPDATE_PUBLIC_KEY" ]; then
+              echo "::error::UPDATE_PUBLIC_KEY is set but the UPDATE_SIGNING_KEY secret isn't: editors would refuse this release."
+              exit 1
+            fi
+            echo "::warning::No UPDATE_SIGNING_KEY secret: the downloads aren't signed, so editors won't install them as updates."
+            exit 0
+          fi
+          python3 tools/release/update_key.py sign $zips
+          # The signatures must check out with the key built into the editor.
+          python3 tools/release/update_key.py verify "$UPDATE_PUBLIC_KEY" $zips
+          mv dist/*.sig sigs/
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-signatures
+          path: sigs/*.sig
+          if-no-files-found: ignore
+
+  publish:
+    name: Publish the release
+    needs: [bundle, windows, macos, flatpak, sign-updates]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # the only job that can change the repository's releases
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           path: src
+          persist-credentials: false
       - name: Release notes from CHANGELOG.md
         run: |
           ls -la dist
@@ -440,7 +500,7 @@ jobs:
           Versions of Aven after 0.3.0 update themselves (Help > Check for Updates).
           EOF
           cat body.md
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: dist/*
           prerelease: ${{ contains(github.ref_name, '-') }}

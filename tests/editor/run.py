@@ -239,47 +239,78 @@ def test_export_desktop_app(editor):
 
 
 def test_update_downloads_and_installs(editor):
-    """The updater: a newer release is found, downloaded, checked and swapped in when Aven closes;
-    a download that doesn't match its SHA-256 is refused. (Linux: a copy of the editor as a download.)"""
+    """The updater: a newer, signed release is found, downloaded, checked and swapped in when Aven
+    closes, and "Go back" restores the old one. Refused, changing nothing: a download that doesn't
+    match its SHA-256, one with no signature, one signed by another key, and an old version's signed
+    download passed off as a new one. (Linux: a copy of the editor stands in for a download.)"""
     import hashlib
     import zipfile
+    sys.path.insert(0, os.path.join(ROOT, "tools", "release"))
+    import update_key
     if not sys.platform.startswith("linux"):
         return None
     work = tempfile.mkdtemp(prefix="aven-update-test-")
     game = os.path.join(work, "game")
     shutil.copytree(os.path.join(ROOT, "templates", "platformer"), game)
     marker = b"AVEN-NEW-BUILD"
-    package = os.path.join(work, "aven-9.9.9-linux-x64.zip")
-    with zipfile.ZipFile(package, "w", zipfile.ZIP_DEFLATED) as z:
-        for name, data, mode in (("aven-editor", open(editor, "rb").read() + marker, 0o755),
-                                 ("START HERE.txt", b"new", 0o644), ("templates/new.txt", b"hello", 0o644)):
-            info = zipfile.ZipInfo("aven-9.9.9-linux-x64/" + name)
-            info.create_system, info.external_attr, info.compress_type = 3, (0o100000 | mode) << 16, zipfile.ZIP_DEFLATED
-            z.writestr(info, data)
-    data = open(package, "rb").read()
+    key, other_key = os.urandom(32), os.urandom(32)
 
-    def attempt(digest):
-        install = os.path.join(work, "Aven-" + digest[:6])
+    def make_package(version):
+        path = os.path.join(work, "aven-%s-linux-x64.zip" % version)
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+            for name, data, mode in (("aven-editor", open(editor, "rb").read() + marker, 0o755),
+                                     ("START HERE.txt", b"new", 0o644), ("templates/new.txt", b"hello", 0o644)):
+                info = zipfile.ZipInfo("aven-%s-linux-x64/" % version + name)
+                info.create_system, info.external_attr, info.compress_type = 3, (0o100000 | mode) << 16, zipfile.ZIP_DEFLATED
+                z.writestr(info, data)
+        return path
+
+    def sign(path, seed, name=None):
+        text = update_key.message(path)
+        if name: # sign as if the file had another name
+            text = text.replace(os.path.basename(path).encode(), name.encode())
+        with open(path + ".sig", "w") as f:
+            f.write(update_key.sign(seed, text).hex())
+        return path + ".sig"
+
+    package = make_package("9.9.9")
+    data = open(package, "rb").read()
+    good_sig = sign(package, key)
+    count = [0]
+
+    def run_editor_copy(install, extra_env, panel):
+        cmd = [os.path.join(install, "aven-editor"), game, "--screenshot", os.path.join(work, "shot.png"),
+               "--frames", "6", "--panel", panel]
+        if not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
+            cmd = ["xvfb-run", "-a", "-s", "-screen 0 1920x1080x24"] + cmd
+        env = dict(os.environ, AVEN_UPDATE_PUBLIC_KEY=update_key.public_key(key).hex(), **extra_env)
+        run = subprocess.run(cmd, capture_output=True, text=True, timeout=300, env=env)
+        return run.stdout + run.stderr
+
+    def attempt(digest=None, sig=good_sig, package_path=package):
+        count[0] += 1
+        install = os.path.join(work, "Aven-%d" % count[0])
         os.makedirs(os.path.join(install, "templates"))
         shutil.copy2(editor, install)
         for name, text in (("START HERE.txt", "old"), ("templates/old.txt", "old"), ("My notes.txt", "mine")):
             with open(os.path.join(install, name), "w") as f:
                 f.write(text)
-        releases = os.path.join(work, "releases.json")
+        releases = os.path.join(work, "releases-%d.json" % count[0])
+        assets = [{"name": "aven-9.9.9-linux-x64.zip", "size": os.path.getsize(package_path),
+                   "digest": "sha256:" + (digest or hashlib.sha256(open(package_path, "rb").read()).hexdigest()),
+                   "browser_download_url": "file://" + package_path}]
+        if sig:
+            assets.append({"name": "aven-9.9.9-linux-x64.zip.sig", "size": 128, "browser_download_url": "file://" + sig})
         with open(releases, "w") as f:
             json.dump([{"tag_name": "v9.9.9", "prerelease": False, "draft": False, "body": "## New\n- things",
-                        "html_url": "https://example.com", "assets": [
-                            {"name": "aven-9.9.9-linux-x64.zip", "size": len(data), "digest": "sha256:" + digest,
-                             "browser_download_url": "file://" + package}]}], f)
-        cmd = [os.path.join(install, "aven-editor"), game, "--screenshot", os.path.join(work, "shot.png"),
-               "--frames", "6", "--panel", "@3:update"]
-        if not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
-            cmd = ["xvfb-run", "-a", "-s", "-screen 0 1920x1080x24"] + cmd
-        env = dict(os.environ, AVEN_UPDATE_URL="file://" + releases)
-        run = subprocess.run(cmd, capture_output=True, text=True, timeout=300, env=env)
-        return install, run.stdout + run.stderr
+                        "html_url": "https://example.com", "assets": assets}], f)
+        return install, run_editor_copy(install, {"AVEN_UPDATE_URL": "file://" + releases}, "@3:update")
 
-    install, log = attempt(hashlib.sha256(data).hexdigest())
+    def unchanged(install):
+        return (not open(os.path.join(install, "aven-editor"), "rb").read().endswith(marker)
+                and open(os.path.join(install, "START HERE.txt")).read() == "old")
+
+    install, log = attempt()
     if "update: 9.9.9 ready" not in log:
         return "the update wasn't downloaded:\n" + log[-1500:]
     if not open(os.path.join(install, "aven-editor"), "rb").read().endswith(marker):
@@ -292,21 +323,35 @@ def test_update_downloads_and_installs(editor):
         return "the old templates folder should have been replaced"
     if open(os.path.join(install, "My notes.txt")).read() != "mine":
         return "a file of the user's was touched"
-    # The new version starts, and tidies away the old files.
-    cmd = [os.path.join(install, "aven-editor"), "--screenshot", os.path.join(work, "shot2.png"), "--frames", "4"]
-    if not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
-        cmd = ["xvfb-run", "-a", "-s", "-screen 0 1920x1080x24"] + cmd
-    run = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-    if run.returncode != 0:
-        return "the updated editor didn't start:\n" + (run.stdout + run.stderr)[-1500:]
-    if os.path.exists(os.path.join(install, ".aven-update")):
-        return "the old version's files should be gone once the new one starts"
-
-    install, log = attempt("0" * 64)
-    if "update: 9.9.9 failed" not in log or "SHA-256" not in log:
-        return "a download that doesn't match should be refused:\n" + log[-1500:]
+    # The new version starts and keeps the old one, to go back to...
+    log = run_editor_copy(install, {}, "@3:dump")
+    if "Aven Editor" not in log or not os.path.exists(os.path.join(install, ".aven-update", "old", "aven-editor")):
+        return "the updated editor should start, keeping the old version in .aven-update/old:\n" + log[-1500:]
+    # ...which "Go back" puts back.
+    log = run_editor_copy(install, {}, "@3:rollback")
     if open(os.path.join(install, "aven-editor"), "rb").read().endswith(marker) or open(os.path.join(install, "START HERE.txt")).read() != "old":
-        return "a refused download must not change anything"
+        return "going back should restore the old version:\n" + log[-1500:]
+    if not os.path.exists(os.path.join(install, "templates/old.txt")) or open(os.path.join(install, "My notes.txt")).read() != "mine":
+        return "going back should restore the old templates and leave the user's files alone"
+
+    cases = [
+        ("a download that doesn't match its SHA-256", dict(digest="0" * 64), "SHA-256"),
+        ("an unsigned release", dict(sig=None), "isn't signed"),
+        ("a release signed by another key", dict(sig=sign(make_package("9.9.9-other"), other_key, "aven-9.9.9-linux-x64.zip")), "signed by Aven's release key"),
+    ]
+    # An old version's genuine download, renamed to look like 9.9.9: its signature names the old version.
+    old = make_package("0.0.1")
+    old_sig = sign(old, key)
+    fake = os.path.join(work, "fake", "aven-9.9.9-linux-x64.zip")
+    os.makedirs(os.path.dirname(fake))
+    shutil.copy2(old, fake)
+    cases.append(("an old version's signed download posing as 9.9.9", dict(sig=old_sig, package_path=fake), "signed by Aven's release key"))
+    for what, kwargs, reason in cases:
+        install, log = attempt(**kwargs)
+        if "update: 9.9.9 failed" not in log or reason not in log:
+            return what + " should be refused (" + reason + "):\n" + log[-1500:]
+        if not unchanged(install):
+            return what + " must not change anything"
 
 
 def test_monkey(editor):

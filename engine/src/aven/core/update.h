@@ -34,12 +34,21 @@ struct Release {
     std::string download, fileName;
     uint64_t size = 0;
     std::string sha256; // lowercase hex, or empty when GitHub didn't say
+    std::string signatureUrl; // <download>.sig: our Ed25519 signature (tools/release/update_key.py)
 };
 
 // The newest release above `current` in GitHub's list of releases (the JSON from
 // /repos/<owner>/<repo>/releases), with the download for `system` ("windows-x64", "macos-arm64",
 // "linux-x64"). Drafts are skipped, and betas unless `betas`. False when there's nothing newer.
 bool newestRelease(const Json& releases, std::string_view current, std::string_view system, bool betas, Release& out);
+
+// What a release's .sig signs: "aven-update-v1\n<file name>\n<SHA-256 hex>\n". The name carries the
+// version, so an old signed download can't pose as a newer one.
+std::string signedText(const std::string& fileName, const std::string& sha256Hex);
+// True when `signatureText` (hex, as in the .sig file) is the release key's signature for this file.
+// The key (hex) is built into the editor; see tools/release/update_key.py.
+bool checkSignature(const std::string& publicKeyHex, const std::string& fileName, const std::string& sha256Hex,
+                    const std::string& signatureText, std::string& error);
 
 // SHA-256 as lowercase hex.
 std::string sha256(const void* data, size_t size);

@@ -23,6 +23,13 @@ endif()
 # Where a locally built web player lives (tools/web/build_web_player.sh puts a copy next to the editor too).
 target_compile_definitions(aven_editor PRIVATE AVEN_WEB_PLAYER_DIR="${PROJECT_SOURCE_DIR}/build-web/bin")
 set_target_properties(aven_editor PROPERTIES OUTPUT_NAME "aven-editor")
+# Signed updates (updater.cpp): the release key's public half, 64 hex digits (the release workflow
+# passes the UPDATE_PUBLIC_KEY variable). Without it, the editor doesn't install updates itself.
+set(AVEN_UPDATE_PUBLIC_KEY "" CACHE STRING "Public key for checking update signatures (tools/release/update_key.py)")
+# Test hooks: environment variables automated tests use (AVEN_UPDATE_URL...). Off in releases.
+option(AVEN_TEST_HOOKS "Let tests steer the editor through environment variables" ON)
+target_compile_definitions(aven_editor PRIVATE AVEN_UPDATE_PUBLIC_KEY="${AVEN_UPDATE_PUBLIC_KEY}"
+                           AVEN_TEST_HOOKS=$<BOOL:${AVEN_TEST_HOOKS}>)
 target_compile_definitions(aven_editor PRIVATE AVEN_TEMPLATES_DIR="${PROJECT_SOURCE_DIR}/templates"
                            AVEN_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
 if(WIN32)

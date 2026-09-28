@@ -1,5 +1,7 @@
 #include "aven/core/update.h"
 
+#include "aven/core/ed25519.h"
+
 
 #include <algorithm>
 #include <cctype>
@@ -111,12 +113,15 @@ bool newestRelease(const Json& releases, std::string_view current, std::string_v
         rel.notes = r["body"].asString("");
         rel.page = r["html_url"].asString("");
         rel.beta = beta;
-        // Release downloads are named aven-<version>-<system>.zip.
-        std::string suffix = "-" + std::string(system) + ".zip";
+        // Release downloads are named aven-<version>-<system>.zip, with a signature beside each
+        // (<name>.sig). Only the exact name counts: the signed name is what ties a download to its version.
+        std::string wanted = "aven-" + rel.version + "-" + std::string(system) + ".zip";
+        for (auto& a : r["assets"].elements())
+            if (a["name"].asString("") == wanted + ".sig")
+                rel.signatureUrl = a["browser_download_url"].asString("");
         for (auto& a : r["assets"].elements()) {
             std::string name = a["name"].asString("");
-            if (name.size() <= suffix.size() || name.compare(name.size() - suffix.size(), suffix.size(), suffix) != 0 ||
-                name.rfind("aven-", 0) != 0)
+            if (name != wanted)
                 continue;
             rel.fileName = name;
             rel.download = a["browser_download_url"].asString("");
@@ -243,6 +248,51 @@ std::string sha256File(const stdfs::path& path) {
             s.add(reinterpret_cast<const uint8_t*>(buffer.data()), static_cast<size_t>(in.gcount()));
     }
     return in.bad() ? std::string() : s.finish();
+}
+
+// --- Signed downloads
+
+std::string signedText(const std::string& fileName, const std::string& sha256Hex) {
+    return "aven-update-v1\n" + fileName + "\n" + sha256Hex + "\n";
+}
+
+bool checkSignature(const std::string& publicKeyHex, const std::string& fileName, const std::string& sha256Hex,
+                    const std::string& signatureText, std::string& error) {
+    auto fromHex = [](const std::string& text, size_t bytes, std::vector<uint8_t>& out) {
+        std::string hex;
+        for (char c : text)
+            if (!std::isspace(static_cast<unsigned char>(c)))
+                hex += c;
+        if (hex.size() != bytes * 2)
+            return false;
+        out.clear();
+        for (size_t i = 0; i < hex.size(); i += 2) {
+            int value = 0;
+            for (size_t j = i; j < i + 2; ++j) {
+                char c = static_cast<char>(std::tolower(static_cast<unsigned char>(hex[j])));
+                if (!std::isxdigit(static_cast<unsigned char>(c)))
+                    return false;
+                value = value * 16 + (std::isdigit(static_cast<unsigned char>(c)) ? c - '0' : c - 'a' + 10);
+            }
+            out.push_back(static_cast<uint8_t>(value));
+        }
+        return true;
+    };
+    std::vector<uint8_t> key, signature;
+    if (!fromHex(publicKeyHex, 32, key)) {
+        error = "this copy of Aven has no key to check updates with";
+        return false;
+    }
+    if (!fromHex(signatureText, 64, signature)) {
+        error = "the release's signature file is damaged";
+        return false;
+    }
+    std::string text = signedText(fileName, sha256Hex);
+    if (!ed25519::verify(key.data(), reinterpret_cast<const uint8_t*>(text.data()), text.size(), signature.data())) {
+        error = "the download isn't signed by Aven's release key";
+        return false;
+    }
+    return true;
 }
 
 // --- Swapping the files in
