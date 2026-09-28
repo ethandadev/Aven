@@ -534,11 +534,11 @@ void Editor::copyGameFiles(const stdfs::path& to, const stdfs::path& skip, std::
         // Editor-only files and earlier exports stay behind.
         if (first == "exports" || first == "bug_reports" || first == "recipes" || first == "captures" || (!first.empty() && first[0] == '.') ||
             nativeSkipped || rel == "tutorial.json" || (!skip.empty() && stdfs::equivalent(it->path(), skip, ec))) {
-            if (it->is_directory())
+            if (it->is_directory(ec))
                 it.disable_recursion_pending();
             continue;
         }
-        if (it->is_directory()) {
+        if (it->is_directory(ec)) {
             stdfs::create_directories(to / rel, ec);
         } else {
             stdfs::copy_file(it->path(), to / rel, stdfs::copy_options::overwrite_existing, ec);
@@ -1110,7 +1110,7 @@ bool Editor::exportGame(const stdfs::path& folder, std::string& message) {
     stdfs::path player = fs::executableDir() / "aven-player";
     stdfs::path exe = out / safeName;
 #endif
-    if (!stdfs::exists(player)) {
+    if (!fs::exists(player)) {
         message = "Couldn't find aven-player next to the editor, so only the game files were exported to " + out.string();
         return false;
     }

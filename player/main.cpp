@@ -87,7 +87,9 @@ stdfs::path findProject(const stdfs::path& hint) {
 #endif
     stdfs::path exe = fs::executableDir();
     // Beside the program, or inside a macOS app (Game.app/Contents/MacOS/Game -> Contents/Resources/game).
-    for (const stdfs::path& p : {exe / "game", exe.parent_path() / "Resources" / "game", exe, stdfs::current_path()})
+    std::error_code cwdError;
+    stdfs::path cwd = stdfs::current_path(cwdError); // (none if the folder was deleted)
+    for (const stdfs::path& p : {exe / "game", exe.parent_path() / "Resources" / "game", exe, cwdError ? exe : cwd})
         if (ProjectSettings::isProject(p))
             return p;
     return {};
@@ -175,7 +177,7 @@ struct Player {
             return false;
         // The game's icon (Build & Share writes app-icon.png), or Aven's.
         for (const std::string& icon : {std::string("app-icon.png"), settings.publish.icon})
-            if (!icon.empty() && stdfs::exists(projectDir / icon)) {
+            if (!icon.empty() && fs::exists(projectDir / icon)) {
                 window.setIconFromFile((projectDir / icon).string());
                 break;
             }

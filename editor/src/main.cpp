@@ -99,8 +99,8 @@ struct InputPlayer {
             if (st.frame != frame)
                 continue;
             if (st.command == "move" && st.args.size() >= 2) {
-                toX = std::stof(st.args[0]);
-                toY = std::stof(st.args[1]);
+                toX = std::strtof(st.args[0].c_str(), nullptr); // (a typo in a test script is 0, not a crash)
+                toY = std::strtof(st.args[1].c_str(), nullptr);
                 int over = st.args.size() >= 3 ? std::atoi(st.args[2].c_str()) : 0;
                 if (over > 0) {
                     fromX = x;

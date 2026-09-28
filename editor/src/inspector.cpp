@@ -972,7 +972,7 @@ void Editor::drawInspector() {
         drawAssistant();
     if (auto* pi = s.registry().tryGet<PrefabInstance>(e)) {
         ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("Prefab: %s", stdfs::path(pi->path).stem().string().c_str());
+        ImGui::TextDisabled("Prefab: %s", fs::toUtf8(fs::fromUtf8(pi->path).stem()).c_str());
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("A copy of %s.\nSettings changed on this copy only have bold names with a bar.", pi->path.c_str());
         if (!playing_) {

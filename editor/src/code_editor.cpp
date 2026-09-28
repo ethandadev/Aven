@@ -7,6 +7,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <unordered_set>
@@ -675,15 +676,23 @@ void CodeEditor::handleTyping(bool& changed) {
             continue;
         pushUndo(true);
         std::string s;
-        if (c < 0x80) {
-            s = static_cast<char>(c);
-        } else if (c < 0x800) {
-            s += static_cast<char>(0xC0 | (c >> 6));
-            s += static_cast<char>(0x80 | (c & 0x3F));
-        } else {
-            s += static_cast<char>(0xE0 | (c >> 12));
-            s += static_cast<char>(0x80 | ((c >> 6) & 0x3F));
-            s += static_cast<char>(0x80 | (c & 0x3F));
+        auto cp = static_cast<uint32_t>(c);
+        if (cp >= 0xD800 && cp <= 0xDFFF)
+            continue; // half of a pair that didn't come together: not a character
+        if (cp < 0x80) {
+            s = static_cast<char>(cp);
+        } else if (cp < 0x800) {
+            s += static_cast<char>(0xC0 | (cp >> 6));
+            s += static_cast<char>(0x80 | (cp & 0x3F));
+        } else if (cp < 0x10000) {
+            s += static_cast<char>(0xE0 | (cp >> 12));
+            s += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+            s += static_cast<char>(0x80 | (cp & 0x3F));
+        } else { // (emoji and the like, when ImGui passes them whole)
+            s += static_cast<char>(0xF0 | (cp >> 18));
+            s += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
+            s += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+            s += static_cast<char>(0x80 | (cp & 0x3F));
         }
         const std::string& line = lines_[static_cast<size_t>(cursor_.line)];
         char next = cursor_.col < static_cast<int>(line.size()) ? line[static_cast<size_t>(cursor_.col)] : 0;
@@ -966,7 +975,7 @@ bool CodeEditor::drawFindBar() {
             findFocus_ = false;
         }
         if (ImGui::InputText("##goto", &gotoText_, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsDecimal)) {
-            gotoLine(std::atoi(gotoText_.c_str()));
+            gotoLine(static_cast<int>(std::clamp(std::strtol(gotoText_.c_str(), nullptr, 10), 1L, 10000000L)));
             gotoOpen_ = false;
         }
         ImGui::SameLine();

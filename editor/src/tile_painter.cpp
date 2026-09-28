@@ -77,7 +77,7 @@ void Editor::useStarterTileset(Entity e) {
     if (!map)
         return;
     const std::string rel = "images/tiles.png";
-    if (!stdfs::exists(projectDir_ / rel)) {
+    if (!fs::exists(projectDir_ / rel)) {
         std::error_code ec;
         stdfs::create_directories(projectDir_ / "images", ec);
         stdfs::copy_file(editorDataDir() / "starter_tiles.png", projectDir_ / rel, ec);

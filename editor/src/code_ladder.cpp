@@ -329,7 +329,7 @@ void Editor::drawCodeLadder() {
             ImGui::SameLine();
             ImGui::BeginDisabled(nativeBuild_ != nullptr);
             if (ImGui::Button("Save to native/src and build")) {
-                if (!stdfs::exists(projectDir_ / "native" / "CMakeLists.txt"))
+                if (!fs::exists(projectDir_ / "native" / "CMakeLists.txt"))
                     createNativeModule();
                 std::string path = "native/src/" + lowerName(ladder_.className) + ".c";
                 fs::writeText(projectDir_ / path, ladder_.view->text());

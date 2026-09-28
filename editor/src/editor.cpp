@@ -539,11 +539,14 @@ bool Editor::createProject(const stdfs::path& dir, const std::string& name, cons
     }
     stdfs::create_directories(dir, ec);
     if (tmpl) {
-        for (auto& entry : stdfs::recursive_directory_iterator(tmpl->folder, ec)) {
+        std::error_code walk; // (its own error code: a file that fails to copy doesn't stop the rest)
+        for (auto it = stdfs::recursive_directory_iterator(tmpl->folder, walk); !walk && it != stdfs::recursive_directory_iterator();
+             it.increment(walk)) {
+            const stdfs::directory_entry& entry = *it;
             stdfs::path rel = stdfs::relative(entry.path(), tmpl->folder, ec);
             if (rel == "template.json" || rel == "thumbnail.png")
                 continue;
-            if (entry.is_directory())
+            if (entry.is_directory(ec))
                 stdfs::create_directories(dir / rel, ec);
             else
                 stdfs::copy_file(entry.path(), dir / rel, stdfs::copy_options::overwrite_existing, ec);
@@ -588,7 +591,10 @@ bool Editor::openProject(const stdfs::path& dir) {
         stop();
     tabs_.clear();
     settings_ = s;
-    projectDir_ = stdfs::absolute(dir);
+    std::error_code absError;
+    projectDir_ = stdfs::absolute(dir, absError);
+    if (absError)
+        projectDir_ = dir;
     // Every game gets its own id, so two games called "My Game" keep separate save data.
     // (Not for the starter templates themselves, or automated screenshots.)
     std::error_code idEc;
@@ -1323,9 +1329,13 @@ void Editor::groupSelection() {
     for (Entity e : sel)
         if (s.parent(e) != parent)
             parent = {};
-    std::sort(sel.begin(), sel.end(), [&](Entity a, Entity b) {
-        return s.parent(a) == s.parent(b) ? s.siblingIndex(a) < s.siblingIndex(b) : false;
+    // In the order the Hierarchy lists them (a proper order even when they have different parents).
+    std::unordered_map<uint64_t, int> listed;
+    s.walk([&](Entity x, int) {
+        listed[x.toHandle()] = static_cast<int>(listed.size());
+        return true;
     });
+    std::sort(sel.begin(), sel.end(), [&](Entity a, Entity b) { return listed[a.toHandle()] < listed[b.toHandle()]; });
     int index = s.parent(sel.front()) == parent ? s.siblingIndex(sel.front()) : -1;
     recordUndo("Group into a folder");
     Entity folder = s.create("Folder", parent);
@@ -1845,11 +1855,11 @@ void Editor::scanAssets() {
          it != stdfs::recursive_directory_iterator(); it.increment(ec)) {
         std::string name = it->path().filename().string();
         if (!name.empty() && name[0] == '.') {
-            if (it->is_directory())
+            if (it->is_directory(ec))
                 it.disable_recursion_pending();
             continue;
         }
-        if (it->is_regular_file())
+        if (it->is_regular_file(ec))
             assetFiles_.push_back(fs::relativePath(it->path(), projectDir_));
     }
     std::sort(assetFiles_.begin(), assetFiles_.end());

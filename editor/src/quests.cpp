@@ -268,7 +268,7 @@ void Editor::drawQuests() {
                 openExternal((sourceDir() / file).string());
             ImGui::SameLine();
             if (ImGui::SmallButton("Copy path"))
-                ImGui::SetClipboardText((sourceDir() / file).string().c_str());
+                ImGui::SetClipboardText(fs::toUtf8(sourceDir() / file).c_str());
             ImGui::Unindent(ImGui::GetFrameHeight() + 8);
         }
         ImGui::PopID();

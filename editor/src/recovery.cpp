@@ -15,6 +15,7 @@
 
 #include <imgui.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 
@@ -132,7 +133,7 @@ void Editor::checkRecovery() {
     if (!info["sceneChanged"].asBool(false) && info["scripts"].size() == 0)
         return;
     pendingRecovery_ = info;
-    Log::info("recovery: unsaved changes from ", timeAgo(nowSeconds() - static_cast<int64_t>(info["time"].asNumber(0))));
+    Log::info("recovery: unsaved changes from ", timeAgo(nowSeconds() - static_cast<int64_t>(std::clamp(info["time"].asNumber(0), 0.0, 1e15))));
 }
 
 void Editor::recover(bool keep) {
@@ -144,8 +145,9 @@ void Editor::recover(bool keep) {
         return;
     }
     std::string scenePath = info["scene"].asString("");
+    bool sceneInside = scenePath.empty() || !fs::insideFolder(projectDir_, scenePath).empty(); // (only this project's files)
     int restored = 0;
-    if (info["sceneChanged"].asBool(false)) {
+    if (info["sceneChanged"].asBool(false) && sceneInside) {
         std::string error;
         Json data = Json::parse(fs::readText(recoveryDir() / "scene.json").value_or(""), &error);
         if (error.empty() && data.isObject()) {
@@ -207,7 +209,7 @@ void Editor::drawRecoveryPrompt() {
         return;
     const Json& info = pendingRecovery_;
     ImGui::PushTextWrapPos(0);
-    int64_t ago = nowSeconds() - static_cast<int64_t>(info["time"].asNumber(0));
+    int64_t ago = nowSeconds() - static_cast<int64_t>(std::clamp(info["time"].asNumber(0), 0.0, 1e15));
     ImGui::Text("Aven closed before these changes were saved (the last copy is from %s):", timeAgo(std::max<int64_t>(ago, 0)).c_str());
     if (info["sceneChanged"].asBool(false))
         ImGui::BulletText("%s", info["scene"].asString("the scene").c_str());

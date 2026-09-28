@@ -468,7 +468,7 @@ void Editor::drawBugReplay() {
         for (auto it = stdfs::recursive_directory_iterator(projectDir_ / "bug_reports", ec); !ec && it != stdfs::recursive_directory_iterator();
              it.increment(ec))
             if (it->path().extension() == ".replay")
-                files.push_back(stdfs::relative(it->path(), projectDir_, ec).generic_string());
+                files.push_back(fs::relativePath(it->path(), projectDir_));
         std::sort(files.rbegin(), files.rend());
         if (files.empty())
             ImGui::TextDisabled("No saved bug reports yet.");

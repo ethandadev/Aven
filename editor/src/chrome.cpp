@@ -430,7 +430,7 @@ void Editor::drawAppDialogs() {
         ImGui::TextDisabled("Blocks -> EasyScript -> C/C++ -> any engine you like");
         ImGui::Spacing();
         ImGui::TextDisabled("Renderer: %s", device_.description().c_str());
-        ImGui::TextDisabled("Preferences: %s", (fs::userDataDir("Aven Editor") / "preferences.json").string().c_str());
+        ImGui::TextDisabled("Preferences: %s", fs::toUtf8(fs::userDataDir("Aven Editor") / "preferences.json").c_str());
         if (ImGui::Button("Close", {ui::px(120), 0}))
             ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
@@ -661,7 +661,7 @@ void Editor::handleShortcuts() {
         takeScreenshot();
     if (shortcut("record_gif") && unlocked(Feature::Capture))
         toggleGifRecording();
-    if (shortcut("build_native") && unlocked(Feature::NativeCode) && stdfs::exists(projectDir_ / "native" / "CMakeLists.txt"))
+    if (shortcut("build_native") && unlocked(Feature::NativeCode) && fs::exists(projectDir_ / "native" / "CMakeLists.txt"))
         buildNativeModule();
     if (shortcut("doctor") && unlocked(Feature::Doctor)) {
         runCheckup();

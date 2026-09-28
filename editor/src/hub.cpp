@@ -463,7 +463,7 @@ void Editor::drawHub() {
             ImGui::TextUnformatted("Save in");
             ImGui::TableNextColumn();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextDisabled("%s", target.string().c_str());
+            ImGui::TextDisabled("%s", fs::toUtf8(target).c_str());
             ImGui::SameLine();
             if (ImGui::SmallButton("Change..."))
                 hubPickFolder_ = true;

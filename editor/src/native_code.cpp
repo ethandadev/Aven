@@ -87,11 +87,12 @@ std::string buildFingerprint(const stdfs::path& projectDir) {
     std::vector<std::string> parts;
     for (auto it = stdfs::recursive_directory_iterator(native, ec); !ec && it != stdfs::recursive_directory_iterator(); it.increment(ec)) {
         std::string name = it->path().filename().string();
-        if (it->is_directory(ec) && (name == "build" || name == "bin")) {
+        std::error_code look; // (a file that can't be looked at doesn't end the walk)
+        if (it->is_directory(look) && (name == "build" || name == "bin")) {
             it.disable_recursion_pending();
             continue;
         }
-        if (it->is_regular_file(ec) && (name == "CMakeLists.txt" || fs::extension(name) == ".cmake"))
+        if (it->is_regular_file(look) && (name == "CMakeLists.txt" || fs::extension(name) == ".cmake"))
             parts.push_back(fs::relativePath(it->path(), native) + "=" + update::sha256File(it->path()));
     }
     std::sort(parts.begin(), parts.end());
@@ -107,9 +108,10 @@ bool isAvensBuild(const stdfs::path& projectDir) {
     stdfs::path native = projectDir / "native";
     for (auto it = stdfs::recursive_directory_iterator(native, ec); !ec && it != stdfs::recursive_directory_iterator(); it.increment(ec)) {
         std::string name = it->path().filename().string();
-        if (it->is_directory(ec) && (name == "build" || name == "bin"))
+        std::error_code look;
+        if (it->is_directory(look) && (name == "build" || name == "bin"))
             it.disable_recursion_pending();
-        else if (it->is_regular_file(ec) && fs::extension(name) == ".cmake")
+        else if (it->is_regular_file(look) && fs::extension(name) == ".cmake")
             return false;
     }
     auto mine = fs::readText(native / "CMakeLists.txt"), avens = fs::readText(sdkDir() / "template" / "CMakeLists.txt");
@@ -282,9 +284,9 @@ void Editor::createNativeModule() {
 void Editor::buildNativeModule() {
     if (nativeBuild_)
         return; // already building
-    if (!stdfs::exists(projectDir_ / "native" / "CMakeLists.txt"))
+    if (!fs::exists(projectDir_ / "native" / "CMakeLists.txt"))
         createNativeModule();
-    if (!stdfs::exists(projectDir_ / "native" / "CMakeLists.txt"))
+    if (!fs::exists(projectDir_ / "native" / "CMakeLists.txt"))
         return;
     // CMake scripts can run anything: ask first unless they're Aven's own, or these exact ones were allowed.
     if (!isAvensBuild(projectDir_) && !trustedNative_.count(buildFingerprint(projectDir_))) {

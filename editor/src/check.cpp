@@ -45,13 +45,13 @@ std::vector<std::string> projectFiles(const stdfs::path& dir) {
     for (auto it = stdfs::recursive_directory_iterator(dir, stdfs::directory_options::skip_permission_denied, ec);
          it != stdfs::recursive_directory_iterator(); it.increment(ec)) {
         std::string name = it->path().filename().string();
-        bool skip = (!name.empty() && name[0] == '.') || (it->is_directory() && (name == "exports" || name == "captures"));
+        bool skip = (!name.empty() && name[0] == '.') || (it->is_directory(ec) && (name == "exports" || name == "captures"));
         if (skip) {
-            if (it->is_directory())
+            if (it->is_directory(ec))
                 it.disable_recursion_pending();
             continue;
         }
-        if (it->is_regular_file())
+        if (it->is_regular_file(ec))
             files.push_back(fs::relativePath(it->path(), dir));
     }
     std::sort(files.begin(), files.end());

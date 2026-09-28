@@ -110,6 +110,15 @@ int64_t modifiedTime(const stdfs::path& path) {
     return static_cast<int64_t>(t.time_since_epoch().count());
 }
 
+namespace {
+// The working folder, or "." when there isn't one (it was deleted while the program ran).
+stdfs::path currentDir() {
+    std::error_code ec;
+    stdfs::path p = stdfs::current_path(ec);
+    return ec ? stdfs::path(".") : p;
+}
+} // namespace
+
 stdfs::path executableDir() {
 #if defined(_WIN32)
     // Paths can be longer than MAX_PATH: grow until the whole name fits.
@@ -117,11 +126,11 @@ stdfs::path executableDir() {
     for (;;) {
         DWORD n = GetModuleFileNameW(nullptr, buf.data(), static_cast<DWORD>(buf.size()));
         if (n == 0)
-            return stdfs::current_path();
+            return currentDir();
         if (n < buf.size())
             return stdfs::path(buf.substr(0, n)).parent_path();
         if (buf.size() >= 32768)
-            return stdfs::current_path();
+            return currentDir();
         buf.resize(buf.size() * 2);
     }
 #elif defined(__APPLE__)
@@ -132,13 +141,13 @@ stdfs::path executableDir() {
         stdfs::path exe = stdfs::canonical(buf, ec);
         return (ec ? stdfs::path(buf) : exe).parent_path();
     }
-    return stdfs::current_path();
+    return currentDir();
 #else
     char buf[PATH_MAX];
     ssize_t n = readlink("/proc/self/exe", buf, sizeof buf - 1);
     if (n > 0)
         return stdfs::path(std::string(buf, static_cast<size_t>(n))).parent_path();
-    return stdfs::current_path();
+    return currentDir();
 #endif
 }
 
@@ -247,8 +256,12 @@ stdfs::path userDataDir(const std::string& gameName) {
     else if (const char* home = std::getenv("HOME"))
         base = stdfs::path(home) / ".local" / "share";
 #endif
-    if (base.empty())
-        base = stdfs::temp_directory_path();
+    if (base.empty()) {
+        std::error_code ec;
+        base = stdfs::temp_directory_path(ec); // (throws, without ec, when TMPDIR isn't a folder)
+        if (ec)
+            base = currentDir();
+    }
     // Before 0.4.1 names weren't trimmed or shortened: a folder made then keeps being used.
     std::string legacy;
     for (char c : gameName)

@@ -16,6 +16,7 @@
 #include <imgui_stdlib.h>
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstring>
 
@@ -200,6 +201,17 @@ int Editor::moveAssets(const std::vector<std::pair<std::string, std::string>>& r
     return static_cast<int>(done.size());
 }
 
+namespace {
+// CON, PRN, AUX, NUL, COM1-9 and LPT1-9 (any case) can't be file names on Windows.
+bool reservedOnWindows(std::string stem) {
+    for (char& c : stem)
+        c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    if (stem == "CON" || stem == "PRN" || stem == "AUX" || stem == "NUL")
+        return true;
+    return stem.size() == 4 && (stem.rfind("COM", 0) == 0 || stem.rfind("LPT", 0) == 0) && stem[3] >= '1' && stem[3] <= '9';
+}
+} // namespace
+
 void Editor::moveAssetsInto(const std::vector<std::string>& items, const std::string& folder) {
     std::vector<std::pair<std::string, std::string>> moves;
     for (auto& rel : items) {
@@ -347,7 +359,7 @@ void Editor::drawAssets() {
             scanAssets();
             // Name it straight away.
             renameTarget_ = fs::relativePath(projectDir_ / p, projectDir_);
-            std::snprintf(renameBuffer_, sizeof renameBuffer_, "%s", stdfs::path(p).filename().string().c_str());
+            std::snprintf(renameBuffer_, sizeof renameBuffer_, "%s", fs::toUtf8(fs::fromUtf8(p).filename()).c_str());
         }
         ImGui::EndPopup();
     }
@@ -381,8 +393,10 @@ void Editor::drawAssets() {
         }
     }
     std::sort(entries.begin(), entries.end(), [](auto& a, auto& b) {
-        if (a.is_directory() != b.is_directory())
-            return a.is_directory();
+        std::error_code e1, e2; // (a file that can't be looked at counts as a file, instead of throwing)
+        bool da = a.is_directory(e1), db = b.is_directory(e2);
+        if (da != db)
+            return da;
         return a.path().filename() < b.path().filename();
     });
     std::vector<std::string> visible;
@@ -397,7 +411,7 @@ void Editor::drawAssets() {
         std::string name = entry.path().filename().string();
         std::string rel = visible[static_cast<size_t>(i)];
         std::string ext = fs::extension(entry.path());
-        bool isDir = entry.is_directory();
+        bool isDir = entry.is_directory(ec);
         if (i++ % columns)
             ImGui::SameLine();
         ImGui::PushID(rel.c_str());
@@ -554,7 +568,7 @@ void Editor::drawAssets() {
             askDelete = selectedAssets_;
         if (ImGui::IsKeyPressed(ImGuiKey_F2) && selectedAssets_.size() == 1) {
             renameTarget_ = selectedAssets_.front();
-            std::snprintf(renameBuffer_, sizeof renameBuffer_, "%s", stdfs::path(renameTarget_).filename().string().c_str());
+            std::snprintf(renameBuffer_, sizeof renameBuffer_, "%s", fs::toUtf8(fs::fromUtf8(renameTarget_).filename()).c_str());
         }
         if ((ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) && selectedAssets_.size() == 1)
             openAsset(selectedAssets_.front());
@@ -598,13 +612,17 @@ void Editor::drawAssets() {
             why = "Type a name.";
         else if (newName.find_first_of("/\\:*?\"<>|") != std::string::npos)
             why = "Names can't contain / \\ : * ? \" < > |";
+        else if (newName.find_first_not_of('.') == std::string::npos || newName.back() == '.')
+            why = "Names can't be only dots, or end with one.";
+        else if (reservedOnWindows(fs::fromUtf8(newName).stem().string()))
+            why = "Windows keeps the name " + fs::fromUtf8(newName).stem().string() + " for itself. Try another one.";
         else if (to != renameTarget_ && stdfs::exists(projectDir_ / to, ec))
             why = "There's already a file called " + newName + " here.";
         if (!why.empty())
             ImGui::TextColored({1, 0.6f, 0.4f, 1}, "%s", why.c_str());
         else if (!isDir && stdfs::path(newName).extension() != from.extension())
-            ImGui::TextColored({1, 0.8f, 0.35f, 1}, "The type changes from %s to %s.", from.extension().string().c_str(),
-                               stdfs::path(newName).extension().string().c_str());
+            ImGui::TextColored({1, 0.8f, 0.35f, 1}, "The type changes from %s to %s.", fs::toUtf8(from.extension()).c_str(),
+                               fs::toUtf8(fs::fromUtf8(newName).extension()).c_str());
         else
             ImGui::TextDisabled("Scenes, prefabs and scripts that use it are updated too.");
         ImGui::BeginDisabled(!why.empty());
@@ -700,7 +718,7 @@ void Editor::drawImportSettings() {
         ImGui::End();
         return;
     }
-    ImGui::TextUnformatted(files.size() == 1 ? stdfs::path(files[0]).filename().string().c_str()
+    ImGui::TextUnformatted(files.size() == 1 ? fs::toUtf8(fs::fromUtf8(files[0]).filename()).c_str()
                                              : (std::to_string(files.size()) + " " + kind + "s").c_str());
     ImGui::Separator();
     ImportSettings s = assets_.importFor(files.front());
