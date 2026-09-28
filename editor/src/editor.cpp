@@ -1859,8 +1859,9 @@ void Editor::scanAssets() {
     std::error_code ec;
     if (projectDir_.empty())
         return;
-    for (auto it = stdfs::recursive_directory_iterator(projectDir_, stdfs::directory_options::skip_permission_denied, ec);
-         it != stdfs::recursive_directory_iterator(); it.increment(ec)) {
+    std::error_code walk; // (the walk's own: a file that can't be looked at doesn't end it)
+    for (auto it = stdfs::recursive_directory_iterator(projectDir_, stdfs::directory_options::skip_permission_denied, walk);
+         !walk && it != stdfs::recursive_directory_iterator(); it.increment(walk)) {
         std::string name = it->path().filename().string();
         if (!name.empty() && name[0] == '.') {
             if (it->is_directory(ec))

@@ -522,10 +522,14 @@ std::string Editor::safeGameName() const {
 }
 
 void Editor::copyGameFiles(const stdfs::path& to, const stdfs::path& skip, std::vector<std::string>* list, GameCopy kind) {
-    std::error_code ec;
+    std::error_code ec, walk; // (the walk has its own: one file that fails doesn't end it)
     stdfs::create_directories(to, ec);
-    for (auto it = stdfs::recursive_directory_iterator(projectDir_, ec); it != stdfs::recursive_directory_iterator(); it.increment(ec)) {
+    int failed = 0;
+    for (auto it = stdfs::recursive_directory_iterator(projectDir_, stdfs::directory_options::skip_permission_denied, walk);
+         !walk && it != stdfs::recursive_directory_iterator(); it.increment(walk)) {
         stdfs::path rel = stdfs::relative(it->path(), projectDir_, ec);
+        if (ec || rel.empty())
+            continue;
         std::string first = rel.begin()->string();
         std::string second = std::distance(rel.begin(), rel.end()) > 1 ? std::next(rel.begin())->string() : "";
         bool nativeSkipped = first == "native" && (kind == GameCopy::Web ? true
@@ -542,10 +546,17 @@ void Editor::copyGameFiles(const stdfs::path& to, const stdfs::path& skip, std::
             stdfs::create_directories(to / rel, ec);
         } else {
             stdfs::copy_file(it->path(), to / rel, stdfs::copy_options::overwrite_existing, ec);
+            if (ec) {
+                if (++failed <= 3)
+                    Log::warn("Couldn't copy ", fs::toUtf8(rel), " into the export: ", ec.message());
+                continue;
+            }
             if (list)
                 list->push_back(rel.generic_string());
         }
     }
+    if (failed > 3)
+        Log::warn("...and ", failed - 3, " more files couldn't be copied.");
 }
 
 stdfs::path Editor::webPlayerDir() const {

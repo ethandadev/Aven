@@ -224,6 +224,7 @@ void Editor::drawPixelEditor() {
             d.undo.pop_back();
             d.textureDirty = d.dirty = true;
             d.matchFrames();
+            d.stroke = false; // (a line being dragged started from the picture before this)
         }
         if ((ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Y) || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Z)) &&
             !d.redo.empty()) {
@@ -232,6 +233,7 @@ void Editor::drawPixelEditor() {
             d.redo.pop_back();
             d.textureDirty = d.dirty = true;
             d.matchFrames();
+            d.stroke = false; // (a line being dragged started from the picture before this)
         }
         if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_S))
             savePixelImage();

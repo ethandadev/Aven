@@ -23,10 +23,20 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Every folder a test makes, removed once the run ends (AVEN_KEEP_TEST_FILES=1 keeps them, to look
+# at after a failure). The update test alone makes the best part of a gigabyte.
+_made = []
+
+
+def temp_dir(prefix):
+    path = tempfile.mkdtemp(prefix=prefix)
+    _made.append(path)
+    return path
+
 
 def run_editor(editor, template, frames, inputs="", panels="", extra=()):
     """Runs the editor on a copy of a template; returns (project folder, log, exit code)."""
-    work = tempfile.mkdtemp(prefix="aven-editor-test-")
+    work = temp_dir("aven-editor-test-")
     project = os.path.join(work, "game")
     shutil.copytree(os.path.join(ROOT, "templates", template), project)
     if os.path.exists(os.path.join(project, "template.json")):
@@ -219,7 +229,7 @@ def test_export_desktop_app(editor):
     z = zipfile.ZipFile(os.path.join(exports, zips[0]))
     if z.testzip() is not None:
         return "the zip is damaged"
-    out = tempfile.mkdtemp(prefix="aven-app-")
+    out = temp_dir("aven-app-")
     program = None
     for info in z.infolist():
         path = z.extract(info, out)
@@ -249,7 +259,7 @@ def test_update_downloads_and_installs(editor):
     import update_key
     if not sys.platform.startswith("linux"):
         return None
-    work = tempfile.mkdtemp(prefix="aven-update-test-")
+    work = temp_dir("aven-update-test-")
     game = os.path.join(work, "game")
     shutil.copytree(os.path.join(ROOT, "templates", "platformer"), game)
     marker = b"AVEN-NEW-BUILD"
@@ -357,7 +367,7 @@ def test_update_downloads_and_installs(editor):
 def test_native_build_asks_before_running_someone_elses_cmake(editor):
     """A project's own native/CMakeLists.txt can run any command while building, so Build asks first
     (and runs nothing) unless it's the one Aven makes."""
-    work = tempfile.mkdtemp(prefix="aven-native-test-")
+    work = temp_dir("aven-native-test-")
     project = os.path.join(work, "game")
     shutil.copytree(os.path.join(ROOT, "templates", "platformer"), project)
     os.makedirs(os.path.join(project, "native", "src"))
@@ -385,7 +395,7 @@ def test_native_build_asks_before_running_someone_elses_cmake(editor):
 def test_crash_recovery(editor):
     """Unsaved changes survive Aven closing unexpectedly: the next time the project opens, they're
     offered back; a normal close leaves nothing behind."""
-    work = tempfile.mkdtemp(prefix="aven-recovery-test-")
+    work = temp_dir("aven-recovery-test-")
     project = os.path.join(work, "game")
     shutil.copytree(os.path.join(ROOT, "templates", "platformer"), project)
 
@@ -469,10 +479,15 @@ def main():
     only = sys.argv[2] if len(sys.argv) > 2 else ""
     tests = [(n, f) for n, f in sorted(globals().items()) if n.startswith("test_") and only in n]
     failed = 0
-    for name, fn in tests:
-        problem = fn(editor)
-        print(("ok   " if problem is None else "FAIL ") + name[5:] + ("" if problem is None else ": " + problem), flush=True)
-        failed += problem is not None
+    try:
+        for name, fn in tests:
+            problem = fn(editor)
+            print(("ok   " if problem is None else "FAIL ") + name[5:] + ("" if problem is None else ": " + problem), flush=True)
+            failed += problem is not None
+    finally:
+        if not os.environ.get("AVEN_KEEP_TEST_FILES"):
+            for path in _made:
+                shutil.rmtree(path, ignore_errors=True)
     print("%d/%d editor tests passed" % (len(tests) - failed, len(tests)))
     return 1 if failed else 0
 

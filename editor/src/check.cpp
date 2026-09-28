@@ -41,9 +41,9 @@ struct Report {
 
 std::vector<std::string> projectFiles(const stdfs::path& dir) {
     std::vector<std::string> files;
-    std::error_code ec;
-    for (auto it = stdfs::recursive_directory_iterator(dir, stdfs::directory_options::skip_permission_denied, ec);
-         it != stdfs::recursive_directory_iterator(); it.increment(ec)) {
+    std::error_code ec, walk;
+    for (auto it = stdfs::recursive_directory_iterator(dir, stdfs::directory_options::skip_permission_denied, walk);
+         !walk && it != stdfs::recursive_directory_iterator(); it.increment(walk)) {
         std::string name = it->path().filename().string();
         bool skip = (!name.empty() && name[0] == '.') || (it->is_directory(ec) && (name == "exports" || name == "captures"));
         if (skip) {
