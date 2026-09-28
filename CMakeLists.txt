@@ -4,9 +4,6 @@ project(Aven
     VERSION 0.3.0
     DESCRIPTION "A beginner-friendly 2D/3D game engine"
     LANGUAGES C CXX)
-if(APPLE)
-    enable_language(OBJCXX) # the editor's Mac menu bar (editor/src/menu_mac.mm)
-endif()
 
 # The version the editor and player show (and the updater compares). Release builds pass the tag's
 # version (-DAVEN_VERSION=0.2.0); otherwise it follows project(VERSION) above, also in a build folder

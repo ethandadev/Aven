@@ -1,8 +1,10 @@
 file(GLOB_RECURSE AVEN_EDITOR_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
 if(APPLE)
-    # The real macOS menu bar (menu.h). (OBJCXX is enabled in the top-level CMakeLists.txt.)
+    # The real macOS menu bar (menu.h): Objective-C++, compiled as C++ with -x objective-c++ rather
+    # than by enabling the OBJCXX language, which would change how GLFW's .m files are built.
     list(APPEND AVEN_EDITOR_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/menu_mac.mm)
-    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/menu_mac.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/menu_mac.mm PROPERTIES
+        LANGUAGE CXX COMPILE_OPTIONS "-xobjective-c++;-fobjc-arc")
 endif()
 if(WIN32)
     # Aven's icon in the .exe: Explorer, the taskbar and the installer's shortcuts show it.
@@ -17,7 +19,6 @@ if(WIN32)
 endif()
 if(APPLE)
     target_link_libraries(aven_editor PRIVATE "-framework Cocoa")
-    set_target_properties(aven_editor PROPERTIES OBJCXX_STANDARD 20 OBJCXX_STANDARD_REQUIRED ON)
 endif()
 # Where a locally built web player lives (tools/web/build_web_player.sh puts a copy next to the editor too).
 target_compile_definitions(aven_editor PRIVATE AVEN_WEB_PLAYER_DIR="${PROJECT_SOURCE_DIR}/build-web/bin")
