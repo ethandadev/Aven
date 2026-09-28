@@ -6,6 +6,43 @@ renames it to the version (see [CONTRIBUTING.md](CONTRIBUTING.md#making-a-releas
 
 ## Next
 
+A careful pass over every part of Aven: odd input, full disks, read-only folders, undo at the wrong
+moment and scripts that do strange things now get a clear message instead of a crash or a hang.
+The editor also fits better at bigger UI sizes.
+
+### Fixed
+- **Your work is never quietly lost.** When a script, scene, drawing or sound can't be saved (a
+  read-only folder, a full disk), Aven says so and keeps it unsaved. Save and close, Save and
+  restart (for an update), switching scenes and closing a script tab wait until it's saved.
+- Autosave while editing a prefab wrote it in the scene format, which damaged the prefab.
+- **Scripts**: very deep nesting and long chains give an error instead of running out of room;
+  lists and dictionaries that contain themselves print, compare and save without going round
+  forever; a timer stopped by another timer in the same frame stays stopped; numbers too big to
+  hold, `0x` with no digits, Windows line endings and `\uXXXX` in text are handled.
+- **The game can't be broken by a script's maths**: `nan` and infinity are refused for positions,
+  sizes, gravity, sounds and time scale, and a `nan` position is put back before physics sees it.
+- **Crashes fixed**: a 3D character destroyed by its own `on_collide`; C behaviors that destroy
+  their own object; Health and Hazard after a script changes the object; the Inspector after
+  Reset to defaults; blocks after undo with a popup open; the Pixel Editor after undoing a new frame.
+- **Hangs fixed**: the 2D grid far from the middle of the world; sprite sheets set to thousands
+  of frames; particle emitters with huge rates.
+- Online multiplayer: a relay player with a tiny allowance was dropped as if they'd left, and
+  `on_room_ready` could run before the room was.
+- Names with accents or emoji in searches, file names and folders; Windows file names that can't
+  exist (CON, NUL, ending in a dot) are refused when renaming.
+- The code ladder counts down for `range(10, 0, -1)` and keeps a number's digits.
+- `aven-player --size` and every `aven-relay` option check what they're given.
+
+### Improved
+- The editor fits at every UI size: tool windows open no bigger than the screen, and the Assets
+  grid, Inspector, theme and lighting cards follow the UI size. Long names end in "..." with the
+  full name on hover.
+- The Inspector stacks X, Y and Z when it's too narrow for them side by side, and shows colors as
+  a swatch.
+- Scene view hints sit on a dark strip, so they read over any game.
+- New block variables get names scripts can use ("high score" becomes high_score).
+- The Pixel Editor says when a picture is too big for it (over 1024 x 1024).
+
 ## 0.4.0
 
 Aven installs properly now (a Setup program, a Mac app, a Flatpak) and updates itself. There's a
