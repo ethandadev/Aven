@@ -44,6 +44,7 @@ public:
     void cancelClose();
 
     void pollEvents();
+    void endFrame(); // after the game has updated: needed in browsers, harmless elsewhere
     void swapBuffers();
 
     Vec2 framebufferSize() const; // pixels

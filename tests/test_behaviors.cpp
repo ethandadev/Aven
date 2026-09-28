@@ -972,3 +972,51 @@ AVEN_TEST(multiplayer_find_games) {
     host.stop();
     finder.stop();
 }
+
+// Input between frames: a key that goes down (and even up again) before the game looks is still a
+// press. Browsers deliver keys between frames; a quick tap at a low frame rate is down and up at once.
+AVEN_TEST(input_presses_between_frames_and_quick_taps) {
+    Input in;
+    in.beginFrame();
+    in.onKey(keys::Space, true); // arrives, then the game looks
+    CHECK(in.keyPressed(keys::Space) && in.keyDown(keys::Space));
+    in.beginFrame();
+    CHECK(in.keyDown(keys::Space) && !in.keyPressed(keys::Space)); // held
+    in.onKey(keys::Space, false);
+    CHECK(in.keyReleased(keys::Space));
+    in.beginFrame();
+    // Down and up before the game looks: pressed for one frame, released the next.
+    in.onKey(keys::Space, true);
+    in.onKey(keys::Space, false);
+    CHECK(in.keyPressed(keys::Space));
+    CHECK(in.actionPressed("jump"));
+    in.beginFrame();
+    CHECK(!in.keyDown(keys::Space) && in.keyReleased(keys::Space));
+    in.beginFrame();
+    CHECK(!in.keyDown(keys::Space) && !in.keyReleased(keys::Space));
+    // The same for a mouse click.
+    in.onMouseButton(0, true);
+    in.onMouseButton(0, false);
+    CHECK(in.mousePressed(MouseButton::Left));
+    in.beginFrame();
+    CHECK(!in.mouseDown(MouseButton::Left));
+}
+
+// A "gamepad" whose stick sits pushed all the way when it appears doesn't walk the player; once it
+// comes back to the middle it's a normal stick.
+AVEN_TEST(input_ignores_stuck_gamepad_sticks) {
+    Input in;
+    bool buttons[static_cast<int>(PadButton::Count)]{};
+    float axes[static_cast<int>(PadAxis::Count)] = {-1, -1, 0, 0, -1, -1};
+    in.setGamepad(true, buttons, axes);
+    CHECK_EQ(in.axis("horizontal"), 0.0f);
+    CHECK_EQ(in.axis("vertical"), 0.0f);
+    in.setGamepad(true, buttons, axes);
+    CHECK_EQ(in.axis("horizontal"), 0.0f);
+    axes[0] = 0; // back to the middle
+    in.setGamepad(true, buttons, axes);
+    axes[0] = 0.9f;
+    in.setGamepad(true, buttons, axes);
+    CHECK(in.axis("horizontal") > 0.8f);
+    CHECK_EQ(in.axis("vertical"), 0.0f); // Y never came back: still ignored
+}

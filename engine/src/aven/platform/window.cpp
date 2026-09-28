@@ -6,6 +6,8 @@
 
 #include <stb_image.h>
 
+#include <cstring>
+
 #include <GLFW/glfw3.h>
 
 #ifdef __EMSCRIPTEN__
@@ -201,13 +203,21 @@ void Window::requestClose() { if (handle_) glfwSetWindowShouldClose(handle_, GLF
 void Window::cancelClose() { if (handle_) glfwSetWindowShouldClose(handle_, GLFW_FALSE); }
 
 void Window::pollEvents() {
-    input_.beginFrame();
+#ifndef __EMSCRIPTEN__
+    input_.beginFrame(); // (in browsers, endFrame() does this: see there)
+#endif
     glfwPollEvents();
 #ifdef __EMSCRIPTEN__
     // Browsers report gamepads in the "standard" layout.
-    EmscriptenGamepadEvent pad;
-    if (emscripten_sample_gamepad_data() == EMSCRIPTEN_RESULT_SUCCESS && emscripten_get_num_gamepads() > 0 &&
-        emscripten_get_gamepad_status(0, &pad) == EMSCRIPTEN_RESULT_SUCCESS && pad.connected) {
+    // Only pads in the "standard" layout: browsers also list other devices (some mice, headsets,
+    // drawing tablets, virtual-controller drivers) whose "sticks" can sit at -1 and walk the player.
+    EmscriptenGamepadEvent pad{};
+    bool found = false;
+    if (emscripten_sample_gamepad_data() == EMSCRIPTEN_RESULT_SUCCESS)
+        for (int i = 0, n = emscripten_get_num_gamepads(); i < n && !found; ++i)
+            found = emscripten_get_gamepad_status(i, &pad) == EMSCRIPTEN_RESULT_SUCCESS && pad.connected &&
+                    std::strcmp(pad.mapping, "standard") == 0;
+    if (found) {
         static const int kButtons[] = {0, 1, 2, 3, 4, 5, 8, 9, 16, 10, 11, 12, 15, 13, 14};
         bool buttons[static_cast<int>(PadButton::Count)];
         float axes[static_cast<int>(PadAxis::Count)];
@@ -238,6 +248,16 @@ void Window::pollEvents() {
     bool none[static_cast<int>(PadButton::Count)]{};
     float zero[static_cast<int>(PadAxis::Count)]{};
     input_.setGamepad(false, none, zero);
+}
+
+void Window::endFrame() {
+#ifdef __EMSCRIPTEN__
+    // Browsers deliver keys, clicks, mouse moves and scrolling between frames, before the next
+    // pollEvents(). Starting the next frame's input here, at the end of this one, keeps those events
+    // for the frame that comes next: otherwise a new key press was already "held" by the time the
+    // game looked, so key_pressed() and jumping never fired, and mouse movement and typing were lost.
+    input_.beginFrame();
+#endif
 }
 
 void Window::swapBuffers() { if (handle_) glfwSwapBuffers(handle_); }

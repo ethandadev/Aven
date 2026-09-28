@@ -243,6 +243,7 @@ struct Player {
         }
         game->setScreenSize(fb);
         game->update(dt);
+        window.endFrame(); // browsers: input from here on belongs to the next frame
         device->beginFrame();
         RenderOptions renderOptions;
         renderOptions.debugDraw = opt.debugDraw;

@@ -108,6 +108,14 @@ private:
     std::array<bool, keys::Count> prevKeys_{};
     std::array<bool, 8> mouse_{};
     std::array<bool, 8> prevMouse_{};
+    // A key or button that went down and up again before the game looked (a quick tap at a low
+    // frame rate) stays down for one frame, so key_pressed() still sees it.
+    std::array<bool, keys::Count> keyWentDown_{}, keyReleaseLater_{};
+    std::array<bool, 8> mouseWentDown_{}, mouseReleaseLater_{};
+    // Sticks that rest far from the middle when a gamepad appears (some devices browsers and drivers
+    // report as gamepads sit at -1) count as centered until they really move.
+    bool padSeen_ = false;
+    std::array<bool, 4> stuckAxis_{};
     bool pad_[static_cast<int>(PadButton::Count)]{};
     bool prevPad_[static_cast<int>(PadButton::Count)]{};
     float padAxes_[static_cast<int>(PadAxis::Count)]{};

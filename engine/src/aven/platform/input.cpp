@@ -58,6 +58,16 @@ Input::Input() : actions_(defaultActions()) {}
 void Input::beginFrame() {
     prevKeys_ = keys_;
     prevMouse_ = mouse_;
+    for (size_t k = 0; k < keys_.size(); ++k)
+        if (keyReleaseLater_[k])
+            keys_[k] = false; // the tap was seen last frame; now it's up
+    for (size_t b = 0; b < mouse_.size(); ++b)
+        if (mouseReleaseLater_[b])
+            mouse_[b] = false;
+    keyWentDown_ = {};
+    keyReleaseLater_ = {};
+    mouseWentDown_ = {};
+    mouseReleaseLater_ = {};
     std::copy(std::begin(pad_), std::end(pad_), std::begin(prevPad_));
     prevMousePos_ = mousePos_;
     scroll_ = {};
@@ -65,13 +75,31 @@ void Input::beginFrame() {
 }
 
 void Input::onKey(int key, bool down) {
-    if (key >= 0 && key < keys::Count)
-        keys_[static_cast<size_t>(key)] = down;
+    if (key < 0 || key >= keys::Count)
+        return;
+    auto k = static_cast<size_t>(key);
+    if (down && !keys_[k])
+        keyWentDown_[k] = true;
+    if (!down && keyWentDown_[k] && !prevKeys_[k]) {
+        keyReleaseLater_[k] = true; // down and up within one frame: let the game see the press
+        return;
+    }
+    keyReleaseLater_[k] = keyReleaseLater_[k] && !down;
+    keys_[k] = down;
 }
 
 void Input::onMouseButton(int button, bool down) {
-    if (button >= 0 && button < static_cast<int>(mouse_.size()))
-        mouse_[static_cast<size_t>(button)] = down;
+    if (button < 0 || button >= static_cast<int>(mouse_.size()))
+        return;
+    auto b = static_cast<size_t>(button);
+    if (down && !mouse_[b])
+        mouseWentDown_[b] = true;
+    if (!down && mouseWentDown_[b] && !prevMouse_[b]) {
+        mouseReleaseLater_[b] = true;
+        return;
+    }
+    mouseReleaseLater_[b] = mouseReleaseLater_[b] && !down;
+    mouse_[b] = down;
 }
 
 void Input::onMouseMove(Vec2 position) { mousePos_ = position; }
@@ -79,16 +107,30 @@ void Input::onScroll(Vec2 delta) { scroll_ += delta; }
 void Input::onChar(uint32_t codepoint) { typed_ += static_cast<char32_t>(codepoint); }
 
 void Input::setGamepad(bool connected, const bool buttons[], const float axes[]) {
+    if (connected && !padSeen_)
+        for (int i = 0; i < 4; ++i)
+            stuckAxis_[static_cast<size_t>(i)] = std::abs(axes[i]) > 0.5f; // a stick pushed all the way at the start
+    padSeen_ = connected;
     padConnected_ = connected;
     for (int i = 0; i < static_cast<int>(PadButton::Count); ++i)
         pad_[i] = connected && buttons[i];
-    for (int i = 0; i < static_cast<int>(PadAxis::Count); ++i)
-        padAxes_[i] = connected ? axes[i] : 0.0f;
+    for (int i = 0; i < static_cast<int>(PadAxis::Count); ++i) {
+        float v = connected ? axes[i] : 0.0f;
+        if (i < 4 && stuckAxis_[static_cast<size_t>(i)]) {
+            if (std::abs(v) < 0.2f)
+                stuckAxis_[static_cast<size_t>(i)] = false; // it came back to the middle: a real stick
+            else
+                v = 0.0f;
+        }
+        padAxes_[i] = v;
+    }
 }
 
 void Input::releaseAll() {
     keys_.fill(false);
     mouse_.fill(false);
+    keyReleaseLater_ = {};
+    mouseReleaseLater_ = {};
     std::fill(std::begin(pad_), std::end(pad_), false);
 }
 
