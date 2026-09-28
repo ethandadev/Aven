@@ -149,22 +149,36 @@ def main(argv):
         return 0
     if len(argv) >= 3 and argv[1] == "sign":
         key = os.environ.get("UPDATE_SIGNING_KEY", "").strip()
-        if len(key) != 64:
+        try:
+            seed = bytes.fromhex(key)
+        except ValueError:
+            seed = b""
+        if len(seed) != 32:
             print("Set UPDATE_SIGNING_KEY to the private key (64 hex digits).", file=sys.stderr)
             return 1
-        seed = bytes.fromhex(key)
         for path in argv[2:]:
             with open(path + ".sig", "w") as f:
                 f.write(sign(seed, message(path)).hex() + "\n")
             print("Signed " + os.path.basename(path) + " with key " + public_key(seed).hex())
         return 0
     if len(argv) >= 4 and argv[1] == "verify":
-        public = bytes.fromhex(argv[2])
+        try:
+            public = bytes.fromhex(argv[2].strip())
+        except ValueError:
+            public = b""
+        if len(public) != 32:
+            print("The public key should be 64 hex digits.", file=sys.stderr)
+            return 1
         ok = True
         for path in argv[3:]:
-            with open(path + ".sig") as f:
-                signature = bytes.fromhex(f.read().strip())
-            good = verify(public, message(path), signature)
+            try:
+                with open(path + ".sig") as f:
+                    signature = bytes.fromhex(f.read().strip())
+                good = verify(public, message(path), signature)
+            except (OSError, ValueError) as e:
+                print("BAD  %s (%s)" % (path, e))
+                ok = False
+                continue
             print(("ok   " if good else "BAD  ") + path)
             ok = ok and good
         return 0 if ok else 1

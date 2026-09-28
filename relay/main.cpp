@@ -36,26 +36,33 @@ int main(int argc, char** argv) {
     aven::relay::ServerLimits limits;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
-        auto value = [&]() -> int {
-            if (i + 1 >= argc) {
-                std::fprintf(stderr, "%s needs a number after it.\n", a.c_str());
+        // A whole number from `low` to `high`, or a clear message and the usage.
+        auto value = [&](long low, long high) -> int {
+            char* end = nullptr;
+            long v = i + 1 < argc ? std::strtol(argv[i + 1], &end, 10) : 0;
+            if (i + 1 >= argc || end == argv[i + 1] || *end || v < low || v > high) {
+                std::fprintf(stderr, "%s needs a number from %ld to %ld after it.\n", a.c_str(), low, high);
                 std::exit(usage());
             }
-            return std::atoi(argv[++i]);
+            ++i;
+            return static_cast<int>(v);
         };
         if (a == "--port")
-            port = value();
+            port = value(1, 65535);
         else if (a == "--max-rooms")
-            limits.maxRooms = value();
+            limits.maxRooms = value(1, 1000000);
         else if (a == "--max-players")
-            limits.maxPlayersPerRoom = value();
+            limits.maxPlayersPerRoom = value(1, 1000);
         else if (a == "--rate")
-            limits.bytesPerSecond = value() * 1024.0;
+            limits.bytesPerSecond = value(1, 1000000) * 1024.0;
         else
             return usage();
     }
     std::signal(SIGINT, onSignal);
     std::signal(SIGTERM, onSignal);
+#ifdef SIGPIPE
+    std::signal(SIGPIPE, SIG_IGN); // a player gone mid-send is an error to handle, not a reason to stop
+#endif
 
     aven::relay::Server server(limits);
     std::string error;

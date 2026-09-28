@@ -28,6 +28,7 @@ short="${version%%-*}" # CFBundleShortVersionString takes numbers only: 0.4.0-be
 mkdir -p "$out"
 out="$(cd "$out" && pwd)"
 work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT # (also when a step fails)
 app="$work/Aven.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$pkg/aven-editor" "$pkg/aven-player" "$app/Contents/MacOS/"
@@ -147,5 +148,4 @@ if [ -n "$can_notarize" ]; then
     notarize "$dmg"
     xcrun stapler staple "$dmg"
 fi
-rm -rf "$work"
 echo "Made $dmg and $out/aven-$version-macos-arm64.zip"

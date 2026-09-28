@@ -318,7 +318,7 @@ void Window::setIcon(const std::vector<std::pair<const unsigned char*, std::size
         stbi_image_free(px);
 }
 
-void Window::setIconFromFile(const std::string& pngPath) {
+void Window::setIconFromFile(const std::filesystem::path& pngPath) {
     auto bytes = fs::readBinary(pngPath);
     if (!bytes || bytes->empty()) {
         setDefaultIcon();

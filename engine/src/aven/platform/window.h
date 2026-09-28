@@ -4,6 +4,7 @@
 #include "aven/platform/input.h"
 
 #include <functional>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -54,7 +55,7 @@ public:
     // Window/taskbar icon from PNG files in memory (several sizes let the OS pick).
     // Unsupported on some platforms (macOS uses the app bundle's icon), where it does nothing.
     void setIcon(const std::vector<std::pair<const unsigned char*, std::size_t>>& pngs);
-    void setIconFromFile(const std::string& pngPath);
+    void setIconFromFile(const std::filesystem::path& pngPath);
     void setDefaultIcon(); // the Aven logo
     void setFullscreen(bool fullscreen);
     bool isFullscreen() const { return fullscreen_; }

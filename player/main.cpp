@@ -113,7 +113,9 @@ bool parseArgs(int argc, char** argv, Options& o) {
             o.intro = true;
         else if (a == "--size") {
             std::string s = next();
-            std::sscanf(s.c_str(), "%dx%d", &o.width, &o.height);
+            if (std::sscanf(s.c_str(), "%dx%d", &o.width, &o.height) != 2 || o.width < 16 || o.height < 16 || o.width > 16384 ||
+                o.height > 16384)
+                o.width = o.height = 0; // (not a size: the game's own)
         } else if (a == "--press") {
             // --press 30:space taps a key on frame 30; --press 30:right:60 holds it for 60 frames
             // (for automated tests).
@@ -178,7 +180,7 @@ struct Player {
         // The game's icon (Build & Share writes app-icon.png), or Aven's.
         for (const std::string& icon : {std::string("app-icon.png"), settings.publish.icon})
             if (!icon.empty() && fs::exists(projectDir / icon)) {
-                window.setIconFromFile((projectDir / icon).string());
+                window.setIconFromFile(projectDir / icon);
                 break;
             }
         device = rhi::createDevice(rhi::Backend::OpenGL, Window::glProcLoader());
