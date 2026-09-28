@@ -131,8 +131,9 @@ void ProjectSettings::fromJson(const Json& j) {
     publish.windowsCertificate = p["windows_certificate"].asString("");
     publish.timestampUrl = p["timestamp_url"].asString(d.timestampUrl);
     const Json& w = j["window"];
-    width = w["width"].asInt(width);
-    height = w["height"].asInt(height);
+    // (a hand-edited size of 0 or a million would make a window that can't open)
+    width = std::clamp(w["width"].asInt(width), 160, 16384);
+    height = std::clamp(w["height"].asInt(height), 120, 16384);
     resizable = w["resizable"].asBool(resizable);
     fullscreen = w["fullscreen"].asBool(fullscreen);
     vsync = w["vsync"].asBool(vsync);
@@ -160,11 +161,11 @@ void ProjectSettings::fromJson(const Json& j) {
             bus.name = b["name"].asString("");
             if (bus.name.empty())
                 continue;
-            bus.volume = b["volume"].asFloat(1.0f);
+            bus.volume = std::clamp(b["volume"].asFloat(1.0f), 0.0f, 1.0f);
             bus.muted = b["muted"].asBool(false);
-            bus.lowpass = b["lowpass"].asFloat(0.0f);
-            bus.echo = b["echo"].asFloat(0.0f);
-            bus.echoDelay = b["echo_delay"].asFloat(0.3f);
+            bus.lowpass = std::max(b["lowpass"].asFloat(0.0f), 0.0f);
+            bus.echo = std::clamp(b["echo"].asFloat(0.0f), 0.0f, 1.0f);
+            bus.echoDelay = std::clamp(b["echo_delay"].asFloat(0.3f), 0.02f, 2.0f);
             audioBuses.push_back(bus);
         }
         for (const char* needed : {"Music", "Effects"})
@@ -227,7 +228,7 @@ bool ProjectSettings::load(const std::filesystem::path& dir, std::string* error)
     auto text = fs::readText(dir / kFileName);
     if (!text) {
         if (error)
-            *error = "No " + std::string(kFileName) + " file in " + dir.string();
+            *error = "No " + std::string(kFileName) + " file in " + fs::toUtf8(dir);
         return false;
     }
     std::string parseError;

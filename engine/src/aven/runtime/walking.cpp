@@ -110,8 +110,14 @@ void GameplaySystems::stopWalking(Entity e) {
 
 void GameplaySystems::updateWalkers(float dt) {
     Scene& scene = game_.scene();
-    for (auto& [h, pc] : pathCache_)
-        pc.age += dt;
+    for (auto it = pathCache_.begin(); it != pathCache_.end();) {
+        if (!scene.valid(Entity::fromHandle(it->first))) {
+            it = pathCache_.erase(it); // (spawned chasers come and go: don't keep their paths)
+            continue;
+        }
+        it->second.age += dt;
+        ++it;
+    }
     std::vector<Entity> arrived;
     for (auto it = walkers_.begin(); it != walkers_.end();) {
         Entity e = Entity::fromHandle(it->first);

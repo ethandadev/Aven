@@ -69,10 +69,24 @@ Json vec3Json(Vec3 v) {
     return a;
 }
 
+// A position from another computer: ordinary numbers only (a damaged or unfriendly message can't
+// put nan, inf or 1e300 into this game's scene).
 Vec3 jsonVec3(const Json& j, Vec3 fallback = {}) {
     if (j.size() < 3)
         return fallback;
-    return {j[0].asFloat(0), j[1].asFloat(0), j[2].asFloat(0)};
+    auto part = [&](size_t i, float was) {
+        double d = j[i].asNumber(was);
+        return std::isfinite(d) ? static_cast<float>(std::clamp(d, -1e9, 1e9)) : was;
+    };
+    return {part(0, fallback.x), part(1, fallback.y), part(2, fallback.z)};
+}
+
+// Ports go from 1 to 65535, and hosting also uses the next one up (for finding games).
+bool validPort(int port, std::string& error) {
+    if (port >= 1 && port <= 65534)
+        return true;
+    error = "The port should be a number from 1 to 65534 (the usual one is " + std::to_string(Network::kDefaultPort) + ").";
+    return false;
 }
 
 } // namespace
@@ -106,6 +120,7 @@ struct Network::Impl {
     int myId = -1, nextId = 1, port = kDefaultPort;
     std::vector<int> playerList;
     uint64_t spawnCounter = 0;
+    bool roomReady = false; // the relay gave a room code: scripts hear it once the relay's data is read
     std::unordered_map<uint64_t, float> sendTimers;
 
     // --- messages: a 4-byte length, then JSON
@@ -198,9 +213,11 @@ struct Network::Impl {
             int id = static_cast<int>(peer);
             switch (kind) {
             case relay::Room:
+                // (the script's on_room_ready runs after this: it might leave() the game, and the
+                // relay's data mustn't disappear while it's being read)
                 relay.code = payload;
+                roomReady = true;
                 Log::info("Online game ready. Room code: ", payload);
-                event("on_room_ready", {script::Value(payload)});
                 break;
             case relay::PeerNew:
                 if (hosting && id > 0 && !peerById(id)) {
@@ -256,7 +273,7 @@ struct Network::Impl {
                 AVEN_CLOSE(*s);
                 *s = INVALID_SOCKET;
             }
-        hosting = connected = pending = false;
+        hosting = connected = pending = roomReady = false;
         myId = -1;
         playerList.clear();
         sendTimers.clear();
@@ -566,6 +583,8 @@ Network::Network(Game& game) : impl_(std::make_unique<Impl>(game)) {}
 Network::~Network() { impl_->closeAll(); }
 
 bool Network::host(int port, std::string& error) {
+    if (!validPort(port, error))
+        return false;
     socketsReady();
     leave();
     Impl& n = *impl_;
@@ -613,6 +632,8 @@ bool Network::host(int port, std::string& error) {
 }
 
 bool Network::join(const std::string& address, int port, std::string& error) {
+    if (!validPort(port, error))
+        return false;
     socketsReady();
     leave();
     Impl& n = *impl_;
@@ -859,6 +880,12 @@ void Network::update(float dt) {
         else
             Log::info("The online game ended.");
         return;
+    }
+    if (n.roomReady) {
+        n.roomReady = false;
+        n.event("on_room_ready", {script::Value(n.relay.code)});
+        if (n.relay.s == INVALID_SOCKET)
+            return; // the script left straight away
     }
     if (!n.hosting && n.peers.empty())
         return;

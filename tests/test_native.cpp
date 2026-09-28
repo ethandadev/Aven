@@ -36,7 +36,7 @@ AVEN_TEST(native_module_loads_behaviors_and_properties) {
     CHECK(!modules.refresh(dir)); // nothing changed
     CHECK_EQ(modules.modules().size(), size_t(1));
     CHECK(modules.modules()[0].error.empty());
-    CHECK_EQ(modules.modules()[0].behaviors, 2);
+    CHECK_EQ(modules.modules()[0].behaviors, 3);
     const NativeBehaviorInfo* mover = modules.find("Mover");
     CHECK(mover != nullptr);
     CHECK(modules.find("Finder") != nullptr);
@@ -105,6 +105,8 @@ AVEN_TEST(native_behaviors_run_in_the_game) {
         fs2.overrides["speed"] = 0;
         Entity missing = scene->create("Missing");
         reg.emplace<NativeScript>(missing).className = "Nope";
+        Entity fuse = scene->create("Fuse");
+        reg.emplace<NativeScript>(fuse).className = "Fuse"; // destroys itself mid-update
 
         game.start(std::move(scene), "scenes/test.scene");
         for (int i = 0; i < 60; ++i)
@@ -118,6 +120,9 @@ AVEN_TEST(native_behaviors_run_in_the_game) {
         CHECK(s.findByName("Finder (done)"));
         CHECK_NEAR(game.scripts().gameNumber("heard"), 7.0, 1e-9);
         CHECK(game.scripts().gameNumber("hits") >= 1);
+        CHECK_NEAR(game.scripts().gameNumber("fuse_done"), 3.0, 1e-9);
+        CHECK_NEAR(game.scripts().gameNumber("fuse_destroyed"), 1.0, 1e-9);
+        CHECK(!s.findByName("Fuse"));
         for (int i = 0; i < 60; ++i) // boosted to 6 units per second by the EasyScript
             game.update(1.0f / 60.0f);
         CHECK_NEAR(s.transform(s.findByName("Mover")).position.x, 10.0f, 0.2f);

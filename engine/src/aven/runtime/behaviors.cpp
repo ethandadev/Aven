@@ -214,7 +214,9 @@ void GameplaySystems::damage(Entity victim, int amount, Vec3 from, float knockba
         }
     }
     game_.scripts().broadcast("hurt", script::Value(static_cast<double>(health->current)));
-    if (health->current > 0)
+    // Scripts ran: they may have removed components (which moves others in memory), so look again.
+    health = scene.valid(victim) ? reg.tryGet<Health>(victim) : nullptr;
+    if (!health || health->current > 0)
         return;
     switch (health->whenZero) {
     case WhenHealthRunsOut::RestartScene: game_.requestSceneChange(game_.scenePath()); break;
@@ -269,8 +271,9 @@ void GameplaySystems::onBehaviorCollision(Entity a, Entity b, bool begin) {
             continue;
         }
         if (auto* h = reg.tryGet<Hazard>(self); h && matches(scene, other, h->victimTag)) {
+            bool vanish = h->vanishOnHit; // (damage() runs scripts, after which `h` may point elsewhere)
             damage(other, h->damage, scene.worldPosition(self), h->knockback);
-            if (h->vanishOnHit) {
+            if (vanish) {
                 game_.destroyEntity(self);
                 continue;
             }
@@ -383,6 +386,9 @@ void GameplaySystems::updateBehaviors(float dt) {
     if (dt <= 0)
         return;
     Scene& scene = game_.scene();
+    // What destroyed objects remembered (bullets, sparkles, spawned enemies) goes with them.
+    for (auto it = behaviorStates_.begin(); it != behaviorStates_.end();)
+        it = scene.valid(Entity::fromHandle(it->first)) ? std::next(it) : behaviorStates_.erase(it);
     auto& reg = scene.registry();
     Input& input = game_.input();
     Physics2D& p2 = game_.physics2D();
@@ -482,9 +488,13 @@ void GameplaySystems::updateBehaviors(float dt) {
             if (std::find(touching.begin(), touching.end(), o) == touching.end() && overlap(scene, e, o) &&
                 !reg.has<RigidBody2D>(o) && !reg.has<CharacterController>(o))
                 touching.push_back(o); // objects without physics bodies
+        // (damage() runs scripts, which may remove components and so move `h`: copy what's needed)
+        const std::string victims = h.victimTag;
+        const int amount = h.damage;
+        const float knockback = h.knockback;
         for (Entity o : touching)
-            if (scene.valid(o) && matches(scene, o, h.victimTag) && reg.has<Health>(o) && state(o).invincible <= 0)
-                damage(o, h.damage, scene.worldPosition(e), h.knockback);
+            if (scene.valid(o) && scene.valid(e) && matches(scene, o, victims) && reg.has<Health>(o) && state(o).invincible <= 0)
+                damage(o, amount, scene.worldPosition(e), knockback);
     });
 
     reg.each<Health>([&](Entity e, Health& h) {

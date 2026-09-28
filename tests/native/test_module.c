@@ -50,6 +50,29 @@ static void finder_start(AvenEntity self, void* data) {
     aven_send(0, "hello", 7);             /* everyone, EasyScript included */
 }
 
+/* Destroys its own object in the middle of an update, then keeps using its data: that data must
+   stay valid until the frame is over. */
+typedef struct {
+    int32_t ticks;
+    float after;
+} Fuse;
+
+static void fuse_update(AvenEntity self, void* data, float dt) {
+    Fuse* f = (Fuse*)data;
+    (void)dt;
+    if (++f->ticks == 2) {
+        aven_destroy(self);
+        f->after = 1;
+        aven_game_set("fuse_done", f->after + (float)f->ticks);
+    }
+}
+
+static void fuse_destroyed(AvenEntity self, void* data) {
+    (void)self;
+    ((Fuse*)data)->after = 2;
+    aven_game_set("fuse_destroyed", 1);
+}
+
 static void setup(AvenModule* module) {
     AvenBehavior* mover = aven_behavior(module, "Mover", sizeof(Mover));
     aven_number(mover, "speed", offsetof(Mover, speed), 2, "Units per second");
@@ -62,6 +85,10 @@ static void setup(AvenModule* module) {
 
     AvenBehavior* finder = aven_behavior(module, "Finder", 0);
     finder->on_start = finder_start;
+
+    AvenBehavior* fuse = aven_behavior(module, "Fuse", sizeof(Fuse));
+    fuse->on_update = fuse_update;
+    fuse->on_destroy = fuse_destroyed;
 }
 
 AVEN_MODULE(setup)

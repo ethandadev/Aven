@@ -127,6 +127,19 @@ static float toNumber(const Value& v, const char* what) {
     raise(std::string("'") + what + "' should be a number, but got " + v.typeDescription() + " (" + v.repr() + ").");
 }
 
+// A number that goes on to physics, positions or sound: nan, inf or 1e300 is a clear error here,
+// instead of something that breaks far away (a body that vanishes, a crash inside the physics).
+static double ordinary(const CallArgs& a, size_t i, const char* param) {
+    double d = a.number(i, param);
+    if (!std::isfinite(d) || std::abs(d) > 3e38)
+        raise(std::string(a.functionName) + "(): '" + param + "' should be an ordinary number, but it is " +
+              script::formatNumber(d) + ".");
+    return d;
+}
+static double ordinaryOr(const CallArgs& a, size_t i, const char* param, double fallback) {
+    return i >= a.size() || a[i].isNone() ? fallback : ordinary(a, i, param);
+}
+
 // ---------------------------------------------------------------- script objects
 
 namespace {
@@ -456,9 +469,9 @@ Vec3 positionArgs(ScriptSystem& sys, CallArgs& a, size_t first, const char* cont
     if (!a.has(first))
         return fallback;
     if (a[first].isNumber()) {
-        float x = static_cast<float>(a.number(first, "x"));
-        float y = static_cast<float>(a.numberOr(first + 1, "y", fallback.y));
-        float z = static_cast<float>(a.numberOr(first + 2, "z", fallback.z));
+        float x = static_cast<float>(ordinary(a, first, "x"));
+        float y = static_cast<float>(ordinaryOr(a, first + 1, "y", fallback.y));
+        float z = static_cast<float>(ordinaryOr(a, first + 2, "z", fallback.z));
         return {x, y, z};
     }
     Vec3 p = targetPosition(sys, a[first], context);
@@ -558,7 +571,7 @@ const std::vector<MethodDef>& entityMethods() {
              Vec3 dest = positionArgs(s, a, 0, "go_to()", here);
              float speed = static_cast<float>(a.keywordNumber("speed", 3));
              if (target && a.has(1))
-                 speed = static_cast<float>(a.number(1, "speed"));
+                 speed = static_cast<float>(ordinary(a, 1, "speed"));
              s.game().gameplay().goTo(e, dest, target, speed);
              return Value();
          }},
@@ -583,8 +596,8 @@ const std::vector<MethodDef>& entityMethods() {
          }},
         {"move", "self.move(dx, dy) or self.move(dx, dy, dz)", 1, 3,
          [](ScriptSystem& s, Entity e, CallArgs& a) {
-             Vec3 d = a[0].isNumber() ? Vec3(static_cast<float>(a.number(0, "dx")), static_cast<float>(a.numberOr(1, "dy", 0)),
-                                             static_cast<float>(a.numberOr(2, "dz", 0)))
+             Vec3 d = a[0].isNumber() ? Vec3(static_cast<float>(ordinary(a, 0, "dx")), static_cast<float>(ordinaryOr(a, 1, "dy", 0)),
+                                             static_cast<float>(ordinaryOr(a, 2, "dz", 0)))
                                       : ScriptSystem::toVec3(a[0], "move()");
              s.game().scene().transform(e).position += d;
              return Value();
@@ -593,7 +606,7 @@ const std::vector<MethodDef>& entityMethods() {
          [](ScriptSystem& s, Entity e, CallArgs& a) {
              Scene& scene = s.game().scene();
              Transform& t = scene.transform(e);
-             float d = static_cast<float>(a.number(0, "distance"));
+             float d = static_cast<float>(ordinary(a, 0, "distance"));
              if (is3D(scene, e))
                  t.position += rotate(Quat::fromEuler(t.rotation), {0, 0, -1}) * d;
              else
@@ -603,7 +616,7 @@ const std::vector<MethodDef>& entityMethods() {
         {"turn", "self.turn(degrees)", 1, 1,
          [](ScriptSystem& s, Entity e, CallArgs& a) {
              Scene& scene = s.game().scene();
-             float deg = static_cast<float>(a.number(0, "degrees"));
+             float deg = static_cast<float>(ordinary(a, 0, "degrees"));
              if (is3D(scene, e))
                  scene.transform(e).rotation.y += deg;
              else
@@ -634,7 +647,7 @@ const std::vector<MethodDef>& entityMethods() {
              Vec3 target = positionArgs(s, a, 0, "move_toward()", pos);
              if (a[0].isNumber() && a.size() < 4)
                  target.z = pos.z;
-             float step = static_cast<float>(a.number(stepIndex, "step"));
+             float step = static_cast<float>(ordinary(a, stepIndex, "step"));
              Vec3 d = target - pos;
              float dist = length(d);
              Vec3 next = dist <= step || dist < 1e-6f ? target : pos + d / dist * step;
@@ -708,7 +721,7 @@ const std::vector<MethodDef>& entityMethods() {
              bool loop = a.has(3) ? a[3].truthy() : true;
              if (const Value* k = a.keyword("loop"))
                  loop = k->truthy();
-             float fps = static_cast<float>(a.has(2) ? a.number(2, "fps") : a.keywordNumber("fps", 10));
+             float fps = static_cast<float>(a.has(2) ? ordinary(a, 2, "fps") : a.keywordNumber("fps", 10));
              if (anim.firstFrame != first || anim.lastFrame != last || !anim.playing) {
                  anim.time = 0;
                  if (auto* sr = s.game().scene().registry().tryGet<SpriteRenderer>(e))
@@ -775,8 +788,8 @@ const std::vector<MethodDef>& entityMethods() {
                      raise("tween(): unknown easing \"" + name +
                            "\". Try \"linear\", \"ease_in\", \"ease_out\", \"ease_in_out\", \"bounce\", \"elastic\" or \"back\".");
              }
-             s.addTween(e, a.string(0, "property"), static_cast<float>(a.number(1, "target")),
-                        static_cast<float>(a.number(2, "seconds")), easing, a.has(4) ? a[4] : Value());
+             s.addTween(e, a.string(0, "property"), static_cast<float>(ordinary(a, 1, "target")),
+                        static_cast<float>(ordinary(a, 2, "seconds")), easing, a.has(4) ? a[4] : Value());
              return Value();
          }},
         {"clone", "self.clone()", 0, 3,
@@ -856,8 +869,8 @@ const std::vector<MethodDef>& entityMethods() {
          }},
         {"play_sound", "self.play_sound(\"sounds/jump.wav\", volume=1)", 1, 3,
          [](ScriptSystem& s, Entity e, CallArgs& a) {
-             float volume = static_cast<float>(a.has(1) ? a.number(1, "volume") : a.keywordNumber("volume", 1));
-             float pitch = static_cast<float>(a.has(2) ? a.number(2, "pitch") : a.keywordNumber("pitch", 1));
+             float volume = static_cast<float>(a.has(1) ? ordinary(a, 1, "volume") : a.keywordNumber("volume", 1));
+             float pitch = static_cast<float>(a.has(2) ? ordinary(a, 2, "pitch") : a.keywordNumber("pitch", 1));
              s.game().audio().playSound(projectFile(s, a.string(0, "sound"), "play_sound()"), volume, pitch, s.game().scene().worldPosition(e));
              return Value();
          }},
@@ -1088,7 +1101,9 @@ bool ScriptSystem::getProperty(Entity e, const std::string& name, Value& out) {
     } else if (name == "shape") {
         auto* s = reg.tryGet<SpriteRenderer>(e);
         const ComponentInfo* ci = ComponentRegistry::find("SpriteRenderer");
-        out = s ? Value(toSnakeCase(ci->findField("shape")->options.enumNames[static_cast<size_t>(s->shape)])) : Value();
+        const auto& shapes = ci->findField("shape")->options.enumNames;
+        size_t i = s ? static_cast<size_t>(s->shape) : shapes.size();
+        out = i < shapes.size() ? Value(toSnakeCase(shapes[i])) : Value();
     } else if (name == "frame") {
         auto* s = reg.tryGet<SpriteRenderer>(e);
         out = Value(s ? s->frame : 0);
@@ -1301,6 +1316,8 @@ ScriptSystem::ScriptSystem(Game& game) : game_(game) {
     };
     vm_.onError = [this](const script::ScriptError& e) {
         ErrorKey key{e.file, e.line, e.what()};
+        if (errorCounts_.size() > 1000)
+            errorCounts_.clear(); // (messages that change every time, like positions: don't collect them forever)
         int& count = errorCounts_[key];
         ++count;
         // The same error every frame would flood the console; show it once, then every 5 seconds' worth.
@@ -1387,11 +1404,19 @@ std::shared_ptr<script::Module> ScriptSystem::module(const std::string& path, bo
 }
 
 void ScriptSystem::checkForChanges() {
-    for (auto& [path, cached] : modules_) {
-        int64_t m = fs::modifiedTime(game_.assets().resolve(path));
-        if (m == 0 || m == cached.modified)
+    // Reloading runs the scripts' top-level code again, which can import more scripts or spawn
+    // objects (adding to modules_ and instances_), so both are walked through copies.
+    std::vector<std::string> paths;
+    for (auto& [path, cached] : modules_)
+        paths.push_back(path);
+    for (const std::string& path : paths) {
+        auto found = modules_.find(path);
+        if (found == modules_.end())
             continue;
-        cached.modified = m;
+        int64_t m = fs::modifiedTime(game_.assets().resolve(path));
+        if (m == 0 || m == found->second.modified)
+            continue;
+        found->second.modified = m;
         bool ok = false;
         std::string source = loadSource(path, ok);
         if (!ok)
@@ -1401,10 +1426,13 @@ void ScriptSystem::checkForChanges() {
             Log::warn("'", path, "' has an error, so the old version keeps running until it's fixed.");
             continue;
         }
-        cached.module = fresh;
-        cached.failed = false;
+        modules_[path].module = fresh;
+        modules_[path].failed = false;
         int reloaded = 0;
-        for (auto& [e, inst] : instances_) {
+        std::vector<std::pair<Entity, std::shared_ptr<script::Instance>>> running(instances_.begin(), instances_.end());
+        for (auto& [e, inst] : running) {
+            if (!inst->alive)
+                continue;
             auto* sc = game_.scene().registry().tryGet<Script>(e);
             if (!sc || sc->path != path)
                 continue;
@@ -1478,8 +1506,9 @@ void ScriptSystem::onSpawn(Entity root) {
     Scene& scene = game_.scene();
     std::function<void(Entity)> visit = [&](Entity e) {
         attach(e);
-        for (Entity c : scene.children(e))
-            visit(c);
+        for (Entity c : std::vector<Entity>(scene.children(e))) // (its script may add or remove children)
+            if (scene.valid(c))
+                visit(c);
     };
     visit(root);
     native_->onSpawn(root);
@@ -1671,7 +1700,7 @@ void ScriptSystem::addTween(Entity e, const std::string& property, float target,
     t.property = property;
     t.from = static_cast<float>(current.number());
     t.to = target;
-    t.duration = std::max(duration, 1e-4f);
+    t.duration = duration > 1e-4f ? duration : 1e-4f; // (also a NaN duration)
     t.easing = easing;
     t.onDone = std::move(onDone);
     tweens_.push_back(std::move(t));
@@ -1800,7 +1829,7 @@ void ScriptSystem::registerApi() {
         }
         if (a.has(1))
             scene.transform(e).position = positionArgs(*this, a, 1, "create_sprite()");
-        float size = static_cast<float>(a.has(3) ? a.number(3, "size") : a.keywordNumber("size", 1));
+        float size = static_cast<float>(a.has(3) ? ordinary(a, 3, "size") : a.keywordNumber("size", 1));
         sr.size = Vec2(size);
         if (const Value* c = a.has(4) ? &a[4] : a.keyword("color"))
             sr.color = toColor(*c, "create_sprite() color");
@@ -1813,7 +1842,7 @@ void ScriptSystem::registerApi() {
         tr.text = a[0].toString();
         if (a.has(1))
             scene.transform(e).position = positionArgs(*this, a, 1, "create_text()");
-        tr.fontSize = static_cast<float>(a.has(3) ? a.number(3, "size") : a.keywordNumber("size", 0.5));
+        tr.fontSize = static_cast<float>(a.has(3) ? ordinary(a, 3, "size") : a.keywordNumber("size", 0.5));
         return entityValue(e);
     });
     def("destroy", "destroy(obj)", 1, 1, [this, &g](CallArgs& a) {
@@ -1841,7 +1870,7 @@ void ScriptSystem::registerApi() {
         Easing easing = Easing::EaseOut;
         if (a.has(4) && !parseEasing(a.string(4, "easing"), easing))
             raise("tween(): unknown easing \"" + a[4].string() + "\".");
-        addTween(e, a.string(1, "property"), static_cast<float>(a.number(2, "target")), static_cast<float>(a.number(3, "seconds")),
+        addTween(e, a.string(1, "property"), static_cast<float>(ordinary(a, 2, "target")), static_cast<float>(ordinary(a, 3, "seconds")),
                  easing, Value());
         return Value();
     });
@@ -1898,20 +1927,20 @@ void ScriptSystem::registerApi() {
         return Value();
     });
     def("camera_shake", "camera_shake(amount=0.3, seconds=0.3)", 0, 2, [&g](CallArgs& a) {
-        g.gameplay().shake(static_cast<float>(a.numberOr(0, "amount", 0.3)), static_cast<float>(a.numberOr(1, "seconds", 0.3)));
+        g.gameplay().shake(static_cast<float>(ordinaryOr(a, 0, "amount", 0.3)), static_cast<float>(ordinaryOr(a, 1, "seconds", 0.3)));
         return Value();
     });
     def("set_time_scale", "set_time_scale(0.5)", 1, 1, [&g](CallArgs& a) {
-        g.timeScale = std::max(0.0f, static_cast<float>(a.number(0, "scale")));
+        g.timeScale = static_cast<float>(std::clamp(ordinary(a, 0, "scale"), 0.0, 100.0));
         return Value();
     });
 
     // --- physics
     def("set_gravity", "set_gravity(x, y) or set_gravity(x, y, z)", 2, 3, [&g](CallArgs& a) {
         if (a.size() == 3)
-            g.physics3D().setGravity({static_cast<float>(a.number(0, "x")), static_cast<float>(a.number(1, "y")), static_cast<float>(a.number(2, "z"))});
+            g.physics3D().setGravity({static_cast<float>(ordinary(a, 0, "x")), static_cast<float>(ordinary(a, 1, "y")), static_cast<float>(ordinary(a, 2, "z"))});
         else
-            g.physics2D().setGravity({static_cast<float>(a.number(0, "x")), static_cast<float>(a.number(1, "y"))});
+            g.physics2D().setGravity({static_cast<float>(ordinary(a, 0, "x")), static_cast<float>(ordinary(a, 1, "y"))});
         return Value();
     });
     // --- multiplayer on the local network (network.h)
@@ -1989,7 +2018,7 @@ void ScriptSystem::registerApi() {
 
     // Ground height of a terrain at (x, z): for putting things on the ground. None off the terrain.
     def("terrain_height", "terrain_height(x, z)", 1, 2, [this, &g](CallArgs& a) {
-        Vec3 p = a[0].isNumber() ? Vec3{static_cast<float>(a.number(0, "x")), 0, static_cast<float>(a.number(1, "z"))}
+        Vec3 p = a[0].isNumber() ? Vec3{static_cast<float>(ordinary(a, 0, "x")), 0, static_cast<float>(ordinary(a, 1, "z"))}
                                  : targetPosition(*this, a[0], "terrain_height()");
         auto& reg = g.scene().registry();
         for (Entity e : reg.entitiesWith<Terrain>()) {
@@ -2019,7 +2048,7 @@ void ScriptSystem::registerApi() {
         };
         PathOptions o;
         o.threeD = threeDValue(a[0], fromEntity) || threeDValue(a[1], toEntity);
-        o.radius = static_cast<float>(a.has(2) ? a.number(2, "radius") : a.keywordNumber("radius", 0.4));
+        o.radius = static_cast<float>(a.has(2) ? ordinary(a, 2, "radius") : a.keywordNumber("radius", 0.4));
         o.cellSize = std::clamp(o.radius, 0.25f, 1.0f);
         std::vector<Value> points;
         for (Vec3 p : g.navigation().findPath(from, to, o))
@@ -2069,7 +2098,7 @@ void ScriptSystem::registerApi() {
         return c ? toColor(*c, context) : Color{1, 0.9f, 0.2f, 1};
     };
     auto debugSeconds = [](CallArgs& a, size_t index) {
-        return static_cast<float>(a.has(index) ? a.number(index, "seconds") : a.keywordNumber("seconds", 0));
+        return static_cast<float>(a.has(index) ? ordinary(a, index, "seconds") : a.keywordNumber("seconds", 0));
     };
     def("debug_line", "debug_line(from, to, color=\"yellow\", seconds=0)", 2, 4, [this, &g, debugColor, debugSeconds](CallArgs& a) {
         g.debugDraw().line(targetPosition(*this, a[0], "debug_line()"), targetPosition(*this, a[1], "debug_line()"),
@@ -2078,7 +2107,7 @@ void ScriptSystem::registerApi() {
     });
     def("debug_circle", "debug_circle(center, radius, color=\"yellow\", seconds=0)", 2, 4,
         [this, &g, debugColor, debugSeconds](CallArgs& a) {
-            g.debugDraw().circle(targetPosition(*this, a[0], "debug_circle()"), static_cast<float>(a.number(1, "radius")),
+            g.debugDraw().circle(targetPosition(*this, a[0], "debug_circle()"), static_cast<float>(ordinary(a, 1, "radius")),
                                  debugColor(a, 2, "debug_circle() color"), debugSeconds(a, 3));
             return Value();
         });
@@ -2104,14 +2133,14 @@ void ScriptSystem::registerApi() {
 
     // --- audio
     def("play_sound", "play_sound(\"sounds/jump.wav\", volume=1, pitch=1, bus=\"Effects\")", 1, 4, [&g](CallArgs& a) {
-        float volume = static_cast<float>(a.has(1) ? a.number(1, "volume") : a.keywordNumber("volume", 1));
-        float pitch = static_cast<float>(a.has(2) ? a.number(2, "pitch") : a.keywordNumber("pitch", 1));
+        float volume = static_cast<float>(a.has(1) ? ordinary(a, 1, "volume") : a.keywordNumber("volume", 1));
+        float pitch = static_cast<float>(a.has(2) ? ordinary(a, 2, "pitch") : a.keywordNumber("pitch", 1));
         const Value* bus = a.has(3) ? &a[3] : a.keyword("bus");
         g.audio().playSound(projectFile(g.scripts(), a.string(0, "sound"), "play_sound()"), volume, pitch, {}, bus ? bus->toString() : "Effects");
         return Value();
     });
     def("play_music", "play_music(\"music/theme.ogg\", volume=1, loop=True)", 1, 3, [&g](CallArgs& a) {
-        float volume = static_cast<float>(a.has(1) ? a.number(1, "volume") : a.keywordNumber("volume", 1));
+        float volume = static_cast<float>(a.has(1) ? ordinary(a, 1, "volume") : a.keywordNumber("volume", 1));
         bool loop = a.has(2) ? a[2].truthy() : (a.keyword("loop") ? a.keyword("loop")->truthy() : true);
         g.audio().playMusic(projectFile(g.scripts(), a.string(0, "music"), "play_music()"), volume, loop);
         return Value();
@@ -2121,7 +2150,7 @@ void ScriptSystem::registerApi() {
         return Value();
     });
     def("set_volume", "set_volume(0.5)", 1, 1, [&g](CallArgs& a) {
-        g.audio().setMasterVolume(static_cast<float>(a.number(0, "volume")));
+        g.audio().setMasterVolume(static_cast<float>(ordinary(a, 0, "volume")));
         return Value();
     });
     // The mixer's buses: set_bus_volume("Music", 0.3), mute_bus("Effects").
@@ -2137,7 +2166,7 @@ void ScriptSystem::registerApi() {
         return name;
     };
     def("set_bus_volume", "set_bus_volume(\"Music\", 0.5)", 2, 2, [&g, busName](CallArgs& a) {
-        g.audio().setBusVolume(busName(a, "set_bus_volume()"), static_cast<float>(a.number(1, "volume")));
+        g.audio().setBusVolume(busName(a, "set_bus_volume()"), static_cast<float>(ordinary(a, 1, "volume")));
         return Value();
     });
     def("get_bus_volume", "get_bus_volume(\"Music\")", 1, 1, [&g, busName](CallArgs& a) {

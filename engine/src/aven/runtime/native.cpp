@@ -579,11 +579,14 @@ void NativeRuntime::applyProperties(const NativeBehaviorInfo& info, void* data, 
             v = o.asNumber();
         else if (o.isBool())
             v = o.asBool() ? 1 : 0;
+        if (!std::isfinite(v))
+            v = p.defaultValue;
         if (p.type == AVEN_PROPERTY_NUMBER) {
-            float f = static_cast<float>(v);
+            float f = static_cast<float>(std::clamp(v, -3e38, 3e38));
             std::memcpy(bytes + p.offset, &f, sizeof f);
         } else {
-            int32_t i = p.type == AVEN_PROPERTY_FLAG ? (v != 0 ? 1 : 0) : static_cast<int32_t>(std::llround(v));
+            int32_t i = p.type == AVEN_PROPERTY_FLAG ? (v != 0 ? 1 : 0)
+                                                     : static_cast<int32_t>(std::clamp(std::round(v), -2147483648.0, 2147483647.0));
             std::memcpy(bytes + p.offset, &i, sizeof i);
         }
     }
@@ -619,6 +622,7 @@ void NativeRuntime::start() {
 
 void NativeRuntime::stop() {
     instances_.clear();
+    graveyard_.clear();
     order_.clear();
     pendingStart_.clear();
     if (started_) {
@@ -675,6 +679,7 @@ void NativeRuntime::update(float dt) {
         return;
     gScripts = &scripts_;
     gRuntime = this;
+    graveyard_.clear(); // (last frame's destroyed objects: nothing can be using them now)
     while (!pendingStart_.empty()) {
         std::vector<Entity> batch = std::move(pendingStart_);
         pendingStart_.clear();
@@ -703,7 +708,7 @@ void NativeRuntime::onSpawn(Entity root) {
     Scene& scene = scripts_.game().scene();
     std::function<void(Entity)> visit = [&](Entity e) {
         attach(e);
-        for (Entity c : scene.children(e))
+        for (Entity c : std::vector<Entity>(scene.children(e)))
             visit(c);
     };
     visit(root);
@@ -713,12 +718,15 @@ void NativeRuntime::onDestroy(Entity e) {
     auto it = instances_.find(e);
     if (it == instances_.end())
         return;
-    Instance inst = std::move(it->second);
+    graveyard_.push_back(std::move(it->second));
     instances_.erase(it);
     std::erase(order_, e);
     std::erase(pendingStart_, e);
-    if (inst.info->callbacks.on_destroy)
-        inst.info->callbacks.on_destroy(e.toHandle(), inst.data.get());
+    Instance& inst = graveyard_.back();
+    const NativeBehaviorInfo* info = inst.info;
+    void* data = inst.data.get(); // (stays put: the graveyard holds the block, not the vector's slot)
+    if (info->callbacks.on_destroy)
+        info->callbacks.on_destroy(e.toHandle(), data);
 }
 
 void NativeRuntime::onCollision(Entity a, Entity b, bool begin, bool trigger) {

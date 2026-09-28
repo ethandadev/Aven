@@ -132,9 +132,14 @@ AVEN_TEST(nan_and_huge_numbers_stay_out_of_the_scene) {
                                        "    self.move(float(\"nan\"), 1)\n"
                                        "    self.play_animation(1e300, float(\"nan\"))\n");
         run.frames(2);
+        CHECK(logged("'dx' should be an ordinary number"));
+        // Something that still gets a nan in (native code, say) is put back before physics runs.
         Transform& t = run.game.scene().transform(run.hero);
-        CHECK(std::isfinite(t.position.x));
-        CHECK_EQ(t.position.y, 1.0f);
+        t.position.y = std::nanf("");
+        t.scale.x = INFINITY;
+        run.frames(1);
+        CHECK(std::isfinite(t.position.y));
+        CHECK_EQ(t.scale.x, 1.0f);
         CHECK(logged("isn't a number"));
     }
     {

@@ -129,7 +129,11 @@ std::vector<Vec3> Navigation::findPath(Vec3 from, Vec3 to, const PathOptions& o,
         }
     }
     const float cs = std::max(0.05f, o.cellSize);
-    auto toCell = [&](Vec2 p) { return std::pair<int, int>{static_cast<int>(std::floor(p.x / cs)), static_cast<int>(std::floor(p.y / cs))}; };
+    auto toCell = [&](Vec2 p) {
+        // (kept to a hundred million cells either way: a far-off point can't overflow an int)
+        auto whole = [](float v) { return static_cast<int>(std::clamp(std::isfinite(v) ? std::floor(v) : 0.0f, -1e8f, 1e8f)); };
+        return std::pair<int, int>{whole(p.x / cs), whole(p.y / cs)};
+    };
     auto [sx, sy] = toCell(plane(from));
     auto [tx, ty] = toCell(plane(to));
     bool exactTarget = cell(tx, ty, o).walkable;

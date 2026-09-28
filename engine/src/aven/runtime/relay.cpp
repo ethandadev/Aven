@@ -180,6 +180,8 @@ struct Server::Impl {
     }
 
     bool tooManyWrongCodes(const std::string& ip, double t) {
+        if (wrongCodes.size() > 10000) // many addresses guessing: forget the ones from over a minute ago
+            std::erase_if(wrongCodes, [&](const auto& entry) { return t - entry.second.second > 60; });
         auto& [count, since] = wrongCodes[ip];
         if (t - since > 60) {
             count = 0;
@@ -219,7 +221,7 @@ struct Server::Impl {
                 refuse(id, "Too many wrong codes. Wait a minute, then check the code with the host.");
                 return;
             }
-            std::string code = parts.size() > 1 ? parts[1] : "";
+            std::string code = parts.size() > 1 ? parts[1].substr(0, 16) : ""; // (it's said back in errors)
             std::transform(code.begin(), code.end(), code.begin(), [](char ch) { return static_cast<char>(std::toupper(static_cast<unsigned char>(ch))); });
             auto room = rooms.find(code);
             if (room == rooms.end()) {
@@ -296,7 +298,7 @@ struct Server::Impl {
     // Reads what a connection sent, within its allowance; false when it's gone.
     bool read(int id, Conn& c) {
         char buf[16384];
-        while (c.tokens > 0) {
+        while (c.tokens >= 1) { // (asking recv() for 0 bytes would read as "closed")
             int want = static_cast<int>(std::min<double>(sizeof buf, c.tokens));
             auto n = ::recv(c.s, buf, want, 0);
             if (n == 0)
@@ -392,7 +394,7 @@ void Server::poll(int timeoutMs) {
     ids.push_back(0);
     for (auto& [id, c] : n.conns) {
         short events = 0;
-        if (c.tokens > 0 && !c.closing)
+        if (c.tokens >= 1 && !c.closing)
             events |= POLLIN;
         if (!c.out.empty())
             events |= POLLOUT;

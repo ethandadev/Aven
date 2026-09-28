@@ -592,7 +592,7 @@ struct Physics3D::Impl {
                 }
             }
             if (grounded && input.pressed("jump"))
-                velocity.y = std::sqrt(2.0f * cc.gravity * std::max(cc.jumpHeight, 0.0f));
+                velocity.y = std::sqrt(2.0f * std::max(cc.gravity, 0.0f) * std::max(cc.jumpHeight, 0.0f));
         }
         if (grounded && velocity.y < 0)
             velocity.y = 0;
@@ -628,22 +628,31 @@ struct Physics3D::Impl {
             }
         }
 
-        // Collision callbacks for things the character bumps into.
+        // Collision callbacks for things the character bumps into. They run scripts, which may
+        // destroy this character (and `c` with it), so everything is worked out first.
         std::set<uint32_t> now;
         for (const auto& contact : ch.GetActiveContacts())
             if (contact.mHadCollision && !contact.mBodyB.IsInvalid())
                 now.insert(contact.mBodyB.GetIndexAndSequenceNumber());
+        std::vector<Entity> began, ended;
         for (uint32_t id : now)
             if (!c.touching.count(id))
-                if (Entity other = entityOf(JPH::BodyID(id))) {
-                    game.scripts().onCollision(e, other, true, false);
-                    game.gameplay().onBehaviorCollision(e, other, true);
-                }
+                if (Entity other = entityOf(JPH::BodyID(id)))
+                    began.push_back(other);
         for (uint32_t id : c.touching)
             if (!now.count(id))
                 if (Entity other = entityOf(JPH::BodyID(id)))
-                    game.scripts().onCollision(e, other, false, false);
+                    ended.push_back(other);
         c.touching = std::move(now);
+        for (Entity other : began) {
+            if (!scene.valid(e) || !scene.valid(other))
+                continue;
+            game.scripts().onCollision(e, other, true, false);
+            game.gameplay().onBehaviorCollision(e, other, true);
+        }
+        for (Entity other : ended)
+            if (scene.valid(e) && scene.valid(other))
+                game.scripts().onCollision(e, other, false, false);
     }
 };
 

@@ -215,16 +215,22 @@ void GameplaySystems::update(float dt) {
         auto* sr = reg.tryGet<SpriteRenderer>(e);
         if (!sr || !anim.playing || !scene.isActive(e))
             return;
-        int count = std::max(1, anim.lastFrame - anim.firstFrame + 1);
+        // (in wide numbers: frames far apart can't overflow; a looping clock stays small, so it
+        // never loses precision; a negative speed plays backwards; nan starts over)
+        int count = static_cast<int>(std::clamp<long long>(static_cast<long long>(anim.lastFrame) - anim.firstFrame + 1, 1, 1 << 20));
         anim.time += dt * anim.fps;
-        int step = static_cast<int>(anim.time);
+        if (!std::isfinite(anim.time))
+            anim.time = 0;
         if (anim.loop) {
-            sr->frame = anim.firstFrame + step % count;
-        } else if (step >= count) {
-            sr->frame = anim.lastFrame;
+            anim.time = std::fmod(anim.time, static_cast<float>(count));
+            if (anim.time < 0)
+                anim.time += static_cast<float>(count);
+            sr->frame = anim.firstFrame + std::min(static_cast<int>(anim.time), count - 1);
+        } else if (anim.time >= static_cast<float>(count) || anim.time < 0) {
+            sr->frame = anim.time < 0 ? anim.firstFrame : anim.lastFrame;
             anim.playing = false;
         } else {
-            sr->frame = anim.firstFrame + step;
+            sr->frame = anim.firstFrame + static_cast<int>(anim.time);
         }
     });
 

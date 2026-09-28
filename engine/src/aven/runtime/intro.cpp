@@ -35,7 +35,8 @@ void Intro::begin(const ProjectSettings& settings, Assets& assets, bool canQuit)
     std::string copyright = p.copyright;
     if (copyright.empty() && !p.author.empty()) {
         std::time_t now = std::time(nullptr);
-        copyright = "(c) " + std::to_string(1900 + std::localtime(&now)->tm_year) + " " + p.author;
+        const std::tm* local = std::localtime(&now); // (null if the clock is nonsense)
+        copyright = "(c) " + (local ? std::to_string(1900 + local->tm_year) + " " : std::string()) + p.author;
     }
     footer_ = "v" + settings.version + (copyright.empty() ? "" : "   " + copyright);
     background_.clear();

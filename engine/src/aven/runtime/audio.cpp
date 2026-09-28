@@ -7,6 +7,7 @@
 #include <miniaudio.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -82,9 +83,15 @@ struct AudioSystem::Impl {
             ma_lpf_node_config lpf = ma_lpf_node_config_init(channels, rate, cutoff, 2);
             auto frames = static_cast<ma_uint32>(std::clamp(settings.echoDelay, 0.02f, 2.0f) * static_cast<float>(rate));
             ma_delay_node_config delay = ma_delay_node_config_init(channels, rate, frames, 0.35f);
-            if (ma_sound_group_init(&engine, 0, nullptr, &b->group) != MA_SUCCESS ||
-                ma_lpf_node_init(graph, &lpf, nullptr, &b->lowpass) != MA_SUCCESS ||
-                ma_delay_node_init(graph, &delay, nullptr, &b->echo) != MA_SUCCESS) {
+            bool group = ma_sound_group_init(&engine, 0, nullptr, &b->group) == MA_SUCCESS;
+            bool lowpass = group && ma_lpf_node_init(graph, &lpf, nullptr, &b->lowpass) == MA_SUCCESS;
+            bool echo = lowpass && ma_delay_node_init(graph, &delay, nullptr, &b->echo) == MA_SUCCESS;
+            if (!echo) {
+                // (take apart what was made, so nothing half-built stays in the sound graph)
+                if (lowpass)
+                    ma_lpf_node_uninit(&b->lowpass, nullptr);
+                if (group)
+                    ma_sound_group_uninit(&b->group);
                 Log::warn("The audio bus '", settings.name, "' couldn't be made; its sounds play straight to the speakers.");
                 continue;
             }
@@ -122,7 +129,7 @@ struct AudioSystem::Impl {
     std::unique_ptr<ma_sound> load(const std::string& path, ma_uint32 flags, const std::string& busName) {
         if (!ensure() || path.empty())
             return nullptr;
-        std::string full = game.assets().resolve(path).string();
+        std::filesystem::path full = game.assets().resolve(path);
         // A missing file is the usual failure: catch it here. (miniaudio 0.11.25 reads memory it
         // has just freed when a file fails to load, so it's best not to ask it to.)
         if (!fs::exists(full)) {
@@ -135,7 +142,13 @@ struct AudioSystem::Impl {
             flags = (flags & ~static_cast<ma_uint32>(MA_SOUND_FLAG_DECODE)) | MA_SOUND_FLAG_STREAM;
         auto sound = std::make_unique<ma_sound>();
         Bus* b = bus(busName);
-        if (ma_sound_init_from_file(&engine, full.c_str(), flags, b ? &b->group : nullptr, nullptr, sound.get()) != MA_SUCCESS) {
+#ifdef _WIN32
+        // (the wide path: folders with names in any alphabet work)
+        ma_result opened = ma_sound_init_from_file_w(&engine, full.wstring().c_str(), flags, b ? &b->group : nullptr, nullptr, sound.get());
+#else
+        ma_result opened = ma_sound_init_from_file(&engine, full.string().c_str(), flags, b ? &b->group : nullptr, nullptr, sound.get());
+#endif
+        if (opened != MA_SUCCESS) {
             if (warned.insert(path).second)
                 Log::warn("Couldn't play the sound '", path, "'. Check the file exists (WAV, MP3, OGG or FLAC).");
             return nullptr;

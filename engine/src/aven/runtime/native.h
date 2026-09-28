@@ -122,6 +122,9 @@ private:
     };
     ScriptSystem& scripts_;
     std::unordered_map<Entity, Instance> instances_;
+    // Destroyed objects' data, kept until the next frame: C code that destroys its own object may
+    // still be running with a pointer to it.
+    std::vector<Instance> graveyard_;
     std::vector<Entity> order_, pendingStart_;
     std::vector<std::string> reported_;
     bool started_ = false;

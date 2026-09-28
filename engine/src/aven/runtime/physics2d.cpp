@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <map>
+#include <vector>
 #include <unordered_map>
 
 namespace aven {
@@ -356,10 +357,11 @@ void Physics2D::updateLayer(Entity e) {
     b2Filter filter = b2DefaultFilter();
     filter.categoryBits = 1ull << layer;
     filter.maskBits = settings.collisionMask(layer);
-    b2ShapeId shapes[64];
-    int n = b2Body_GetShapes(b->id, shapes, 64);
+    // (every shape: a tilemap's body has one per run of tiles, often hundreds)
+    std::vector<b2ShapeId> shapes(static_cast<size_t>(std::max(b2Body_GetShapeCount(b->id), 0)));
+    int n = shapes.empty() ? 0 : b2Body_GetShapes(b->id, shapes.data(), static_cast<int>(shapes.size()));
     for (int i = 0; i < n; ++i)
-        b2Shape_SetFilter(shapes[i], filter);
+        b2Shape_SetFilter(shapes[static_cast<size_t>(i)], filter);
     if (b2Body_GetType(b->id) != b2_staticBody)
         b2Body_SetAwake(b->id, true); // a resting body wouldn't notice
 }

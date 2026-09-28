@@ -81,7 +81,7 @@ bool Replay::load(const std::filesystem::path& file, std::string* error) {
     std::ifstream in(file);
     if (!in) {
         if (error)
-            *error = "Can't open " + file.string();
+            *error = "Can't open " + fs::toUtf8(file);
         return false;
     }
     std::string line;
@@ -99,7 +99,8 @@ bool Replay::load(const std::filesystem::path& file, std::string* error) {
                     *error = "This isn't an Aven replay.";
                 return false;
             }
-            seed = static_cast<uint32_t>(j["seed"].asNumber());
+            double s = j["seed"].asNumber(0); // (a damaged file: any number, but only a seed is used)
+            seed = s >= 0 && s < 4294967296.0 ? static_cast<uint32_t>(s) : 0;
             scenePath = j["scene"].asString("");
             project = j["project"].asString("");
             startScene = j["start"];
