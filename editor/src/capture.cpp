@@ -70,6 +70,8 @@ void Editor::captureView(int w, int h, float dt) {
         if (Assets::savePng(projectDir_ / path, px.data(), w, h, false)) {
             notify("Saved " + path);
             scanAssets();
+        } else {
+            notify("Couldn't save the screenshot in captures/. Is the folder read-only, or the disk full?", true);
         }
     }
     if (!gifRecording_)
@@ -115,12 +117,13 @@ void Editor::finishGif() {
     gifThread_ = std::thread([this, frames, path, rel] {
         GifWriter writer{};
         int w = frames->front().w, h = frames->front().h;
-        if (GifBegin(&writer, path.string().c_str(), static_cast<uint32_t>(w), static_cast<uint32_t>(h), 100 / kGifFps)) {
+        bool ok = GifBegin(&writer, path.string().c_str(), static_cast<uint32_t>(w), static_cast<uint32_t>(h), 100 / kGifFps);
+        if (ok) {
             for (auto& f : *frames)
-                GifWriteFrame(&writer, f.rgba.data(), static_cast<uint32_t>(w), static_cast<uint32_t>(h), 100 / kGifFps, 8, true);
-            GifEnd(&writer);
-            gifDone_ = rel;
+                ok = GifWriteFrame(&writer, f.rgba.data(), static_cast<uint32_t>(w), static_cast<uint32_t>(h), 100 / kGifFps, 8, true) && ok;
+            ok = GifEnd(&writer) && ok;
         }
+        gifDone_ = ok ? rel : "!" + rel; // ("!": it couldn't be written)
         gifEncoding_ = false;
     });
     notify("Saving the GIF...");
@@ -129,7 +132,9 @@ void Editor::finishGif() {
 void Editor::drawCaptureStatus() {
     if (!gifEncoding_ && gifThread_.joinable()) {
         gifThread_.join(); // gifDone_ is safe to read once the encoder has finished
-        if (!gifDone_.empty())
+        if (!gifDone_.empty() && gifDone_[0] == '!')
+            notify("Couldn't save " + gifDone_.substr(1) + ". Is the folder read-only, or the disk full?", true);
+        else if (!gifDone_.empty())
             notify("Saved " + gifDone_ + ". Drag it into a chat or post it!");
         gifDone_.clear();
         scanAssets();

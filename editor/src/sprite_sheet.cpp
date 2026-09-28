@@ -6,6 +6,8 @@
 #include <imgui.h>
 
 #include <algorithm>
+#include <cmath>
+#include <cstdio>
 
 namespace aven::editor {
 
@@ -45,28 +47,31 @@ void Editor::drawSpriteSheet() {
             edited(what);
     };
 
+    // (a damaged scene can say 0 or thousands; the grid needs at least one cell and a size it can draw)
+    sr->columns = std::clamp(sr->columns, 1, std::min(tex.width, 256));
+    sr->rows = std::clamp(sr->rows, 1, std::min(tex.height, 256));
     ImGui::Text("%s  (%d x %d pixels)", sr->texture.c_str(), tex.width, tex.height);
     ImGui::SetNextItemWidth(ui::px(110));
     int cols = sr->columns, rows = sr->rows;
     if (ImGui::InputInt("Columns", &cols) && cols >= 1) {
         change("Sprite sheet");
-        sr->columns = std::min(cols, tex.width);
+        sr->columns = std::min({cols, tex.width, 256});
     }
     ImGui::SameLine();
     ImGui::SetNextItemWidth(ui::px(110));
     if (ImGui::InputInt("Rows", &rows) && rows >= 1) {
         change("Sprite sheet");
-        sr->rows = std::min(rows, tex.height);
+        sr->rows = std::min({rows, tex.height, 256});
     }
     ImGui::SameLine();
     if (ImGui::Button("Guess") && tex.height > 0) {
         change("Sprite sheet");
         // Square frames in a row or a column are the most common layout.
         if (tex.width >= tex.height && tex.width % tex.height == 0) {
-            sr->columns = tex.width / tex.height;
+            sr->columns = std::min(tex.width / tex.height, 256);
             sr->rows = 1;
         } else if (tex.height % tex.width == 0) {
-            sr->rows = tex.height / tex.width;
+            sr->rows = std::min(tex.height / tex.width, 256);
             sr->columns = 1;
         }
     }
@@ -108,9 +113,11 @@ void Editor::drawSpriteSheet() {
             dl->AddRectFilled(a, b, ImGui::GetColorU32(ImGuiCol_SliderGrab, 0.25f));
         dl->AddRect(a, b, f == sr->frame ? ImGui::GetColorU32(ImGuiCol_SliderGrab) : IM_COL32(255, 255, 255, 60), 0, 0,
                     f == sr->frame ? 3.0f : 1.0f);
-        char n[16];
-        std::snprintf(n, sizeof n, "%d", f);
-        dl->AddText({a.x + 3, a.y + 2}, IM_COL32(255, 255, 255, 170), n);
+        if (cw >= 18 && ch >= 14) { // (numbers only where they fit)
+            char n[16];
+            std::snprintf(n, sizeof n, "%d", f);
+            dl->AddText({a.x + 3, a.y + 2}, IM_COL32(255, 255, 255, 170), n);
+        }
     }
     if (ImGui::IsItemClicked()) {
         ImVec2 m = ImGui::GetIO().MousePos;
@@ -161,8 +168,8 @@ void Editor::drawSpriteSheet() {
         notify("It plays when the game runs. In scripts: self.play_animation(" + std::to_string(first) + ", " + std::to_string(last) + ")");
     }
     // Preview.
-    sheetPreviewTime_ += ImGui::GetIO().DeltaTime * fps;
     int count = std::max(1, last - first + 1);
+    sheetPreviewTime_ = std::fmod(sheetPreviewTime_ + ImGui::GetIO().DeltaTime * fps, static_cast<float>(count));
     int shown = first + static_cast<int>(sheetPreviewTime_) % count;
     int cx = shown % sr->columns, cy = shown / sr->columns;
     float fwPx = static_cast<float>(tex.width) / sr->columns, fhPx = static_cast<float>(tex.height) / sr->rows;

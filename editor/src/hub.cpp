@@ -108,7 +108,19 @@ bool Editor::drawFolderBrowser(bool projectsOnly, stdfs::path* picked) {
         bool project;
         bool zip = false; // a .zip that might hold a game (Open a game only)
     };
-    std::vector<Entry> entries;
+    // Listed again when the folder changes, and every couple of seconds (not every frame: a big folder
+    // means a look inside each of its folders to spot games).
+    static std::vector<Entry> entries;
+    static stdfs::path listed;
+    static bool listedProjectsOnly = false;
+    static double listedAt = -1;
+    double now = ImGui::GetTime();
+    bool fresh = listed == browsePath_ && listedProjectsOnly == projectsOnly && now - listedAt < 2.0 && listedAt >= 0;
+    if (!fresh) {
+    listed = browsePath_;
+    listedProjectsOnly = projectsOnly;
+    listedAt = now;
+    entries.clear();
     for (auto& e : stdfs::directory_iterator(browsePath_, stdfs::directory_options::skip_permission_denied, ec)) {
         std::error_code ec2;
         std::string name = e.path().filename().string();
@@ -125,6 +137,7 @@ bool Editor::drawFolderBrowser(bool projectsOnly, stdfs::path* picked) {
             return a.project;
         return a.zip != b.zip ? b.zip : a.name < b.name;
     });
+    }
 
     float footer = ImGui::GetFrameHeightWithSpacing() + 6;
     ImGui::BeginChild("##folders", {0, -footer}, ImGuiChildFlags_Borders);
@@ -184,8 +197,12 @@ bool Editor::drawFolderBrowser(bool projectsOnly, stdfs::path* picked) {
             bool enter = ImGui::InputText("##name", &folderName, ImGuiInputTextFlags_EnterReturnsTrue);
             ImGui::SameLine();
             if ((ImGui::Button("Create") || enter) && !safeFolderName(folderName).empty()) {
-                stdfs::create_directories(browsePath_ / safeFolderName(folderName), ec);
-                browsePath_ /= safeFolderName(folderName);
+                stdfs::path made = browsePath_ / safeFolderName(folderName);
+                stdfs::create_directories(made, ec);
+                if (stdfs::is_directory(made, ec))
+                    browsePath_ = made;
+                else
+                    notify("Couldn't make the folder " + safeFolderName(folderName) + " here.", true);
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();

@@ -89,7 +89,7 @@ void Editor::drawAnimator(Entity e, const std::vector<Entity>& selection) {
     bool is3D = reg.has<MeshRenderer>(e) && reg.get<MeshRenderer>(e).mesh == MeshShape::Model;
     int frames = 1;
     if (auto* sr = reg.tryGet<SpriteRenderer>(e))
-        frames = std::max(1, sr->columns * sr->rows);
+        frames = std::clamp(sr->columns, 1, 4096) * std::clamp(sr->rows, 1, 4096);
     std::vector<std::string> clips;
     if (is3D)
         if (Model* m = renderer_.renderer3D().model(reg.get<MeshRenderer>(e).model))
@@ -355,7 +355,7 @@ void Editor::drawAnimator(Entity e, const std::vector<Entity>& selection) {
         }
         bool hasValue = t.when == AnimCondition::Greater || t.when == AnimCondition::Less || t.when == AnimCondition::Finished;
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * (hasValue ? 0.55f : 1.0f));
-        int when = static_cast<int>(t.when);
+        int when = std::clamp(static_cast<int>(t.when), 0, static_cast<int>(AnimCondition::Count) - 1); // (from a file: anything)
         auto& labels = animConditionLabels();
         if (ImGui::BeginCombo("##when", labels[static_cast<size_t>(when)].c_str())) {
             for (int k = 0; k < static_cast<int>(AnimCondition::Count); ++k)
