@@ -160,7 +160,8 @@ jobs:
           path: player-${{ matrix.suffix }}.tar
 
   # Every download gets every system's player in players/, so Build & Share can make Windows, macOS
-  # and Linux apps from any of them.
+  # and Linux apps from any of them. Each system's folder goes on to its packaging job as a tar
+  # (which keeps the programs runnable); the Linux zip is made here.
   bundle:
     name: Bundle the downloads
     needs: desktop
@@ -173,7 +174,7 @@ jobs:
           merge-multiple: true
       - name: Add every system's player to every download
         run: |
-          mkdir -p players dist
+          mkdir -p players dist out
           for p in parts/player-*.tar; do tar -xf "$p" -C players; done
           for s in parts/stage-*.tar; do tar -xf "$s" -C dist; done
           cd dist
@@ -181,54 +182,266 @@ jobs:
             pkg="${pkg%/}"
             mkdir -p "$pkg/players"
             for sys in ../players/*; do cp -R "$sys" "$pkg/players/$(basename "$sys")"; done
-            ls -R "$pkg/players"
-            zip -qry "$pkg.zip" "$pkg" # -y and zip's Unix attributes keep the programs runnable
+            ls -R "$pkg/players" | head -n 30
+            for sys in windows-x64 macos-arm64 linux-x64; do
+              case "$pkg" in *-"$sys") tar -cf "../out/bundled-$sys.tar" "$pkg" ;; esac
+            done
           done
-          ls -la
+          for pkg in *-linux-x64; do
+            zip -qry "../out/$pkg.zip" "$pkg" # -y and zip's Unix attributes keep the programs runnable
+          done
+          ls -la ../out
       - uses: actions/upload-artifact@v4
         with:
-          name: aven-packages
-          path: dist/*.zip
+          name: bundled
+          path: out/bundled-*.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-zip
+          path: out/*.zip
+
+  # Windows: the zip (what the updater downloads) and the installer, both signed when a certificate
+  # is set up (docs/releasing.md): Azure Trusted Signing, or a .pfx file.
+  windows:
+    name: Windows installer
+    needs: bundle
+    runs-on: windows-latest
+    env:
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+      AZURE_SIGNING_ACCOUNT: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+      AZURE_SIGNING_PROFILE: ${{ secrets.AZURE_SIGNING_PROFILE }}
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: bundled
+          path: parts
+      - name: Unpack
+        shell: bash
+        run: |
+          mkdir -p stage out
+          tar -xf parts/bundled-windows-x64.tar -C stage
+          pkg="$(ls stage)"
+          echo "PKG=$pkg" >> "$GITHUB_ENV"
+          echo "VERSION=$(echo "$pkg" | sed -E 's/^aven-(.*)-windows-x64$/\1/')" >> "$GITHUB_ENV"
+      - name: Sign the programs (Azure Trusted Signing)
+        if: env.AZURE_CLIENT_ID != ''
+        uses: azure/trusted-signing-action@v0
+        with:
+          azure-tenant-id: ${{ env.AZURE_TENANT_ID }}
+          azure-client-id: ${{ env.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ env.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ env.AZURE_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ env.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ env.AZURE_SIGNING_PROFILE }}
+          files-folder: stage/${{ env.PKG }}
+          files-folder-filter: exe
+          files-folder-recurse: true
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+      - name: Sign the programs (.pfx certificate)
+        if: env.AZURE_CLIENT_ID == '' && env.WINDOWS_CERTIFICATE != ''
+        shell: pwsh
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "cert.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1
+          $files = Get-ChildItem "stage\$env:PKG" -Recurse -Filter *.exe | ForEach-Object { $_.FullName }
+          & $signtool.FullName sign /f $pfx /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $files
+          if ($LASTEXITCODE -ne 0) { throw "signtool failed" }
+          "SIGNTOOL=$($signtool.FullName)" | Out-File -Append $env:GITHUB_ENV
+          "PFX=$pfx" | Out-File -Append $env:GITHUB_ENV
+      - name: Zip
+        shell: bash
+        run: cd stage && 7z a -tzip -mx=9 "../out/$PKG.zip" "$PKG" > /dev/null
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y; }
+          & $iscc "/DVersion=$env:VERSION" "/DSource=$pwd\stage\$env:PKG" "/DOutput=$pwd\out" tools\release\windows\aven.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+      - name: Sign the installer (Azure Trusted Signing)
+        if: env.AZURE_CLIENT_ID != ''
+        uses: azure/trusted-signing-action@v0
+        with:
+          azure-tenant-id: ${{ env.AZURE_TENANT_ID }}
+          azure-client-id: ${{ env.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ env.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ env.AZURE_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ env.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ env.AZURE_SIGNING_PROFILE }}
+          files-folder: out
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+      - name: Sign the installer (.pfx certificate)
+        if: env.AZURE_CLIENT_ID == '' && env.WINDOWS_CERTIFICATE != ''
+        shell: pwsh
+        run: |
+          & $env:SIGNTOOL sign /f $env:PFX /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 (Get-ChildItem out\*.exe).FullName
+          if ($LASTEXITCODE -ne 0) { throw "signtool failed" }
+      - name: Check the installer installs
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem out\*-Setup.exe).FullName
+          $dir = Join-Path $env:RUNNER_TEMP "AvenInstall"
+          Start-Process $setup -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CURRENTUSER", "/DIR=`"$dir`"" -Wait
+          foreach ($f in "aven-editor.exe", "aven-player.exe", "START HERE.txt", "templates\platformer\project.aven", "players\macos-arm64\aven-player") {
+            if (-not (Test-Path (Join-Path $dir $f))) { throw "The installer didn't install $f" }
+          }
+          Get-ChildItem out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: out/*
+
+  # macOS: Aven.app, in a .dmg to drag into Applications and a zip for the updater. Signed with a
+  # Developer ID and notarized when those secrets are set (docs/releasing.md), ad-hoc signed if not.
+  macos:
+    name: macOS app
+    needs: bundle
+    runs-on: macos-latest
+    env:
+      MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: bundled
+          path: parts
+      - name: Unpack
+        run: |
+          mkdir -p stage out
+          tar -xf parts/bundled-macos-arm64.tar -C stage
+          pkg="$(ls stage)"
+          echo "PKG=$pkg" >> "$GITHUB_ENV"
+          echo "VERSION=$(echo "$pkg" | sed -E 's/^aven-(.*)-macos-arm64$/\1/')" >> "$GITHUB_ENV"
+      - name: Load the signing certificate
+        if: env.MACOS_CERTIFICATE != ''
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(openssl rand -hex 16)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          identity="$(security find-identity -v -p codesigning "$keychain" | grep -m1 'Developer ID Application' | sed -E 's/.*"(.*)".*/\1/')"
+          if [ -z "$identity" ]; then echo "No 'Developer ID Application' certificate in MACOS_CERTIFICATE." >&2; exit 1; fi
+          echo "MACOS_SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+          if [ -n "$APPLE_API_KEY" ]; then
+            echo "$APPLE_API_KEY" | base64 --decode > "$RUNNER_TEMP/api_key.p8"
+            echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/api_key.p8" >> "$GITHUB_ENV"
+          fi
+      - name: Make Aven.app, the zip and the installer
+        run: tools/release/make_mac_app.sh "stage/$PKG" "$VERSION" out
+      - name: Check the app
+        run: |
+          hdiutil attach out/*.dmg -mountpoint /tmp/aven-dmg -nobrowse
+          app=/tmp/aven-dmg/Aven.app
+          test -x "$app/Contents/MacOS/aven-editor" && test -d "$app/Contents/Resources/templates/platformer"
+          codesign --verify --deep --strict "$app"
+          spctl --assess --type execute --verbose "$app" || echo "(Gatekeeper accepts it only when it's signed and notarized)"
+          "$app/Contents/MacOS/aven-editor" --help > /dev/null
+          hdiutil detach /tmp/aven-dmg
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          path: out/*
+
+  # Linux: a Flatpak made from the Linux download.
+  flatpak:
+    name: Flatpak
+    needs: bundle
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-24.08
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: bundled
+          path: parts
+      - name: Unpack
+        run: |
+          mkdir -p stage
+          tar -xf parts/bundled-linux-x64.tar -C stage
+          pkg="$(ls stage)"
+          echo "VERSION=$(echo "$pkg" | sed -E 's/^aven-(.*)-linux-x64$/\1/')" >> "$GITHUB_ENV"
+          # Only this system's player: a Flatpak runs on Linux (and exports for other systems use players/).
+          cp -a "stage/$pkg" tools/release/flatpak/aven
+          cp resources/icon/aven_512.png tools/release/flatpak/
+      - uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
+        with:
+          bundle: Aven-${{ env.VERSION }}-linux.flatpak
+          manifest-path: tools/release/flatpak/io.github.ethandadev.Aven.yml
+          cache: false
+          upload-artifact: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-flatpak
+          path: Aven-*.flatpak
 
   publish:
     name: Publish the release
-    needs: bundle
+    needs: [bundle, windows, macos, flatpak]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: aven-packages
+          pattern: release-*
           path: dist
+          merge-multiple: true
       - uses: actions/checkout@v4
+        with:
+          path: src
       - name: Release notes from CHANGELOG.md
         run: |
+          ls -la dist
           v="${GITHUB_REF_NAME#v}"
           # The "## <version>" section, up to the next "## " heading.
-          awk -v v="$v" '/^## / { on = ($2 == v); next } on' CHANGELOG.md > body.md
+          awk -v v="$v" '/^## / { on = ($2 == v); next } on' src/CHANGELOG.md > body.md
           if [ ! -s body.md ]; then
             echo "::warning::CHANGELOG.md has no '## $v' section, so the release has no notes."
           fi
           # The editor's Update window shows the notes above this line.
-          cat >> body.md <<'EOF'
+          cat >> body.md <<EOF
 
           <!-- aven:download -->
           ## Download
 
-          | | |
-          |---|---|
-          | Windows | `aven-*-windows-x64.zip` |
-          | macOS (Apple silicon) | `aven-*-macos-arm64.zip` |
-          | Linux | `aven-*-linux-x64.zip` |
+          | | Install | Or unzip and run |
+          |---|---|---|
+          | Windows | [Aven-$v-Setup.exe](https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Aven-$v-Setup.exe) | \`aven-$v-windows-x64.zip\` |
+          | macOS (Apple silicon) | [Aven-$v-macOS.dmg](https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Aven-$v-macOS.dmg): drag Aven into Applications | \`aven-$v-macos-arm64.zip\` |
+          | Linux | [Aven-$v-linux.flatpak](https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Aven-$v-linux.flatpak): \`flatpak install Aven-$v-linux.flatpak\` | \`aven-$v-linux-x64.zip\` |
 
-          Unzip it and open **aven-editor**. `START HERE.txt` in the zip explains the first run on each
-          system (Windows SmartScreen and macOS may ask about an app from the internet). Versions after
-          0.3.0 offer new versions themselves (Help > Check for Updates).
+          Versions of Aven after 0.3.0 update themselves (Help > Check for Updates).
           EOF
           cat body.md
       - uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.zip
+          files: dist/*
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
           body_path: body.md

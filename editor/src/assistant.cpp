@@ -1039,7 +1039,7 @@ void Editor::drawAssistant() {
                     if (p.enabled)
                         p.apply(*this);
                 milestone("settings_changed", 3);
-                notify("Done! The changed settings are highlighted. Ctrl+Z undoes it.");
+                notify(keyText("Done! The changed settings are highlighted. Ctrl+Z undoes it."));
                 assistant_ = {};
                 assistantText_.clear();
             }

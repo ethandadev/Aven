@@ -12,8 +12,22 @@ renames it to the version (see [CONTRIBUTING.md](CONTRIBUTING.md#making-a-releas
   one (its SHA-256 has to match the release's), and puts it in place when you restart or close Aven.
   Your games and anything else you keep in Aven's folder are left alone. Help > Check for Updates
   looks any time; Preferences > Behavior > Updates turns the check off or adds beta versions.
+- **Installers**: a Setup program for Windows (no administrator needed, Start menu shortcut,
+  uninstaller), a .dmg for macOS (drag Aven into Applications) and a Flatpak for Linux. The zips
+  are still there.
+- **A real Mac app**: Aven.app, with its icon and its name in the Dock and the menu bar (not
+  "Terminal"), signed and notarized when the release has a Developer ID set up.
+- **The Mac menu bar**: on a Mac, Aven's menus are in the menu bar at the top of the screen, with
+  the usual Aven menu (About, Settings, Check for Updates, Hide, Quit). Shortcuts read Cmd and
+  Option there, and code editor replace is Cmd+Option+F (Cmd+H hides the app).
+- Release builds can be code signed on Windows too (see docs/releasing.md).
+- The editor's Windows program has Aven's icon.
 
 ### Fixed
+- **Everything was twice as big on Retina Macs** (and on Linux with Wayland scaling). The layout now
+  follows the screen's points and only the text is drawn at the higher resolution, so it's sharp.
+- A game exported for Windows from a signed Aven would have had a broken signature after getting
+  its icon; the export now removes it (and signs again with your certificate, if set).
 - A build folder made before a version change kept showing the old version number.
 - Automated editor runs (tests) no longer add their throwaway projects to the Recent list.
 - Unpacking a zip now keeps programs runnable on macOS and Linux.

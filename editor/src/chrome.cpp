@@ -1,6 +1,7 @@
 // The editor's frame: dock layouts, menus, toolbar, status bar, Preferences and Learn mode levels.
 
 #include "editor.h"
+#include "menu.h"
 
 #include "aven/core/fs.h"
 #include "block_editor.h"
@@ -103,7 +104,7 @@ void Editor::setupDockspace() {
     ImGui::SetNextWindowViewport(vp->ID);
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
                              ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus |
-                             ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+                             (menu::native() ? 0 : ImGuiWindowFlags_MenuBar) | ImGuiWindowFlags_NoDocking;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0, 0});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
     ImGui::Begin("##root", nullptr, flags);
@@ -123,7 +124,7 @@ void Editor::setupDockspace() {
 // ---------------------------------------------------------------- menus
 
 void Editor::drawMenuBar() {
-    if (!ImGui::BeginMenuBar())
+    if (!menu::beginBar())
         return;
     auto key = [this](const char* action) {
         static std::string s;
@@ -131,183 +132,182 @@ void Editor::drawMenuBar() {
         return s.c_str();
     };
     Entity sel = selected();
-    if (ImGui::BeginMenu("File")) {
-        if (ImGui::MenuItem("New 2D Scene"))
+    if (menu::begin("File")) {
+        if (menu::item("New 2D Scene"))
             newScene(false);
-        if (ImGui::MenuItem("New 3D Scene"))
+        if (menu::item("New 3D Scene"))
             newScene(true);
-        if (ImGui::BeginMenu("Open Scene")) {
+        if (menu::begin("Open Scene")) {
             for (auto& s : projectFiles({".scene"}))
-                if (ImGui::MenuItem(s.c_str(), nullptr, s == scenePath_))
+                if (menu::item(s.c_str(), nullptr, s == scenePath_))
                     openScene(s);
-            ImGui::EndMenu();
+            menu::end();
         }
-        if (ImGui::MenuItem("Save Scene", key("save")))
+        if (menu::item("Save Scene", key("save")))
             saveScene();
-        ImGui::Separator();
-        if ((unlocked(Feature::Export) || unlocked(Feature::Share)) && ImGui::MenuItem("Build & Share Game..."))
+        menu::separator();
+        if ((unlocked(Feature::Export) || unlocked(Feature::Share)) && menu::item("Build & Share Game..."))
             showExport_ = true;
-        if (ImGui::MenuItem("Export Project as .zip")) {
+        if (menu::item("Export Project as .zip")) {
             std::string message;
             bool ok = exportProjectZip(message);
             notify(message, !ok);
             if (ok)
                 openExternal(projectDir_.parent_path().string());
         }
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("The whole game (scenes, scripts, pictures, sounds) in one file, to send to someone\n"
+        menu::tooltip("The whole game (scenes, scripts, pictures, sounds) in one file, to send to someone\n"
                               "or keep. Open it in Aven's Open a game list, or drop it on Aven.");
-        if (unlocked(Feature::ProjectSettings) && ImGui::MenuItem("Project Settings..."))
+        if (unlocked(Feature::ProjectSettings) && menu::item("Project Settings..."))
             showSettings_ = true;
-        if (ImGui::MenuItem("Preferences...", key("preferences")))
-            showPrefs_ = true;
-        ImGui::Separator();
-        if (ImGui::MenuItem("Project Hub (new or open project)")) {
+        if (!menu::native() && menu::item("Preferences...", key("preferences")))
+            showPrefs_ = true; // on a Mac: Aven > Settings
+        menu::separator();
+        if (menu::item("Project Hub (new or open project)")) {
             saveAllScripts();
             showHub_ = true;
         }
-        if (ImGui::MenuItem("Quit", "Ctrl+Q"))
-            requestQuit();
-        ImGui::EndMenu();
+        if (!menu::native() && menu::item("Quit", chordName(ImGuiMod_Ctrl | ImGuiKey_Q).c_str()))
+            requestQuit(); // on a Mac: Aven > Quit Aven
+        menu::end();
     }
-    if (ImGui::BeginMenu("Edit")) {
-        if (ImGui::MenuItem("Undo", key("undo"), false, !undo_.empty() && !playing_))
+    if (menu::begin("Edit")) {
+        if (menu::item("Undo", key("undo"), false, !undo_.empty() && !playing_))
             undo();
-        if (ImGui::MenuItem("Redo", key("redo"), false, !redo_.empty() && !playing_))
+        if (menu::item("Redo", key("redo"), false, !redo_.empty() && !playing_))
             redo();
-        ImGui::Separator();
-        if (ImGui::MenuItem("Cut", key("cut"), false, sel && !playing_))
+        menu::separator();
+        if (menu::item("Cut", key("cut"), false, sel && !playing_))
             copySelection(true);
-        if (ImGui::MenuItem("Copy", key("copy"), false, sel && !playing_))
+        if (menu::item("Copy", key("copy"), false, sel && !playing_))
             copySelection(false);
-        if (ImGui::MenuItem("Paste", key("paste"), false, !playing_))
+        if (menu::item("Paste", key("paste"), false, !playing_))
             pasteClipboard();
-        if (ImGui::MenuItem("Paste in Place", key("paste_in_place"), false, !playing_))
+        if (menu::item("Paste in Place", key("paste_in_place"), false, !playing_))
             pasteClipboard(true);
-        if (ImGui::MenuItem("Duplicate", key("duplicate"), false, sel && !playing_))
+        if (menu::item("Duplicate", key("duplicate"), false, sel && !playing_))
             duplicateSelection();
-        if (ImGui::MenuItem("Delete", key("delete"), false, sel && !playing_)) {
+        if (menu::item("Delete", key("delete"), false, sel && !playing_)) {
             recordUndo("Delete");
             for (Entity e : selectedEntities())
                 scene_->destroy(e);
             selection_.clear();
         }
-        ImGui::Separator();
-        if (ImGui::MenuItem("Select All", key("select_all"), false, !playing_)) {
+        menu::separator();
+        if (menu::item("Select All", key("select_all"), false, !playing_)) {
             selection_.clear();
             for (Entity e : scene().roots())
                 addToSelection(e);
         }
-        if (ImGui::MenuItem("Select None", nullptr, false, !selection_.empty()))
+        if (menu::item("Select None", nullptr, false, !selection_.empty()))
             selection_.clear();
-        ImGui::Separator();
-        if (unlocked(Feature::History) && ImGui::MenuItem("Undo History"))
+        menu::separator();
+        if (unlocked(Feature::History) && menu::item("Undo History"))
             showHistory_ = true;
-        if (unlocked(Feature::Find) && ImGui::MenuItem("Find in Project...", key("find"))) {
+        if (unlocked(Feature::Find) && menu::item("Find in Project...", key("find"))) {
             showFind_ = true;
             findFocus_ = true;
         }
-        if (unlocked(Feature::CommandPalette) && ImGui::MenuItem("Command Palette...", key("command_palette")))
+        if (unlocked(Feature::CommandPalette) && menu::item("Command Palette...", key("command_palette")))
             showPalette_ = true;
-        ImGui::Separator();
-        if (ImGui::MenuItem("Preferences...", key("preferences")))
+        menu::separator();
+        if (menu::item("Preferences...", key("preferences")))
             showPrefs_ = true;
-        ImGui::EndMenu();
+        menu::end();
     }
-    if (ImGui::BeginMenu("Create")) {
-        ImGui::BeginDisabled(playing_);
+    if (menu::begin("Create")) {
+        menu::beginDisabled(playing_);
         if (unlocked(Feature::Recipes)) {
-            if (ImGui::MenuItem("Game from a Recipe..."))
+            if (menu::item("Game from a Recipe..."))
                 openRecipes();
-            ImGui::Separator();
+            menu::separator();
         }
-        if (ImGui::BeginMenu("2D Shape")) {
+        if (menu::begin("2D Shape")) {
             for (const char* k : {"Square", "Circle", "Triangle", "Rounded Square", "Diamond", "Star", "Heart", "Sprite"})
-                if (ImGui::MenuItem(k))
+                if (menu::item(k))
                     createEntity(k);
-            ImGui::EndMenu();
+            menu::end();
         }
-        if (ImGui::BeginMenu("3D Shape")) {
+        if (menu::begin("3D Shape")) {
             for (const char* k : {"Cube", "Sphere", "Plane", "Cylinder", "Capsule", "Cone", "Torus"})
-                if (ImGui::MenuItem(k))
+                if (menu::item(k))
                     createEntity(k);
-            ImGui::EndMenu();
+            menu::end();
         }
-        if (unlocked(Feature::Lighting) && ImGui::BeginMenu("Light")) {
+        if (unlocked(Feature::Lighting) && menu::begin("Light")) {
             for (const char* k : {"Sun", "Point Light", "Spot Light", "Environment"})
-                if (ImGui::MenuItem(k))
+                if (menu::item(k))
                     createEntity(k);
-            ImGui::EndMenu();
+            menu::end();
         }
-        if (unlocked(Feature::UI) && ImGui::BeginMenu("UI")) {
+        if (unlocked(Feature::UI) && menu::begin("UI")) {
             for (const char* k : {"UI Text", "UI Button", "UI Panel", "UI Image", "Score Text", "Health Bar", "Start Menu", "Pause Menu"})
-                if (ImGui::MenuItem(k))
+                if (menu::item(k))
                     createEntity(k);
-            ImGui::EndMenu();
+            menu::end();
         }
-        if (unlocked(Feature::Tilemap) && ImGui::MenuItem("Tilemap"))
+        if (unlocked(Feature::Tilemap) && menu::item("Tilemap"))
             createEntity("Tilemap");
         for (const char* k : {"Text", "Camera", "Player 3D", "Terrain"})
-            if (ImGui::MenuItem(k))
+            if (menu::item(k))
                 createEntity(k);
-        if (unlocked(Feature::Particles) && ImGui::MenuItem("Particles"))
+        if (unlocked(Feature::Particles) && menu::item("Particles"))
             createEntity("Particles");
-        if (unlocked(Feature::Audio) && ImGui::MenuItem("Sound"))
+        if (unlocked(Feature::Audio) && menu::item("Sound"))
             createEntity("Sound");
-        if (ImGui::MenuItem("Empty Object"))
+        if (menu::item("Empty Object"))
             createEntity("Entity");
-        ImGui::EndDisabled();
-        ImGui::EndMenu();
+        menu::endDisabled();
+        menu::end();
     }
-    if (ImGui::BeginMenu("Window")) {
-        ImGui::MenuItem("Hierarchy", nullptr, &showHierarchy_);
-        ImGui::MenuItem("Inspector", nullptr, &showInspector_);
+    if (menu::begin("Window")) {
+        menu::item("Hierarchy", nullptr, &showHierarchy_);
+        menu::item("Inspector", nullptr, &showInspector_);
         if (unlocked(Feature::Assets))
-            ImGui::MenuItem("Assets", nullptr, &showAssets_);
+            menu::item("Assets", nullptr, &showAssets_);
         if (unlocked(Feature::Console))
-            ImGui::MenuItem("Console", nullptr, &showConsole_);
-        ImGui::MenuItem("Learn (tutorial)", nullptr, &showLearn_, !tutorial_.isNull());
-        ImGui::MenuItem("Scripting Reference", nullptr, &showReference_);
+            menu::item("Console", nullptr, &showConsole_);
+        menu::item("Learn (tutorial)", nullptr, &showLearn_, !tutorial_.isNull());
+        menu::item("Scripting Reference", nullptr, &showReference_);
         if (unlocked(Feature::Explain))
-            ImGui::MenuItem("Explain", chordName(prefs.chord("explain")).c_str(), &showExplain_);
-        if (unlocked(Feature::CodeLadder) && ImGui::MenuItem("Code Ladder", nullptr, showLadder_)) {
+            menu::item("Explain", chordName(prefs.chord("explain")).c_str(), &showExplain_);
+        if (unlocked(Feature::CodeLadder) && menu::item("Code Ladder", nullptr, showLadder_)) {
             showLadder_ = !showLadder_;
             if (showLadder_)
                 openCodeLadderForSelection();
         }
-        if (unlocked(Feature::BugReplay) && ImGui::MenuItem("Bug Replay", nullptr, showReplay_)) {
+        if (unlocked(Feature::BugReplay) && menu::item("Bug Replay", nullptr, showReplay_)) {
             if (showReplay_)
                 showReplay_ = false;
             else
                 openBugReplay();
         }
-        if (unlocked(Feature::Doctor) && ImGui::MenuItem("Error Doctor", nullptr, showDoctor_)) {
+        if (unlocked(Feature::Doctor) && menu::item("Error Doctor", nullptr, showDoctor_)) {
             showDoctor_ = !showDoctor_;
             if (showDoctor_) {
                 runCheckup();
                 focusDoctor_ = true;
             }
         }
-        ImGui::Separator();
+        menu::separator();
         if (unlocked(Feature::History))
-            ImGui::MenuItem("Undo History", nullptr, &showHistory_);
+            menu::item("Undo History", nullptr, &showHistory_);
         if (unlocked(Feature::Profiler))
-            ImGui::MenuItem("Profiler", nullptr, &showProfiler_);
+            menu::item("Profiler", nullptr, &showProfiler_);
         if (unlocked(Feature::Lighting))
-            ImGui::MenuItem("Lighting Presets", nullptr, &showLighting_);
-        ImGui::Separator();
-        if (ImGui::BeginMenu("Layout")) {
+            menu::item("Lighting Presets", nullptr, &showLighting_);
+        menu::separator();
+        if (menu::begin("Layout")) {
             for (const char* l : kLayouts)
-                if (ImGui::MenuItem(l, nullptr, prefs.layout == l))
+                if (menu::item(l, nullptr, prefs.layout == l))
                     pendingLayout_ = l;
             if (!prefs.savedLayouts.empty()) {
-                ImGui::Separator();
+                menu::separator();
                 for (auto& [name, ini] : prefs.savedLayouts)
-                    if (ImGui::MenuItem(name.c_str(), nullptr, prefs.layout == name))
+                    if (menu::item(name.c_str(), nullptr, prefs.layout == name))
                         pendingLayout_ = name;
             }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Save current layout...")) {
+            menu::separator();
+            if (menu::item("Save current layout...")) {
                 size_t size = 0;
                 const char* ini = ImGui::SaveIniSettingsToMemory(&size);
                 std::string name = "My layout " + std::to_string(prefs.savedLayouts.size() + 1);
@@ -316,72 +316,77 @@ void Editor::drawMenuBar() {
                 prefs.save();
                 notify("Saved the layout as '" + name + "'. Rename it in Preferences.");
             }
-            if (ImGui::MenuItem("Reset layout"))
+            if (menu::item("Reset layout"))
                 resetLayout_ = true;
-            ImGui::EndMenu();
+            menu::end();
         }
-        ImGui::Separator();
-        ImGui::MenuItem("Show Grid", nullptr, &showGrid_);
-        ImGui::EndMenu();
+        menu::separator();
+        menu::item("Show Grid", nullptr, &showGrid_);
+        menu::end();
     }
-    if (ImGui::BeginMenu("Tools")) {
-        if (unlocked(Feature::Recipes) && ImGui::MenuItem("Game from a Recipe..."))
+    if (menu::begin("Tools")) {
+        if (unlocked(Feature::Recipes) && menu::item("Game from a Recipe..."))
             openRecipes();
-        if (ImGui::MenuItem("Asset Library (sprites, models, textures)"))
+        if (menu::item("Asset Library (sprites, models, textures)"))
             openAssetLibrary();
-        if (unlocked(Feature::SoundMaker) && ImGui::MenuItem("Sound Maker"))
+        if (unlocked(Feature::SoundMaker) && menu::item("Sound Maker"))
             openSoundMaker();
-        if (unlocked(Feature::PixelEditor) && ImGui::MenuItem("Pixel Editor"))
+        if (unlocked(Feature::PixelEditor) && menu::item("Pixel Editor"))
             openPixelEditor("");
-        if (unlocked(Feature::Animation) && ImGui::MenuItem("Sprite Sheet and Animation"))
+        if (unlocked(Feature::Animation) && menu::item("Sprite Sheet and Animation"))
             openSpriteSheet();
-        if (unlocked(Feature::Tilemap) && ImGui::MenuItem("Tile Painter"))
+        if (unlocked(Feature::Tilemap) && menu::item("Tile Painter"))
             openTilePainter();
-        if (unlocked(Feature::NativeCode) && ImGui::MenuItem("Native Code (C/C++)"))
+        if (unlocked(Feature::NativeCode) && menu::item("Native Code (C/C++)"))
             openNativeCode();
-        if (unlocked(Feature::Code) && ImGui::BeginMenu("Editor tools")) {
+        if (unlocked(Feature::Code) && menu::begin("Editor tools")) {
             drawEditorToolsMenu();
-            ImGui::EndMenu();
+            menu::end();
         }
-        ImGui::Separator();
+        menu::separator();
         if (unlocked(Feature::Capture)) {
-            if (ImGui::MenuItem("Take a Screenshot", chordName(prefs.chord("screenshot")).c_str()))
+            if (menu::item("Take a Screenshot", chordName(prefs.chord("screenshot")).c_str()))
                 takeScreenshot();
-            if (ImGui::MenuItem(gifRecording_ ? "Stop Recording GIF" : "Record a GIF", chordName(prefs.chord("record_gif")).c_str()))
+            if (menu::item(gifRecording_ ? "Stop Recording GIF" : "Record a GIF", chordName(prefs.chord("record_gif")).c_str()))
                 toggleGifRecording();
-            ImGui::Separator();
+            menu::separator();
         }
-        if (unlocked(Feature::CodeLadder) && ImGui::MenuItem("Code Ladder"))
+        if (unlocked(Feature::CodeLadder) && menu::item("Code Ladder"))
             openCodeLadderForSelection();
-        if (unlocked(Feature::Doctor) && ImGui::MenuItem("Check My Game (Error Doctor)", chordName(prefs.chord("doctor")).c_str())) {
+        if (unlocked(Feature::Doctor) && menu::item("Check My Game (Error Doctor)", chordName(prefs.chord("doctor")).c_str())) {
             runCheckup();
             showDoctor_ = focusDoctor_ = true;
         }
-        if (unlocked(Feature::BugReplay) && ImGui::MenuItem("Bug Replay"))
+        if (unlocked(Feature::BugReplay) && menu::item("Bug Replay"))
             openBugReplay();
-        ImGui::EndMenu();
+        menu::end();
     }
-    if (ImGui::BeginMenu("Help")) {
-        if (ImGui::MenuItem("Learn mode levels..."))
+    if (menu::begin("Help")) {
+        if (menu::item("Learn mode levels..."))
             showLevels_ = true;
-        ImGui::MenuItem("Learn (tutorial)", nullptr, &showLearn_, !tutorial_.isNull());
-        ImGui::MenuItem("Recipe Card", nullptr, &showRecipeCard_, !recipeCard_.parts.empty());
-        ImGui::Separator();
-        if (ImGui::MenuItem("Contributor Quests..."))
+        menu::item("Learn (tutorial)", nullptr, &showLearn_, !tutorial_.isNull());
+        menu::item("Recipe Card", nullptr, &showRecipeCard_, !recipeCard_.parts.empty());
+        menu::separator();
+        if (menu::item("Contributor Quests..."))
             openQuests();
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Small, guided ways to help build Aven itself");
-        ImGui::MenuItem("Scripting Reference", nullptr, &showReference_);
-        if (ImGui::MenuItem("Keyboard shortcuts...")) {
+        menu::tooltip("Small, guided ways to help build Aven itself");
+        menu::item("Scripting Reference", nullptr, &showReference_);
+        if (menu::item("Keyboard shortcuts...")) {
             showPrefs_ = true;
             prefsSection_ = "Shortcuts";
         }
-        ImGui::Separator();
-        if (ImGui::MenuItem("Check for Updates..."))
-            checkForUpdates(true);
-        if (ImGui::MenuItem("About Aven"))
-            showAbout_ = true;
-        ImGui::EndMenu();
+        if (!menu::native()) { // on a Mac these are in the Aven menu
+            menu::separator();
+            if (menu::item("Check for Updates..."))
+                checkForUpdates(true);
+            if (menu::item("About Aven"))
+                showAbout_ = true;
+        }
+        menu::end();
+    }
+    if (menu::native()) {
+        menu::endBar();
+        return;
     }
     // Project name on the right, after the "Update to ..." button when there's a new Aven.
     std::string label = settings_.name + (dirty_ ? "  (unsaved)" : "");
@@ -393,6 +398,24 @@ void Editor::drawMenuBar() {
     ImGui::SameLine(right);
     ImGui::TextDisabled("%s", label.c_str());
     ImGui::EndMenuBar();
+}
+
+// The About window, and the Aven menu's commands on a Mac. Every frame, also on the start screen.
+void Editor::drawAppDialogs() {
+    if (menu::native()) {
+        if (!hasProject() || showHub_) { // the start screen has no menus of its own
+            if (menu::beginBar())
+                menu::endBar();
+        }
+        for (std::string c; !(c = menu::appCommand()).empty();) {
+            if (c == "about")
+                showAbout_ = true;
+            else if (c == "settings")
+                showPrefs_ = true;
+            else if (c == "updates")
+                checkForUpdates(true);
+        }
+    }
     if (showAbout_) {
         ImGui::OpenPopup("About Aven");
         showAbout_ = false;
@@ -465,7 +488,7 @@ void Editor::drawToolbar() {
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Move and scale along the world axes or the object's own axes.");
     ImGui::SameLine();
-    if (ui::iconButton("snap", ui::Magnet, "Snap to grid (or hold Ctrl while dragging)", snap_, b))
+    if (ui::iconButton("snap", ui::Magnet, keyText("Snap to grid (or hold Ctrl while dragging)").c_str(), snap_, b))
         snap_ = !snap_;
     if (ImGui::BeginPopupContextItem("snap_settings")) {
         ImGui::TextDisabled("Snap steps");
@@ -493,7 +516,7 @@ void Editor::drawToolbar() {
     // Play controls in the middle.
     float center = ImGui::GetWindowWidth() * 0.5f;
     ImGui::SameLine(center - b * 1.6f);
-    if (ui::iconButton("play", playing_ ? ui::Stop : ui::Play, playing_ ? "Stop (Ctrl+P)" : "Play (Ctrl+P)", playing_, b))
+    if (ui::iconButton("play", playing_ ? ui::Stop : ui::Play, keyText(playing_ ? "Stop (Ctrl+P)" : "Play (Ctrl+P)").c_str(), playing_, b))
         playing_ ? stop() : play();
     ImGui::SameLine();
     ImGui::BeginDisabled(!playing_);
@@ -510,6 +533,10 @@ void Editor::drawToolbar() {
     static float rightWidth = 400;
     ImGui::SameLine(std::max(ImGui::GetCursorPosX() + 20, ImGui::GetWindowWidth() - rightWidth - 10));
     float rightStart = ImGui::GetCursorScreenPos().x;
+    if (menu::native() && updateAvailable()) { // no menu bar in the window on a Mac
+        drawUpdateBadge();
+        ImGui::SameLine();
+    }
     if (!tutorial_.isNull()) {
         if (ImGui::Button("Learn"))
             showLearn_ = !showLearn_;

@@ -282,7 +282,7 @@ void Editor::drawPixelEditor() {
     ui::sectionHeader("Image");
     ImGui::SetNextItemWidth(-1);
     ImGui::InputText("##pixname", &d.name);
-    if (ImGui::Button("Save (Ctrl+S)", {-1, 0}))
+    if (ImGui::Button(keyText("Save (Ctrl+S)").c_str(), {-1, 0}))
         savePixelImage();
     if (ImGui::BeginMenu("New image...")) {
         for (int size : {8, 16, 24, 32, 48, 64, 128}) {

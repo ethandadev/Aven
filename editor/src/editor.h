@@ -101,7 +101,9 @@ public:
     // Called before ImGui::NewFrame(): rebuilds fonts and style when preferences changed.
     void beginFrame();
     void frame(float dt);
-    void setDpiScale(float scale) { dpiScale_ = scale; styleDirty_ = true; }
+    // scale: how much bigger to lay out the UI (Windows at 150%: 1.5). density: pixels per window
+    // unit (a Retina Mac: 2, with scale 1), so text is drawn sharp without being drawn bigger.
+    void setDpiScale(float scale, float density = 1.0f) { dpiScale_ = scale; fontDensity_ = density; styleDirty_ = true; }
     bool wantsQuit() const { return quit_; }
     void requestQuit();
     // When Aven quits (main.cpp): puts a downloaded update in place (updater.cpp). Returns the
@@ -250,6 +252,7 @@ public:
     void downloadUpdate(bool wait = false);
     void drawUpdater();
     void drawUpdateBadge(); // "Update to 0.3.1" in the menu bar and on the start screen
+    void drawAppDialogs();  // About, and the Aven menu's commands on a Mac (chrome.cpp)
     bool updateAvailable() const; // a new version to show the badge for
     float updateBadgeWidth() const;
     std::string updateStatus() const; // "0.4.0 ready", "up to date", "failed: ..." (tests)
@@ -403,6 +406,7 @@ private:
     bool showInfo_ = true, showWarnings_ = true, showErrors_ = true;
     std::string consoleFilter_;
     float dpiScale_ = 1.0f;
+    float fontDensity_ = 1.0f;
     bool styleDirty_ = true;
     float autosaveTimer_ = 0;
     int levelUpTo_ = 0; // a level-up offer waiting to be shown

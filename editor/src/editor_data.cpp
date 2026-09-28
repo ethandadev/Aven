@@ -15,7 +15,7 @@ stdfs::path editorDataDir() {
     stdfs::path source = stdfs::path(AVEN_SOURCE_DIR) / "editor" / "data";
     if (stdfs::exists(source, ec))
         return source;
-    return fs::executableDir() / "data";
+    return fs::resourceDir() / "data";
 }
 
 stdfs::path sourceDir() {
@@ -29,7 +29,7 @@ stdfs::path sdkDir() {
     stdfs::path source = stdfs::path(AVEN_SOURCE_DIR) / "sdk";
     if (stdfs::exists(source / "include" / "aven.h", ec))
         return source;
-    return fs::executableDir() / "sdk";
+    return fs::resourceDir() / "sdk";
 }
 
 const Json& editorData(const std::string& name) {

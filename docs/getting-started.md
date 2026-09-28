@@ -22,7 +22,8 @@ Then start the editor: `build/bin/aven-editor`. On Windows, with Visual Studio's
 it's `build\bin\Release\aven-editor.exe`.
 
 Or skip building: the [Releases page](https://github.com/ethandadev/Aven/releases) has Aven ready to
-run for Windows, macOS and Linux.
+run: a Setup program for Windows, a .dmg for macOS (drag Aven into Applications) and a Flatpak for
+Linux, plus zips.
 
 ### Updates
 
@@ -38,7 +39,10 @@ starts.
 - **Preferences > Behavior > Updates** turns the check at start off, or adds beta versions.
 - **Skip this version** stops mentioning that one version.
 - A copy built from source doesn't replace itself (pull the new code instead); it only looks when
-  you use Check for Updates.
+  you use Check for Updates. The Flatpak can't replace its own files either, so for it the Update
+  window links to the new download.
+- On a Mac, Aven has to be in a folder it can change (Applications is fine). If macOS runs it
+  from where it was downloaded, the Update window asks you to move it to Applications first.
 - Downloading uses `curl`, which comes with Windows 10 and later, macOS and most Linux systems.
   If Aven's folder can't be changed (say, it's somewhere only an administrator can write), the
   Update window links to the download instead.

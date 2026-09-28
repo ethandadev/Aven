@@ -549,7 +549,7 @@ void Editor::copyGameFiles(const stdfs::path& to, const stdfs::path& skip, std::
 }
 
 stdfs::path Editor::webPlayerDir() const {
-    for (const stdfs::path& dir : {fs::executableDir() / "web", stdfs::path(AVEN_WEB_PLAYER_DIR)}) {
+    for (const stdfs::path& dir : {fs::resourceDir() / "web", stdfs::path(AVEN_WEB_PLAYER_DIR)}) {
         std::error_code ec;
         if (stdfs::exists(dir / "aven-player.wasm", ec) && stdfs::exists(dir / "aven-player.js", ec) &&
             stdfs::exists(dir / "index.html", ec))

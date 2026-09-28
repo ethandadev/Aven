@@ -4,6 +4,7 @@
 // plus selection(), select(), create() and notify(). One run is one undo step.
 
 #include "editor.h"
+#include "menu.h"
 
 #include "aven/core/fs.h"
 #include "aven/core/log.h"
@@ -162,7 +163,7 @@ bool Editor::runEditorTool(const std::string& path) {
     dirty_ = true;
     refreshTitle();
     if (!ok)
-        notify(name + " stopped with an error (see the Console). Ctrl+Z puts things back.", true);
+        notify(name + keyText(" stopped with an error (see the Console). Ctrl+Z puts things back."), true);
     else if (!message.empty())
         notify(message);
     else
@@ -173,21 +174,20 @@ bool Editor::runEditorTool(const std::string& path) {
 void Editor::drawEditorToolsMenu() {
     auto tools = editorTools();
     for (auto& t : tools) {
-        if (ImGui::MenuItem(t.name.c_str(), nullptr, false, !playing_))
+        if (menu::item(t.name.c_str(), nullptr, false, !playing_))
             runEditorTool(t.path);
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s%s(%s)", t.about.c_str(), t.about.empty() ? "" : "\n", t.path.c_str());
+        menu::tooltip((t.about + (t.about.empty() ? "" : "\n") + "(" + t.path + ")").c_str());
     }
     if (tools.empty())
-        ImGui::TextDisabled("No tools yet: they're EasyScript in editor_tools/.");
-    ImGui::Separator();
-    if (ImGui::MenuItem("New editor tool..."))
+        menu::text("No tools yet: they're EasyScript in editor_tools/.");
+    menu::separator();
+    if (menu::item("New editor tool..."))
         newEditorTool();
-    if (!tools.empty() && ImGui::BeginMenu("Edit a tool")) {
+    if (!tools.empty() && menu::begin("Edit a tool")) {
         for (auto& t : tools)
-            if (ImGui::MenuItem(t.name.c_str()))
+            if (menu::item(t.name.c_str()))
                 openScript(t.path);
-        ImGui::EndMenu();
+        menu::end();
     }
 }
 

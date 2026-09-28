@@ -139,7 +139,7 @@ void Editor::beginFrame() {
         return;
     styleDirty_ = false;
     ImGui_ImplOpenGL3_DestroyFontsTexture();
-    buildFonts(prefs, dpiScale_, fonts);
+    buildFonts(prefs, dpiScale_, fonts, fontDensity_);
     ImGui_ImplOpenGL3_CreateFontsTexture();
     applyStyle(prefs, dpiScale_);
     CodeEditor::palette = CodePalette::find(prefs.codeTheme);
@@ -460,7 +460,7 @@ void Editor::saveRecent() {
 
 std::vector<TemplateInfo> Editor::templates() const {
     std::vector<TemplateInfo> out;
-    std::vector<stdfs::path> roots = {fs::executableDir() / "templates", stdfs::path(AVEN_TEMPLATES_DIR)};
+    std::vector<stdfs::path> roots = {fs::resourceDir() / "templates", stdfs::path(AVEN_TEMPLATES_DIR)};
     for (auto& root : roots) {
         std::error_code ec;
         if (!stdfs::is_directory(root, ec))
@@ -2201,6 +2201,7 @@ void Editor::frame(float dt) {
         drawPreferences();
     if (showLevels_ || levelUpTo_)
         drawLevels();
+    drawAppDialogs();
     drawUpdater();
     drawKeepChangesDialog();
     drawNotification(dt);

@@ -1,9 +1,24 @@
 file(GLOB_RECURSE AVEN_EDITOR_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
+if(APPLE)
+    # The real macOS menu bar (menu.h).
+    enable_language(OBJCXX)
+    list(APPEND AVEN_EDITOR_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/menu_mac.mm)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/menu_mac.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+endif()
+if(WIN32)
+    # Aven's icon in the .exe: Explorer, the taskbar and the installer's shortcuts show it.
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/editor_icon.rc "1 ICON \"${PROJECT_SOURCE_DIR}/resources/icon/aven.ico\"\n")
+    list(APPEND AVEN_EDITOR_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/editor_icon.rc)
+endif()
 add_executable(aven_editor ${AVEN_EDITOR_SOURCES})
 target_include_directories(aven_editor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(aven_editor PRIVATE aven_engine aven_imgui aven_qrcodegen aven_gifh)
 if(WIN32)
     target_link_libraries(aven_editor PRIVATE ws2_32) # the "share on this network" web server
+endif()
+if(APPLE)
+    target_link_libraries(aven_editor PRIVATE "-framework Cocoa")
+    set_target_properties(aven_editor PROPERTIES OBJCXX_STANDARD 20 OBJCXX_STANDARD_REQUIRED ON)
 endif()
 # Where a locally built web player lives (tools/web/build_web_player.sh puts a copy next to the editor too).
 target_compile_definitions(aven_editor PRIVATE AVEN_WEB_PLAYER_DIR="${PROJECT_SOURCE_DIR}/build-web/bin")

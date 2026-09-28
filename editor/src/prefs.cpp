@@ -8,6 +8,7 @@
 #include <imgui_internal.h>
 
 #include <algorithm>
+#include <cstring>
 
 namespace aven::editor {
 
@@ -100,7 +101,26 @@ const std::vector<KeyAction>& keyActions() {
 std::string chordName(ImGuiKeyChord chord) {
     if (chord == 0)
         return "(none)";
+#if defined(__APPLE__)
+    // On a Mac, ImGui's Ctrl is the Cmd key (and Super is Ctrl): name them as the keyboard does.
+    std::string name = (chord & ImGuiMod_Ctrl) ? "Cmd+" : "";
+    name += (chord & ImGuiMod_Shift) ? "Shift+" : "";
+    name += (chord & ImGuiMod_Alt) ? "Option+" : "";
+    name += (chord & ImGuiMod_Super) ? "Ctrl+" : "";
+    ImGuiKey key = static_cast<ImGuiKey>(chord & ~ImGuiMod_Mask_);
+    return key == ImGuiKey_None ? name.substr(0, name.empty() ? 0 : name.size() - 1) : name + ImGui::GetKeyName(key);
+#else
     return ImGui::GetKeyChordName(chord);
+#endif
+}
+
+std::string keyText(std::string text) {
+#if defined(__APPLE__)
+    for (auto [from, to] : {std::pair<const char*, const char*>{"Ctrl", "Cmd"}, {"Alt+", "Option+"}})
+        for (size_t at = 0; (at = text.find(from, at)) != std::string::npos; at += std::strlen(to))
+            text.replace(at, std::strlen(from), to);
+#endif
+    return text;
 }
 
 ImGuiKeyChord Prefs::chord(const std::string& action) const {
@@ -387,7 +407,7 @@ void applyStyle(const Prefs& prefs, float dpiScale) {
     st.ScaleAllSizes(dpiScale * prefs.uiScale);
 }
 
-void buildFonts(const Prefs& prefs, float dpiScale, Fonts& fonts) {
+void buildFonts(const Prefs& prefs, float dpiScale, Fonts& fonts, float density) {
     ImGuiIO& io = ImGui::GetIO();
     io.Fonts->Clear();
     float scale = dpiScale * prefs.uiScale;
@@ -395,6 +415,7 @@ void buildFonts(const Prefs& prefs, float dpiScale, Fonts& fonts) {
         std::size_t bytes = 0;
         const unsigned char* data = embedded::find(name, &bytes);
         ImFontConfig cfg;
+        cfg.RasterizerDensity = std::max(1.0f, density); // Retina: rasterized at 2x, same size on screen
         if (!data) {
             cfg.SizePixels = size;
             return io.Fonts->AddFontDefault(&cfg);

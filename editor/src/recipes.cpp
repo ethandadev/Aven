@@ -238,7 +238,7 @@ struct Cooking {
     }
 
     void part(const std::string& object, const std::string& what, const std::string& tryThis) {
-        card.parts.push_back({object, what, tryThis});
+        card.parts.push_back({object, what, keyText(tryThis)});
     }
 
     Json heroSprite(double size) const {

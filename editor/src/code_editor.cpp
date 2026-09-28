@@ -501,6 +501,10 @@ void CodeEditor::handleKeys(bool& changed) {
         completionOpen_ = false;
         return;
     }
+    if (ctrl && io.KeyAlt && pressed(ImGuiKey_F)) { // replace, the Mac way (Cmd+H hides the app there)
+        openFind(true);
+        return;
+    }
     if (ctrl && pressed(ImGuiKey_F)) {
         openFind(false);
         return;
@@ -1760,10 +1764,18 @@ void CodeEditor::drawStatusBar() {
     ImGui::SameLine(std::max(ImGui::GetCursorPosX() + 20, ImGui::GetWindowContentRegionMax().x - rw - 4));
     ImGui::TextDisabled("%s", right);
     if (ImGui::IsItemHovered())
+#if defined(__APPLE__)
+        // Cmd+Space is Spotlight and Cmd+H hides the app on a Mac.
+        ImGui::SetTooltip("Ctrl+Space: suggestions   F12 or Cmd+click: go to where it's made\n"
+                          "Option+Up/Down: move lines   Shift+Option+Up/Down: copy lines   Cmd+Shift+K: delete lines\n"
+                          "Cmd+/: comment   Cmd+F: find   Cmd+Option+F: replace   Cmd+G: go to line\n"
+                          "Cmd+wheel or Cmd+=/-: text size (Cmd+0 resets)");
+#else
         ImGui::SetTooltip("Ctrl+Space: suggestions   F12 or Ctrl+click: go to where it's made\n"
                           "Alt+Up/Down: move lines   Shift+Alt+Up/Down: copy lines   Ctrl+Shift+K: delete lines\n"
                           "Ctrl+/: comment   Ctrl+F: find   Ctrl+H: replace   Ctrl+G: go to line\n"
                           "Ctrl+wheel or Ctrl+=/-: text size (Ctrl+0 resets)");
+#endif
 }
 
 } // namespace aven::editor

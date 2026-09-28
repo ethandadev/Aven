@@ -92,6 +92,7 @@ One `Editor` class, split into files by area:
 |---|---|
 | `editor.cpp` | project and scene management, play mode, undo, command-line automation |
 | `chrome.cpp` | menus, toolbar, docking layouts, shortcuts |
+| `menu.cpp`, `menu_mac.mm` | menus written once: ImGui's in the window, or the Mac's menu bar |
 | `panels.cpp` | Hierarchy, Console, script tabs, Project Settings (mixer, layers), Learn, Reference |
 | `inspector.cpp` | the Inspector: components, script variables, click actions, Add Component |
 | `assets_panel.cpp` | the Assets panel: selecting, moving, renaming and deleting files |

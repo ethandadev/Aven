@@ -115,6 +115,15 @@ stdfs::path executableDir() {
 #endif
 }
 
+stdfs::path resourceDir() {
+    stdfs::path exe = executableDir();
+    std::error_code ec;
+    if (exe.filename() == "MacOS" && exe.parent_path().filename() == "Contents" &&
+        stdfs::is_directory(exe.parent_path() / "Resources", ec))
+        return exe.parent_path() / "Resources";
+    return exe;
+}
+
 std::string relativePath(const stdfs::path& path, const stdfs::path& base) {
     std::error_code ec;
     stdfs::path rel = stdfs::relative(path, base, ec);

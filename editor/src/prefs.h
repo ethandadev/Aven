@@ -31,6 +31,8 @@ struct KeyAction {
 };
 const std::vector<KeyAction>& keyActions();
 std::string chordName(ImGuiKeyChord chord);
+// Shortcuts in help text as this computer's keyboard names them: "Ctrl+Z" is "Cmd+Z" on a Mac.
+std::string keyText(std::string text);
 
 // The user's editor preferences: saved per user (not per project) in the user data folder.
 struct Prefs {
@@ -110,7 +112,7 @@ void applyStyle(const Prefs& prefs, float dpiScale);
 Color axisColor(int axis, float alpha = 1.0f);
 unsigned int axisColorU32(int axis);
 // (Re)builds the font atlas. Call outside of a frame, then recreate the renderer's font texture.
-void buildFonts(const Prefs& prefs, float dpiScale, Fonts& fonts);
+void buildFonts(const Prefs& prefs, float dpiScale, Fonts& fonts, float density = 1.0f);
 // Blends two colors in 0-255 units, for small UI touches.
 ImU32 mixColor(ImU32 a, ImU32 b, float t);
 

@@ -287,6 +287,24 @@ AVEN_TEST(icons_resize_icns_and_exe) {
     std::vector<uint8_t> huge(400000, 1);
     std::vector<uint8_t> copy = *exe;
     CHECK(!icons::replaceExeIcon(copy, huge, error) && error.find("too big") != std::string::npos);
+    {
+        // A signed program: the signature (the certificate table, at the end) goes, since it no longer matches.
+        std::vector<uint8_t> signedExe = *exe;
+        size_t pe = signedExe[0x3C] | (signedExe[0x3D] << 8);
+        size_t opt = pe + 24;
+        size_t dirs = (signedExe[opt] | (signedExe[opt + 1] << 8)) == 0x20b ? opt + 112 : opt + 96;
+        uint32_t at = static_cast<uint32_t>(signedExe.size());
+        auto put32 = [&](size_t p, uint32_t v) {
+            for (int i = 0; i < 4; ++i)
+                signedExe[p + i] = static_cast<uint8_t>(v >> (8 * i));
+        };
+        put32(dirs + 32, at);
+        put32(dirs + 36, 1024);
+        signedExe.resize(at + 1024, 0x5A);
+        CHECK(icons::replaceExeIcon(signedExe, png, error));
+        CHECK_EQ(signedExe.size(), static_cast<size_t>(at));
+        CHECK(signedExe[dirs + 32] == 0 && signedExe[dirs + 36] == 0 && signedExe[dirs + 37] == 0);
+    }
     std::filesystem::path out = std::filesystem::temp_directory_path() / "aven_icon_test.exe";
     CHECK(fs::writeBinary(out, exe->data(), exe->size()));
 #ifdef _WIN32

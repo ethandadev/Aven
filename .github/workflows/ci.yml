@@ -64,6 +64,28 @@ jobs:
         if: runner.os == 'Linux'
         run: python3 tests/editor/run.py build/bin/aven-editor
 
+      - name: Package as Aven.app and start it (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          tools/release/package.sh build/bin aven-ci-macos-arm64 "" dist
+          tools/release/make_mac_app.sh dist/aven-ci-macos-arm64 0.0.0-ci dist/mac
+          ditto -x -k dist/mac/aven-0.0.0-ci-macos-arm64.zip dist/unzipped
+          # Hide the source folders, so the app can only use what's inside it (Contents/Resources).
+          mv editor/data editor/data.hidden && mv templates templates.hidden && mv quests quests.hidden && mv sdk sdk.hidden
+          app=dist/unzipped/Aven.app
+          "$app/Contents/MacOS/aven-editor" --screenshot "$PWD/mac-hub.png" --frames 20 2>&1 | tee mac.log || true
+          "$app/Contents/MacOS/aven-editor" "$PWD/$app/Contents/Resources/templates/platformer" --check --strict
+          mv editor/data.hidden editor/data && mv templates.hidden templates && mv quests.hidden quests && mv sdk.hidden sdk
+          if grep -h "\[error\]" mac.log; then echo "The app logged errors."; exit 1; fi
+
+      - name: Upload the macOS screenshot
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-screenshot
+          path: mac-hub.png
+          if-no-files-found: ignore
+
       - name: Upload screenshots
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4

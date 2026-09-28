@@ -991,7 +991,7 @@ void Editor::drawScriptTabs() {
         ImGui::PopStyleVar();
         if (visible) {
             if (tab.code) {
-                if (ImGui::Button("Save (Ctrl+S)")) {
+                if (ImGui::Button(keyText("Save (Ctrl+S)").c_str())) {
                     fs::writeText(projectDir_ / tab.path, tab.code->text());
                     tab.modified = false;
                 }
@@ -1000,7 +1000,7 @@ void Editor::drawScriptTabs() {
                     ImGui::TextDisabled("C/C++");
                     ImGui::SameLine();
                     ImGui::BeginDisabled(nativeBuild_ != nullptr);
-                    if (ImGui::SmallButton(nativeBuild_ ? "Building..." : "Save and Build (Ctrl+B)")) {
+                    if (ImGui::SmallButton(keyText(nativeBuild_ ? "Building..." : "Save and Build (Ctrl+B)").c_str())) {
                         fs::writeText(projectDir_ / tab.path, tab.code->text());
                         tab.modified = false;
                         buildNativeModule();
@@ -1049,7 +1049,7 @@ void Editor::drawScriptTabs() {
                         checkScript(tab); // with code intelligence, problems are checked as you type
                 }
             } else if (tab.blocks) {
-                if (ImGui::Button("Save (Ctrl+S)")) {
+                if (ImGui::Button(keyText("Save (Ctrl+S)").c_str())) {
                     fs::writeText(projectDir_ / tab.path, tab.blocks->save().dump(2));
                     tab.modified = false;
                 }

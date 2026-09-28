@@ -21,6 +21,9 @@ int64_t modifiedTime(const stdfs::path& path);
 
 // Directory containing the running executable.
 stdfs::path executableDir();
+// Where the files that ship beside the program are (templates, data...): executableDir(), except
+// inside a macOS app (Aven.app/Contents/MacOS), where they're in Contents/Resources.
+stdfs::path resourceDir();
 
 // Forward-slash relative path from `base` to `path` (portable across OSes, stored in scenes).
 std::string relativePath(const stdfs::path& path, const stdfs::path& base);

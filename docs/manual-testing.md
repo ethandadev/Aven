@@ -72,6 +72,18 @@ Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should 
       with touch controls; install it to the home screen; play offline.
 - [ ] **Share**: the game card, the Wi-Fi link on your phone, the itch.io zip.
 
+## Installing
+- [ ] Windows: `Aven-<version>-Setup.exe` installs without asking for an administrator; Aven is in
+      the Start menu with its icon; it runs; Settings > Apps uninstalls it (your games stay).
+- [ ] macOS: open the .dmg, drag Aven into Applications, open it: the Dock and the menu bar say
+      Aven (not Terminal), with its icon. If the release was signed and notarized, no warning.
+- [ ] macOS: the menus are in the menu bar at the top of the screen: Aven (About, Settings...,
+      Check for Updates..., Hide, Quit), File, Edit, Create, Window, Tools, Help. Items grey out
+      and tick as they should; Cmd+S, Cmd+Z, Cmd+C in a text box vs in the scene; Cmd+Q asks about
+      unsaved changes.
+- [ ] macOS on a Retina screen: the editor is the normal size, and the text is sharp.
+- [ ] Linux: `flatpak install Aven-<version>-linux.flatpak`, then run it from the app menu.
+
 ## Updates
 - [ ] With a release download of the previous version: the **Update to ...** button shows in the menu
       bar and on the start screen; the Update window shows the notes; **Download and install**

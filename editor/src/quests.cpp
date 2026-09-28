@@ -19,7 +19,7 @@ stdfs::path questsDir() {
     std::error_code ec;
     if (!sourceDir().empty() && stdfs::exists(sourceDir() / "quests", ec))
         return sourceDir() / "quests";
-    return fs::executableDir() / "quests";
+    return fs::resourceDir() / "quests";
 }
 
 // Files matching a simple pattern with at most one '*' per path part: "templates/*/template.json".

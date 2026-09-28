@@ -8,6 +8,7 @@
 
 #include "check.h"
 #include "editor.h"
+#include "menu.h"
 
 #include "aven/core/fs.h"
 #include "aven/core/log.h"
@@ -226,6 +227,8 @@ int main(int argc, char** argv) {
     }
     Log::info("Aven Editor ", AVEN_VERSION, " on ", device->description());
     window.setDefaultIcon();
+    if (!screenshotMode)
+        menu::installNative(); // a Mac's menu bar at the top of the screen (elsewhere: nothing)
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -247,7 +250,13 @@ int main(int argc, char** argv) {
     std::string restart; // the updated editor, when an update asked to restart
     {
         Editor editor(window, *device);
-        editor.setDpiScale(args.scale > 0 ? args.scale : std::max(1.0f, window.contentScale()));
+        // Windows and X11 measure windows in pixels, so a 150% screen needs everything 1.5x bigger.
+        // macOS (and Wayland) measure in points and draw into a bigger framebuffer (2x on Retina):
+        // there the layout stays at 1x and only the text is rasterized at 2x, or everything is double size.
+        Vec2 points = window.windowSize(), pixels = window.framebufferSize();
+        float density = points.x > 0 && pixels.x > 0 ? pixels.x / points.x : 1.0f;
+        float layout = std::max(1.0f, window.contentScale() / std::max(1.0f, density));
+        editor.setDpiScale(args.scale > 0 ? args.scale : layout, std::max(1.0f, density));
         if (!editor.init(args.editor)) {
             exitCode = 1;
         } else {

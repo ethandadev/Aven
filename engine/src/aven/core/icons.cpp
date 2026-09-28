@@ -185,6 +185,15 @@ bool replaceExeIcon(std::vector<uint8_t>& exe, const std::vector<uint8_t>& png, 
     set16(entry + 4, 1); // planes
     set16(entry + 6, 32);
     set32(entry + 8, static_cast<uint32_t>(png.size()));
+    // A signed player (Aven's releases are) isn't anymore once its icon changed: Windows would call
+    // the signature broken, which looks worse than none. Drop it; the export signs again if it can.
+    if (fits(dirs, 5 * 8)) {
+        uint32_t certAt = u32(dirs + 4 * 8), certSize = u32(dirs + 4 * 8 + 4);
+        if (certSize && static_cast<size_t>(certAt) + certSize == exe.size())
+            exe.resize(certAt); // the signature is the file's tail
+        set32(dirs + 4 * 8, 0);
+        set32(dirs + 4 * 8 + 4, 0);
+    }
     return true;
 }
 

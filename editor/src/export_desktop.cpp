@@ -475,7 +475,7 @@ stdfs::path Editor::playerFolder(const std::string& target) const {
     for (auto& t : kTargets) {
         if (target != t.id)
             continue;
-        stdfs::path bundled = fs::executableDir() / "players" / t.id;
+        stdfs::path bundled = fs::resourceDir() / "players" / t.id;
         if (stdfs::exists(bundled / t.program, ec))
             return bundled;
         if (target == hostTarget() && stdfs::exists(fs::executableDir() / t.program, ec))

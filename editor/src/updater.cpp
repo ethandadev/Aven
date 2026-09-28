@@ -72,11 +72,43 @@ const char* editorProgram() {
 #endif
 }
 
-// Aven's folder when this is a release download (which can update itself), else empty.
-stdfs::path installFolder() {
+} // namespace
+
+// How this copy of Aven was installed, and so how it's updated.
+struct UpdateInstall {
+    stdfs::path root;       // what an update replaces: Aven's folder, or Aven.app (empty: not a release)
+    stdfs::path work;       // downloads and the old version; on the same drive as root, so files can move
+    std::string program;    // the editor, inside root
+    std::string cantUpdate; // why this copy can't replace itself (empty: it can)
+};
+
+namespace {
+
+UpdateInstall thisInstall() {
     std::error_code ec;
     stdfs::path dir = fs::executableDir();
-    return stdfs::exists(dir / "START HERE.txt", ec) && stdfs::exists(dir / editorProgram(), ec) ? dir : stdfs::path();
+    UpdateInstall in;
+    if (std::getenv("FLATPAK_ID") || stdfs::exists("/.flatpak-info", ec)) {
+        in.root = dir;
+        in.cantUpdate = "Aven was installed with Flatpak, which keeps its files read-only: download the new .flatpak "
+                        "from the release page and open it to update.";
+    } else if (dir.filename() == "MacOS" && stdfs::exists(dir.parent_path() / "Info.plist", ec)) {
+        // Aven.app/Contents/MacOS/aven-editor: the update replaces Aven.app's Contents.
+        in.root = dir.parent_path().parent_path();
+        in.work = in.root.parent_path() / ".aven-update";
+        in.program = "Contents/MacOS/aven-editor";
+        if (in.root.string().find("/AppTranslocation/") != std::string::npos)
+            in.cantUpdate = "macOS is running Aven from a temporary read-only copy, because it hasn't been moved since it "
+                            "was downloaded. Drag Aven into your Applications folder, open it from there, and update again.";
+    } else if (stdfs::exists(dir / "START HERE.txt", ec) && stdfs::exists(dir / editorProgram(), ec)) {
+        in.root = dir; // a release zip (or the Windows installer, which installs the same files)
+        in.work = dir / ".aven-update";
+        in.program = editorProgram();
+    } else {
+        in.cantUpdate = "This copy of Aven was built from its source code, so it doesn't replace itself: pull the new "
+                        "code, or download Aven from the release page.";
+    }
+    return in;
 }
 
 std::string releasesUrl() {
@@ -304,7 +336,7 @@ struct Editor::UpdateJob {
     std::atomic<bool> cancel{false};
     bool manual = false;
     update::Release release; // written before stage becomes Available, then only read
-    stdfs::path install;     // Aven's folder, when this copy can update itself
+    UpdateInstall install;   // where this copy is, and whether it can update itself
     stdfs::path part;        // the download while it comes in
 
     std::mutex mutex;
@@ -326,10 +358,10 @@ struct Editor::UpdateJob {
 };
 
 void Editor::startUpdater() {
-    stdfs::path install = installFolder();
-    if (!install.empty()) {
+    UpdateInstall install = thisInstall();
+    if (!install.work.empty()) {
         // What an update left behind: the old version's files, or why it couldn't be installed.
-        stdfs::path work = install / ".aven-update";
+        stdfs::path work = install.work;
         if (auto failed = fs::readText(work / "failed.txt"))
             notify("The update couldn't be installed: " + *failed, true);
         std::error_code ec;
@@ -344,7 +376,7 @@ void Editor::startUpdater() {
         prefs.save();
     }
     // Builds from source don't look on their own (Help > Check for Updates still does).
-    if (prefs.checkUpdates && !install.empty())
+    if (prefs.checkUpdates && !install.root.empty())
         checkForUpdates(false);
 }
 
@@ -355,7 +387,7 @@ void Editor::checkForUpdates(bool manual, bool wait) {
         return; // already on it, or already downloaded
     auto job = std::make_shared<UpdateJob>();
     job->manual = manual;
-    job->install = installFolder();
+    job->install = thisInstall();
     updateJob_ = job;
     bool betas = prefs.betaUpdates || !update::parseVersion(AVEN_VERSION).pre.empty(); // beta testers keep getting betas
     std::string skipped = manual ? "" : prefs.skippedUpdate;
@@ -388,16 +420,16 @@ void Editor::checkForUpdates(bool manual, bool wait) {
 
 void Editor::downloadUpdate(bool wait) {
     auto job = updateJob_;
-    if (!job || job->busy() || job->stage == UpdateJob::Ready || job->release.download.empty() || job->install.empty())
+    if (!job || job->busy() || job->stage == UpdateJob::Ready || job->release.download.empty() || !job->install.cantUpdate.empty())
         return;
-    stdfs::path work = job->install / ".aven-update";
+    stdfs::path work = job->install.work;
     std::error_code ec;
     stdfs::remove_all(work, ec);
     stdfs::create_directories(work, ec);
     bool writable = fs::writeText(work / "can-write", "yes");
     stdfs::remove(work / "can-write", ec);
     if (!writable) {
-        job->fail("Aven can't change its own folder (" + job->install.string() +
+        job->fail("Aven can't change its own folder (" + job->install.root.string() +
                   "). Download the new version from the release page and unzip it instead.");
         return;
     }
@@ -427,7 +459,7 @@ void Editor::downloadUpdate(bool wait) {
         if (!zip::extract(job->part, work / "new", error))
             return job->fail("Couldn't unpack the download: " + error + ".");
         stdfs::remove(job->part, e);
-        if (!stdfs::exists(work / "new" / editorProgram(), e))
+        if (!stdfs::exists(work / "new" / job->install.program, e))
             return job->fail("The download doesn't have the editor in it, so it wasn't installed.");
         Log::info("Update: Aven ", r.version, " is ready; it's installed when Aven closes.");
         job->stage = UpdateJob::Ready;
@@ -446,13 +478,13 @@ std::string Editor::installPendingUpdate() {
         for (int i = 0; i < 50 && job->stage == UpdateJob::Downloading; ++i)
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
-    if (!job || job->stage != UpdateJob::Ready || job->install.empty())
+    if (!job || job->stage != UpdateJob::Ready || !job->install.cantUpdate.empty())
         return "";
-    stdfs::path work = job->install / ".aven-update";
+    stdfs::path work = job->install.work;
     std::error_code ec;
     stdfs::remove_all(work / "old", ec);
     std::string error;
-    if (!update::swapIn(job->install, work / "new", work / "old", error)) {
+    if (!update::swapIn(job->install.root, work / "new", work / "old", error)) {
         Log::error("Update: couldn't install Aven ", job->release.version, ": ", error);
         fs::writeText(work / "failed.txt", error); // said when Aven next starts
         return "";
@@ -460,7 +492,12 @@ std::string Editor::installPendingUpdate() {
     Log::info("Update: installed Aven ", job->release.version, ".");
     if (!updateRestart_)
         return "";
-    std::string command = "\"" + (job->install / editorProgram()).string() + "\"";
+#if defined(__APPLE__)
+    // Through Launch Services, so it starts as the app (its name in the menu bar, its icon in the Dock).
+    std::string command = "/usr/bin/open -n \"" + job->install.root.string() + "\" --args";
+#else
+    std::string command = "\"" + (job->install.root / job->install.program).string() + "\"";
+#endif
     if (hasProject())
         command += " \"" + projectDir_.string() + "\"";
     return command;
@@ -543,7 +580,7 @@ void Editor::drawUpdater() {
         ImGui::PopFont();
         ImGui::TextDisabled("You have %s%s", AVEN_VERSION, r.beta ? "  ·  this one is a beta" : "");
         ImGui::Spacing();
-        bool textLine = stage == UpdateJob::Failed || stage == UpdateJob::Ready || job->install.empty() || r.download.empty();
+        bool textLine = stage == UpdateJob::Failed || stage == UpdateJob::Ready || !job->install.cantUpdate.empty() || r.download.empty();
         float notesH = ImGui::GetContentRegionAvail().y - buttonH * (textLine ? 2.4f : 1.4f);
         ImGui::BeginChild("##notes", {0, std::max(notesH, ui::px(80))}, ImGuiChildFlags_Borders);
         if (r.notes.empty())
@@ -588,10 +625,9 @@ void Editor::drawUpdater() {
             ImGui::SameLine();
             if (ImGui::Button("Later", {ui::px(100), buttonH}))
                 showUpdater_ = false;
-        } else if (job->install.empty() || r.download.empty()) {
-            ImGui::TextWrapped("%s", job->install.empty()
-                                         ? "This copy of Aven was built from its source code, so it doesn't replace itself: "
-                                           "pull the new code, or download Aven from the release page."
+        } else if (!job->install.cantUpdate.empty() || r.download.empty()) {
+            ImGui::TextWrapped("%s", !job->install.cantUpdate.empty()
+                                         ? job->install.cantUpdate.c_str()
                                          : "There's no download for this system in that release yet; the release page has what there is.");
             if (ImGui::Button("Open the release page", {ui::px(220), buttonH}))
                 openExternal(r.page.empty() ? kReleasePage : r.page);

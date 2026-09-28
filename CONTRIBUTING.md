@@ -94,6 +94,10 @@ publishes a GitHub release with the zips and the notes. The tag sets the version
 A tag with a dash, like `v0.4.0-beta.1`, becomes a pre-release, which only editors with
 "Include beta versions" turned on are offered.
 
+Signing (a Developer ID for macOS, a certificate for Windows) is set up once as repository
+secrets: see [docs/releasing.md](docs/releasing.md). The release has installers (Setup.exe, .dmg,
+.flatpak) and zips.
+
 Editors that are already installed find the release on their own (`editor/src/updater.cpp`): they
 download `aven-<version>-<system>.zip`, so keep those names, and check it against the SHA-256 that
 GitHub lists for it.

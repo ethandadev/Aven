@@ -849,7 +849,11 @@ void Editor::drawViewport(float dt) {
     if (playing_) {
         dl->AddRectFilled(pos, {pos.x + size.x, pos.y + 3}, paused_ ? IM_COL32(250, 200, 60, 255) : IM_COL32(60, 200, 120, 255));
         const char* hint = paused_ ? "Paused: click objects to inspect and change them, then Keep or Undo your changes"
+#if defined(__APPLE__)
+                           : viewportFocused_ ? "Playing - Cmd+P or the stop button goes back to editing"
+#else
                            : viewportFocused_ ? "Playing - Ctrl+P or the stop button goes back to editing"
+#endif
                                               : "Click the game to control it";
         dl->AddText({pos.x + 10, pos.y + size.y - 24}, IM_COL32(255, 255, 255, 140), hint);
         drawLiveChangesBar(pos, size);
