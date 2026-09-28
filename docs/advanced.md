@@ -30,6 +30,9 @@ to hide the Ask Aven box, the Doctor buttons and the tips.
 - **Snapping**: hold **Ctrl** while dragging a gizmo, or turn on the magnet. Step sizes are in
   **Preferences > Scene view**.
 - **Right-click an object > Copy as code** copies `find("Name")`.
+- **Paste in Place** (**Ctrl+Shift+V**, Edit menu) pastes exactly where the copies were; turn on
+  **Preferences > Behavior > Paste in the same place** to make plain Paste do that too. Pasted
+  objects go back into the folder they were copied from.
 - **Keyboard in the Hierarchy**: the arrow keys move through the list (Shift extends the
   selection), Left and Right close and open folders, Home and End jump to the ends, Esc selects
   nothing. Right-click actions (move up or down, out of the parent, save as prefab, add a script)

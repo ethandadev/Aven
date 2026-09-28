@@ -607,6 +607,8 @@ void Editor::drawEntityNode(Entity e) {
             }
             if (ImGui::MenuItem("Paste", chordName(prefs.chord("paste")).c_str(), false, !clipboard_.isNull()))
                 pasteClipboard();
+            if (ImGui::MenuItem("Paste in Place", chordName(prefs.chord("paste_in_place")).c_str(), false, !clipboard_.isNull()))
+                pasteClipboard(true);
             bool deleted = false;
             if (ImGui::MenuItem("Delete", chordName(prefs.chord("delete")).c_str())) {
                 recordUndo("Delete");

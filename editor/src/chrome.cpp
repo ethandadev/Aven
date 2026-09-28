@@ -182,6 +182,8 @@ void Editor::drawMenuBar() {
             copySelection(false);
         if (ImGui::MenuItem("Paste", key("paste"), false, !playing_))
             pasteClipboard();
+        if (ImGui::MenuItem("Paste in Place", key("paste_in_place"), false, !playing_))
+            pasteClipboard(true);
         if (ImGui::MenuItem("Duplicate", key("duplicate"), false, sel && !playing_))
             duplicateSelection();
         if (ImGui::MenuItem("Delete", key("delete"), false, sel && !playing_)) {
@@ -641,6 +643,8 @@ void Editor::handleShortcuts() {
         copySelection(true);
     if (sceneFocus && shortcut("paste"))
         pasteClipboard();
+    if (sceneFocus && shortcut("paste_in_place"))
+        pasteClipboard(true);
     if (sceneFocus && shortcut("select_all")) {
         selection_.clear();
         for (Entity e : scene_->roots())
@@ -858,6 +862,9 @@ void Editor::drawPreferences() {
         ui::sectionHeader("Editing");
         label("Ask before deleting");
         changed |= ImGui::Checkbox("##confirmdel", &prefs.confirmDelete);
+        label("Paste in the same place", "Pasted objects land exactly where the copied ones are, instead of a little to the side.\n"
+                                         "(Edit > Paste in Place does this once, whatever this is set to.)");
+        changed |= ImGui::Checkbox("##pasteinplace", &prefs.pasteInPlace);
         ui::sectionHeader("External code editor");
         ImGui::TextWrapped("Use another editor (VS Code, Sublime, Vim...) for scripts. {file} and {line} are filled in. "
                            "Saved changes reload while the game runs.");

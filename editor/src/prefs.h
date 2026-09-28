@@ -66,6 +66,7 @@ struct Prefs {
     bool clearConsoleOnPlay = true;
     bool pauseOnError = true;
     bool confirmDelete = false;
+    bool pasteInPlace = false; // pasted objects land exactly where the copies were, not nudged aside
     bool uiSounds = false;
     bool recordReplays = true;
     // Opening scripts in another code editor: {file} and {line} are filled in, e.g. "code -g {file}:{line}".

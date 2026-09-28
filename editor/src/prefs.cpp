@@ -73,6 +73,7 @@ const std::vector<KeyAction>& keyActions() {
         {"copy", "Copy objects", ImGuiMod_Ctrl | ImGuiKey_C, false},
         {"cut", "Cut objects", ImGuiMod_Ctrl | ImGuiKey_X, false},
         {"paste", "Paste objects", ImGuiMod_Ctrl | ImGuiKey_V, false},
+        {"paste_in_place", "Paste in the same place", ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_V, false},
         {"duplicate", "Duplicate", ImGuiMod_Ctrl | ImGuiKey_D, false},
         {"group", "Group into a folder", ImGuiMod_Ctrl | ImGuiKey_G, false},
         {"delete", "Delete", ImGuiKey_Delete, false},
@@ -162,6 +163,7 @@ Json Prefs::toJson() const {
     j["clear_console_on_play"] = clearConsoleOnPlay;
     j["pause_on_error"] = pauseOnError;
     j["confirm_delete"] = confirmDelete;
+    j["paste_in_place"] = pasteInPlace;
     j["ui_sounds"] = uiSounds;
     j["record_replays"] = recordReplays;
     j["level"] = level;
@@ -223,6 +225,7 @@ void Prefs::fromJson(const Json& j) {
     clearConsoleOnPlay = j["clear_console_on_play"].asBool(d.clearConsoleOnPlay);
     pauseOnError = j["pause_on_error"].asBool(d.pauseOnError);
     confirmDelete = j["confirm_delete"].asBool(d.confirmDelete);
+    pasteInPlace = j["paste_in_place"].asBool(d.pasteInPlace);
     uiSounds = j["ui_sounds"].asBool(d.uiSounds);
     recordReplays = j["record_replays"].asBool(d.recordReplays);
     level = std::clamp(j["level"].asInt(d.level), 1, 4);

@@ -1375,6 +1375,20 @@ void Editor::copySelection(bool cut) {
         return;
     clipboard_ = scene_->saveEntities(sel);
     clipboard_["aven"] = "objects";
+    // Where they were, so pasting puts them back beside the originals: the shared parent, and world positions.
+    Entity parent = scene_->parent(sel[0]);
+    bool sameParent = std::all_of(sel.begin(), sel.end(), [&](Entity e) { return scene_->parent(e) == parent; });
+    if (sameParent && parent)
+        clipboard_["parent"] = scene_->info(parent).uuid.toString();
+    Json world = Json::array();
+    for (Entity e : sel) {
+        Vec3 p = scene_->worldPosition(e);
+        Json xyz = Json::array();
+        for (float v : {p.x, p.y, p.z})
+            xyz.push(Json(static_cast<double>(v)));
+        world.push(xyz);
+    }
+    clipboard_["world"] = world;
     ImGui::SetClipboardText(clipboard_.dump(2).c_str());
     if (cut) {
         recordUndo("Cut");
@@ -1386,7 +1400,7 @@ void Editor::copySelection(bool cut) {
     notify(std::to_string(sel.size()) + (sel.size() == 1 ? " object " : " objects ") + (cut ? "cut." : "copied."));
 }
 
-void Editor::pasteClipboard() {
+void Editor::pasteClipboard(bool inPlace) {
     // Objects copied in another project (or another Aven window) arrive through the system clipboard.
     if (const char* text = ImGui::GetClipboardText()) {
         std::string error;
@@ -1396,14 +1410,24 @@ void Editor::pasteClipboard() {
     }
     if (clipboard_.isNull())
         return;
-    recordUndo("Paste");
-    Entity parent;
+    recordUndo(inPlace ? "Paste in place" : "Paste");
+    // Into the folder the copies came from, when it's still in this scene.
+    Entity parent = clipboard_.contains("parent") ? scene_->findByUUID(UUID::fromString(clipboard_["parent"].asString())) : Entity{};
     auto roots = scene_->instantiate(clipboard_, parent);
     selection_.clear();
-    for (Entity e : roots) {
-        // Nudge copies so they don't sit exactly on top of the originals.
+    const Json& world = clipboard_["world"];
+    bool nudge = !inPlace && !prefs.pasteInPlace;
+    for (size_t i = 0; i < roots.size(); ++i) {
+        Entity e = roots[i];
         Vec3 p = scene_->worldPosition(e);
-        scene_->setWorldPosition(e, view3D_ ? p + Vec3{0.5f, 0, 0.5f} : p + Vec3{0.5f, -0.5f, 0});
+        if (world.isArray() && i < world.size() && world[static_cast<int>(i)].size() == 3) {
+            const Json& w = world[static_cast<int>(i)];
+            p = {static_cast<float>(w[0].asNumber()), static_cast<float>(w[1].asNumber()), static_cast<float>(w[2].asNumber())};
+        }
+        // Unless asked not to, nudge copies so they don't sit exactly on top of the originals.
+        if (nudge)
+            p = view3D_ ? p + Vec3{0.5f, 0, 0.5f} : p + Vec3{0.5f, -0.5f, 0};
+        scene_->setWorldPosition(e, p);
         addToSelection(e);
     }
     notify("Pasted " + std::to_string(roots.size()) + (roots.size() == 1 ? " object." : " objects."));

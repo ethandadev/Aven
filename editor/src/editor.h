@@ -300,7 +300,7 @@ public:
     // Tools can add entries to the command palette.
     std::vector<std::pair<std::string, std::function<void()>>> extraCommands_;
     void drawKeepChangesDialog();
-    void pasteClipboard();
+    void pasteClipboard(bool inPlace = false); // inPlace (or the preference): no nudge aside
 
     Fonts fonts;
     Prefs prefs;
