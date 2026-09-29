@@ -78,6 +78,11 @@ The next release is signed and notarized. To try it first, run the Release workf
 (**Actions > Release > Run workflow**): the "macOS app" job's log shows the signing and Apple's
 answer, and the .dmg is attached to the run.
 
+**A release that came out before this was set up** can be notarized afterwards: **Actions >
+Notarize Mac downloads > Run workflow**, with its tag (`v0.4.0`). It signs and notarizes the app
+that was released (nothing is built again), checks Gatekeeper accepts it, and swaps in the new
+`.dmg` and zip. The other downloads and the release notes stay as they are.
+
 To sign locally instead: `MACOS_SIGN_IDENTITY="Developer ID Application: ..." tools/release/make_mac_app.sh <folder> <version> <out>`
 (the same environment variables as above for notarizing, with `APPLE_API_KEY_PATH` pointing at the
 `.p8` file).

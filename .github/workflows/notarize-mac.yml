@@ -1,0 +1,166 @@
+name: Notarize Mac downloads
+
+# For a release published before a Developer ID was set up (docs/releasing.md): signs and notarizes
+# its Aven.app and puts the new .dmg and zip in place of the old ones. The app inside is the one that
+# was released (it isn't built again), and nothing else in the release changes: not the other
+# downloads, not the notes. Actions > Notarize Mac downloads > Run workflow, with the tag (v0.4.0).
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The release to notarize, e.g. v0.4.0"
+        required: true
+
+# Read-only everywhere; only the last job (which runs no third-party code) can change the release.
+permissions:
+  contents: read
+
+jobs:
+  sign:
+    name: Sign and notarize
+    runs-on: macos-latest
+    env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the secrets are set up
+        env:
+          HAS_MAC_CERT: ${{ secrets.MACOS_CERTIFICATE != '' }}
+          HAS_API_KEY: ${{ secrets.APPLE_API_KEY != '' }}
+          HAS_APPLE_ID: ${{ secrets.APPLE_ID != '' }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::'$TAG' isn't a release tag like v0.4.0."
+            exit 1
+          fi
+          if [ "$HAS_MAC_CERT" != "true" ]; then
+            echo "::error::No MACOS_CERTIFICATE secret: see 'macOS: Developer ID and notarization' in docs/releasing.md."
+            exit 1
+          fi
+          if [ "$HAS_API_KEY" != "true" ] && [ "$HAS_APPLE_ID" != "true" ]; then
+            echo "::error::Nothing to notarize with: set APPLE_ID, APPLE_APP_PASSWORD and APPLE_TEAM_ID (or the APPLE_API_KEY secrets)."
+            exit 1
+          fi
+      - name: Download the released app
+        run: |
+          v="${TAG#v}"
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "aven-$v-macos-arm64.zip" --dir in
+          ditto -x -k "in/aven-$v-macos-arm64.zip" in
+          test -x in/Aven.app/Contents/MacOS/aven-editor
+          built="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' in/Aven.app/Contents/Info.plist)"
+          if [ "$built" != "$v" ]; then
+            echo "::error::The zip in $TAG holds Aven $built, not $v."
+            exit 1
+          fi
+          codesign -dv in/Aven.app 2>&1 | grep -E "^(Authority|Signature)" || true
+      - name: Load the signing certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(openssl rand -hex 16)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          identity="$(security find-identity -v -p codesigning "$keychain" | grep -m1 'Developer ID Application' | sed -E 's/.*"(.*)".*/\1/')"
+          if [ -z "$identity" ]; then echo "No 'Developer ID Application' certificate in MACOS_CERTIFICATE." >&2; exit 1; fi
+          echo "MACOS_SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+          if [ -n "$APPLE_API_KEY" ]; then
+            echo "$APPLE_API_KEY" | base64 --decode > "$RUNNER_TEMP/api_key.p8"
+            echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/api_key.p8" >> "$GITHUB_ENV"
+          fi
+      - name: Sign, notarize and pack
+        env:
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: tools/release/make_mac_app.sh --app in/Aven.app "$VERSION" out
+      - name: Check Gatekeeper accepts it
+        run: |
+          hdiutil attach "out/Aven-$VERSION-macOS.dmg" -mountpoint /tmp/aven-dmg -nobrowse
+          app=/tmp/aven-dmg/Aven.app
+          codesign --verify --deep --strict "$app"
+          spctl --assess --type execute --verbose "$app" # fails unless signed and notarized
+          xcrun stapler validate "$app"
+          "$app/Contents/MacOS/aven-editor" --help > /dev/null
+          hdiutil detach /tmp/aven-dmg
+          xcrun stapler validate "out/Aven-$VERSION-macOS.dmg"
+          ls -la out
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: notarized-macos
+          path: out/*
+
+  # The editor's updater checks the zip's signature (.sig), so a new zip needs a new one when the
+  # release has one. Its own job, like in release.yml, so the key only sits next to this repository's script.
+  sign-update:
+    name: Sign the update
+    needs: sign
+    runs-on: ubuntu-24.04
+    env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: notarized-macos
+          path: dist
+      - name: Sign
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+          UPDATE_PUBLIC_KEY: ${{ vars.UPDATE_PUBLIC_KEY }}
+        run: |
+          mkdir -p sigs
+          zip="dist/aven-${TAG#v}-macos-arm64.zip"
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -qxF "$(basename "$zip").sig"; then
+            echo "$TAG has no update signature for the Mac zip, so there's none to redo."
+            exit 0
+          fi
+          if [ -z "$UPDATE_SIGNING_KEY" ]; then
+            echo "::error::$TAG's Mac zip is signed for the updater, but the UPDATE_SIGNING_KEY secret isn't set to sign the new one."
+            exit 1
+          fi
+          python3 tools/release/update_key.py sign "$zip"
+          python3 tools/release/update_key.py verify "$UPDATE_PUBLIC_KEY" "$zip"
+          mv dist/*.sig sigs/
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: notarized-signature
+          path: sigs/*.sig
+          if-no-files-found: ignore
+
+  replace:
+    name: Replace the Mac downloads
+    needs: [sign, sign-update]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # the only job that can change the repository's releases
+    env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: notarized-*
+          path: dist
+          merge-multiple: true
+      - name: Upload in place of the old ones
+        run: |
+          ls -la dist
+          gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+          echo "The Mac downloads of $TAG are now signed and notarized."

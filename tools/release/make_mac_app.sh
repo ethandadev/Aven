@@ -5,6 +5,10 @@
 #   aven-<version>-macos-arm64.zip  Aven.app zipped; what the editor's updater downloads
 #
 #   tools/release/make_mac_app.sh <package-folder> <version> <out-dir>
+#   tools/release/make_mac_app.sh --app <Aven.app> <version> <out-dir>
+#
+# --app signs, notarizes and packs an Aven.app that's already made (a release's, published before
+# a Developer ID was set up) without changing what's inside it. See notarize-mac.yml.
 #
 # Aven.app holds the editor and player in Contents/MacOS and everything else (templates, data,
 # players for other systems...) in Contents/Resources.
@@ -17,6 +21,11 @@
 #   APPLE_ID, APPLE_APP_PASSWORD (an app-specific password from appleid.apple.com), APPLE_TEAM_ID
 # MACOS_BUNDLE_ID changes the app's identifier (default io.github.ethandadev.aven).
 set -euo pipefail
+existing=""
+if [ "${1:-}" = "--app" ]; then
+    shift
+    existing="$1" # (in place of the package folder)
+fi
 pkg="$1"
 version="$2"
 out="$3"
@@ -30,6 +39,10 @@ out="$(cd "$out" && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT # (also when a step fails)
 app="$work/Aven.app"
+if [ -n "$existing" ]; then
+    test -x "$existing/Contents/MacOS/aven-editor" || { echo "$existing isn't an Aven.app." >&2; exit 1; }
+    ditto "$existing" "$app"
+else
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$pkg/aven-editor" "$pkg/aven-player" "$app/Contents/MacOS/"
 for d in data templates quests sdk web players; do
@@ -60,6 +73,7 @@ cat > "$app/Contents/Info.plist" <<EOF
 </dict>
 </plist>
 EOF
+fi
 
 # Hardened runtime (needed for notarizing). Games and the editor load native modules people build
 # themselves, which aren't signed by the same team, so library validation is off.
