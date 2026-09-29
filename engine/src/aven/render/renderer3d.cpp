@@ -50,12 +50,21 @@ layout(std140) uniform Object {
     vec4 u_color;
     vec4 u_emission;
     vec4 u_params; // metallic, roughness, unlit, has texture
-    vec4 u_extra;  // tiling x, tiling y, skinned, 0
+    vec4 u_extra;  // tiling x, tiling y, skinned, instanced (the values below come from Instances)
     vec4 u_terrain;        // x: is terrain (blend the layers below by the vertex weights)
     vec4 u_layer_tile;     // meters one copy of each layer's texture covers
     vec4 u_layer_color[4];
 };
 layout(std140) uniform Skin { mat4 u_joints[128]; };
+// Many objects with the same mesh and texture are drawn at once: each one's place and material.
+struct Instance {
+    mat4 model;
+    mat4 normal_matrix;
+    vec4 color;
+    vec4 emission;
+    vec4 params;
+};
+layout(std140) uniform Instances { Instance u_instances[64]; };
 )";
 
 const char* kMeshVS = R"(
@@ -69,15 +78,29 @@ out vec3 v_normal;
 out vec2 v_uv;
 out vec4 v_splat;
 out float v_view_depth;
+out vec4 v_color;
+out vec4 v_emission;
+out vec4 v_params;
 void main() {
+    mat4 model = u_model, normal_matrix = u_normal_matrix;
+    v_color = u_color;
+    v_emission = u_emission;
+    v_params = u_params;
+    if (u_extra.w > 0.5) {
+        model = u_instances[gl_InstanceID].model;
+        normal_matrix = u_instances[gl_InstanceID].normal_matrix;
+        v_color = u_instances[gl_InstanceID].color;
+        v_emission = u_instances[gl_InstanceID].emission;
+        v_params = u_instances[gl_InstanceID].params;
+    }
     mat4 skin = mat4(1.0);
     if (u_extra.z > 0.5) {
         skin = a_weights.x * u_joints[int(a_joints.x)] + a_weights.y * u_joints[int(a_joints.y)] +
                a_weights.z * u_joints[int(a_joints.z)] + a_weights.w * u_joints[int(a_joints.w)];
     }
-    vec4 world = u_model * skin * vec4(a_position, 1.0);
+    vec4 world = model * skin * vec4(a_position, 1.0);
     v_world = world.xyz;
-    v_normal = mat3(u_normal_matrix) * (mat3(skin) * a_normal);
+    v_normal = mat3(normal_matrix) * (mat3(skin) * a_normal);
     v_uv = a_uv * u_extra.xy;
     v_splat = a_weights;
     vec4 view = u_view * world;
@@ -119,6 +142,9 @@ in vec3 v_normal;
 in vec2 v_uv;
 in vec4 v_splat;
 in float v_view_depth;
+in vec4 v_color;    // (the object's, or its instance's)
+in vec4 v_emission;
+in vec4 v_params;   // metallic, roughness, unlit, has texture
 out vec4 frag_color;
 out vec4 frag_normal;
 const float PI = 3.14159265;
@@ -185,8 +211,8 @@ vec3 brdf(vec3 N, vec3 V, vec3 L, vec3 albedo, float metallic, float rough, vec3
 }
 
 void main() {
-    vec4 base = u_color;
-    if (u_params.w > 0.5) base *= texture(u_albedo, v_uv);
+    vec4 base = v_color;
+    if (v_params.w > 0.5) base *= texture(u_albedo, v_uv);
     if (u_terrain.x > 0.5) {
         // Terrain: each layer's texture tiled over the ground, mixed by how much was painted.
         vec4 w = max(v_splat, vec4(0.0));
@@ -198,20 +224,20 @@ void main() {
                + w.y * LAYER(u_layer1, u_layer_tile.y) * u_layer_color[1].rgb
                + w.z * LAYER(u_layer2, u_layer_tile.z) * u_layer_color[2].rgb
                + w.w * LAYER(u_layer3, u_layer_tile.w) * u_layer_color[3].rgb;
-        base = vec4(c * u_color.rgb, 1.0);
+        base = vec4(c * v_color.rgb, 1.0);
     }
     vec3 albedo = to_linear(base.rgb);
     vec3 N = normalize(v_normal);
     if (!gl_FrontFacing) N = -N;
     frag_normal = vec4(normalize((u_view * vec4(N, 0.0)).xyz) * 0.5 + 0.5, 1.0);
     float dist = length(u_camera_pos.xyz - v_world);
-    if (u_params.z > 0.5) {
-        frag_color = vec4(apply_fog(albedo + u_emission.rgb, dist), base.a);
+    if (v_params.z > 0.5) {
+        frag_color = vec4(apply_fog(albedo + v_emission.rgb, dist), base.a);
         return;
     }
     vec3 V = normalize(u_camera_pos.xyz - v_world);
-    float metallic = clamp(u_params.x, 0.0, 1.0);
-    float rough = clamp(u_params.y, 0.045, 1.0);
+    float metallic = clamp(v_params.x, 0.0, 1.0);
+    float rough = clamp(v_params.y, 0.045, 1.0);
     vec3 F0 = mix(vec3(0.04), albedo, metallic);
 
     vec3 color = vec3(0.0);
@@ -253,7 +279,7 @@ void main() {
     vec3 R = reflect(-V, N);
     vec3 reflection = mix(sky_color(R), hemi, rough * rough) * u_sky_top.w;
     color += kd * albedo * irradiance + ks * reflection * (1.0 - rough * 0.5);
-    color += u_emission.rgb;
+    color += v_emission.rgb;
     frag_color = vec4(apply_fog(color, dist), base.a);
 }
 )";
@@ -311,6 +337,16 @@ struct FrameUniforms {
     float lightSpot[kMaxLights][4];
     Mat4 localShadow[16];
 };
+
+// One object in an instanced draw (matches the shader's Instance, std140).
+struct InstanceData {
+    Mat4 model, normalMatrix;
+    float color[4];
+    float emission[4];
+    float params[4];
+};
+static_assert(sizeof(InstanceData) == 176, "InstanceData must match the shader's std140 layout");
+constexpr int kMaxInstances = 64; // (64 * 176 bytes fits the 16 KB every GPU gives a uniform block)
 
 struct ObjectUniforms {
     Mat4 model, normalMatrix;
@@ -428,6 +464,7 @@ struct Renderer3D::Impl {
     std::vector<Item> items;
     std::vector<std::vector<Mat4>> skins;
     std::array<Mat4, 128> skinBuffer{};
+    std::array<InstanceData, kMaxInstances> instanceBuffer{};
     FrameUniforms frame{};
     std::vector<size_t> transparentOrder, opaqueOrder; // this frame's visible items, in drawing order
     uint32_t drawn = 0;
@@ -440,7 +477,7 @@ struct Renderer3D::Impl {
         pbr.vertex = common + kMeshVS;
         pbr.fragment = common + kSkyFunctions + kPbrFS;
         pbr.attributes = {"a_position", "a_normal", "a_uv", "a_joints", "a_weights"};
-        pbr.uniformBlocks = {"Frame", "Object", "Skin"};
+        pbr.uniformBlocks = {"Frame", "Object", "Skin", "Instances"};
         pbr.textures = {"u_albedo", "u_csm", "u_local", "u_layer0", "u_layer1", "u_layer2", "u_layer3"};
         pbr.outputs = {"frag_color", "frag_normal"};
         pbr.label = "pbr";
@@ -765,9 +802,89 @@ struct Renderer3D::Impl {
         device->drawIndexed(0, it.mesh->indexCount);
     }
 
+    // At the start of each pass: no skinning, and an instance block bound (WebGL wants every block
+    // a shader declares bound, at its full size, even for draws that don't read it).
     void bindIdentitySkin() {
         skinBuffer.fill(Mat4{});
         device->applyUniforms(2, skinBuffer.data(), skinBuffer.size() * sizeof(Mat4));
+        device->applyUniforms(3, instanceBuffer.data(), sizeof instanceBuffer);
+    }
+
+    // Objects that can be drawn in one go: same mesh, texture, sides and tiling, not skinned and
+    // not terrain (in the shadow pass, only mesh and sides matter). A scene with 2000 copies of a
+    // cube went from 8000 draw calls a frame to a few dozen. `order` keeps its order: groups come
+    // in the order of their first object, and objects in theirs.
+    struct GroupKey {
+        const GpuMesh* mesh;
+        uint32_t texture;
+        bool doubleSided;
+        float tx, ty;
+        bool operator==(const GroupKey& o) const {
+            return mesh == o.mesh && texture == o.texture && doubleSided == o.doubleSided && tx == o.tx && ty == o.ty;
+        }
+    };
+    struct GroupKeyHash {
+        size_t operator()(const GroupKey& k) const {
+            return std::hash<const void*>()(k.mesh) ^ (static_cast<size_t>(k.texture) * 31u) ^ (k.doubleSided ? 7u : 0u);
+        }
+    };
+    std::unordered_map<GroupKey, size_t, GroupKeyHash> groupIndex; // (reused)
+    std::vector<std::vector<const Item*>> groups;                 // (reused)
+    std::vector<const Item*> drawOrder;                           // (reused)
+
+    void group(const std::vector<const Item*>& order, bool shadowPass, std::vector<std::vector<const Item*>>& out) {
+        out.clear();
+        groupIndex.clear();
+        for (const Item* it : order) {
+            bool batchable = it->skin < 0 && (shadowPass || !it->terrain);
+            if (!batchable) {
+                out.push_back({it});
+                continue;
+            }
+            GroupKey k{it->mesh, shadowPass ? 0u : it->texture.id, it->doubleSided, shadowPass ? 1.0f : it->tiling.x,
+                       shadowPass ? 1.0f : it->tiling.y};
+            auto [pos, fresh] = groupIndex.emplace(k, out.size());
+            if (fresh)
+                out.push_back({});
+            out[pos->second].push_back(it);
+        }
+    }
+    void drawGroup(const std::vector<const Item*>& items, bool shadowPass) {
+        if (items.size() == 1) {
+            drawItem(*items[0], shadowPass);
+            return;
+        }
+        const Item& first = *items[0];
+        ObjectUniforms o{};
+        o.model = Mat4{};
+        o.normalMatrix = Mat4{};
+        set4(o.extra, first.tiling.x, first.tiling.y, 0, 1); // (instanced)
+        rhi::Bindings b;
+        b.vertexBuffer = first.mesh->vertexBuffer;
+        b.indexBuffer = first.mesh->indexBuffer;
+        if (!shadowPass) {
+            b.textures[0] = first.texture ? first.texture : assets->white().handle;
+            b.textures[1] = csmTexture;
+            b.textures[2] = localTexture;
+            for (int i = 0; i < 4; ++i)
+                b.textures[3 + i] = assets->white().handle;
+        }
+        device->applyBindings(b);
+        device->applyUniforms(1, &o, sizeof o);
+        for (size_t start = 0; start < items.size(); start += kMaxInstances) {
+            size_t n = std::min<size_t>(kMaxInstances, items.size() - start);
+            for (size_t i = 0; i < n; ++i) {
+                const Item& it = *items[start + i];
+                InstanceData& d = instanceBuffer[i];
+                d.model = it.world;
+                d.normalMatrix = transpose(inverse(it.world));
+                set4(d.color, it.color.r, it.color.g, it.color.b, it.color.a);
+                set4(d.emission, it.emission.x, it.emission.y, it.emission.z, 0);
+                set4(d.params, it.metallic, it.roughness, it.unlit ? 1.0f : 0.0f, it.texture ? 1.0f : 0.0f);
+            }
+            device->applyUniforms(3, instanceBuffer.data(), sizeof instanceBuffer); // (the whole block: see bindIdentitySkin)
+            device->drawIndexed(0, first.mesh->indexCount, static_cast<uint32_t>(n));
+        }
     }
 
     // Shadow tiles are only drawn again when what they show changed: the light (its matrix), what
@@ -814,9 +931,10 @@ struct Renderer3D::Impl {
         f.proj = viewProj;
         f.viewProj = viewProj;
         device->applyUniforms(0, &f, sizeof f);
-        for (const Item* it : casters) {
-            device->applyPipeline(it->doubleSided ? depthDouble : depth);
-            drawItem(*it, true);
+        group(casters, true, groups);
+        for (auto& g : groups) {
+            device->applyPipeline(g[0]->doubleSided ? depthDouble : depth);
+            drawGroup(g, true);
         }
     }
 
@@ -1062,11 +1180,15 @@ void Renderer3D::drawOpaque(Scene&, const CameraView& camera) {
     }
     // Nearest first: what's behind then fails the depth test before its (costly) lighting runs.
     std::sort(opaque.begin(), opaque.end(), [&](size_t a, size_t b) { return impl_->items[a].depth > impl_->items[b].depth; });
-    for (size_t i : opaque) {
-        const auto& it = impl_->items[i];
-        d.applyPipeline(it.doubleSided ? impl_->opaqueDouble : impl_->opaque);
-        impl_->drawItem(it, false);
-        ++impl_->drawn;
+    auto& order = impl_->drawOrder;
+    order.clear();
+    for (size_t i : opaque)
+        order.push_back(&impl_->items[i]);
+    impl_->group(order, false, impl_->groups);
+    for (auto& g : impl_->groups) {
+        d.applyPipeline(g[0]->doubleSided ? impl_->opaqueDouble : impl_->opaque);
+        impl_->drawGroup(g, false);
+        impl_->drawn += static_cast<uint32_t>(g.size());
     }
 }
 

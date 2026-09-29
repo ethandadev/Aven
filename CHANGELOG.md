@@ -55,6 +55,10 @@ The editor also fits better at bigger UI sizes.
 - `aven-player --size` and every `aven-relay` option check what they're given.
 
 ### Improved
+- **Many copies of a model are drawn at once**: objects sharing a mesh and texture (blocks, coins,
+  trees, rocks) go to the graphics chip together instead of one draw call each, in the scene and
+  in shadows. A game with 2000 spinning cubes went from 481 to 35 ms a frame; the 3D templates got
+  faster too (the explorer 56 to 20 ms, the obby 13 to 8, counting the shadow changes below).
 - **Faster 3D**: shadow maps are only drawn again when something in them moved (in the editor
   with the camera still, sun and lamp shadows went from most of the frame to almost nothing; while
   playing, lamps nothing moves near stay free). Solid objects are drawn nearest first, so what's
