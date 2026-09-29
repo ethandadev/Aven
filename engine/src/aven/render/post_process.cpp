@@ -317,6 +317,7 @@ void PostProcessor::fullscreen(rhi::PipelineHandle pipe, rhi::FramebufferHandle 
                                std::initializer_list<rhi::TextureHandle> textures, const void* uniforms, size_t size,
                                bool clear) {
     rhi::PassDesc pass;
+    pass.label = "post-processing";
     pass.framebuffer = fb;
     pass.width = w;
     pass.height = h;

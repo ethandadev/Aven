@@ -11,6 +11,10 @@ moment and scripts that do strange things now get a clear message instead of a c
 The editor also fits better at bigger UI sizes.
 
 ### New
+- **The editor rests when nothing's happening**: with no game playing and no key or mouse touched
+  for a second, it draws a few frames a second instead of 60 or more, and wakes the moment you
+  move the mouse. It used about a fifth of the processor time while idle in our measurements, so
+  laptops stay cooler and last longer. Preferences > Behavior > "Rest when nothing's happening".
 - **Scene view resolution** (Preferences > Scene view): on Retina and other high-density screens the
   scene and game view now draw up to 1.5 pixels per point by default ("Balanced") instead of every
   pixel, which is much less work for the graphics chip. "Sharpest" goes back to every pixel;
@@ -51,6 +55,13 @@ The editor also fits better at bigger UI sizes.
 - `aven-player --size` and every `aven-relay` option check what they're given.
 
 ### Improved
+- **Faster 3D**: shadow maps are only drawn again when something in them moved (in the editor
+  with the camera still, sun and lamp shadows went from most of the frame to almost nothing; while
+  playing, lamps nothing moves near stay free). Solid objects are drawn nearest first, so what's
+  hidden behind them skips its lighting; the sky only fills what's left; shadows are only looked
+  up on the side facing the light, with 4 lookups instead of 9; the scene's normals are only
+  written when SSAO uses them; and sky and fog colors are converted once a frame, not per pixel.
+  Pictures are unchanged (compared pixel by pixel).
 - The editor fits at every UI size: tool windows open no bigger than the screen, and the Assets
   grid, Inspector, theme and lighting cards follow the UI size. Long names end in "..." with the
   full name on hover.

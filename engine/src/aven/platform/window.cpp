@@ -152,6 +152,7 @@ bool Window::create(const WindowDesc& desc) {
     glfwSetWindowUserPointer(handle_, this);
     glfwMakeContextCurrent(handle_);
     glfwSwapInterval(desc.vsync ? 1 : 0);
+    lastInput_ = glfwGetTime(); // (awake for the first moments: layouts settle over a few frames)
     installCallbacks(handle_);
     double mx, my;
     glfwGetCursorPos(handle_, &mx, &my);
@@ -172,31 +173,51 @@ void Window::destroy() {
 
 void Window::installCallbacks(GLFWwindow* w) {
     glfwSetKeyCallback(w, [](GLFWwindow* win, int key, int, int action, int) {
+        self(win)->lastInput_ = glfwGetTime();
         if (action == GLFW_REPEAT)
             return;
         self(win)->input_.onKey(key, action == GLFW_PRESS);
     });
     glfwSetMouseButtonCallback(w, [](GLFWwindow* win, int button, int action, int) {
+        self(win)->lastInput_ = glfwGetTime();
         self(win)->input_.onMouseButton(button, action == GLFW_PRESS);
     });
     glfwSetCursorPosCallback(w, [](GLFWwindow* win, double x, double y) {
+        self(win)->lastInput_ = glfwGetTime();
         self(win)->input_.onMouseMove({static_cast<float>(x), static_cast<float>(y)});
     });
     glfwSetScrollCallback(w, [](GLFWwindow* win, double x, double y) {
+        self(win)->lastInput_ = glfwGetTime();
         self(win)->input_.onScroll({static_cast<float>(x), static_cast<float>(y)});
     });
-    glfwSetCharCallback(w, [](GLFWwindow* win, unsigned int c) { self(win)->input_.onChar(c); });
+    glfwSetCharCallback(w, [](GLFWwindow* win, unsigned int c) {
+        self(win)->lastInput_ = glfwGetTime();
+        self(win)->input_.onChar(c);
+    });
     glfwSetWindowFocusCallback(w, [](GLFWwindow* win, int focused) {
+        self(win)->lastInput_ = glfwGetTime();
         if (!focused)
             self(win)->input_.releaseAll(); // avoid keys getting "stuck" after alt-tab
     });
     glfwSetDropCallback(w, [](GLFWwindow* win, int count, const char** paths) {
         Window* me = self(win);
+        me->lastInput_ = glfwGetTime();
         if (!me->onFileDrop)
             return;
         std::vector<std::string> files(paths, paths + count);
         me->onFileDrop(files);
     });
+}
+
+void Window::waitEvents(double timeout) {
+#ifndef __EMSCRIPTEN__
+    if (timeout > 0) {
+        input_.beginFrame(); // (first, as in pollEvents: the events that wake it belong to this frame)
+        glfwWaitEventsTimeout(timeout); // returns as soon as anything happens, having handled it
+        return;
+    }
+#endif
+    pollEvents();
 }
 
 bool Window::shouldClose() const { return handle_ && glfwWindowShouldClose(handle_); }

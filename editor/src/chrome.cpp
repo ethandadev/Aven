@@ -938,6 +938,12 @@ void Editor::drawPreferences() {
         changed |= ImGui::Checkbox("##pauseerr", &prefs.pauseOnError);
         label("Record bug replays", "Keeps the last 20 seconds of play so you can see what led to an error.");
         changed |= ImGui::Checkbox("##replay", &prefs.recordReplays);
+        ui::sectionHeader("Energy");
+        label("Rest when nothing's happening",
+              "When no game is playing and you're not touching the mouse or keyboard, the editor draws a\n"
+              "few pictures a second instead of 60 or more: cooler, quieter and longer on battery. It\n"
+              "wakes up the moment you move the mouse.");
+        changed |= ImGui::Checkbox("##energy", &prefs.saveEnergy);
         ui::sectionHeader("Editing");
         label("Ask before deleting");
         changed |= ImGui::Checkbox("##confirmdel", &prefs.confirmDelete);

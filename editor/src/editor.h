@@ -106,6 +106,9 @@ public:
     // unit (a Retina Mac: 2, with scale 1), so text is drawn sharp without being drawn bigger.
     void setDpiScale(float scale, float density = 1.0f) { dpiScale_ = scale; fontDensity_ = density; styleDirty_ = true; }
     bool wantsQuit() const { return quit_; }
+    // True when nothing on screen moves by itself (no game playing, no particles previewing, no GIF
+    // being recorded): the editor can then wait for input instead of drawing every frame.
+    bool canRest();
     void requestQuit();
     // When Aven quits (main.cpp): puts a downloaded update in place (updater.cpp). Returns the
     // command that starts the new version when the user chose to restart, else "".

@@ -187,6 +187,7 @@ Json Prefs::toJson() const {
     j["paste_in_place"] = pasteInPlace;
     j["ui_sounds"] = uiSounds;
     j["record_replays"] = recordReplays;
+    j["save_energy"] = saveEnergy;
     j["level"] = level;
     j["auto_level_up"] = autoLevelUp;
     j["beginner_helpers"] = beginnerHelpers;
@@ -254,6 +255,7 @@ void Prefs::fromJson(const Json& j) {
     pasteInPlace = j["paste_in_place"].asBool(d.pasteInPlace);
     uiSounds = j["ui_sounds"].asBool(d.uiSounds);
     recordReplays = j["record_replays"].asBool(d.recordReplays);
+    saveEnergy = j["save_energy"].asBool(d.saveEnergy);
     level = std::clamp(j["level"].asInt(d.level), 1, 4);
     autoLevelUp = j["auto_level_up"].asBool(d.autoLevelUp);
     beginnerHelpers = j["beginner_helpers"].asBool(d.beginnerHelpers);

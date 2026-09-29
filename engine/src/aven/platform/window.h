@@ -45,6 +45,10 @@ public:
     void cancelClose();
 
     void pollEvents();
+    // Like pollEvents(), but first sleeps until something happens (a key, the mouse, a resize...) or
+    // `timeout` seconds pass: for an editor with nothing to animate, instead of drawing 60+ frames a second.
+    void waitEvents(double timeout);
+    double lastInputTime() const { return lastInput_; } // Window::time() of the last key, click, move, scroll or drop
     void endFrame(); // after the game has updated: needed in browsers, harmless elsewhere
     void swapBuffers();
 
@@ -75,6 +79,7 @@ public:
 
 private:
     GLFWwindow* handle_ = nullptr;
+    double lastInput_ = 0;
     Input input_;
     bool fullscreen_ = false;
     bool cursorLocked_ = false;

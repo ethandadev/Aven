@@ -75,6 +75,7 @@ struct Prefs {
     bool pasteInPlace = false; // pasted objects land exactly where the copies were, not nudged aside
     bool uiSounds = false;
     bool recordReplays = true;
+    bool saveEnergy = true; // when nothing moves and nobody's touching anything, draw a few frames a second
     // Opening scripts in another code editor: {file} and {line} are filled in, e.g. "code -g {file}:{line}".
     std::string externalEditor;
     bool useExternalEditor = false;

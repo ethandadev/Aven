@@ -99,6 +99,7 @@ private:
     int width_ = 0, height_ = 0;
     rhi::TextureHandle sceneColor_, sceneNormal_, sceneDepth_, outputColor_;
     rhi::FramebufferHandle sceneFb_, outputFb_;
+    rhi::FramebufferHandle sceneColorFb_; // the scene without its normals: they're only for SSAO
 
     void ensureTargets(int w, int h);
     void releaseTargets();

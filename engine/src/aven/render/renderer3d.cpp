@@ -26,10 +26,10 @@ layout(std140) uniform Frame {
     mat4 u_view_proj;
     vec4 u_camera_pos;     // w: time
     vec4 u_ambient;        // rgb: ambient color * intensity, w: sky mode
-    vec4 u_sky_top;        // w: ambient intensity
-    vec4 u_sky_horizon;
-    vec4 u_ground;
-    vec4 u_fog;            // rgb: color, w: density (0 = off)
+    vec4 u_sky_top;        // rgb: linear (converted once on the CPU, not per pixel), w: ambient intensity
+    vec4 u_sky_horizon;    // rgb: linear
+    vec4 u_ground;         // rgb: linear
+    vec4 u_fog;            // rgb: linear color, w: density (0 = off)
     vec4 u_sun_dir;        // xyz: direction toward the sun, w: has sun
     vec4 u_sun_color;      // rgb: color * intensity, w: casts shadows
     vec4 u_cascade_splits; // xyz: far distance of each cascade
@@ -89,7 +89,7 @@ void main() {
 const char* kSkyFunctions = R"(
 vec3 to_linear(vec3 c) { return pow(max(c, vec3(0.0)), vec3(2.2)); }
 vec3 sky_color(vec3 dir) {
-    vec3 top = to_linear(u_sky_top.rgb), horizon = to_linear(u_sky_horizon.rgb), ground = to_linear(u_ground.rgb);
+    vec3 top = u_sky_top.rgb, horizon = u_sky_horizon.rgb, ground = u_ground.rgb; // (already linear)
     float y = dir.y;
     vec3 c = y > 0.0 ? mix(horizon, top, pow(clamp(y, 0.0, 1.0), 0.5))
                      : mix(horizon, ground, pow(clamp(-y, 0.0, 1.0), 0.35));
@@ -102,7 +102,7 @@ vec3 sky_color(vec3 dir) {
 vec3 apply_fog(vec3 color, float dist) {
     if (u_fog.w <= 0.0) return color;
     float f = 1.0 - exp(-pow(dist * u_fog.w, 2.0));
-    return mix(color, to_linear(u_fog.rgb), clamp(f, 0.0, 1.0));
+    return mix(color, u_fog.rgb, clamp(f, 0.0, 1.0));
 }
 )";
 
@@ -123,12 +123,12 @@ out vec4 frag_color;
 out vec4 frag_normal;
 const float PI = 3.14159265;
 
+// Soft shadow edges: each lookup is already a 2x2 texel blend (the hardware compares and filters),
+// so four of them, spread 0.75 texels apart, cover the same area nine used to.
 float pcf(sampler2DShadow tex, vec3 coord, float texel) {
-    float s = 0.0;
-    for (int x = -1; x <= 1; ++x)
-        for (int y = -1; y <= 1; ++y)
-            s += texture(tex, vec3(coord.xy + vec2(x, y) * texel, coord.z));
-    return s / 9.0;
+    float o = 0.75 * texel;
+    return 0.25 * (texture(tex, vec3(coord.xy + vec2(-o, -o), coord.z)) + texture(tex, vec3(coord.xy + vec2(o, -o), coord.z)) +
+                   texture(tex, vec3(coord.xy + vec2(-o, o), coord.z)) + texture(tex, vec3(coord.xy + vec2(o, o), coord.z)));
 }
 
 float sun_shadow(vec3 p, vec3 n) {
@@ -215,7 +215,8 @@ void main() {
     vec3 F0 = mix(vec3(0.04), albedo, metallic);
 
     vec3 color = vec3(0.0);
-    if (u_sun_dir.w > 0.5)
+    // (shadow maps are only read where the surface faces the light: facing away, it's dark anyway)
+    if (u_sun_dir.w > 0.5 && dot(N, u_sun_dir.xyz) > 0.0)
         color += brdf(N, V, normalize(u_sun_dir.xyz), albedo, metallic, rough, F0) * u_sun_color.rgb *
                  sun_shadow(v_world, N);
     int count = int(u_shadow_params.w + 0.5);
@@ -235,8 +236,9 @@ void main() {
             atten = falloff * falloff / (d * d + 1.0);
             if (type > 1.5)
                 atten *= smoothstep(u_light_spot[i].x, u_light_spot[i].y, dot(-L, normalize(u_light_dir[i].xyz)));
-            if (atten > 0.0)
-                atten *= local_shadow(i, v_world, N);
+            if (atten <= 0.0 || dot(N, L) <= 0.0)
+                continue; // out of range, outside the cone or facing away: no light, so no lighting math
+            atten *= local_shadow(i, v_world, N);
         }
         color += brdf(N, V, L, albedo, metallic, rough, F0) * u_light_color[i].rgb * atten;
     }
@@ -245,7 +247,7 @@ void main() {
     float nv = max(dot(N, V), 0.0);
     vec3 ks = f_schlick_rough(nv, F0, rough);
     vec3 kd = (1.0 - ks) * (1.0 - metallic);
-    vec3 hemi = mix(to_linear(u_ground.rgb), mix(to_linear(u_sky_horizon.rgb), to_linear(u_sky_top.rgb), 0.6),
+    vec3 hemi = mix(u_ground.rgb, mix(u_sky_horizon.rgb, u_sky_top.rgb, 0.6),
                     N.y * 0.5 + 0.5);
     vec3 irradiance = u_ambient.rgb + hemi * u_sky_top.w;
     vec3 R = reflect(-V, N);
@@ -260,24 +262,26 @@ const char* kDepthFS = R"(
 void main() {}
 )";
 
+// The far point is found per corner, not per pixel (a 4x4 inverse for every pixel added up): as a
+// homogeneous point it varies linearly across the screen, so interpolating it is exact.
 const char* kSkyVS = R"(
-out vec2 v_ndc;
+out vec4 v_far;
 void main() {
     vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
-    v_ndc = p * 2.0 - 1.0;
-    gl_Position = vec4(v_ndc, 1.0, 1.0);
+    vec2 ndc = p * 2.0 - 1.0;
+    v_far = inverse(u_view_proj) * vec4(ndc, 1.0, 1.0);
+    gl_Position = vec4(ndc, 1.0, 1.0);
 }
 )";
 
 const char* kSkyFS = R"(
-in vec2 v_ndc;
+in vec4 v_far;
 out vec4 frag_color;
 out vec4 frag_normal;
 void main() {
-    vec4 far_point = inverse(u_view_proj) * vec4(v_ndc, 1.0, 1.0);
-    vec3 dir = normalize(far_point.xyz / far_point.w - u_camera_pos.xyz);
+    vec3 dir = normalize(v_far.xyz / v_far.w - u_camera_pos.xyz);
     vec3 c = sky_color(dir);
-    if (u_fog.w > 0.0) c = mix(c, to_linear(u_fog.rgb), clamp(1.0 - dir.y * 4.0, 0.0, 1.0) * clamp(u_fog.w * 20.0, 0.0, 1.0));
+    if (u_fog.w > 0.0) c = mix(c, u_fog.rgb, clamp(1.0 - dir.y * 4.0, 0.0, 1.0) * clamp(u_fog.w * 20.0, 0.0, 1.0));
     frag_color = vec4(c, 1.0);
     frag_normal = vec4(0.5, 0.5, 1.0, 1.0);
 }
@@ -425,7 +429,7 @@ struct Renderer3D::Impl {
     std::vector<std::vector<Mat4>> skins;
     std::array<Mat4, 128> skinBuffer{};
     FrameUniforms frame{};
-    std::vector<size_t> transparentOrder;
+    std::vector<size_t> transparentOrder, opaqueOrder; // this frame's visible items, in drawing order
     uint32_t drawn = 0;
 
     bool init(rhi::Device* d, Assets* a) {
@@ -450,7 +454,7 @@ struct Renderer3D::Impl {
         depthShader = device->createShader(depthDesc);
 
         rhi::ShaderDesc skyDesc;
-        skyDesc.vertex = kSkyVS;
+        skyDesc.vertex = std::string(kFrameBlock) + kSkyVS;
         skyDesc.fragment = std::string(kFrameBlock) + kSkyFunctions + kSkyFS;
         skyDesc.uniformBlocks = {"Frame"};
         skyDesc.outputs = {"frag_color", "frag_normal"};
@@ -491,6 +495,11 @@ struct Renderer3D::Impl {
 
         rhi::PipelineDesc sp;
         sp.shader = skyShader;
+        // Drawn after the opaque objects, at the far plane: only the pixels nothing covers are
+        // shaded (it used to fill the whole screen first, then get painted over).
+        sp.depthTest = true;
+        sp.depthWrite = false;
+        sp.depthCompare = rhi::CompareFunc::LessEqual;
         sp.label = "sky";
         sky = device->createPipeline(sp);
 
@@ -547,6 +556,7 @@ struct Renderer3D::Impl {
             return;
         importGeneration = assets->importGeneration();
         models.clear();
+        ++geometryEpoch;
         failedModels.clear();
     }
 
@@ -684,6 +694,7 @@ struct Renderer3D::Impl {
         tm->used = true;
         if (tm->revision != t.revision || tm->owner != &t || !tm->gpu.vertexBuffer) {
             tm->gpu.release(*device);
+            ++geometryEpoch; // (a new mesh can land at the old one's address)
             terrainBuildMesh(t, tm->data);
             tm->gpu.upload(*device, tm->data);
             tm->revision = t.revision;
@@ -759,7 +770,43 @@ struct Renderer3D::Impl {
         device->applyUniforms(2, skinBuffer.data(), skinBuffer.size() * sizeof(Mat4));
     }
 
-    void renderShadowTile(rhi::FramebufferHandle, int x, int y, int size, const Mat4& viewProj) {
+    // Shadow tiles are only drawn again when what they show changed: the light (its matrix), what
+    // casts a shadow into the tile (each caster's mesh and place), or the meshes themselves (terrain
+    // painted, models reloaded: geometryEpoch). A still scene, or a lamp nothing moves near, costs
+    // nothing. Animated (skinned) casters change every frame. A key of 0 means "draw it".
+    uint64_t geometryEpoch = 1, frameCounter = 0;
+    uint64_t csmKeys[3] = {}, localKeys[16] = {};
+    std::vector<const Item*> casters; // (reused)
+
+    static uint64_t mix(uint64_t h, const void* data, size_t size) {
+        auto* p = static_cast<const unsigned char*>(data);
+        for (size_t i = 0; i < size; ++i)
+            h = (h ^ p[i]) * 1099511628211ull; // FNV-1a
+        return h;
+    }
+
+    void renderShadowTile(rhi::FramebufferHandle, int x, int y, int size, const Mat4& viewProj, uint64_t& key) {
+        auto planes = frustumPlanes(viewProj);
+        casters.clear();
+        uint64_t h = 14695981039346656037ull;
+        h = mix(h, &geometryEpoch, sizeof geometryEpoch);
+        h = mix(h, viewProj.m, sizeof viewProj.m);
+        for (auto& it : items) {
+            if (!it.castShadows || it.transparent || !boxVisible(planes, it.boundsMin, it.boundsMax))
+                continue;
+            casters.push_back(&it);
+            h = mix(h, &it.mesh, sizeof it.mesh);
+            h = mix(h, it.world.m, sizeof it.world.m);
+            uint64_t moving = it.skin >= 0 ? frameCounter : 0;
+            h = mix(h, &moving, sizeof moving);
+            h = mix(h, &it.doubleSided, sizeof it.doubleSided);
+        }
+        if (h == 0)
+            h = 1;
+        if (h == key)
+            return; // the tile already holds this picture
+        key = h;
+        device->clearDepthRect(x, y, size, size);
         device->setViewport(x, y, size, size);
         bindIdentitySkin();
         FrameUniforms f = frame;
@@ -767,12 +814,9 @@ struct Renderer3D::Impl {
         f.proj = viewProj;
         f.viewProj = viewProj;
         device->applyUniforms(0, &f, sizeof f);
-        auto planes = frustumPlanes(viewProj);
-        for (auto& it : items) {
-            if (!it.castShadows || it.transparent || !boxVisible(planes, it.boundsMin, it.boundsMax))
-                continue;
-            device->applyPipeline(it.doubleSided ? depthDouble : depth);
-            drawItem(it, true);
+        for (const Item* it : casters) {
+            device->applyPipeline(it->doubleSided ? depthDouble : depth);
+            drawItem(*it, true);
         }
     }
 
@@ -869,12 +913,14 @@ struct Renderer3D::Impl {
             pass.width = kAtlasSize;
             pass.height = kAtlasSize;
             pass.clearColor = false;
+            pass.clearDepth = false; // (tiles are cleared one at a time, only when drawn again)
             pass.label = "light shadows";
             device->beginPass(pass);
             for (auto& p : pending)
                 for (int f = 0; f < p.faces; ++f) {
                     int tile = p.tile + f;
-                    renderShadowTile(localFb, (tile % 4) * kLocalTile, (tile / 4) * kLocalTile, kLocalTile, p.matrices[f]);
+                    renderShadowTile(localFb, (tile % 4) * kLocalTile, (tile / 4) * kLocalTile, kLocalTile, p.matrices[f],
+                                     localKeys[tile]);
                 }
             device->endPass();
         }
@@ -908,6 +954,7 @@ struct Renderer3D::Impl {
         pass.width = kAtlasSize;
         pass.height = kAtlasSize;
         pass.clearColor = false;
+        pass.clearDepth = false; // (tiles are cleared one at a time, only when drawn again)
         pass.label = "sun shadows";
         device->beginPass(pass);
         for (int c = 0; c < 3; ++c) {
@@ -939,7 +986,7 @@ struct Renderer3D::Impl {
             Mat4 snap = Mat4::translation({(std::round(ox) - ox) / texels, (std::round(oy) - oy) / texels, 0});
             vp = snap * vp;
             frame.cascade[c] = tileMatrix(c % 2, c / 2, 0.5f) * vp;
-            renderShadowTile(csmFb, (c % 2) * kCascadeTile, (c / 2) * kCascadeTile, kCascadeTile, vp);
+            renderShadowTile(csmFb, (c % 2) * kCascadeTile, (c / 2) * kCascadeTile, kCascadeTile, vp, csmKeys[c]);
         }
         device->endPass();
     }
@@ -958,10 +1005,13 @@ struct Renderer3D::Impl {
         set4(frame.cameraPos, camera.position.x, camera.position.y, camera.position.z, 0);
         Vec3 amb = pow3(env.ambient.rgb()) * env.ambientIntensity * 0.5f;
         set4(frame.ambient, amb.x, amb.y, amb.z, static_cast<float>(env.sky));
-        set4(frame.skyTop, env.skyTop.r, env.skyTop.g, env.skyTop.b, env.ambientIntensity);
-        set4(frame.skyHorizon, env.skyHorizon.r, env.skyHorizon.g, env.skyHorizon.b, 0);
-        set4(frame.ground, env.ground.r, env.ground.g, env.ground.b, 0);
-        set4(frame.fog, env.fogColor.r, env.fogColor.g, env.fogColor.b, env.fog ? env.fogDensity : 0.0f);
+        // Linear here, once, rather than in every pixel's shader.
+        Vec3 top = pow3(env.skyTop.rgb()), horizon = pow3(env.skyHorizon.rgb()), ground = pow3(env.ground.rgb()),
+             fog = pow3(env.fogColor.rgb());
+        set4(frame.skyTop, top.x, top.y, top.z, env.ambientIntensity);
+        set4(frame.skyHorizon, horizon.x, horizon.y, horizon.z, 0);
+        set4(frame.ground, ground.x, ground.y, ground.z, 0);
+        set4(frame.fog, fog.x, fog.y, fog.z, env.fog ? env.fogDensity : 0.0f);
         set4(frame.cascadeSplits, 0, 0, 0, 0);
         std::memset(frame.shadowParams, 0, sizeof frame.shadowParams);
     }
@@ -978,6 +1028,7 @@ bool Renderer3D::hasContent(const Scene& scene) const {
 }
 
 void Renderer3D::prepare(Scene& scene, const CameraView& camera) {
+    ++impl_->frameCounter;
     impl_->gather(scene);
     impl_->setupEnvironment(scene, camera);
     impl_->setupLights(scene, camera);
@@ -1000,15 +1051,19 @@ void Renderer3D::drawOpaque(Scene&, const CameraView& camera) {
     auto planes = frustumPlanes(camera.viewProjection);
     impl_->drawn = 0;
     impl_->transparentOrder.clear();
+    auto& opaque = impl_->opaqueOrder;
+    opaque.clear();
     for (size_t i = 0; i < impl_->items.size(); ++i) {
         auto& it = impl_->items[i];
         if (!boxVisible(planes, it.boundsMin, it.boundsMax))
             continue;
-        if (it.transparent) {
-            it.depth = transformPoint(camera.view, (it.boundsMin + it.boundsMax) * 0.5f).z;
-            impl_->transparentOrder.push_back(i);
-            continue;
-        }
+        it.depth = transformPoint(camera.view, (it.boundsMin + it.boundsMax) * 0.5f).z;
+        (it.transparent ? impl_->transparentOrder : opaque).push_back(i);
+    }
+    // Nearest first: what's behind then fails the depth test before its (costly) lighting runs.
+    std::sort(opaque.begin(), opaque.end(), [&](size_t a, size_t b) { return impl_->items[a].depth > impl_->items[b].depth; });
+    for (size_t i : opaque) {
+        const auto& it = impl_->items[i];
         d.applyPipeline(it.doubleSided ? impl_->opaqueDouble : impl_->opaque);
         impl_->drawItem(it, false);
         ++impl_->drawn;

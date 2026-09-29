@@ -144,13 +144,13 @@ void SceneRenderer::shutdown() {
 }
 
 void SceneRenderer::releaseTargets() {
-    for (auto fb : {sceneFb_, outputFb_})
+    for (auto fb : {sceneFb_, sceneColorFb_, outputFb_})
         if (fb)
             device_->destroy(fb);
     for (auto t : {sceneColor_, sceneNormal_, sceneDepth_, outputColor_})
         if (t)
             device_->destroy(t);
-    sceneFb_ = outputFb_ = {};
+    sceneFb_ = sceneColorFb_ = outputFb_ = {};
     sceneColor_ = sceneNormal_ = sceneDepth_ = outputColor_ = {};
     width_ = height_ = 0;
 }
@@ -180,6 +180,9 @@ void SceneRenderer::ensureTargets(int w, int h) {
     sd.depth = sceneDepth_;
     sd.label = "scene";
     sceneFb_ = device_->createFramebuffer(sd);
+    sd.colors = {sceneColor_};
+    sd.label = "scene (color only)";
+    sceneColorFb_ = device_->createFramebuffer(sd);
     rhi::FramebufferDesc od;
     od.colors = {outputColor_};
     od.label = "output";
@@ -205,9 +208,14 @@ void SceneRenderer::render(Scene& scene, const CameraView& cameraIn, int w, int 
     if (has3D)
         renderer3D_->prepare(scene, camera);
 
+    const PostProcessing* pp =
+        options.postProcessing && camera.entity ? scene.registry().tryGet<PostProcessing>(camera.entity) : nullptr;
+    bool ssao = has3D && pp && pp->ssao;
+
     Color bg = camera.background;
     rhi::PassDesc pass;
-    pass.framebuffer = sceneFb_;
+    // Normals are written only when SSAO will read them (a whole extra screen of pixels otherwise).
+    pass.framebuffer = ssao ? sceneFb_ : sceneColorFb_;
     pass.width = w;
     pass.height = h;
     auto linear = [](float c) { return std::pow(std::max(c, 0.0f), 2.2f); };
@@ -215,18 +223,17 @@ void SceneRenderer::render(Scene& scene, const CameraView& cameraIn, int w, int 
     pass.label = "scene";
     device_->beginPass(pass);
     if (has3D) {
-        renderer3D_->drawSky(scene, camera);
         renderer3D_->drawOpaque(scene, camera);
+        renderer3D_->drawSky(scene, camera); // (after: only where nothing was drawn)
     }
     device_->endPass();
 
-    const PostProcessing* pp =
-        options.postProcessing && camera.entity ? scene.registry().tryGet<PostProcessing>(camera.entity) : nullptr;
-    if (has3D && pp && pp->ssao)
-        post_->applySSAO(sceneFb_, sceneDepth_, sceneNormal_, camera.projection, *pp);
+    if (ssao)
+        post_->applySSAO(sceneColorFb_, sceneDepth_, sceneNormal_, camera.projection, *pp);
 
     rhi::PassDesc overlay;
-    overlay.framebuffer = sceneFb_;
+    overlay.label = "transparent, 2D and overlays";
+    overlay.framebuffer = sceneColorFb_;
     overlay.width = w;
     overlay.height = h;
     overlay.clearColor = false;
@@ -246,6 +253,7 @@ void SceneRenderer::render(Scene& scene, const CameraView& cameraIn, int w, int 
     bool labels = debugDraw && !debugDraw->shapes().empty();
     if (options.drawUI || screenOverlay || labels) {
         rhi::PassDesc ui;
+        ui.label = "game UI";
         ui.framebuffer = outputFb_;
         ui.width = w;
         ui.height = h;

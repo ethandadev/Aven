@@ -278,7 +278,15 @@ int main(int argc, char** argv) {
             if (!args.input.empty())
                 input.steps = loadInput(args.input);
             while (!editor.wantsQuit()) {
-                window.pollEvents();
+                // A second after the last key or mouse move, with nothing moving on its own, the
+                // editor rests: it waits for the next event, but wakes at least 10 times a second
+                // (progress bars, messages that fade). Never in automated runs.
+                bool rest = !screenshotMode && input.steps.empty() && editor.canRest() &&
+                            Window::time() - window.lastInputTime() > 1.0;
+                if (rest)
+                    window.waitEvents(0.1);
+                else
+                    window.pollEvents();
                 if (window.shouldClose()) {
                     // Give the editor a chance to ask about unsaved work.
                     window.cancelClose();

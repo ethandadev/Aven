@@ -176,6 +176,8 @@ public:
     virtual void beginPass(const PassDesc& pass) = 0;
     virtual void setViewport(int x, int y, int w, int h) = 0;
     virtual void setScissor(int x, int y, int w, int h, bool enabled) = 0;
+    // Inside a pass: sets the depth of one rectangle (a tile of a shadow atlas), leaving the rest.
+    virtual void clearDepthRect(int x, int y, int w, int h, float depth = 1.0f) = 0;
     virtual void applyPipeline(PipelineHandle pipeline) = 0;
     virtual void applyBindings(const Bindings& bindings) = 0;
     virtual void applyUniforms(int slot, const void* data, size_t size) = 0;

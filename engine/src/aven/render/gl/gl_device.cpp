@@ -586,6 +586,19 @@ public:
 
     void setViewport(int x, int y, int w, int h) override { glViewport(x, y, w, h); }
 
+    void clearDepthRect(int x, int y, int w, int h, float depth) override {
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(x, y, w, h);
+        glDepthMask(GL_TRUE); // (pipelines set their own depth writes again when applied)
+#ifdef AVEN_WEBGL
+        glClearDepthf(depth);
+#else
+        glClearDepth(depth);
+#endif
+        glClear(GL_DEPTH_BUFFER_BIT);
+        glDisable(GL_SCISSOR_TEST);
+    }
+
     void setScissor(int x, int y, int w, int h, bool enabled) override {
         if (enabled) {
             glEnable(GL_SCISSOR_TEST);

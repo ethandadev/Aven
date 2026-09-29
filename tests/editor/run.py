@@ -441,6 +441,86 @@ def test_debugger_stops_at_a_breakpoint(editor):
         return "with the breakpoint removed, the game should run on (stopped %d times)" % len(stops)
 
 
+def read_png(path):
+    """(width, height, rows of RGBA bytes) from an 8-bit, non-interlaced PNG like the editor writes."""
+    import struct
+    import zlib
+    data = open(path, "rb").read()
+    pos, idat, width, height, kind = 8, b"", 0, 0, 6
+    while pos < len(data):
+        length, tag = struct.unpack(">I4s", data[pos:pos + 8])
+        body = data[pos + 8:pos + 8 + length]
+        if tag == b"IHDR":
+            width, height, _, kind = struct.unpack(">IIBB", body[:10])
+        elif tag == b"IDAT":
+            idat += body
+        pos += 12 + length
+    channels = {2: 3, 6: 4}[kind]
+    raw, stride, rows, prev = zlib.decompress(idat), width * channels, [], bytearray(width * channels)
+    for y in range(height):
+        f, line = raw[y * (stride + 1)], bytearray(raw[y * (stride + 1) + 1:(y + 1) * (stride + 1)])
+        for i in range(stride):
+            a = line[i - channels] if i >= channels else 0
+            b, c = prev[i], prev[i - channels] if i >= channels else 0
+            if f == 1: line[i] = (line[i] + a) & 255
+            elif f == 2: line[i] = (line[i] + b) & 255
+            elif f == 3: line[i] = (line[i] + (a + b) // 2) & 255
+            elif f == 4:
+                pa, pb, pc = abs(b - c), abs(a - c), abs(a + b - 2 * c)
+                line[i] = (line[i] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 255
+        rows.append(bytes(line) if channels == 4 else bytes(v for x in range(width) for v in (*line[x * 3:x * 3 + 3], 255)))
+        prev = line
+    return width, height, rows
+
+
+def test_shadows_follow_moved_objects(editor):
+    """Shadow maps are kept between frames while nothing changes. Moving an object has to draw them
+    again: a cube moved mid-run looks the same as one that started there (its shadow moved too)."""
+    def shot(move_at, start_x):
+        work = temp_dir("aven-shadow-test-")
+        project = os.path.join(work, "game")
+        shutil.copytree(os.path.join(ROOT, "templates", "blank-3d"), project)
+        scene_path = os.path.join(project, "scenes", "main.scene")
+        scene = json.load(open(scene_path))
+        for e in scene["entities"]:
+            if e.get("name") == "Cube":
+                e["components"]["Transform"]["position"][0] = start_x
+        json.dump(scene, open(scene_path, "w"))
+        os.makedirs(os.path.join(project, "editor_tools"), exist_ok=True)
+        with open(os.path.join(project, "editor_tools", "move_cube.es"), "w") as f:
+            f.write("def run():\n    find(\"Cube\").x = 2.5\n")
+        png = os.path.join(work, "shot.png")
+        cmd = [editor, project, "--screenshot", png, "--frames", "40"]
+        if move_at:
+            cmd += ["--panel", "@%d:tool:editor_tools/move_cube.es" % move_at]
+        if sys.platform.startswith("linux") and not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
+            cmd = ["xvfb-run", "-a", "-s", "-screen 0 1920x1400x24"] + cmd
+        run = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if run.returncode != 0 or not os.path.exists(png):
+            return None, (run.stdout + run.stderr)[-1500:]
+        return read_png(png), ""
+
+    def differing(a, b): # inside the scene view only (running a tool also shows a message, "unsaved"...)
+        (w, h, ra), (_, _, rb) = a, b
+        return sum(1 for y in range(h * 16 // 100, h * 65 // 100, 2) for x in range(w * 4 * 20 // 100, w * 4 * 75 // 100, 4)
+                   if abs(ra[y][x] - rb[y][x]) > 40)
+
+    moved, log = shot(20, 0)
+    if not moved:
+        return "the editor didn't run:\n" + log
+    started, log = shot(0, 2.5)
+    if not started:
+        return "the editor didn't run:\n" + log
+    unmoved, log = shot(0, 0)
+    if not unmoved:
+        return "the editor didn't run:\n" + log
+    if differing(unmoved, started) < 50:
+        return "the test can't tell the cube's two places apart"
+    wrong = differing(moved, started)
+    if wrong > 20:
+        return "after moving the cube, %d sampled pixels differ from a cube that started there: an old shadow left behind?" % wrong
+
+
 def test_monkey(editor):
     """Random clicks, drags, keys and typing for a while, editing and playing: no crash."""
     for seed, template, play in ((1, "platformer", False), (2, "obby-3d", True)):
