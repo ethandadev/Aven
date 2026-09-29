@@ -748,6 +748,10 @@ void Editor::drawGameDetails() {
         ImGui::SetTooltip("Shows the game's name and description over a picture, until the player presses Play.\n"
                           "(Web versions have no Quit: a page can't close its own tab.)");
     if (pub.titleScreen) {
+        changed |= ImGui::Checkbox("A Graphics button (Low / Medium / High / Ultra)", &pub.graphicsButton);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Lets players pick how detailed the game looks: lower runs faster on older computers.\n"
+                              "Their choice is kept for next time.");
         std::string image = pub.titleImage;
         ImGui::SetNextItemWidth(-ui::px(120));
         if (ui::assetField("Background", image, projectFiles({".png", ".jpg", ".jpeg"}), "ASSET_PATH")) {

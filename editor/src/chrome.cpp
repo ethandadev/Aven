@@ -917,6 +917,15 @@ void Editor::drawPreferences() {
             ImGui::SetNextItemWidth(-1);
             changed |= ImGui::Combo("##viewres", &prefs.viewResolution, choices, 3);
         }
+        label("Graphics quality while editing",
+              "Shadows, lights and effects in the scene view: Low is lightest on your computer, Ultra has the\n"
+              "sharpest shadows. When you press Play, the game uses its own quality (Project Settings > Game),\n"
+              "so you see what players will.");
+        {
+            const char* levels[] = {"Low", "Medium", "High", "Ultra"};
+            ImGui::SetNextItemWidth(-1);
+            changed |= ImGui::Combo("##viewquality", &prefs.viewportQuality, levels, 4);
+        }
         ui::sectionHeader("Camera and gizmos");
         label("3D fly speed");
         changed |= ImGui::SliderFloat("##fly", &prefs.flySpeed, 1.0f, 40.0f, "%.0f");

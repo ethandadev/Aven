@@ -582,6 +582,71 @@ AVEN_TEST(save_data_cached_and_per_game) {
     CHECK_EQ(run("bbbbbbbb22222222", 1), -1.0); // another game with the same name starts fresh
 }
 
+// Graphics quality presets, and a player's choice from set_graphics_quality() kept for next time.
+AVEN_TEST(graphics_quality_presets_and_choice) {
+    RenderQuality high = RenderQuality::preset(GraphicsQuality::High);
+    RenderQuality plain;
+    CHECK(high.sunShadows && high.lampShadows && high.ssao && high.bloom && high.fxaa); // what Aven always drew
+    CHECK_EQ(high.shadowMapSize, plain.shadowMapSize);
+    CHECK_EQ(high.renderScale, 1.0f);
+    RenderQuality low = RenderQuality::preset(GraphicsQuality::Low);
+    CHECK(!low.sunShadows && !low.lampShadows && !low.ssao && low.renderScale < 1.0f && low.maxLights < high.maxLights);
+    RenderQuality medium = RenderQuality::preset(GraphicsQuality::Medium);
+    CHECK(medium.sunShadows && !medium.lampShadows && medium.shadowMapSize < high.shadowMapSize);
+    CHECK(RenderQuality::preset(GraphicsQuality::Ultra).shadowMapSize > high.shadowMapSize);
+    GraphicsQuality q = GraphicsQuality::Medium;
+    CHECK(parseQuality("uLtRa", q) && q == GraphicsQuality::Ultra);
+    CHECK(!parseQuality("Extreme", q) && q == GraphicsQuality::Ultra); // left alone
+    CHECK_EQ(std::string(qualityName(GraphicsQuality::Low)), std::string("Low"));
+
+    namespace stdfs = std::filesystem;
+    stdfs::path dir = stdfs::temp_directory_path() / "aven_quality_test";
+    std::error_code ec;
+    stdfs::remove_all(dir, ec);
+    stdfs::create_directories(dir / "scripts", ec);
+    stdfs::path data = stdfs::temp_directory_path() / "aven_quality_home";
+    stdfs::remove_all(data, ec);
+#ifdef _WIN32
+    _putenv_s("APPDATA", data.string().c_str());
+#else
+    setenv("XDG_DATA_HOME", data.string().c_str(), 1);
+#endif
+    fs::writeText(dir / "scripts/s.es", "def on_start():\n    game.before = graphics_quality()\n"
+                                        "    if game.pick != \"\":\n        set_graphics_quality(game.pick)\n"
+                                        "    game.after = graphics_quality()\n");
+    ErrorCatcher catcher;
+    auto run = [&](const std::string& pick) {
+        Assets assets;
+        assets.setRoot(dir);
+        Input input;
+        Game game(assets, input);
+        ProjectSettings p;
+        p.name = "Quality";
+        p.id = "cccccccc33333333";
+        p.graphicsQuality = "Medium";
+        game.settings() = p;
+        auto scene = std::make_unique<Scene>();
+        scene->registry().emplace<Script>(scene->create("Picker")).path = "scripts/s.es";
+        game.scripts().setGameValue("pick", script::Value(pick));
+        game.start(std::move(scene), "test.scene");
+        game.update(1.0f / 60.0f);
+        auto text = [&](const char* key) {
+            auto v = game.scripts().gameValue(key);
+            return v.isString() ? v.string() : std::string("?");
+        };
+        std::string result = text("before") + ">" + text("after");
+        game.stop();
+        return result;
+    };
+    CHECK_EQ(run(""), std::string("Medium>Medium")); // the project's choice
+    CHECK_EQ(run("low"), std::string("Medium>Low"));
+    CHECK_EQ(run(""), std::string("Low>Low")); // the player's choice, kept in their save folder
+    CHECK(catcher.errors.empty());
+    run("Extreme");
+    CHECK_EQ(catcher.errors.size(), size_t(1));
+    CHECK(!catcher.errors.empty() && catcher.errors[0].find("\"Ultra\"") != std::string::npos);
+}
+
 // Pathfinding: around a wall in 2D and 3D, go_to() + on_arrive(), and Chase's "Walk around walls".
 AVEN_TEST(pathfinding_around_walls) {
     namespace stdfs = std::filesystem;

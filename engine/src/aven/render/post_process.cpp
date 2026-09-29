@@ -351,8 +351,8 @@ void PostProcessor::applySSAO(rhi::FramebufferHandle sceneFb, rhi::TextureHandle
     fullscreen(multiplyPipe_, sceneFb, width_, height_, {aoBlur_.texture}, texel, sizeof texel, false);
 }
 
-void PostProcessor::composite(rhi::TextureHandle sceneColor, rhi::FramebufferHandle output,
-                              const PostProcessing* settings) {
+void PostProcessor::composite(rhi::TextureHandle sceneColor, rhi::FramebufferHandle output, int outputWidth,
+                              int outputHeight, const PostProcessing* settings) {
     PostProcessing defaults;
     defaults.tonemapper = Tonemapper::None;
     defaults.bloom = false;
@@ -390,9 +390,9 @@ void PostProcessor::composite(rhi::TextureHandle sceneColor, rhi::FramebufferHan
     if (s.fxaa && ldr_.fb) {
         fullscreen(compositePipe_, ldr_.fb, width_, height_, {sceneColor, bloomTexture}, &u, sizeof u);
         float texel[4] = {1.0f / width_, 1.0f / height_, 0, 0};
-        fullscreen(fxaaPipe_, output, width_, height_, {ldr_.texture}, texel, sizeof texel);
+        fullscreen(fxaaPipe_, output, outputWidth, outputHeight, {ldr_.texture}, texel, sizeof texel);
     } else {
-        fullscreen(compositePipe_, output, width_, height_, {sceneColor, bloomTexture}, &u, sizeof u);
+        fullscreen(compositePipe_, output, outputWidth, outputHeight, {sceneColor, bloomTexture}, &u, sizeof u);
     }
 }
 

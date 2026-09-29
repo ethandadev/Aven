@@ -79,10 +79,18 @@ public:
     TouchControls& touchControls() { return touch_; } // on-screen stick and buttons (phones)
     // The "Made with Aven" splash and the optional title screen (exported games only; call after
     // start()). The game doesn't update until they're over. windowSize: in mouse pixels.
-    void startIntro(bool canQuit) { intro_.begin(settings_, assets_, canQuit); }
+    void startIntro(bool canQuit) {
+        intro_.begin(settings_, assets_, canQuit);
+        intro_.setGraphics(graphicsQuality());
+    }
     Intro& intro() { return intro_; }
     void setWindowSize(Vec2 size) { windowSize_ = size; }
     Network& network() { return *network_; }          // multiplayer on the local network
+    // Graphics quality (Low / Medium / High / Ultra): the project's choice, unless this player picked
+    // one (title screen, set_graphics_quality()), which is kept in their save folder when remembered.
+    GraphicsQuality graphicsQuality();
+    void setGraphicsQuality(GraphicsQuality q, bool remember);
+
     // Seeds every random number source so the same inputs replay the same game.
     void setRandomSeed(uint32_t seed);
 
@@ -107,6 +115,8 @@ private:
     GameProfile profile_;
     Assets& assets_;
     Input& input_;
+    RenderQuality quality_;
+    bool qualityLoaded_ = false;
     ProjectSettings settings_;
     std::filesystem::path projectDir_;
     std::unique_ptr<Scene> scene_;

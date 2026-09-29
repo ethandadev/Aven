@@ -35,6 +35,7 @@ Json ProjectSettings::toJson() const {
         str("icon", publish.icon);
         p["splash"] = publish.splash;
         p["title_screen"] = publish.titleScreen;
+        p["graphics_button"] = publish.graphicsButton;
         str("title_image", publish.titleImage);
         str("apple_team_id", publish.appleTeamId);
         str("apple_identity", publish.appleIdentity);
@@ -51,6 +52,7 @@ Json ProjectSettings::toJson() const {
     w["fullscreen"] = fullscreen;
     w["vsync"] = vsync;
     w["pixel_perfect"] = pixelPerfect;
+    w["graphics_quality"] = graphicsQuality;
     j["window"] = std::move(w);
     j["advanced_mode"] = advancedMode;
     if (!templateName.empty())
@@ -124,6 +126,7 @@ void ProjectSettings::fromJson(const Json& j) {
     publish.icon = p["icon"].asString("");
     publish.splash = p["splash"].asBool(d.splash);
     publish.titleScreen = p["title_screen"].asBool(d.titleScreen);
+    publish.graphicsButton = p["graphics_button"].asBool(d.graphicsButton);
     publish.titleImage = p["title_image"].asString("");
     publish.appleTeamId = p["apple_team_id"].asString("");
     publish.appleIdentity = p["apple_identity"].asString("");
@@ -138,6 +141,7 @@ void ProjectSettings::fromJson(const Json& j) {
     fullscreen = w["fullscreen"].asBool(fullscreen);
     vsync = w["vsync"].asBool(vsync);
     pixelPerfect = w["pixel_perfect"].asBool(pixelPerfect);
+    graphicsQuality = w["graphics_quality"].asString(graphicsQuality);
     advancedMode = j["advanced_mode"].asBool(advancedMode);
     templateName = j["template"].asString();
     inputActions = j["input"].isObject() ? j["input"] : Json::object();

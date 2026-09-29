@@ -45,6 +45,8 @@ void Intro::begin(const ProjectSettings& settings, Assets& assets, bool canQuit)
             background_ = candidate;
             break;
         }
+    graphicsButton_ = p.graphicsButton;
+    graphicsChanged_ = false;
     phase_ = p.splash ? Phase::Splash : p.titleScreen ? Phase::Title : Phase::Done;
     titleNext_ = p.titleScreen;
 }
@@ -55,8 +57,8 @@ Intro::Layout Intro::layout(Vec2 size) const {
     l.titleSize = u * 0.11f;
     l.textSize = u * 0.036f;
     l.titleAt = {size.x * 0.5f, size.y * 0.34f};
-    float bw = u * 0.42f, bh = u * 0.085f, top = size.y * 0.6f;
-    for (int i = 0; i < 2; ++i) {
+    float bw = u * 0.42f, bh = u * 0.085f, top = size.y * (buttonCount() > 2 ? 0.56f : 0.6f);
+    for (int i = 0; i < buttonCount(); ++i) {
         float y = top + static_cast<float>(i) * bh * 1.3f;
         l.buttonMin[i] = {size.x * 0.5f - bw * 0.5f, y};
         l.buttonMax[i] = {size.x * 0.5f + bw * 0.5f, y + bh};
@@ -91,10 +93,14 @@ void Intro::update(float dt, const Input& input, Vec2 window) {
     if (hover_ >= 0 && !(input.mouseDelta() == Vec2{}))
         focus_ = hover_;
     auto choose = [&](int i) {
-        if (i == 0)
-            phase_ = Phase::Done;
-        else
-            quit_ = true;
+        switch (button(i)) {
+        case Button::Play: phase_ = Phase::Done; break;
+        case Button::Quit: quit_ = true; break;
+        case Button::Graphics: // Low -> Medium -> High -> Ultra -> Low
+            graphics_ = static_cast<GraphicsQuality>((static_cast<int>(graphics_) + 1) % 4);
+            graphicsChanged_ = true;
+            break;
+        }
     };
     if (input.pressed("up") || input.pressed("w") || input.pressed("pad_up"))
         focus_ = std::max(0, focus_ - 1);
@@ -167,8 +173,9 @@ void Intro::draw(Renderer2D& r, Assets& assets, Vec2 fb) const {
     if (!subtitle_.empty())
         r.textAt(font, subtitle_, flip({l.titleAt.x, l.titleAt.y + titleSize * 0.85f}), l.textSize,
                  {0.82f, 0.86f, 0.92f, fade}, TextAlign::Center, true);
-    const char* labels[2] = {"Play", "Quit"};
+    std::string graphicsLabel = std::string("Graphics: ") + qualityName(graphics_);
     for (int i = 0; i < buttonCount(); ++i) {
+        const char* label = button(i) == Button::Play ? "Play" : button(i) == Button::Quit ? "Quit" : graphicsLabel.c_str();
         Vec2 mn = flip({l.buttonMin[i].x, l.buttonMax[i].y}), mx = flip({l.buttonMax[i].x, l.buttonMin[i].y});
         bool lit = i == hover_ || i == focus_;
         if (i == focus_) { // a ring on the one Enter presses
@@ -178,7 +185,7 @@ void Intro::draw(Renderer2D& r, Assets& assets, Vec2 fb) const {
         Color fill = i == 0 ? Color{kAccent.r * (lit ? 1.15f : 1.0f), kAccent.g * (lit ? 1.15f : 1.0f), kAccent.b, fade}
                             : Color{0.16f, 0.18f, 0.23f, (lit ? 0.98f : 0.9f) * fade};
         r.rect(mn, mx, fill, white);
-        r.textAt(font, labels[i], (mn + mx) * 0.5f, l.textSize * 1.25f, {1, 1, 1, fade}, TextAlign::Center, true);
+        r.textAt(font, label, (mn + mx) * 0.5f, l.textSize * 1.25f, {1, 1, 1, fade}, TextAlign::Center, true);
     }
     float small = u * 0.026f, margin = u * 0.04f;
     r.textAt(font, footer_, {margin, margin + small * 0.5f}, small, {0.7f, 0.74f, 0.8f, 0.8f * fade}, TextAlign::Left, true);

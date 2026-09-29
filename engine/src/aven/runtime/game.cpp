@@ -125,6 +125,8 @@ void Game::update(float dt) {
     if (intro_.active()) {
         // The splash and title screen come first; the game itself waits.
         intro_.update(dt, input_, windowSize_.x > 0 ? windowSize_ : screenSize_);
+        if (GraphicsQuality chosen; intro_.takeGraphicsChoice(chosen))
+            setGraphicsQuality(chosen, true);
         if (intro_.active())
             return;
     }
@@ -191,8 +193,39 @@ CameraView Game::camera(float aspect) const {
     return SceneRenderer::sceneCamera(*scene_, aspect);
 }
 
+GraphicsQuality Game::graphicsQuality() {
+    if (!qualityLoaded_) {
+        qualityLoaded_ = true;
+        GraphicsQuality q = GraphicsQuality::High;
+        parseQuality(settings_.graphicsQuality, q);
+        // This player's own choice, if they made one.
+        if (auto text = fs::readText(fs::userDataDir(settings_.saveFolderName()) / "settings.json"))
+            parseQuality(Json::parse(*text)["graphics_quality"].asString(), q);
+        quality_ = RenderQuality::preset(q);
+    }
+    return quality_.level;
+}
+
+void Game::setGraphicsQuality(GraphicsQuality q, bool remember) {
+    qualityLoaded_ = true;
+    quality_ = RenderQuality::preset(q);
+    intro_.setGraphics(q);
+    if (!remember)
+        return;
+    std::filesystem::path file = fs::userDataDir(settings_.saveFolderName()) / "settings.json";
+    Json j = Json::object();
+    if (auto text = fs::readText(file); text && Json::parse(*text).isObject())
+        j = Json::parse(*text);
+    j["graphics_quality"] = qualityName(q);
+    if (!fs::writeText(file, j.dump(2)))
+        Log::warn("Couldn't keep the graphics choice for next time (", fs::toUtf8(file), " can't be written).");
+}
+
 void Game::render(SceneRenderer& renderer, int width, int height, const RenderOptions& options) {
     screenSize_ = {static_cast<float>(width), static_cast<float>(height)};
+    graphicsQuality();
+    renderer.setQuality(quality_); // (on Low the world is drawn with fewer pixels; the UI stays sharp)
+    Vec2 target = screenSize_;
     renderer.cameraShake = gameplay_->shakeOffset();
     CameraView cam = camera(static_cast<float>(width) / std::max(height, 1));
     renderer.debugDraw = options.debugDraw ? &debugDraw_ : nullptr;
@@ -201,13 +234,13 @@ void Game::render(SceneRenderer& renderer, int width, int height, const RenderOp
         renderer.screenOverlay = [&](const CameraView& c) {
             if (overlay)
                 overlay(c);
-            intro_.draw(renderer.renderer2D(), assets_, screenSize_);
+            intro_.draw(renderer.renderer2D(), assets_, target);
         };
     else if (touch_.visible() && options.drawUI)
         renderer.screenOverlay = [&](const CameraView& c) {
             if (overlay)
                 overlay(c);
-            touch_.draw(renderer.renderer2D(), assets_, screenSize_);
+            touch_.draw(renderer.renderer2D(), assets_, target);
         };
     renderer.render(*scene_, cam, width, height, options);
     renderer.screenOverlay = overlay;

@@ -8,6 +8,8 @@
 
 namespace aven {
 
+struct RenderQuality;
+
 struct CameraView;
 class Model;
 
@@ -19,6 +21,8 @@ public:
     ~Renderer3D();
     bool init(rhi::Device* device, Assets* assets);
     void shutdown();
+    // Shadows, shadow resolution and lights per pixel (quality.h). High is the default.
+    void setQuality(const RenderQuality& quality);
 
     bool hasContent(const Scene& scene) const;
     // Gathers objects and lights, and renders shadow maps. Call before the scene pass.

@@ -1193,6 +1193,20 @@ void Editor::drawSettings() {
             changed |= ImGui::Checkbox("Resizable", &settings_.resizable);
             changed |= ImGui::Checkbox("Start fullscreen", &settings_.fullscreen);
             changed |= ImGui::Checkbox("VSync (smooth, no tearing)", &settings_.vsync);
+            {
+                const char* levels[] = {"Low", "Medium", "High", "Ultra"};
+                GraphicsQuality q = GraphicsQuality::High;
+                parseQuality(settings_.graphicsQuality, q);
+                int level = static_cast<int>(q);
+                if (ImGui::Combo("Graphics quality", &level, levels, 4)) {
+                    settings_.graphicsQuality = levels[level];
+                    changed = true;
+                }
+                ui::helpMarker("What the game starts with. Low: no shadows, fewer pixels, runs on almost anything. "
+                               "Medium: sun shadows, bloom. High: every shadow and effect. Ultra: sharper shadows. "
+                               "Players can pick their own on the title screen (Build & Share), and scripts can "
+                               "with set_graphics_quality(\"Low\"). Pressing Play here uses this too.");
+            }
             changed |= ImGui::Checkbox("Advanced mode in the editor", &settings_.advancedMode);
 
             ImGui::EndTabItem();

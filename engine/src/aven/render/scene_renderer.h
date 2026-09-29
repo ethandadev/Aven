@@ -1,6 +1,7 @@
 #pragma once
 
 #include "aven/assets/assets.h"
+#include "aven/render/quality.h"
 #include "aven/render/renderer2d.h"
 #include "aven/render/rhi.h"
 #include "aven/scene/scene.h"
@@ -41,6 +42,7 @@ struct RenderOptions {
     bool postProcessing = true;
     bool drawCameraBackground = true;
     bool debugDraw = false; // Game::render: also draw the game's debug_line() shapes
+    bool renderScale = true; // draw the world with fewer pixels on Low quality (the editor has its own setting)
 };
 
 // Draws a scene: 3D objects with lighting and shadows, 2D sprites and text,
@@ -65,12 +67,19 @@ public:
     // Copies the last rendered frame to the window.
     void present(int windowWidth, int windowHeight);
 
+    // Graphics quality (Low / Medium / High / Ultra, quality.h): shadows, lights, SSAO, bloom,
+    // anti-aliasing, render scale.
+    void setQuality(const RenderQuality& quality);
+    const RenderQuality& quality() const { return quality_; }
+
     rhi::TextureHandle outputTexture() const { return outputColor_; }
     rhi::FramebufferHandle outputFramebuffer() const { return outputFb_; }
     rhi::FramebufferHandle sceneFramebuffer() const { return sceneFb_; }
-    rhi::TextureHandle sceneDepth() const { return sceneDepth_; }
+    rhi::TextureHandle sceneDepth() const { return sceneDepth_; } // (sceneWidth() x sceneHeight())
     int width() const { return width_; }
     int height() const { return height_; }
+    int sceneWidth() const { return sceneWidth_; }
+    int sceneHeight() const { return sceneHeight_; }
 
     Renderer2D& renderer2D() { return renderer2D_; }
     Renderer3D& renderer3D() { return *renderer3D_; }
@@ -97,11 +106,13 @@ private:
     std::unique_ptr<Renderer3D> renderer3D_;
     std::unique_ptr<PostProcessor> post_;
     int width_ = 0, height_ = 0;
+    int sceneWidth_ = 0, sceneHeight_ = 0; // (smaller than the output on a lower render scale)
+    RenderQuality quality_;
     rhi::TextureHandle sceneColor_, sceneNormal_, sceneDepth_, outputColor_;
     rhi::FramebufferHandle sceneFb_, outputFb_;
     rhi::FramebufferHandle sceneColorFb_; // the scene without its normals: they're only for SSAO
 
-    void ensureTargets(int w, int h);
+    void ensureTargets(int w, int h, int sceneW, int sceneH);
     void releaseTargets();
     void draw2D(Scene& scene, const CameraView& camera, bool depthTest);
     void drawTilemap(const Tilemap& map, const Mat4& world, const CameraView& camera);

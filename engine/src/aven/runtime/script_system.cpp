@@ -1923,6 +1923,17 @@ void ScriptSystem::registerApi() {
     def("delta_time", "delta_time()", 0, 0, [this](CallArgs&) { return Value(deltaTime_); });
     def("screen_width", "screen_width()", 0, 0, [&g](CallArgs&) { return Value(g.screenSize().x); });
     def("screen_height", "screen_height()", 0, 0, [&g](CallArgs&) { return Value(g.screenSize().y); });
+    // Graphics quality (an options menu of your own): "Low", "Medium", "High" or "Ultra". Kept for next time.
+    def("graphics_quality", "graphics_quality()", 0, 0,
+        [&g](CallArgs&) { return Value(std::string(qualityName(g.graphicsQuality()))); });
+    def("set_graphics_quality", "set_graphics_quality(\"Medium\")", 1, 1, [&g](CallArgs& a) {
+        GraphicsQuality q;
+        if (!parseQuality(a.string(0, "quality"), q))
+            raise("set_graphics_quality(): the quality should be \"Low\", \"Medium\", \"High\" or \"Ultra\", not \"" +
+                  a.string(0, "quality") + "\".");
+        g.setGraphicsQuality(q, true);
+        return Value();
+    });
     def("set_fullscreen", "set_fullscreen(True)", 0, 1, [&g](CallArgs& a) {
         if (g.setFullscreen)
             g.setFullscreen(a.has(0) ? a[0].truthy() : true);

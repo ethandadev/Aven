@@ -20,7 +20,10 @@ public:
                    const Mat4& projection, const PostProcessing& settings);
 
     // Scene HDR color -> final image in `output`.
-    void composite(rhi::TextureHandle sceneColor, rhi::FramebufferHandle output, const PostProcessing* settings);
+    // Into `output`, which is outputWidth x outputHeight: the picture is stretched to fill it when
+    // that's bigger than the scene (a lower render scale).
+    void composite(rhi::TextureHandle sceneColor, rhi::FramebufferHandle output, int outputWidth, int outputHeight,
+                   const PostProcessing* settings);
 
 private:
     rhi::Device* device_ = nullptr;

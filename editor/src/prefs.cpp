@@ -175,6 +175,7 @@ Json Prefs::toJson() const {
     j["show_colliders"] = showColliders;
     j["show_debug_draw"] = showDebugDraw;
     j["view_resolution"] = viewResolution;
+    j["viewport_quality"] = viewportQuality;
     j["preview_particles"] = previewParticles;
     j["move_snap"] = moveSnap;
     j["rotate_snap"] = rotateSnap;
@@ -243,6 +244,7 @@ void Prefs::fromJson(const Json& j) {
     showColliders = j["show_colliders"].asBool(d.showColliders);
     showDebugDraw = j["show_debug_draw"].asBool(d.showDebugDraw);
     viewResolution = std::clamp(j["view_resolution"].asInt(d.viewResolution), 0, 2);
+    viewportQuality = std::clamp(j["viewport_quality"].asInt(d.viewportQuality), 0, 3);
     previewParticles = j["preview_particles"].asBool(d.previewParticles);
     moveSnap = j["move_snap"].asFloat(d.moveSnap);
     rotateSnap = j["rotate_snap"].asFloat(d.rotateSnap);

@@ -145,11 +145,13 @@ Everything scripts can use, generated from the engine itself (the same list as t
 
 ## Screen
 
+- `graphics_quality()`
 - `is_fullscreen()`
 - `lock_mouse(True)`
 - `screen_height()`
 - `screen_width()`
 - `set_fullscreen(True)`
+- `set_graphics_quality("Medium")`
 
 ## Scenes
 

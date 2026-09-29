@@ -101,6 +101,8 @@
   "screen_height": "The height of the game view in pixels.",
   "screen_width": "The width of the game view in pixels.",
   "set_fullscreen": "Switches between fullscreen and a window.",
+  "graphics_quality": "The graphics quality in use: \"Low\", \"Medium\", \"High\" or \"Ultra\".",
+  "set_graphics_quality": "Changes the graphics quality (\"Low\", \"Medium\", \"High\" or \"Ultra\") and keeps it for next time: for an options menu of your own.",
 
   "is_paused": "True while the game is paused.",
   "load_scene": "Goes to another scene: load_scene(\"level2\") or load_scene(\"scenes/level2.scene\").",

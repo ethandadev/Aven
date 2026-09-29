@@ -3,6 +3,7 @@
 #include "aven/core/log.h"
 #include "aven/render/mesh.h"
 #include "aven/render/model.h"
+#include "aven/render/quality.h"
 #include "aven/render/scene_renderer.h"
 #include "aven/scene/terrain.h"
 
@@ -313,9 +314,8 @@ void main() {
 }
 )";
 
-constexpr int kAtlasSize = 2048;
-constexpr int kCascadeTile = 1024; // 2x2 cascades in the sun atlas
-constexpr int kLocalTile = 512;    // 4x4 tiles in the local-light atlas
+// The shadow atlases' size follows the quality (RenderQuality::shadowMapSize): the sun's three
+// cascades sit 2x2 in theirs, lamps' tiles 4x4 in the other.
 constexpr int kMaxLights = 8;
 
 struct FrameUniforms {
@@ -545,10 +545,41 @@ struct Renderer3D::Impl {
             primitives[i].upload(*device, primitiveData[i]);
         }
 
+        makeShadowAtlases();
+        return true;
+    }
+
+    // Graphics quality (quality.h). A new shadow map size makes the atlases again.
+    RenderQuality quality;
+    int atlasSize = 2048;
+    int cascadeTile() const { return atlasSize / 2; }
+    int localTile() const { return atlasSize / 4; }
+
+    void setQuality(const RenderQuality& q) {
+        quality = q;
+        int size = q.shadowMapSize > 0 ? q.shadowMapSize : 2048;
+        if (size != atlasSize && device) {
+            for (auto fb : {csmFb, localFb})
+                if (fb)
+                    device->destroy(fb);
+            for (auto t : {csmTexture, localTexture})
+                if (t)
+                    device->destroy(t);
+            atlasSize = size;
+            makeShadowAtlases();
+        }
+        atlasSize = size;
+    }
+
+    void makeShadowAtlases() {
+        for (auto& k : csmKeys)
+            k = 0; // (whatever was drawn is gone)
+        for (auto& k : localKeys)
+            k = 0;
         auto shadowAtlas = [&](rhi::TextureHandle& tex, rhi::FramebufferHandle& fb, const char* label) {
             rhi::TextureDesc td;
-            td.width = kAtlasSize;
-            td.height = kAtlasSize;
+            td.width = atlasSize;
+            td.height = atlasSize;
             td.format = rhi::PixelFormat::Depth24;
             td.depthCompare = true;
             td.filter = rhi::Filter::Linear;
@@ -562,7 +593,6 @@ struct Renderer3D::Impl {
         };
         shadowAtlas(csmTexture, csmFb, "sun shadows");
         shadowAtlas(localTexture, localFb, "light shadows");
-        return true;
     }
 
     void shutdown() {
@@ -961,8 +991,9 @@ struct Renderer3D::Impl {
             float db = lb.type == LightType::Directional ? 0 : length(scene.worldPosition(b) - camPos) - lb.range;
             return da < db;
         });
-        if (others.size() > kMaxLights)
-            others.resize(kMaxLights);
+        size_t maxLights = static_cast<size_t>(std::clamp(quality.maxLights, 0, kMaxLights));
+        if (others.size() > maxLights)
+            others.resize(maxLights);
 
         set4(frame.sunDir, 0, 1, 0, 0);
         set4(frame.sunColor, 0, 0, 0, 0);
@@ -971,7 +1002,7 @@ struct Renderer3D::Impl {
             Vec3 dir = normalize(transformDirection(scene.worldMatrix(sun), {0, 0, -1}));
             set4(frame.sunDir, -dir.x, -dir.y, -dir.z, 1);
             Vec3 c = pow3(l.color.rgb()) * l.intensity * 3.0f;
-            set4(frame.sunColor, c.x, c.y, c.z, l.castShadows ? 1.0f : 0.0f);
+            set4(frame.sunColor, c.x, c.y, c.z, l.castShadows && quality.sunShadows ? 1.0f : 0.0f);
         }
 
         // Shadow tiles for spot (1 tile) and point (6 tiles) lights.
@@ -998,7 +1029,7 @@ struct Renderer3D::Impl {
             float inner = std::cos(radians(clamp(l.spotAngle, 1.0f, 170.0f) * 0.4f));
             set4(frame.lightSpot[count], outer, inner, -1, 0);
             int faces = type == 2.0f ? 1 : type == 1.0f ? 6 : 0;
-            if (l.castShadows && faces > 0 && nextTile + faces <= 16) {
+            if (l.castShadows && quality.lampShadows && faces > 0 && nextTile + faces <= 16) {
                 Pending p{count, nextTile, {}, faces};
                 if (faces == 1) {
                     Vec3 up = std::abs(dir.y) > 0.99f ? Vec3(1, 0, 0) : Vec3(0, 1, 0);
@@ -1023,13 +1054,13 @@ struct Renderer3D::Impl {
             ++count;
         }
         frame.shadowParams[3] = static_cast<float>(count);
-        frame.shadowParams[1] = 1.0f / kAtlasSize;
+        frame.shadowParams[1] = 1.0f / static_cast<float>(atlasSize);
 
         if (!pending.empty()) {
             rhi::PassDesc pass;
             pass.framebuffer = localFb;
-            pass.width = kAtlasSize;
-            pass.height = kAtlasSize;
+            pass.width = atlasSize;
+            pass.height = atlasSize;
             pass.clearColor = false;
             pass.clearDepth = false; // (tiles are cleared one at a time, only when drawn again)
             pass.label = "light shadows";
@@ -1037,7 +1068,7 @@ struct Renderer3D::Impl {
             for (auto& p : pending)
                 for (int f = 0; f < p.faces; ++f) {
                     int tile = p.tile + f;
-                    renderShadowTile(localFb, (tile % 4) * kLocalTile, (tile / 4) * kLocalTile, kLocalTile, p.matrices[f],
+                    renderShadowTile(localFb, (tile % 4) * localTile(), (tile / 4) * localTile(), localTile(), p.matrices[f],
                                      localKeys[tile]);
                 }
             device->endPass();
@@ -1062,15 +1093,15 @@ struct Renderer3D::Impl {
             splits[i] = lerp(uniform, logSplit, 0.85f);
         }
         set4(frame.cascadeSplits, splits[1], splits[2], splits[3], 3);
-        frame.shadowParams[0] = 1.0f / kAtlasSize;
+        frame.shadowParams[0] = 1.0f / static_cast<float>(atlasSize);
         frame.shadowParams[2] = 0.02f;
 
         Mat4 camWorld = inverse(camera.view);
         float tanHalf = std::tan(radians(camera.fieldOfView) * 0.5f);
         rhi::PassDesc pass;
         pass.framebuffer = csmFb;
-        pass.width = kAtlasSize;
-        pass.height = kAtlasSize;
+        pass.width = atlasSize;
+        pass.height = atlasSize;
         pass.clearColor = false;
         pass.clearDepth = false; // (tiles are cleared one at a time, only when drawn again)
         pass.label = "sun shadows";
@@ -1099,12 +1130,12 @@ struct Renderer3D::Impl {
             // Snap to whole shadow texels so shadows don't shimmer as the camera moves.
             Mat4 vp = proj * view;
             Vec4 origin = vp * Vec4(0, 0, 0, 1);
-            float texels = kCascadeTile * 0.5f;
+            float texels = static_cast<float>(cascadeTile()) * 0.5f;
             float ox = origin.x * texels, oy = origin.y * texels;
             Mat4 snap = Mat4::translation({(std::round(ox) - ox) / texels, (std::round(oy) - oy) / texels, 0});
             vp = snap * vp;
             frame.cascade[c] = tileMatrix(c % 2, c / 2, 0.5f) * vp;
-            renderShadowTile(csmFb, (c % 2) * kCascadeTile, (c / 2) * kCascadeTile, kCascadeTile, vp, csmKeys[c]);
+            renderShadowTile(csmFb, (c % 2) * cascadeTile(), (c / 2) * cascadeTile(), cascadeTile(), vp, csmKeys[c]);
         }
         device->endPass();
     }
@@ -1139,6 +1170,7 @@ Renderer3D::Renderer3D() : impl_(std::make_unique<Impl>()) {}
 Renderer3D::~Renderer3D() = default;
 
 bool Renderer3D::init(rhi::Device* device, Assets* assets) { return impl_->init(device, assets); }
+void Renderer3D::setQuality(const RenderQuality& quality) { impl_->setQuality(quality); }
 void Renderer3D::shutdown() { impl_->shutdown(); }
 
 bool Renderer3D::hasContent(const Scene& scene) const {

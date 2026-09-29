@@ -696,9 +696,12 @@ void Editor::drawViewport(float dt) {
         if (playing_ && game_) {
             RenderOptions opts;
             opts.debugDraw = prefs.showDebugDraw;
-            game_->render(renderer_, w, h, opts);
+            opts.renderScale = false; // (Preferences > Scene view > Resolution decides the pixels here)
+            game_->render(renderer_, w, h, opts); // (in the game's own graphics quality)
         } else {
+            renderer_.setQuality(RenderQuality::preset(static_cast<GraphicsQuality>(std::clamp(prefs.viewportQuality, 0, 3))));
             RenderOptions opts;
+            opts.renderScale = false;
             renderer_.render(*scene_, editorCamera(), w, h, opts);
         }
         renderMs_ = std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - t0).count();

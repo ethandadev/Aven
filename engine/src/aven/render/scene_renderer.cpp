@@ -171,29 +171,37 @@ void SceneRenderer::releaseTargets() {
             device_->destroy(t);
     sceneFb_ = sceneColorFb_ = outputFb_ = {};
     sceneColor_ = sceneNormal_ = sceneDepth_ = outputColor_ = {};
-    width_ = height_ = 0;
+    width_ = height_ = sceneWidth_ = sceneHeight_ = 0;
 }
 
-void SceneRenderer::ensureTargets(int w, int h) {
-    if (w == width_ && h == height_ && sceneFb_)
+void SceneRenderer::setQuality(const RenderQuality& quality) {
+    quality_ = quality;
+    if (renderer3D_)
+        renderer3D_->setQuality(quality);
+}
+
+void SceneRenderer::ensureTargets(int w, int h, int sw, int sh) {
+    if (w == width_ && h == height_ && sw == sceneWidth_ && sh == sceneHeight_ && sceneFb_)
         return;
     releaseTargets();
     width_ = w;
     height_ = h;
-    auto tex = [&](rhi::PixelFormat f, const char* label) {
+    sceneWidth_ = sw;
+    sceneHeight_ = sh;
+    auto tex = [&](rhi::PixelFormat f, const char* label, bool scene) {
         rhi::TextureDesc d;
-        d.width = w;
-        d.height = h;
+        d.width = scene ? sw : w;
+        d.height = scene ? sh : h;
         d.format = f;
         d.renderTarget = true;
         d.filter = rhi::Filter::Linear;
         d.label = label;
         return device_->createTexture(d);
     };
-    sceneColor_ = tex(rhi::PixelFormat::RGBA16F, "scene color");
-    sceneNormal_ = tex(rhi::PixelFormat::RGBA8, "scene normals");
-    sceneDepth_ = tex(rhi::PixelFormat::Depth24, "scene depth");
-    outputColor_ = tex(rhi::PixelFormat::RGBA8, "output");
+    sceneColor_ = tex(rhi::PixelFormat::RGBA16F, "scene color", true);
+    sceneNormal_ = tex(rhi::PixelFormat::RGBA8, "scene normals", true);
+    sceneDepth_ = tex(rhi::PixelFormat::Depth24, "scene depth", true);
+    outputColor_ = tex(rhi::PixelFormat::RGBA8, "output", false);
     rhi::FramebufferDesc sd;
     sd.colors = {sceneColor_, sceneNormal_};
     sd.depth = sceneDepth_;
@@ -206,7 +214,7 @@ void SceneRenderer::ensureTargets(int w, int h) {
     od.colors = {outputColor_};
     od.label = "output";
     outputFb_ = device_->createFramebuffer(od);
-    post_->resize(w, h);
+    post_->resize(sw, sh);
 }
 
 // ---------------------------------------------------------------- frame
@@ -214,7 +222,12 @@ void SceneRenderer::ensureTargets(int w, int h) {
 void SceneRenderer::render(Scene& scene, const CameraView& cameraIn, int w, int h, const RenderOptions& options) {
     if (!device_ || w <= 0 || h <= 0)
         return;
-    ensureTargets(w, h);
+    // On a lower render scale (Low quality) the world is drawn with fewer pixels and stretched to
+    // fill the output by the last post-processing pass; the UI is still drawn at full size.
+    float scale = options.renderScale ? std::clamp(quality_.renderScale, 0.25f, 1.0f) : 1.0f;
+    int sw = scale < 1.0f ? std::max(1, static_cast<int>(std::lround(w * scale))) : w;
+    int sh = scale < 1.0f ? std::max(1, static_cast<int>(std::lround(h * scale))) : h;
+    ensureTargets(w, h, sw, sh);
     scene.updateTransforms();
 
     CameraView camera = cameraIn;
@@ -229,14 +242,22 @@ void SceneRenderer::render(Scene& scene, const CameraView& cameraIn, int w, int 
 
     const PostProcessing* pp =
         options.postProcessing && camera.entity ? scene.registry().tryGet<PostProcessing>(camera.entity) : nullptr;
-    bool ssao = has3D && pp && pp->ssao;
+    // The quality can turn effects off (never on: the camera's settings say what the game wants).
+    PostProcessing limited;
+    if (pp && (!quality_.bloom || !quality_.fxaa)) {
+        limited = *pp;
+        limited.bloom = limited.bloom && quality_.bloom;
+        limited.fxaa = limited.fxaa && quality_.fxaa;
+        pp = &limited;
+    }
+    bool ssao = has3D && pp && pp->ssao && quality_.ssao;
 
     Color bg = camera.background;
     rhi::PassDesc pass;
     // Normals are written only when SSAO will read them (a whole extra screen of pixels otherwise).
     pass.framebuffer = ssao ? sceneFb_ : sceneColorFb_;
-    pass.width = w;
-    pass.height = h;
+    pass.width = sw;
+    pass.height = sh;
     auto linear = [](float c) { return std::pow(std::max(c, 0.0f), 2.2f); };
     pass.clearValue = {linear(bg.r), linear(bg.g), linear(bg.b), 1};
     pass.label = "scene";
@@ -253,8 +274,8 @@ void SceneRenderer::render(Scene& scene, const CameraView& cameraIn, int w, int 
     rhi::PassDesc overlay;
     overlay.label = "transparent, 2D and overlays";
     overlay.framebuffer = sceneColorFb_;
-    overlay.width = w;
-    overlay.height = h;
+    overlay.width = sw;
+    overlay.height = sh;
     overlay.clearColor = false;
     overlay.clearDepth = false;
     device_->beginPass(overlay);
@@ -264,10 +285,10 @@ void SceneRenderer::render(Scene& scene, const CameraView& cameraIn, int w, int 
     if (sceneOverlay)
         sceneOverlay(camera);
     if (debugDraw)
-        debugDraw->drawWorld(renderer2D_, camera, static_cast<float>(h), assets_->white().handle);
+        debugDraw->drawWorld(renderer2D_, camera, static_cast<float>(sh), assets_->white().handle);
     device_->endPass();
 
-    post_->composite(sceneColor_, outputFb_, pp);
+    post_->composite(sceneColor_, outputFb_, w, h, pp);
 
     bool labels = debugDraw && !debugDraw->shapes().empty();
     if (options.drawUI || screenOverlay || labels) {

@@ -49,6 +49,7 @@ struct PublishSettings {
     std::string icon;      // a picture in the project (square, 512 px or more is best); empty: the thumbnail
     bool splash = true;    // a moment of "Made with Aven" when the game starts (skippable)
     bool titleScreen = false; // a start menu with the game's name, Play and Quit
+    bool graphicsButton = true; // ...and a Graphics button players use to pick Low / Medium / High / Ultra
     std::string titleImage;   // the title screen's background; empty: the thumbnail
     // Signing. macOS: your Apple Developer Team ID, the signing identity (empty: the "Developer ID
     // Application" certificate for that team) and a notarytool keychain profile to notarize with.
@@ -76,6 +77,9 @@ struct ProjectSettings {
     bool fullscreen = false;
     bool vsync = true;
     bool pixelPerfect = false; // snap 2D rendering to whole pixels
+    // Low / Medium / High / Ultra (aven/render/quality.h): what the game starts with. A player's own
+    // choice (title screen, set_graphics_quality()) is kept in their save folder and wins.
+    std::string graphicsQuality = "High";
     bool advancedMode = false; // editor shows advanced components and settings
     std::string templateName;  // which starter template the project came from
     Json inputActions = Json::object();
