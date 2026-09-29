@@ -53,6 +53,8 @@ void Editor::drawParticlePresets(Entity e, const std::vector<Entity>& selection)
 bool Editor::canRest() {
     if (!prefs.saveEnergy || gifRecording_ || replaying_ || (playing_ && !paused_ && !debugPaused()))
         return false;
+    if (showOnboarding_ && !prefs.reduceMotion) // (Pip bobs and blinks)
+        return false;
     if (prefs.previewParticles && !playing_) // a selected emitter is previewing
         for (Entity x : selectedEntities())
             if (scene_->registry().has<ParticleEmitter>(x))

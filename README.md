@@ -19,6 +19,8 @@ know how the bigger engines think.
 - **3D:** a PBR renderer with shadows, a sky and fog, glTF models with animation, and Jolt physics
   with a character controller.
 - **Post-processing:** bloom, tonemapping, color grading, vignette, SSAO and FXAA.
+- **Graphics quality presets:** Low, Medium, High and Ultra, which players can pick from the title
+  screen or a script.
 - **Game UI:** text, buttons, panels, images, value bars (health, energy) and anchors. Buttons
   work without code: **Click Actions** list what a click does, like Unity's On Click list.
 - **Multiplayer:** host and join games on the same Wi-Fi, or over the internet with a room code
@@ -72,8 +74,10 @@ know how the bigger engines think.
   - An sfxr-style Sound Maker.
   - Particle presets.
   - Screenshot and GIF capture.
-- **Personalization and accessibility:** themes (including High Contrast), accent colors, font
-  sizes and UI scale, colorblind-friendly axis colors, rebindable shortcuts and layouts.
+- **Personalization and accessibility:** a playful welcome tour, themes (including High Contrast),
+  accent colors, font sizes and UI scale, colorblind-friendly axis colors, a calm mode with less
+  motion, layouts, and shortcuts that can all be changed, starting from Aven's own keys or ones
+  like Unity's, Godot's or Unreal's.
 - **For experienced developers:** collision layers, script debug drawing, Inspector hints in
   comments (`# @range(0, 10)`), Hierarchy filters (`t:RigidBody2D tag:enemy`), align and select
   tools, editor tools written in EasyScript (Tools > Editor tools), per-file import settings,

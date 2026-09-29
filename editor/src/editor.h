@@ -111,6 +111,11 @@ public:
     bool canRest();
     void setResting(bool resting) { resting_ = resting; } // (the status bar says so, rather than a low FPS)
     void requestQuit();
+    void openOnboarding(int step = 0); // the welcome tour (first run, Help > Welcome Tour)
+    // Their picture (or critter) in a circle; `time` makes critters blink.
+    void drawProfileAvatar(ImDrawList* dl, ImVec2 center, float radius, float time = 0);
+    // A little sound for the UI ("blip", "coin", "powerup"...), when Preferences > Little sounds is on.
+    void uiSound(const char* kind);
     // When Aven quits (main.cpp): puts a downloaded update in place (updater.cpp). Returns the
     // command that starts the new version when the user chose to restart, else "".
     std::string installPendingUpdate();
@@ -622,6 +627,27 @@ private:
     SfxParams sfx_;
     std::vector<float> sfxSamples_;
     std::unique_ptr<SoundPreview> soundPreview_;
+
+    // The welcome tour (onboarding.cpp), and the profile picture it sets up.
+    bool showOnboarding_ = false, onboardFocusName_ = false, onboardLevelChosen_ = false;
+    bool onboardPronounOther_ = false, pickingPicture_ = false;
+    int onboardStep_ = 0;
+    float onboardTime_ = 0, onboardStepTime_ = 0, onboardSayTime_ = 0, pipHop_ = 1;
+    std::string onboardSay_;    // what Pip is saying (empty: the step's own line)
+    std::string onboardKeymap_; // keys like this engine's, picked in the tour
+    struct Confetti {
+        float x, y, vx, vy, angle, spin; // (x and y in card widths and heights)
+        ImU32 color;
+    };
+    std::vector<Confetti> confetti_;
+    std::map<std::string, std::vector<float>> uiSounds_;
+    void drawOnboarding(float dt);
+    void finishOnboarding(bool skipped);
+    void pipSay(const std::string& line);
+    std::string tourKeymap() const;
+    void startConfetti();
+    bool setProfilePicture(const stdfs::path& file);
+    bool drawFileBrowser(const std::vector<std::string>& extensions, stdfs::path* picked);
     std::string sfxName_ = "sound", sfxKind_, sfxLastSaved_;
     bool sfxAutoPlay_ = true, showSoundMaker_ = false, focusSoundMaker_ = false;
     void drawSoundMaker();
@@ -719,7 +745,10 @@ private:
     std::string saveAsName_;
     void openSaveAs();
     void drawSaveSceneAs();
-    void closeFocusedWindow(); // Ctrl+W
+    void closeFocusedWindow(bool fromMenu = false); // Ctrl+W, File > Close Tab or Window
+    void rememberClosableWindow();                  // (each frame, for the menu)
+    bool closeWindow(unsigned int id, bool check);
+    unsigned int lastClosable_ = 0;
     std::string prefabPath_;       // prefab being edited ("" = normal scene)
     Json prefabReturnScene_;       // the scene to go back to
     std::string prefabReturnPath_;
@@ -804,6 +833,7 @@ private:
     void drawMenuBar();
     void drawToolbar();
     void drawHub();
+    void drawGreeting();
     bool drawFolderBrowser(bool projectsOnly, stdfs::path* picked);
     void drawHierarchy();
     void drawInspector();

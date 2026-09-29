@@ -11,6 +11,32 @@ moment and scripts that do strange things now get a clear message instead of a c
 The editor also fits better at bigger UI sizes.
 
 ### New
+- **A welcome tour** the first time Aven opens, with Pip, Aven's little diamond: your name, a
+  picture (ten drawn critters, or your own), pronouns, how you found Aven, how much you've coded
+  (which picks the Learn mode level), whether you've used Unity, Godot or Unreal (for their keys and
+  the Code Ladder's language), then a theme, size, sounds and calm mode. Confetti at the end. Skip
+  it any time; Help > Welcome Tour and Preferences > Profile bring it back. Answers stay on your
+  computer.
+- **A greeting on the start screen**: "Good morning, Sam!" with your picture and a different line
+  each day. Click your picture to change it.
+- **Graphics quality: Low, Medium, High and Ultra**. Project Settings > Game picks what a game
+  starts with; players change it with the title screen's new Graphics button or a script's
+  `set_graphics_quality("Low")`, and their choice is kept. High is what Aven always drew; Low turns
+  off shadows and effects and draws the world at 75% (the game's text stays sharp) for older
+  computers; Ultra has sharper shadows. The scene view has its own setting (Preferences > Scene
+  view).
+- **Every shortcut can be changed** (Preferences > Shortcuts), including the code editor's, the
+  debugger's, the Pixel Editor's and the keys that fly the 3D camera. Each command can have two
+  sets of keys. Start from Aven's keys or ones like **Unity, Godot or Unreal**; search by name or
+  keys; clashes are pointed out; right-click removes keys or puts the originals back.
+- **The keys your fingers know**: Ctrl+W (Cmd+W) closes the tab or window you're in, Ctrl+N makes a
+  new scene, Ctrl+O quick-opens scenes and scripts, Ctrl+Shift+S saves the scene under a new name
+  (File > Save Scene As, also new), Shift+F5 stops playing, and Ctrl+= / Ctrl+- / Ctrl+0 make the
+  whole editor bigger or smaller. On a Mac, Cmd+Shift+Z redoes and Cmd+Backspace deletes.
+- **More editor options**: calm mode (less motion), zoom speed and direction for the scene view,
+  closing brackets and quotes as you type (on or off), open the last game when Aven starts, the
+  start screen greeting, the FPS counter, and little sounds (clicks and cheers) all in
+  Preferences.
 - **The editor rests when nothing's happening**: with no game playing and no key or mouse touched
   for a second, it draws a few frames a second instead of 60 or more, and wakes the moment you
   move the mouse. It used about a fifth of the processor time while idle in our measurements, so

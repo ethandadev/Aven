@@ -101,6 +101,7 @@ const CodePalette& CodePalette::find(const std::string& name) {
 
 CodePalette CodeEditor::palette = CodePalette::presets().front();
 float CodeEditor::zoom = 1.0f;
+bool CodeEditor::autoClose = true;
 
 CodeEditor::CodeEditor() = default;
 
@@ -698,14 +699,14 @@ void CodeEditor::handleTyping(bool& changed) {
         const std::string& line = lines_[static_cast<size_t>(cursor_.line)];
         char next = cursor_.col < static_cast<int>(line.size()) ? line[static_cast<size_t>(cursor_.col)] : 0;
         // Typing a closing bracket or quote that is already there just steps over it.
-        if (!hasSelection() && (c == ')' || c == ']' || c == '}' || c == '"' || c == '\'') && next == static_cast<char>(c)) {
+        if (autoClose && !hasSelection() && (c == ')' || c == ']' || c == '}' || c == '"' || c == '\'') && next == static_cast<char>(c)) {
             cursor_.col++;
             anchor_ = cursor_;
             continue;
         }
         const char* pair = c == '(' ? ")" : c == '[' ? "]" : c == '{' ? "}" : (c == '"' || c == '\'') ? (c == '"' ? "\"" : "'") : nullptr;
         bool wordAfter = next && isWordChar(next);
-        if (pair && !wordAfter) {
+        if (pair && !wordAfter && autoClose) {
             insert(s + pair);
             cursor_.col--;
             anchor_ = cursor_;

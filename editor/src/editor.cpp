@@ -53,6 +53,7 @@ bool Editor::init(const EditorOptions& options) {
     options_ = options;
     if (options.screenshot.empty()) {
         prefs.load();
+        showOnboarding_ = !prefs.onboarded; // (the first time Aven runs: no preferences yet)
     } else {
         prefs.level = options.level > 0 ? options.level : 4; // automated screenshots show everything
         Prefs::saving = false;
@@ -93,6 +94,10 @@ bool Editor::init(const EditorOptions& options) {
             return false;
         options_.project = options.newProject;
     }
+    // Preferences > Start screen: straight back into the last game.
+    if (options_.project.empty() && options.newProject.empty() && options.exportTo.empty() && options.screenshot.empty() &&
+        prefs.openLastProject && !showOnboarding_ && !recentProjects_.empty() && ProjectSettings::isProject(recentProjects_.front()))
+        options_.project = recentProjects_.front();
     if (!options.exportTo.empty()) {
         if (!hasProject() && !openProject(options.project))
             return false;
@@ -295,6 +300,27 @@ void Editor::openPanels(const std::string& list) {
         else if (p == "prefs") showPrefs_ = true;
         else if (p.rfind("prefs:", 0) == 0) { showPrefs_ = true; prefsSection_ = p.substr(6); }
         else if (p.rfind("keymap:", 0) == 0) applyKeymap(prefs, p.substr(7)); // (not saved)
+        else if (p == "onboarding") openOnboarding();
+        else if (p == "profile") { // what the welcome tour set (automated tests)
+            std::string engines;
+            for (auto& e : prefs.enginesUsed)
+                engines += (engines.empty() ? "" : "+") + e;
+            Log::info("profile: name=", prefs.profileName, " avatar=", prefs.avatar, " pronouns=", prefs.pronouns,
+                      " found=", prefs.foundVia, " coding=", prefs.codingLevel, " level=", prefs.level, " engines=", engines,
+                      " keymap=", prefs.keymap, " onboarded=", prefs.onboarded ? 1 : 0, " tour=", showOnboarding_ ? "open" : "closed");
+        }
+        else if (p.rfind("onboarding:", 0) == 0) openOnboarding(std::atoi(p.substr(11).c_str())); // at a step, 0-5
+        else if (p.rfind("profile:", 0) == 0) { // profile:Name|avatar|pronouns|level|engine (automated screenshots)
+            std::vector<std::string> parts;
+            std::string rest = p.substr(8) + "|";
+            for (size_t at = 0, bar; (bar = rest.find('|', at)) != std::string::npos; at = bar + 1)
+                parts.push_back(rest.substr(at, bar - at));
+            prefs.profileName = parts[0];
+            if (parts.size() > 1 && !parts[1].empty()) prefs.avatar = parts[1];
+            if (parts.size() > 2) prefs.pronouns = parts[2];
+            if (parts.size() > 3 && !parts[3].empty()) prefs.codingLevel = std::atoi(parts[3].c_str());
+            if (parts.size() > 4 && !parts[4].empty()) prefs.enginesUsed = {parts[4]};
+        }
         else if (p.rfind("script:", 0) == 0) openScript(p.substr(7));
         else if (p == "tabs") { // the open script tabs and the scene's file (automated tests)
             for (auto& t : tabs_)
@@ -1913,6 +1939,13 @@ void Editor::scanAssets() {
 }
 
 void Editor::onFilesDropped(const std::vector<std::string>& files) {
+    // A picture dropped on the welcome tour is their profile picture.
+    if (showOnboarding_ && files.size() == 1) {
+        std::string ext = fs::extension(files[0]);
+        if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga")
+            setProfilePicture(files[0]);
+        return;
+    }
     // A game in a .zip (File > Export Project as .zip, or zipped by hand) opens as a project.
     if (files.size() == 1 && fs::extension(files[0]) == ".zip") {
         std::string error;
@@ -2174,6 +2207,7 @@ void Editor::buildApiReference() {
 
 void Editor::frame(float dt) {
     ++frameCount_;
+    CodeEditor::autoClose = prefs.autoClose;
     {
         std::lock_guard lock(g_consoleMutex);
         for (auto& l : g_pendingLines) {
@@ -2294,11 +2328,13 @@ void Editor::frame(float dt) {
         drawCommandPalette();
         drawSaveSceneAs();
         handleShortcuts();
+        rememberClosableWindow();
     }
     if (showPrefs_)
         drawPreferences();
     if (showLevels_ || levelUpTo_)
         drawLevels();
+    drawOnboarding(dt);
     updateRecovery(dt);
     drawRecoveryPrompt();
     updateDebugger();

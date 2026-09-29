@@ -53,7 +53,13 @@ starts.
 
 ## 2. Make a game
 
-The editor opens on the **hub**. There are three ways to start:
+The first time Aven opens, **Pip** (Aven's little diamond) takes you on a short welcome tour: your
+name and picture, how much you've coded (so Aven shows the right amount at first), whether you've
+used Unity, Godot or Unreal (so the keys feel familiar), and how Aven should look. Skip it if you
+like: **Help > Welcome Tour** or **Preferences > Profile** brings it back, and everything in it is
+also in Preferences.
+
+Then the editor opens on the **hub**. There are three ways to start:
 
 - **A template.** Platformer, Gem Quest, Space Shooter, Cookie Clicker, 3D Obby, Crystal Forest,
   or a blank 2D or 3D game. Each one is a complete, playable game with a short tutorial.
@@ -69,6 +75,10 @@ Press **Play** (or Ctrl+P) to play it inside the editor. Now change something:
 3. Or type what you want into the box at the top of the Inspector ("make it jump higher") and
    press **Ask**.
 4. Not sure what something does? Select it and open the **Explain** tab.
+
+**Keyboard shortcuts** are the usual ones (Ctrl+S saves, Ctrl+Z undoes, Ctrl+C / Ctrl+V copy and
+paste, Ctrl+W closes a tab; Cmd on a Mac), and every one can be changed in **Preferences >
+Shortcuts**, where you can also start from keys like Unity's, Godot's or Unreal's.
 
 Working with several objects: Ctrl+click adds one to the selection, Shift+click (or Shift and the
 arrow keys in the Hierarchy) selects a range, and dragging in an empty part of the scene box-selects.

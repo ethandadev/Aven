@@ -9,6 +9,13 @@ Try it at your normal display scaling, and once at a bigger one (Windows: Settin
 Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should be cut off.
 
 ## Start and projects
+- [ ] First run (move your preferences file away, see Help > About): the welcome tour appears. Try
+      every step: type a name, pick critters and your own picture (the chooser, and dropping one
+      on the window), pronouns, each "how did you find", "Never" (skips the engines step) and
+      "Some" + an engine (its keys are used), themes and sizes change right away, calm mode stops
+      the bouncing, sounds play. Skip for now and Back work; Enter goes on.
+- [ ] The start screen greets you by name with your picture; clicking it opens the tour.
+      Preferences > Behavior turns the greeting off, and "Open my last game" starts in it.
 - [ ] The start screen: make a game from each template; open a recent one; **Open a game** browser.
 - [ ] **File > Export Project as .zip**, then open that zip from **Open a game** (and by dropping it
       on the window). It opens with everything there.
@@ -17,6 +24,13 @@ Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should 
 - [ ] Crash recovery: make a change, wait 30 seconds, then end Aven from the task manager (Activity
       Monitor on a Mac). Opening the project again offers the change back; Recover brings it back
       unsaved, Throw away doesn't. Closing Aven normally leaves nothing to recover.
+
+## Shortcuts
+- [ ] Preferences > Shortcuts: change a key (and a second key), right-click to remove / restore,
+      search, a clash shows its warning, Esc cancels. Each keymap (Aven, Unity, Godot, Unreal).
+- [ ] The usual keys, with Cmd on a Mac: Ctrl+W closes a script tab and tool windows, Ctrl+N,
+      Ctrl+O (quick open), Ctrl+Shift+S (Save Scene As), Ctrl+= / Ctrl+- / Ctrl+0 resize the editor;
+      Ctrl+C/V/Z/Y in the code editor, the Pixel Editor and text boxes.
 
 ## Hierarchy
 - [ ] Click, Ctrl+click, Shift+click ranges (also across open folders).
@@ -66,6 +80,9 @@ Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should 
       hotspot) with the room code. Moving, `send()` and leaving work as on a local network.
 - [ ] `import`: a script with `import utils` uses a function from scripts/utils.es; saving utils.es
       while playing uses the new version.
+- [ ] Graphics quality: Project Settings > Game > Graphics quality, and an exported game's title
+      screen Graphics button (Low / Medium / High / Ultra). Low is smooth on a slow computer and its
+      text stays sharp; the choice is still there the next time the game opens.
 
 ## Tools
 - [ ] Pixel Editor (draw, undo, save, use on the selected object), Sprite Sheet, Tile Painter,

@@ -583,6 +583,57 @@ def test_shortcuts(editor):
         return "Ctrl+Shift+S didn't save the scene as 'level two': %s" % tabs
 
 
+def test_welcome_tour(editor):
+    """The welcome tour: name, picture and how they found Aven are kept; "never coded" skips the
+    engines step and starts at Starter; "some" plus Godot starts at Creator with Godot's keys."""
+    def tour(coding_y, extra):
+        lines = """
+10 type Robin
+12 move 661 392
+13 down
+14 up
+16 key Enter down
+17 key Enter up
+20 move 1134 320
+21 down
+22 up
+24 key Enter down
+25 key Enter up
+28 move 912 %d
+29 down
+30 up
+32 key Enter down
+33 key Enter up
+""" % coding_y + extra
+        _, log, _ = run_editor(editor, "platformer", 60, lines, "hub,onboarding,@58:profile")
+        found = [l.split("profile: ", 1)[1] for l in log.splitlines() if "profile: " in l]
+        return found[-1] if found else "(no profile line)"
+
+    new = tour(296, """
+36 key Enter down
+37 key Enter up
+40 key Enter down
+41 key Enter up
+""")
+    for want in ("name=Robin", "avatar=fox", "found=GitHub", "coding=0", "level=1", "keymap=Aven", "onboarded=1", "tour=closed"):
+        if want not in new:
+            return "new to code: expected %s in: %s" % (want, new)
+    pro = tour(418, """
+36 move 829 312
+37 down
+38 up
+40 key Enter down
+41 key Enter up
+44 key Enter down
+45 key Enter up
+48 key Enter down
+49 key Enter up
+""")
+    for want in ("coding=2", "level=3", "engines=Godot", "keymap=Godot", "onboarded=1", "tour=closed"):
+        if want not in pro:
+            return "some code, Godot: expected %s in: %s" % (want, pro)
+
+
 def test_monkey(editor):
     """Random clicks, drags, keys and typing for a while, editing and playing: no crash."""
     for seed, template, play in ((1, "platformer", False), (2, "obby-3d", True)):

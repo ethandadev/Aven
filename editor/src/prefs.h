@@ -36,6 +36,7 @@ struct Prefs {
     bool rounded = true;
     bool compact = false;
     bool colorblindSafe = false; // axis colors that don't rely on telling red from green
+    bool reduceMotion = false;   // calm mode: no bouncing, confetti or wiggling text
     std::string layout = "Default";
     std::map<std::string, std::string> savedLayouts; // name -> ImGui .ini data
 
@@ -44,6 +45,8 @@ struct Prefs {
     float gridOpacity = 1.0f;
     Color selectionColor = Color::fromHex(0xFF9E1A);
     float flySpeed = 6.0f;
+    float zoomSpeed = 1.0f;  // how far one notch of the mouse wheel zooms the scene view
+    bool invertZoom = false; // wheel up zooms out
     bool showHints = true;
     bool showIcons = true;
     bool showColliders = true;
@@ -66,6 +69,11 @@ struct Prefs {
     bool uiSounds = false;
     bool recordReplays = true;
     bool saveEnergy = true; // when nothing moves and nobody's touching anything, draw a few frames a second
+    bool autoClose = true; // the code editor types the closing ) ] } and quotes for you
+    bool showFps = true;   // frames per second in the status bar
+    // Start screen
+    bool showGreeting = true;     // "Good morning, Sam!" with their picture
+    bool openLastProject = false; // start in the last game instead of the start screen
     // Opening scripts in another code editor: {file} and {line} are filled in, e.g. "code -g {file}:{line}".
     std::string externalEditor;
     bool useExternalEditor = false;
@@ -84,9 +92,17 @@ struct Prefs {
     std::set<std::string> seenTips;
     std::map<std::string, int> questSteps; // contributor quests progress
 
-    // Profile (shown on game cards)
+    // Profile (the name is shown on game cards). Everything here stays on this computer.
     std::string profileName;
     Color profileColor = Color::fromHex(0x8B5CF6);
+    std::string avatar = "cat";   // a critter (avatars.h), or "picture" for profilePicture
+    std::string profilePicture;   // their own picture, copied into the user data folder
+    std::string pronouns;         // "he/him", "she/her", "they/them", their own words, or "" (not said)
+    std::string foundVia;         // how they found Aven (asked in the welcome tour)
+    int codingLevel = -1;         // 0 never coded, 1 a little, 2 some, 3 lots (-1: didn't say)
+    std::vector<std::string> enginesUsed; // "Unity", "Godot", "Unreal"
+    std::string ladderEngine;     // the Code Ladder opens on this engine's language ("" = Unity's C#)
+    bool onboarded = false;       // finished (or skipped) the welcome tour
 
     // Shortcuts (keymap.h): action id -> keys, "id/2" -> its second keys (missing = the default, 0 = none).
     std::map<std::string, ImGuiKeyChord> keys;
@@ -96,7 +112,7 @@ struct Prefs {
     Color accentColor() const;
     const ThemePreset& themePreset() const;
 
-    void load();
+    bool load(); // false when there's no preferences file yet (the first time Aven runs)
     void save() const;
     static inline bool saving = true; // off for automated runs (--screenshot), which mustn't change the user's
     Json toJson() const;

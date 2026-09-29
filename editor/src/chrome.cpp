@@ -1,5 +1,6 @@
 // The editor's frame: dock layouts, menus, toolbar, status bar, Preferences and Learn mode levels.
 
+#include "avatars.h"
 #include "editor.h"
 #include "menu.h"
 
@@ -174,7 +175,7 @@ void Editor::drawMenuBar() {
             showHub_ = true;
         }
         if (menu::item("Close Tab or Window", key("close_tab")))
-            closeFocusedWindow();
+            closeFocusedWindow(true);
         if (!menu::native() && menu::item("Quit", key("quit")))
             requestQuit(); // on a Mac: Aven > Quit Aven
         menu::end();
@@ -382,6 +383,9 @@ void Editor::drawMenuBar() {
             openQuests();
         menu::tooltip("Small, guided ways to help build Aven itself");
         menu::item("Scripting Reference", nullptr, &showReference_);
+        if (menu::item("Welcome Tour..."))
+            openOnboarding();
+        menu::tooltip("Meet Pip again: your name and picture, how much help you'd like, keys and looks");
         if (menu::item("Keyboard shortcuts...")) {
             showPrefs_ = true;
             prefsSection_ = "Shortcuts";
@@ -608,7 +612,9 @@ void Editor::drawStatusBar() {
     drawCaptureStatus();
     // Right side: errors, level progress, frame rate.
     // (while resting, the editor draws a few frames a second on purpose: that isn't a slow editor)
-    std::string right = resting_ ? std::string("Resting") : std::to_string(static_cast<int>(std::round(ImGui::GetIO().Framerate))) + " FPS";
+    std::string right = resting_       ? std::string("Resting")
+                        : prefs.showFps ? std::to_string(static_cast<int>(std::round(ImGui::GetIO().Framerate))) + " FPS"
+                                        : std::string();
     std::string hint = nextLevelHint(prefs);
     float x = ImGui::GetWindowWidth() - ImGui::CalcTextSize(right.c_str()).x - 16;
     if (errorCount_ > 0) {
@@ -637,8 +643,8 @@ void Editor::drawStatusBar() {
 // ---------------------------------------------------------------- shortcuts
 
 void Editor::handleShortcuts() {
-    if (!rebindAction_.empty())
-        return; // (Preferences is waiting for the keys of a shortcut)
+    if (!rebindAction_.empty() || showOnboarding_)
+        return; // (Preferences is waiting for the keys of a shortcut, or the welcome tour is up)
     if (shortcut("quit"))
         requestQuit();
     if (shortcut("close_tab"))
@@ -857,6 +863,8 @@ void Editor::drawPreferences() {
         label("Colorblind-friendly axes", "Orange, sky blue and pink for X, Y and Z (move arrows, X/Y/Z fields, grid lines)\n"
                                           "instead of red, green and blue.");
         restyle |= ImGui::Checkbox("##colorblind", &prefs.colorblindSafe);
+        label("Calm mode (less motion)", "No bouncing, wiggling text or confetti: Pip keeps still, and so does everything else.");
+        changed |= ImGui::Checkbox("##calm", &prefs.reduceMotion);
         ui::sectionHeader("Layout");
         label("Panel layout");
         if (ImGui::BeginCombo("##layout", prefs.layout.c_str())) {
@@ -921,6 +929,9 @@ void Editor::drawPreferences() {
             ImGui::PopID();
             ImGui::Spacing();
         }
+        ui::sectionHeader("Typing");
+        label("Close brackets and quotes", "Typing ( [ { or a quote also types its partner after the cursor.");
+        changed |= ImGui::Checkbox("##autoclose", &prefs.autoClose);
         ui::sectionHeader("Size");
         label("Code text size");
         if (ImGui::SliderInt("##codefont", &prefs.codeFontSize, 11, 26, "%d px"))
@@ -962,6 +973,10 @@ void Editor::drawPreferences() {
         ui::sectionHeader("Camera and gizmos");
         label("3D fly speed");
         changed |= ImGui::SliderFloat("##fly", &prefs.flySpeed, 1.0f, 40.0f, "%.0f");
+        label("Zoom speed", "How far each turn of the mouse wheel (or trackpad scroll) zooms.");
+        changed |= ImGui::SliderFloat("##zoomspeed", &prefs.zoomSpeed, 0.25f, 4.0f, "%.2fx");
+        label("Reverse zoom direction", "Scroll up to zoom out, like some other programs.");
+        changed |= ImGui::Checkbox("##invertzoom", &prefs.invertZoom);
         label("Move snap step");
         changed |= ImGui::DragFloat("##ms", &prefs.moveSnap, 0.05f, 0.05f, 10.0f, "%.2f");
         label("Rotate snap step");
@@ -971,6 +986,16 @@ void Editor::drawPreferences() {
         label("Gizmo uses local axes");
         changed |= ImGui::Checkbox("##local", &prefs.gizmoLocal);
     } else if (prefsSection_ == "Behavior") {
+        ui::sectionHeader("Starting Aven");
+        label("Say hello on the start screen", "A greeting with your name and picture above the templates.");
+        changed |= ImGui::Checkbox("##greeting", &prefs.showGreeting);
+        label("Open my last game", "Start right in the game you had open last time, instead of the start screen.");
+        changed |= ImGui::Checkbox("##openlast", &prefs.openLastProject);
+        ui::sectionHeader("Fun");
+        label("Little sounds", "Soft clicks and cheers in the welcome tour, and a cheer when you level up.");
+        changed |= ImGui::Checkbox("##uisounds", &prefs.uiSounds);
+        label("Show frames per second", "In the bottom right corner: how smoothly the editor is drawing.");
+        changed |= ImGui::Checkbox("##fps", &prefs.showFps);
         ui::sectionHeader("Saving");
         label("Autosave every", "0 turns autosave off.");
         changed |= ImGui::SliderInt("##autosave", &prefs.autosaveMinutes, 0, 30, prefs.autosaveMinutes ? "%d min" : "off");
@@ -1064,11 +1089,43 @@ void Editor::drawPreferences() {
         changed |= drawShortcutPrefs();
     } else if (prefsSection_ == "Profile") {
         ui::sectionHeader("You");
-        ImGui::TextWrapped("Your name and color appear on the game cards you share. They stay on this computer.");
+        {
+            ImVec2 p = ImGui::GetCursorScreenPos();
+            float r = ui::px(34);
+            drawProfileAvatar(ImGui::GetWindowDrawList(), {p.x + r, p.y + r}, r, static_cast<float>(ImGui::GetTime()));
+            ImGui::SetCursorScreenPos({p.x + r * 2 + ui::px(14), p.y + ui::px(6)});
+            ImGui::BeginGroup();
+            ImGui::TextWrapped("Your name and color appear on the game cards you share. Everything here stays on this computer.");
+            if (ImGui::Button("Take the welcome tour again")) {
+                showPrefs_ = false;
+                openOnboarding();
+            }
+            ImGui::EndGroup();
+            ImGui::SetCursorScreenPos({p.x, std::max(ImGui::GetCursorScreenPos().y, p.y + r * 2 + ui::px(8))});
+        }
         label("Name");
         changed |= ImGui::InputTextWithHint("##name", "e.g. Sam", &prefs.profileName);
+        label("Picture");
+        {
+            std::string current = prefs.avatar == "picture" ? std::string("My own picture") : prefs.avatar;
+            for (auto& c : critters())
+                if (prefs.avatar == c.id)
+                    current = c.name;
+            if (ImGui::BeginCombo("##avatar", current.c_str())) {
+                for (auto& c : critters())
+                    if (ImGui::Selectable(c.name, prefs.avatar == c.id)) {
+                        prefs.avatar = c.id;
+                        changed = true;
+                    }
+                if (ImGui::Selectable("My own picture...", prefs.avatar == "picture"))
+                    openOnboarding(0); // (the picture chooser lives in the tour's first step)
+                ImGui::EndCombo();
+            }
+        }
         label("Color");
         changed |= ImGui::ColorEdit3("##pcolor", &prefs.profileColor.r);
+        label("Pronouns", "Optional. Shown only here.");
+        changed |= ImGui::InputTextWithHint("##pronouns", "e.g. she/her", &prefs.pronouns);
         ui::sectionHeader("Your progress");
         for (auto& [k, v] : prefs.counters) {
             if (k.rfind("snoozed", 0) == 0)
@@ -1091,8 +1148,10 @@ void Editor::drawPreferences() {
 // ---------------------------------------------------------------- Learn mode levels
 
 void Editor::drawLevels() {
-    if (levelUpTo_ && !ImGui::IsPopupOpen("Level up!"))
+    if (levelUpTo_ && !ImGui::IsPopupOpen("Level up!")) {
         ImGui::OpenPopup("Level up!");
+        uiSound("powerup");
+    }
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
     if (ImGui::BeginPopupModal("Level up!", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::PushFont(fonts.big);

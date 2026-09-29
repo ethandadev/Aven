@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <ctime>
 
 namespace aven::editor {
 
@@ -211,6 +212,109 @@ bool Editor::drawFolderBrowser(bool projectsOnly, stdfs::path* picked) {
     return result;
 }
 
+// Folders and the files with one of `extensions` (".png"...): a click on a file picks it.
+bool Editor::drawFileBrowser(const std::vector<std::string>& extensions, stdfs::path* picked) {
+    std::error_code ec;
+    if (browsePath_.empty() || !stdfs::is_directory(browsePath_, ec))
+        browsePath_ = stdfs::current_path(ec);
+    if (ImGui::Button("Up") && browsePath_.has_parent_path() && browsePath_.parent_path() != browsePath_)
+        browsePath_ = browsePath_.parent_path();
+    ImGui::SameLine();
+    if (ImGui::Button("Home")) {
+        if (const char* home = std::getenv("HOME"))
+            browsePath_ = home;
+        else if (const char* profile = std::getenv("USERPROFILE"))
+            browsePath_ = profile;
+    }
+    ImGui::SameLine();
+    std::string pathText = browsePath_.string();
+    ImGui::SetNextItemWidth(-1);
+    if (ImGui::InputText("##path", &pathText, ImGuiInputTextFlags_EnterReturnsTrue) && stdfs::is_directory(pathText, ec))
+        browsePath_ = pathText;
+
+    std::vector<std::pair<std::string, bool>> entries; // name, is a folder
+    for (auto& e : stdfs::directory_iterator(browsePath_, stdfs::directory_options::skip_permission_denied, ec)) {
+        std::error_code ec2;
+        std::string name = e.path().filename().string();
+        if (name.empty() || name[0] == '.')
+            continue;
+        if (e.is_directory(ec2))
+            entries.push_back({name, true});
+        else if (std::find(extensions.begin(), extensions.end(), fs::extension(name)) != extensions.end())
+            entries.push_back({name, false});
+    }
+    std::sort(entries.begin(), entries.end(), [](auto& a, auto& b) { return a.second != b.second ? a.second : a.first < b.first; });
+    bool result = false;
+    ImGui::BeginChild("##files", {0, -(ImGui::GetFrameHeightWithSpacing() + 6)}, ImGuiChildFlags_Borders);
+    if (entries.empty())
+        ImGui::TextDisabled("Nothing to pick here.");
+    for (auto& [name, folder] : entries) {
+        ImGui::PushID(name.c_str());
+        if (ImGui::Selectable(((folder ? "[folder]  " : "") + name).c_str())) {
+            if (folder) {
+                browsePath_ /= name;
+            } else {
+                *picked = browsePath_ / name;
+                result = true;
+            }
+        }
+        ImGui::PopID();
+    }
+    ImGui::EndChild();
+    return result;
+}
+
+// "Good morning, Sam!" with their picture, at the top of the start screen.
+void Editor::drawGreeting() {
+    float em = ImGui::GetFontSize();
+    std::time_t now = std::time(nullptr);
+    std::tm local{};
+#if defined(_WIN32)
+    localtime_s(&local, &now);
+#else
+    localtime_r(&now, &local);
+#endif
+    int hour = local.tm_hour;
+    std::string name = prefs.profileName;
+    std::string hello = hour < 5    ? "Hey there, night owl"
+                        : hour < 12 ? "Good morning"
+                        : hour < 17 ? "Good afternoon"
+                        : hour < 22 ? "Good evening"
+                                    : "Hey there, night owl";
+    hello += name.empty() ? "!" : ", " + name + "!";
+    // Something different each day (and a nod to how far they've come).
+    int plays = prefs.counters.count("plays") ? prefs.counters.at("plays") : 0;
+    std::vector<std::string> lines = {"Ready to make something awesome?", "What are we building today?",
+                                      "Every great game started as a square that moves.", "Your next favorite game isn't made yet. Yet!",
+                                      "Idea: a game about a cat who's also a wizard."};
+    if (plays >= 10)
+        lines.push_back("You've pressed Play " + std::to_string(plays) + " times. That's how games get good!");
+    if (local.tm_wday == 5)
+        lines.push_back("It's Friday! Perfect for a game jam.");
+    const std::string& line = lines[static_cast<size_t>(local.tm_yday + local.tm_year) % lines.size()];
+
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    float r = em * 1.6f;
+    float t = static_cast<float>(ImGui::GetTime());
+    ImGui::InvisibleButton("##me", {r * 2, r * 2});
+    bool hovered = ImGui::IsItemHovered();
+    if (ImGui::IsItemClicked())
+        openOnboarding();
+    if (hovered)
+        ImGui::SetTooltip("Change your name and picture (the welcome tour)");
+    float grow = hovered && !prefs.reduceMotion ? 1.06f : 1.0f;
+    drawProfileAvatar(ImGui::GetWindowDrawList(), {p.x + r, p.y + r}, r * grow, t);
+    ImGui::SameLine(0, em * 0.8f);
+    ImGui::BeginGroup();
+    ImGui::Dummy({0, em * 0.1f});
+    ImGui::PushFont(fonts.bold ? fonts.bold : ImGui::GetFont());
+    ImGui::TextUnformatted(hello.c_str());
+    ImGui::PopFont();
+    ImGui::TextDisabled("%s", line.c_str());
+    ImGui::EndGroup();
+    ImGui::Dummy({0, em * 0.5f});
+}
+
 void Editor::drawHub() {
     if (!templatesScanned_) {
         templateCache_ = templates();
@@ -320,6 +424,8 @@ void Editor::drawHub() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {em * 1.6f, em * 1.4f});
     ImGui::BeginChild("##main", {0, 0}, ImGuiChildFlags_AlwaysUseWindowPadding);
     ImGui::PopStyleVar();
+    if (prefs.showGreeting)
+        drawGreeting();
     if (hubPage_ == 0) {
         pushFont(fonts.big);
         ImGui::TextUnformatted("Start a new game");

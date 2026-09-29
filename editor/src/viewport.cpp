@@ -106,7 +106,8 @@ void Editor::updateViewportCamera(float dt) {
             // Zoom toward the mouse pointer.
             Vec2 local{io.MousePos.x - viewportPos_.x, io.MousePos.y - viewportPos_.y};
             Vec3 before = editorCamera().screenToWorld(local, viewportSize_);
-            camZoom_ = std::clamp(camZoom_ * (io.MouseWheel > 0 ? 0.88f : 1.14f), 0.5f, 500.0f);
+            float notches = io.MouseWheel * prefs.zoomSpeed * (prefs.invertZoom ? -1.0f : 1.0f);
+            camZoom_ = std::clamp(camZoom_ * std::pow(0.88f, notches), 0.5f, 500.0f);
             Vec3 after = editorCamera().screenToWorld(local, viewportSize_);
             cam2D_.x += before.x - after.x;
             cam2D_.y += before.y - after.y;
@@ -143,7 +144,7 @@ void Editor::updateViewportCamera(float dt) {
         cam3D_ = pivot + back * dist;
     }
     if (viewportHovered_ && io.MouseWheel != 0 && !ImGui::IsMouseDown(ImGuiMouseButton_Right))
-        cam3D_ += forward * (io.MouseWheel * (1.0f + length(cam3D_) * 0.08f));
+        cam3D_ += forward * (io.MouseWheel * prefs.zoomSpeed * (prefs.invertZoom ? -1.0f : 1.0f) * (1.0f + length(cam3D_) * 0.08f));
 }
 
 // Everything under a point in the scene view, top first: UI, then (3D) the mesh the ray hits,

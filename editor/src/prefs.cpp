@@ -139,6 +139,24 @@ Json Prefs::toJson() const {
     j["quest_steps"] = quests;
     j["profile_name"] = profileName;
     j["profile_color"] = colorJson(profileColor);
+    j["avatar"] = avatar;
+    j["profile_picture"] = profilePicture;
+    j["pronouns"] = pronouns;
+    j["found_via"] = foundVia;
+    j["coding_level"] = codingLevel;
+    Json engines = Json::array();
+    for (auto& e : enginesUsed)
+        engines.push(e);
+    j["engines_used"] = engines;
+    j["ladder_engine"] = ladderEngine;
+    j["onboarded"] = onboarded;
+    j["reduce_motion"] = reduceMotion;
+    j["zoom_speed"] = zoomSpeed;
+    j["invert_zoom"] = invertZoom;
+    j["auto_close"] = autoClose;
+    j["show_fps"] = showFps;
+    j["show_greeting"] = showGreeting;
+    j["open_last_project"] = openLastProject;
     Json keyJson = Json::object();
     for (auto& [k, v] : keys)
         keyJson[k] = static_cast<int>(v);
@@ -206,16 +224,36 @@ void Prefs::fromJson(const Json& j) {
         questSteps[m.key] = m.value.asInt();
     profileName = j["profile_name"].asString(d.profileName);
     profileColor = colorFrom(j["profile_color"], d.profileColor);
+    avatar = j["avatar"].asString(d.avatar);
+    profilePicture = j["profile_picture"].asString("");
+    pronouns = j["pronouns"].asString("");
+    foundVia = j["found_via"].asString("");
+    codingLevel = std::clamp(j["coding_level"].asInt(d.codingLevel), -1, 3);
+    enginesUsed.clear();
+    for (auto& e : j["engines_used"].elements())
+        enginesUsed.push_back(e.asString());
+    ladderEngine = j["ladder_engine"].asString("");
+    // (Anyone who used Aven before the welcome tour existed has a preferences file already: no tour.)
+    onboarded = j["onboarded"].asBool(true);
+    reduceMotion = j["reduce_motion"].asBool(d.reduceMotion);
+    zoomSpeed = std::clamp(j["zoom_speed"].asFloat(d.zoomSpeed), 0.25f, 4.0f);
+    invertZoom = j["invert_zoom"].asBool(d.invertZoom);
+    autoClose = j["auto_close"].asBool(d.autoClose);
+    showFps = j["show_fps"].asBool(d.showFps);
+    showGreeting = j["show_greeting"].asBool(d.showGreeting);
+    openLastProject = j["open_last_project"].asBool(d.openLastProject);
     keys.clear();
     for (auto& m : j["keys"].members())
         keys[m.key] = static_cast<ImGuiKeyChord>(m.value.asInt());
     keymap = j["keymap"].asString(d.keymap);
 }
 
-void Prefs::load() {
+bool Prefs::load() {
     auto text = fs::readText(prefsPath());
-    if (text)
-        fromJson(Json::parse(*text));
+    if (!text)
+        return false;
+    fromJson(Json::parse(*text));
+    return true;
 }
 
 void Prefs::save() const {

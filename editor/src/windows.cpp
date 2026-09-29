@@ -595,17 +595,34 @@ void Editor::drawSaveSceneAs() {
     ImGui::EndPopup();
 }
 
-// Closes the script tab or tool window that has the keyboard, like closing a tab in a browser.
-// (The scene view and the main panels stay: they're the editor itself.)
-void Editor::closeFocusedWindow() {
+// The window that has the keyboard (its top window, for a child), or 0.
+static ImGuiID focusedWindowId() {
     ImGuiWindow* focused = ImGui::GetCurrentContext()->NavWindow;
-    if (!focused)
-        return;
-    ImGuiID id = focused->RootWindow ? focused->RootWindow->ID : focused->ID;
+    return !focused ? 0 : focused->RootWindow ? focused->RootWindow->ID : focused->ID;
+}
+
+// Closes the script tab or tool window that has the keyboard, like closing a tab in a browser.
+// (The scene view and the main panels stay: they're the editor itself.) From a menu, the one
+// that had the keyboard before the menu took it.
+void Editor::closeFocusedWindow(bool fromMenu) {
+    closeWindow(fromMenu ? lastClosable_ : focusedWindowId(), false);
+}
+
+void Editor::rememberClosableWindow() {
+    ImGuiID id = focusedWindowId();
+    if (id && closeWindow(id, true))
+        lastClosable_ = id;
+}
+
+// A script tab or tool window with this id: closed (or only checked, with `check`).
+bool Editor::closeWindow(ImGuiID id, bool check) {
+    if (!id)
+        return false;
     for (auto& tab : tabs_)
         if (id == ImHashStr(("###tab:" + tab->path).c_str())) {
-            tab->open = false;
-            return;
+            if (!check)
+                tab->open = false;
+            return true;
         }
     const std::pair<const char*, bool*> windows[] = {
         {"###AssetLibrary", &showLibrary_}, {"Import Settings", &showImport_}, {"###BugReplay", &showReplay_},
@@ -619,9 +636,11 @@ void Editor::closeFocusedWindow() {
     };
     for (auto& [title, open] : windows)
         if (id == ImHashStr(title)) {
-            *open = false;
-            return;
+            if (!check)
+                *open = false;
+            return true;
         }
+    return false;
 }
 
 } // namespace aven::editor

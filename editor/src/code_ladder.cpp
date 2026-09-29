@@ -66,7 +66,10 @@ void Editor::openCodeLadder(const std::string& title, const std::string& easyScr
     ladder_.path = path;
     ladder_.fromBlocks = fs::extension(path) == ".blocks";
     ladder_.className = script::classNameFor(path.empty() ? title : path);
-    ladder_.rung = 2;
+    ladder_.rung = 2; // Unity's C#, or the language of the engine they said they know (the welcome tour)
+    for (int i = 0; i < static_cast<int>(std::size(kTranslations)); ++i)
+        if (prefs.ladderEngine == kTranslations[i].engine)
+            ladder_.rung = 2 + i;
     ladder_.dirty = true;
     showLadder_ = true;
     focusLadder_ = true;

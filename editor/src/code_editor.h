@@ -55,6 +55,7 @@ public:
     const Prefs* prefs = nullptr;             // whose shortcuts (keymap.h); null: the defaults
     static CodePalette palette; // shared by every code view
     static float zoom;          // text size, shared by every code view (Ctrl+wheel, Ctrl+= and Ctrl+-)
+    static bool autoClose;      // typing ( [ { or a quote adds its partner (Preferences > Code)
     const std::vector<script::Diagnostic>& problems() const { return diags_; }
     std::vector<script::OutlineItem> outline() const;
     void gotoPosition(int line, int col); // 0-based
