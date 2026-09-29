@@ -354,12 +354,12 @@ void Editor::paintTilesInViewport(const CameraView& cam, ImVec2 pos) {
         dl->AddQuad(a, b, c, d, erasing ? IM_COL32(255, 90, 90, 230) : toU32(acc, 0.95f), 2);
     };
 
-    // Keys: [ and ] step through the tiles.
+    // Keys: [ and ] step through the tiles (tile_prev and tile_next).
     int count = map->tileset.empty() ? 16 : std::max(1, map->columns) * std::max(1, map->rows);
     if (viewportHovered_ && !io.WantTextInput) {
-        if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket))
+        if (keyPressed(&prefs, "tile_prev"))
             tileBrush_ = (tileBrush_ + count - 1) % count;
-        if (ImGui::IsKeyPressed(ImGuiKey_RightBracket))
+        if (keyPressed(&prefs, "tile_next"))
             tileBrush_ = (tileBrush_ + 1) % count;
     }
 

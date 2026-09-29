@@ -209,16 +209,16 @@ void Editor::drawPixelEditor() {
     ImGuiIO& io = ImGui::GetIO();
     if (pixelEditorFocused_ && !io.WantTextInput) {
         struct K {
-            ImGuiKey key;
+            const char* action;
             PixelTool tool;
         };
-        for (K k : {K{ImGuiKey_B, PixelTool::Pencil}, K{ImGuiKey_E, PixelTool::Eraser}, K{ImGuiKey_G, PixelTool::Fill},
-                    K{ImGuiKey_L, PixelTool::Line}, K{ImGuiKey_R, PixelTool::Rect}, K{ImGuiKey_I, PixelTool::Picker}})
-            if (ImGui::IsKeyPressed(k.key, false) && !io.KeyCtrl)
+        for (K k : {K{"pixel_pencil", PixelTool::Pencil}, K{"pixel_eraser", PixelTool::Eraser}, K{"pixel_fill", PixelTool::Fill},
+                    K{"pixel_line", PixelTool::Line}, K{"pixel_rect", PixelTool::Rect}, K{"pixel_picker", PixelTool::Picker}})
+            if (keyPressed(&prefs, k.action))
                 d.tool = k.tool;
-        if (ImGui::IsKeyPressed(ImGuiKey_M, false) && !io.KeyCtrl)
+        if (keyPressed(&prefs, "pixel_mirror"))
             d.mirror = !d.mirror;
-        if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Z) && !d.undo.empty()) {
+        if (keyPressed(&prefs, "undo") && !d.undo.empty()) {
             d.redo.push_back(d.px);
             d.px = d.undo.back();
             d.undo.pop_back();
@@ -226,8 +226,7 @@ void Editor::drawPixelEditor() {
             d.matchFrames();
             d.stroke = false; // (a line being dragged started from the picture before this)
         }
-        if ((ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Y) || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Z)) &&
-            !d.redo.empty()) {
+        if (keyPressed(&prefs, "redo") && !d.redo.empty()) {
             d.undo.push_back(d.px);
             d.px = d.redo.back();
             d.redo.pop_back();
@@ -235,11 +234,11 @@ void Editor::drawPixelEditor() {
             d.matchFrames();
             d.stroke = false; // (a line being dragged started from the picture before this)
         }
-        if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_S))
+        if (keyPressed(&prefs, "save"))
             savePixelImage();
-        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow, false) && d.frames > 1)
+        if (keyPressed(&prefs, "pixel_prev_frame") && d.frames > 1)
             d.frame = (d.frame + d.frames - 1) % d.frames;
-        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow, false) && d.frames > 1)
+        if (keyPressed(&prefs, "pixel_next_frame") && d.frames > 1)
             d.frame = (d.frame + 1) % d.frames;
     }
 
@@ -266,7 +265,8 @@ void Editor::drawPixelEditor() {
             continue;
         ImGui::SameLine();
     }
-    ImGui::Checkbox("Mirror (M)", &d.mirror);
+    std::string mirror = "Mirror (" + chordName(prefs.chord("pixel_mirror")) + ")";
+    ImGui::Checkbox(mirror.c_str(), &d.mirror);
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Draw both sides at once, for symmetric characters");
     ImGui::Checkbox("Filled box", &d.filledRect);
@@ -301,7 +301,8 @@ void Editor::drawPixelEditor() {
     ui::sectionHeader("Image");
     ImGui::SetNextItemWidth(-1);
     ImGui::InputText("##pixname", &d.name);
-    if (ImGui::Button(keyText("Save (Ctrl+S)").c_str(), {-1, 0}))
+    std::string save = "Save (" + chordName(prefs.chord("save")) + ")";
+    if (ImGui::Button(save.c_str(), {-1, 0}))
         savePixelImage();
     if (ImGui::BeginMenu("New image...")) {
         for (int size : {8, 16, 24, 32, 48, 64, 128}) {

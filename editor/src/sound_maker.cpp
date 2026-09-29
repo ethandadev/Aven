@@ -76,7 +76,9 @@ void Editor::drawSoundMaker() {
         changed = true;
     }
     ImGui::SameLine();
-    if (ImGui::Button("Play  (Space)") || (ImGui::IsWindowFocused() && !ImGui::GetIO().WantTextInput && ImGui::IsKeyPressed(ImGuiKey_Space)))
+    std::string playLabel = "Play  (" + chordName(prefs.chord("sound_play")) + ")";
+    if (ImGui::Button(playLabel.c_str()) ||
+        (ImGui::IsWindowFocused() && !ImGui::GetIO().WantTextInput && keyPressed(&prefs, "sound_play")))
         soundPreview_->play(sfxSamples_);
     ImGui::SameLine();
     ImGui::Checkbox("Play when changed", &sfxAutoPlay_);

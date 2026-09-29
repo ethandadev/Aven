@@ -521,6 +521,68 @@ def test_shadows_follow_moved_objects(editor):
         return "after moving the cube, %d sampled pixels differ from a cube that started there: an old shadow left behind?" % wrong
 
 
+def test_shortcuts(editor):
+    """Keymaps have no two commands on the same keys; a new second key for Undo works; Ctrl+W
+    closes a script tab; Ctrl+Shift+S saves the scene under a new name."""
+    _, log, _ = run_editor(editor, "platformer", 4, "", "keycheck")
+    if "keycheck: 0 problems" not in log:
+        return "keymaps have clashes:\n" + "\n".join(l for l in log.splitlines() if "keycheck:" in l)
+
+    # Preferences > Shortcuts: click Undo's second keys, press Ctrl+U. Then delete Flag and Ctrl+U it back.
+    _, log, _ = run_editor(editor, "platformer", 44, """
+10 move 1080 659
+11 down
+12 up
+16 key Ctrl down
+17 key U down
+18 key U up
+19 key Ctrl up
+22 move 64 297
+23 down
+24 up
+26 key Delete down
+27 key Delete up
+32 key Ctrl down
+33 key U down
+34 key U up
+35 key Ctrl up
+""", "prefs:Shortcuts,@30:dump,@40:dump,@41:keys")
+    if "keys: undo/2 = Ctrl+U" not in log:
+        return "Ctrl+U didn't become Undo's second keys"
+    dumps = log.split("dump: Camera")
+    flag = re.compile(r"dump: \*?Flag ")
+    if len(dumps) < 3 or flag.search(dumps[1]) or not flag.search(dumps[2]):
+        return "Delete then Ctrl+U should remove Flag and bring it back"
+
+    project, log, _ = run_editor(editor, "platformer", 50, """
+14 key Ctrl down
+15 key W down
+16 key W up
+17 key Ctrl up
+24 move 800 400
+25 key Ctrl down
+26 key Shift down
+27 key S down
+28 key S up
+29 key Shift up
+30 key Ctrl up
+34 key Ctrl down
+35 key A down
+36 key A up
+37 key Ctrl up
+38 type level two
+40 key Enter down
+41 key Enter up
+""", "script:scripts/coin.es,@12:tabs,@20:tabs,@46:tabs")
+    tabs = [l.split("tabs: ", 1)[1] for l in log.splitlines() if "tabs: " in l]
+    if not tabs or tabs[0] != "scripts/coin.es":
+        return "the script didn't open: %s" % tabs
+    if "scripts/coin.es" in tabs[2:]:
+        return "Ctrl+W didn't close the script tab: %s" % tabs
+    if tabs[-1] != "scene scenes/level two.scene" or not os.path.exists(os.path.join(project, "scenes", "level two.scene")):
+        return "Ctrl+Shift+S didn't save the scene as 'level two': %s" % tabs
+
+
 def test_monkey(editor):
     """Random clicks, drags, keys and typing for a while, editing and playing: no crash."""
     for seed, template, play in ((1, "platformer", False), (2, "obby-3d", True)):

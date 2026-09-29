@@ -2,6 +2,7 @@
 
 #include "aven/core/json.h"
 #include "aven/math/math.h"
+#include "keymap.h"
 
 #include <imgui.h>
 
@@ -21,18 +22,6 @@ struct ThemePreset {
     uint32_t background, panel, frame, frameHover, text, textDim, border, accent;
 };
 const std::vector<ThemePreset>& themePresets();
-
-// A command that can have a keyboard shortcut.
-struct KeyAction {
-    const char* id;
-    const char* label;
-    ImGuiKeyChord defaultChord;
-    bool whileTyping; // also works while a text field is focused (e.g. Save)
-};
-const std::vector<KeyAction>& keyActions();
-std::string chordName(ImGuiKeyChord chord);
-// Shortcuts in help text as this computer's keyboard names them: "Ctrl+Z" is "Cmd+Z" on a Mac.
-std::string keyText(std::string text);
 
 // The user's editor preferences: saved per user (not per project) in the user data folder.
 struct Prefs {
@@ -99,14 +88,17 @@ struct Prefs {
     std::string profileName;
     Color profileColor = Color::fromHex(0x8B5CF6);
 
-    std::map<std::string, ImGuiKeyChord> keys; // action id -> chord (missing = default)
+    // Shortcuts (keymap.h): action id -> keys, "id/2" -> its second keys (missing = the default, 0 = none).
+    std::map<std::string, ImGuiKeyChord> keys;
+    std::string keymap = "Aven"; // the keymap they started from: Aven, Unity, Godot or Unreal
 
-    ImGuiKeyChord chord(const std::string& action) const;
+    ImGuiKeyChord chord(const std::string& action) const { return boundChord(this, action, 0); }
     Color accentColor() const;
     const ThemePreset& themePreset() const;
 
     void load();
     void save() const;
+    static inline bool saving = true; // off for automated runs (--screenshot), which mustn't change the user's
     Json toJson() const;
     void fromJson(const Json& j);
 };

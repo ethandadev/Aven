@@ -1,6 +1,7 @@
 #pragma once
 
 #include "aven/script/intel.h"
+#include "keymap.h"
 
 #include <imgui.h>
 
@@ -51,6 +52,7 @@ public:
     bool readOnly = false;
     CodeLanguage language = CodeLanguage::EasyScript;
     const script::CodeIntel* intel = nullptr; // null: simple word completion only
+    const Prefs* prefs = nullptr;             // whose shortcuts (keymap.h); null: the defaults
     static CodePalette palette; // shared by every code view
     static float zoom;          // text size, shared by every code view (Ctrl+wheel, Ctrl+= and Ctrl+-)
     const std::vector<script::Diagnostic>& problems() const { return diags_; }

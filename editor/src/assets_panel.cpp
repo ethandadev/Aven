@@ -571,20 +571,19 @@ void Editor::drawAssets() {
 
     // Keys, while the panel has focus.
     if (panelFocused && !ImGui::GetIO().WantTextInput && !playing_) {
-        if ((ImGui::IsKeyPressed(ImGuiKey_Delete) || (ImGui::GetIO().KeySuper && ImGui::IsKeyPressed(ImGuiKey_Backspace))) &&
-            !selectedAssets_.empty())
+        if (keyPressed(&prefs, "delete") && !selectedAssets_.empty())
             askDelete = selectedAssets_;
-        if (ImGui::IsKeyPressed(ImGuiKey_F2) && selectedAssets_.size() == 1) {
+        if (keyPressed(&prefs, "rename") && selectedAssets_.size() == 1) {
             renameTarget_ = selectedAssets_.front();
             std::snprintf(renameBuffer_, sizeof renameBuffer_, "%s", fs::toUtf8(fs::fromUtf8(renameTarget_).filename()).c_str());
         }
         if ((ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) && selectedAssets_.size() == 1)
             openAsset(selectedAssets_.front());
-        if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_A))
+        if (keyPressed(&prefs, "select_all"))
             selectedAssets_ = visible;
         if (ImGui::IsKeyPressed(ImGuiKey_Escape))
             selectedAssets_.clear();
-        if (ImGui::IsKeyPressed(ImGuiKey_Backspace) && !ImGui::GetIO().KeySuper && !assetFolder_.empty())
+        if (keyPressed(&prefs, "assets_up") && !assetFolder_.empty())
             assetFolder_ = stdfs::path(assetFolder_).parent_path().generic_string(); // up a folder
     }
 

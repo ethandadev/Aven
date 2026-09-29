@@ -397,6 +397,7 @@ void CodeEditor::handleKeys(bool& changed) {
     ImGuiIO& io = ImGui::GetIO();
     bool ctrl = io.KeyCtrl || io.KeySuper, shift = io.KeyShift;
     auto pressed = [](ImGuiKey k) { return ImGui::IsKeyPressed(k, true); };
+    auto key = [this](const char* action) { return keyPressed(prefs, action); }; // (keymap.h)
 
     int count = static_cast<int>(intel ? suggestions_.size() : matches_.size());
     if (completionOpen_ && count > 0) {
@@ -440,7 +441,7 @@ void CodeEditor::handleKeys(bool& changed) {
         sigOpen_ = false;
         return;
     }
-    if (ctrl && pressed(ImGuiKey_Space)) {
+    if (key("code_suggest")) {
         if (intel)
             openSuggestions(true);
         else
@@ -448,47 +449,51 @@ void CodeEditor::handleKeys(bool& changed) {
         return;
     }
     // Zoom: Ctrl+= / Ctrl+- / Ctrl+0
-    if (ctrl && (pressed(ImGuiKey_Equal) || pressed(ImGuiKey_KeypadAdd))) {
+    if (key("code_zoom_in")) {
         zoom = std::min(2.5f, zoom + 0.1f);
         return;
     }
-    if (ctrl && (pressed(ImGuiKey_Minus) || pressed(ImGuiKey_KeypadSubtract))) {
+    if (key("code_zoom_out")) {
         zoom = std::max(0.6f, zoom - 0.1f);
         return;
     }
-    if (ctrl && pressed(ImGuiKey_0)) {
+    if (key("code_zoom_reset")) {
         zoom = 1.0f;
         return;
     }
-    if (pressed(ImGuiKey_F12)) {
+    if (key("code_definition")) {
         goToDefinition(cursor_);
         return;
     }
-    if (ctrl && pressed(ImGuiKey_L)) { // select the whole line
+    if (key("code_select_line")) { // select the whole line
         anchor_ = {cursor_.line, 0};
         cursor_ = cursor_.line + 1 < static_cast<int>(lines_.size()) ? Pos{cursor_.line + 1, 0}
                                                                      : Pos{cursor_.line, static_cast<int>(lines_[static_cast<size_t>(cursor_.line)].size())};
         return;
     }
-    if (!readOnly && io.KeyAlt && !ctrl && (pressed(ImGuiKey_UpArrow) || pressed(ImGuiKey_DownArrow))) {
-        bool up = ImGui::IsKeyPressed(ImGuiKey_UpArrow, true);
-        if (shift)
-            duplicateLines(up); // Shift+Alt+Up/Down
-        else
-            moveLines(up ? -1 : 1); // Alt+Up/Down
-        changed = true;
-        completionOpen_ = false;
-        return;
+    if (!readOnly) {
+        int move = key("code_move_up") ? -1 : key("code_move_down") ? 1 : 0;
+        int copy = key("code_copy_up") ? -1 : key("code_copy_down") ? 1 : 0;
+        if (move || copy) {
+            if (copy)
+                duplicateLines(copy < 0); // Shift+Alt+Up/Down
+            else
+                moveLines(move); // Alt+Up/Down
+            changed = true;
+            completionOpen_ = false;
+            return;
+        }
     }
-    if (!readOnly && ctrl && shift && pressed(ImGuiKey_K)) {
+    if (!readOnly && key("code_delete_line")) {
         deleteLines();
         changed = true;
         return;
     }
-    if (!readOnly && ctrl && (pressed(ImGuiKey_Enter) || pressed(ImGuiKey_KeypadEnter))) {
-        // A new line below (or above with Shift), wherever the cursor is in this one.
+    bool above = !readOnly && key("code_line_above");
+    if (above || (!readOnly && key("code_line_below"))) {
+        // A new line below (or above), wherever the cursor is in this one.
         pushUndo();
-        if (shift) {
+        if (above) {
             cursor_ = anchor_ = {cursor_.line, 0};
             std::string indent(static_cast<size_t>(std::min(lines_[static_cast<size_t>(cursor_.line)].find_first_not_of(' '),
                                                             lines_[static_cast<size_t>(cursor_.line)].size())), ' ');
@@ -502,24 +507,20 @@ void CodeEditor::handleKeys(bool& changed) {
         completionOpen_ = false;
         return;
     }
-    if (ctrl && io.KeyAlt && pressed(ImGuiKey_F)) { // replace, the Mac way (Cmd+H hides the app there)
+    if (key("code_replace")) { // (Cmd+Option+F on a Mac: Cmd+H hides the app there)
         openFind(true);
         return;
     }
-    if (ctrl && pressed(ImGuiKey_F)) {
+    if (key("code_find")) {
         openFind(false);
         return;
     }
-    if (ctrl && pressed(ImGuiKey_H)) {
-        openFind(true);
-        return;
-    }
-    if (ctrl && pressed(ImGuiKey_G)) {
+    if (key("code_go_to_line")) {
         openGoto();
         return;
     }
-    if (pressed(ImGuiKey_F3)) {
-        findNext(shift);
+    if (key("code_find_next") || key("code_find_previous")) {
+        findNext(!key("code_find_next"));
         return;
     }
 
@@ -574,36 +575,36 @@ void CodeEditor::handleKeys(bool& changed) {
     } else if (pressed(ImGuiKey_PageDown)) {
         p.line = std::min(static_cast<int>(lines_.size()) - 1, p.line + 20);
         moveCursor(p, shift);
-    } else if (ctrl && pressed(ImGuiKey_A)) {
+    } else if (key("select_all")) {
         anchor_ = {0, 0};
         cursor_ = {static_cast<int>(lines_.size()) - 1, static_cast<int>(lines_.back().size())};
-    } else if (ctrl && pressed(ImGuiKey_C)) {
+    } else if (key("copy")) {
         if (hasSelection())
             ImGui::SetClipboardText(selectedText().c_str());
     }
     if (readOnly)
         return;
 
-    if (ctrl && pressed(ImGuiKey_X)) {
+    if (key("cut")) {
         if (hasSelection()) {
             ImGui::SetClipboardText(selectedText().c_str());
             pushUndo();
             deleteSelection();
             changed = true;
         }
-    } else if (ctrl && pressed(ImGuiKey_V)) {
+    } else if (key("paste")) {
         if (const char* clip = ImGui::GetClipboardText()) {
             pushUndo();
             insert(clip);
             changed = true;
         }
-    } else if (ctrl && !shift && pressed(ImGuiKey_Z)) {
+    } else if (key("undo")) {
         undoStep();
         changed = true;
-    } else if (ctrl && (pressed(ImGuiKey_Y) || (shift && pressed(ImGuiKey_Z)))) {
+    } else if (key("redo")) {
         redoStep();
         changed = true;
-    } else if (ctrl && pressed(ImGuiKey_Slash)) {
+    } else if (key("code_comment")) {
         pushUndo();
         toggleComment();
         changed = true;
@@ -1393,7 +1394,7 @@ bool CodeEditor::draw(const char* id, ImVec2 size) {
             shiftBreakpoints(editStart.col == 0 && editStart.line < cursor_.line ? editStart.line : editStart.line + 1, delta);
         else if (delta < 0) // lines removed: joined onto the line the cursor ends up on
             shiftBreakpoints(cursor_.line + 1, delta);
-        if (canBreak && ImGui::IsKeyPressed(ImGuiKey_F9, false))
+        if (canBreak && keyPressed(prefs, "code_breakpoint"))
             toggleBreakpoint(cursor_.line);
     }
     if (intel && focused_ && cursor_ != sigCursor_)
@@ -1826,19 +1827,17 @@ void CodeEditor::drawStatusBar() {
     float rw = ImGui::CalcTextSize(right).x;
     ImGui::SameLine(std::max(ImGui::GetCursorPosX() + 20, ImGui::GetWindowContentRegionMax().x - rw - 4));
     ImGui::TextDisabled("%s", right);
-    if (ImGui::IsItemHovered())
-#if defined(__APPLE__)
-        // Cmd+Space is Spotlight and Cmd+H hides the app on a Mac.
-        ImGui::SetTooltip("Ctrl+Space: suggestions   F12 or Cmd+click: go to where it's made\n"
-                          "Option+Up/Down: move lines   Shift+Option+Up/Down: copy lines   Cmd+Shift+K: delete lines\n"
-                          "Cmd+/: comment   Cmd+F: find   Cmd+Option+F: replace   Cmd+G: go to line\n"
-                          "Cmd+wheel or Cmd+=/-: text size (Cmd+0 resets)");
-#else
-        ImGui::SetTooltip("Ctrl+Space: suggestions   F12 or Ctrl+click: go to where it's made\n"
-                          "Alt+Up/Down: move lines   Shift+Alt+Up/Down: copy lines   Ctrl+Shift+K: delete lines\n"
-                          "Ctrl+/: comment   Ctrl+F: find   Ctrl+H: replace   Ctrl+G: go to line\n"
-                          "Ctrl+wheel or Ctrl+=/-: text size (Ctrl+0 resets)");
-#endif
+    if (ImGui::IsItemHovered()) {
+        // The keys as they are now (Preferences > Shortcuts changes them).
+        auto k = [this](const char* action) { return chordName(boundChord(prefs, action)); };
+        std::string tip = k("code_suggest") + ": suggestions   " + k("code_definition") + keyText(" or Ctrl+click: go to where it's made\n") +
+                          k("code_move_up") + " / " + k("code_move_down") + ": move lines   " + k("code_copy_up") + " / " +
+                          k("code_copy_down") + ": copy lines   " + k("code_delete_line") + ": delete lines\n" + k("code_comment") +
+                          ": comment   " + k("code_find") + ": find   " + k("code_replace") + ": replace   " + k("code_go_to_line") +
+                          ": go to line\n" + keyText("Ctrl+wheel or ") + k("code_zoom_in") + " / " + k("code_zoom_out") +
+                          ": text size (" + k("code_zoom_reset") + " resets)";
+        ImGui::SetTooltip("%s", tip.c_str());
+    }
 }
 
 } // namespace aven::editor

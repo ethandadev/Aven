@@ -6,6 +6,7 @@
 #include "aven/runtime/script_system.h"
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imgui_stdlib.h>
 
 #include <algorithm>
@@ -276,7 +277,8 @@ void Editor::drawCommandPalette() {
         return;
     if (!ImGui::IsPopupOpen("##palette")) {
         ImGui::OpenPopup("##palette");
-        paletteQuery_.clear();
+        paletteQuery_ = paletteSeed_;
+        paletteSeed_.clear();
         paletteIndex_ = 0;
     }
     ImGuiViewport* vp = ImGui::GetMainViewport();
@@ -543,6 +545,83 @@ void Editor::drawLighting() {
     if (playing_)
         ImGui::TextDisabled("Stop playing to change the lighting.");
     ImGui::End();
+}
+
+// ---------------------------------------------------------------- Save Scene As, Ctrl+W
+
+void Editor::openSaveAs() {
+    if (playing_ || editingPrefab() || !hasProject())
+        return;
+    showSaveAs_ = true;
+    saveAsName_ = stdfs::path(scenePath_.empty() ? "scene" : scenePath_).stem().string() + " copy";
+}
+
+// A copy of the scene under a new name, which is then the scene that's open.
+void Editor::drawSaveSceneAs() {
+    if (showSaveAs_ && !ImGui::IsPopupOpen("Save Scene As")) {
+        ImGui::OpenPopup("Save Scene As");
+        showSaveAs_ = false;
+    }
+    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
+    if (!ImGui::BeginPopupModal("Save Scene As", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        return;
+    ImGui::TextUnformatted("Save a copy of this scene as:");
+    if (ImGui::IsWindowAppearing())
+        ImGui::SetKeyboardFocusHere();
+    ImGui::SetNextItemWidth(ui::px(320));
+    bool enter = ImGui::InputText("##name", &saveAsName_, ImGuiInputTextFlags_EnterReturnsTrue);
+    std::string name = fs::safeFolderName(saveAsName_);
+    std::string file = "scenes/" + name + ".scene";
+    bool ok = !name.empty();
+    if (ok)
+        ImGui::TextDisabled("%s", file.c_str());
+    if (ok && file != scenePath_ && fs::exists(projectDir_ / file))
+        ImGui::TextColored({1.0f, 0.75f, 0.3f, 1}, "There's already a scene with this name: it will be replaced.");
+    ImGui::BeginDisabled(!ok);
+    if (ImGui::Button("Save", {ui::px(120), 0}) || (enter && ok)) {
+        std::string old = scenePath_;
+        scenePath_ = file;
+        if (saveScene()) {
+            scanAssets();
+            ImGui::CloseCurrentPopup();
+        } else {
+            scenePath_ = old;
+        }
+    }
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel", {ui::px(120), 0}) || ImGui::IsKeyPressed(ImGuiKey_Escape))
+        ImGui::CloseCurrentPopup();
+    ImGui::EndPopup();
+}
+
+// Closes the script tab or tool window that has the keyboard, like closing a tab in a browser.
+// (The scene view and the main panels stay: they're the editor itself.)
+void Editor::closeFocusedWindow() {
+    ImGuiWindow* focused = ImGui::GetCurrentContext()->NavWindow;
+    if (!focused)
+        return;
+    ImGuiID id = focused->RootWindow ? focused->RootWindow->ID : focused->ID;
+    for (auto& tab : tabs_)
+        if (id == ImHashStr(("###tab:" + tab->path).c_str())) {
+            tab->open = false;
+            return;
+        }
+    const std::pair<const char*, bool*> windows[] = {
+        {"###AssetLibrary", &showLibrary_}, {"Import Settings", &showImport_}, {"###BugReplay", &showReplay_},
+        {"Preferences", &showPrefs_}, {"Learn mode", &showLevels_}, {"###CodeLadder", &showLadder_},
+        {"###Explain", &showExplain_}, {"###NativeCode", &showNativeCode_}, {"Project Settings", &showSettings_},
+        {"Learn", &showLearn_}, {"Scripting Reference", &showReference_}, {"###Quests", &showQuests_},
+        {"###Recipes", &showRecipes_}, {"###RecipeCard", &showRecipeCard_}, {"###Export", &showExport_},
+        {"###SoundMaker", &showSoundMaker_}, {"###SpriteSheet", &showSpriteSheet_}, {"###TilePainter", &showTilePainter_},
+        {"###PixelEditor", &showPixelEditor_}, {"Undo History", &showHistory_}, {"Profiler", &showProfiler_},
+        {"Find in Project", &showFind_}, {"Lighting Presets", &showLighting_},
+    };
+    for (auto& [title, open] : windows)
+        if (id == ImHashStr(title)) {
+            *open = false;
+            return;
+        }
 }
 
 } // namespace aven::editor

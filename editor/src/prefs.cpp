@@ -8,7 +8,6 @@
 #include <imgui_internal.h>
 
 #include <algorithm>
-#include <cstring>
 
 namespace aven::editor {
 
@@ -59,78 +58,6 @@ Color colorFrom(const Json& j, Color fallback) {
 ImU32 mixColor(ImU32 a, ImU32 b, float t) {
     ImVec4 x = ImGui::ColorConvertU32ToFloat4(a), y = ImGui::ColorConvertU32ToFloat4(b);
     return ImGui::ColorConvertFloat4ToU32(lerp4(x, y, t));
-}
-
-// ---------------------------------------------------------------- key bindings
-
-const std::vector<KeyAction>& keyActions() {
-    static const std::vector<KeyAction> list = {
-        {"save", "Save", ImGuiMod_Ctrl | ImGuiKey_S, true},
-        {"play", "Play / Stop", ImGuiMod_Ctrl | ImGuiKey_P, true},
-        {"pause", "Pause / Resume", ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_P, true},
-        {"step", "Next frame (while paused)", ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_P, true},
-        {"undo", "Undo", ImGuiMod_Ctrl | ImGuiKey_Z, false},
-        {"redo", "Redo", ImGuiMod_Ctrl | ImGuiKey_Y, false},
-        {"copy", "Copy objects", ImGuiMod_Ctrl | ImGuiKey_C, false},
-        {"cut", "Cut objects", ImGuiMod_Ctrl | ImGuiKey_X, false},
-        {"paste", "Paste objects", ImGuiMod_Ctrl | ImGuiKey_V, false},
-        {"paste_in_place", "Paste in the same place", ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_V, false},
-        {"duplicate", "Duplicate", ImGuiMod_Ctrl | ImGuiKey_D, false},
-        {"group", "Group into a folder", ImGuiMod_Ctrl | ImGuiKey_G, false},
-        {"delete", "Delete", ImGuiKey_Delete, false},
-        {"select_all", "Select all", ImGuiMod_Ctrl | ImGuiKey_A, false},
-        {"rename", "Rename", ImGuiKey_F2, false},
-        {"focus", "Focus on selection", ImGuiKey_F, false},
-        {"tool_move", "Move tool", ImGuiKey_W, false},
-        {"tool_rotate", "Rotate tool", ImGuiKey_E, false},
-        {"tool_scale", "Scale tool", ImGuiKey_R, false},
-        {"command_palette", "Command palette (search everything)", ImGuiMod_Ctrl | ImGuiKey_K, true},
-        {"ask", "Ask Aven (describe a change)", ImGuiMod_Ctrl | ImGuiKey_J, true},
-        {"find", "Find in project", ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_F, true},
-        {"explain", "Explain the selected object", ImGuiKey_F1, false},
-        {"doctor", "Error Doctor (check my game)", ImGuiKey_F8, true},
-        {"screenshot", "Screenshot of the game view", ImGuiKey_F12, true},
-        {"record_gif", "Record a GIF of the game", ImGuiMod_Shift | ImGuiKey_F12, true},
-        {"build_native", "Build native (C/C++) code", ImGuiMod_Ctrl | ImGuiKey_B, true},
-        {"toggle_2d3d", "Switch 2D / 3D view", ImGuiKey_F4, false},
-        {"preferences", "Preferences", ImGuiMod_Ctrl | ImGuiKey_Comma, true},
-    };
-    return list;
-}
-
-std::string chordName(ImGuiKeyChord chord) {
-    if (chord == 0)
-        return "(none)";
-#if defined(__APPLE__)
-    // On a Mac, ImGui's Ctrl is the Cmd key (and Super is Ctrl): name them as the keyboard does.
-    std::string name = (chord & ImGuiMod_Ctrl) ? "Cmd+" : "";
-    name += (chord & ImGuiMod_Shift) ? "Shift+" : "";
-    name += (chord & ImGuiMod_Alt) ? "Option+" : "";
-    name += (chord & ImGuiMod_Super) ? "Ctrl+" : "";
-    ImGuiKey key = static_cast<ImGuiKey>(chord & ~ImGuiMod_Mask_);
-    return key == ImGuiKey_None ? name.substr(0, name.empty() ? 0 : name.size() - 1) : name + ImGui::GetKeyName(key);
-#else
-    return ImGui::GetKeyChordName(chord);
-#endif
-}
-
-std::string keyText(std::string text) {
-#if defined(__APPLE__)
-    for (auto [from, to] : {std::pair<const char*, const char*>{"Ctrl", "Cmd"}, {"Alt+", "Option+"}})
-        for (size_t at = 0; (at = text.find(from, at)) != std::string::npos; at += std::strlen(to))
-            text.replace(at, std::strlen(from), to);
-#endif
-    return text;
-}
-
-ImGuiKeyChord Prefs::chord(const std::string& action) const {
-    auto it = keys.find(action);
-    if (it != keys.end())
-        return it->second;
-    for (auto& a : keyActions())
-        if (action == a.id)
-            return a.defaultChord;
-    return 0;
 }
 
 // ---------------------------------------------------------------- saving
@@ -216,6 +143,7 @@ Json Prefs::toJson() const {
     for (auto& [k, v] : keys)
         keyJson[k] = static_cast<int>(v);
     j["keys"] = keyJson;
+    j["keymap"] = keymap;
     return j;
 }
 
@@ -281,6 +209,7 @@ void Prefs::fromJson(const Json& j) {
     keys.clear();
     for (auto& m : j["keys"].members())
         keys[m.key] = static_cast<ImGuiKeyChord>(m.value.asInt());
+    keymap = j["keymap"].asString(d.keymap);
 }
 
 void Prefs::load() {
@@ -289,7 +218,10 @@ void Prefs::load() {
         fromJson(Json::parse(*text));
 }
 
-void Prefs::save() const { fs::writeText(prefsPath(), toJson().dump(2)); }
+void Prefs::save() const {
+    if (saving)
+        fs::writeText(prefsPath(), toJson().dump(2));
+}
 
 // ---------------------------------------------------------------- style
 

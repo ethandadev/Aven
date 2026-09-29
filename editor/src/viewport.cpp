@@ -120,12 +120,12 @@ void Editor::updateViewportCamera(float dt) {
         camYaw_ -= delta.x * 0.25f;
         camPitch_ = std::clamp(camPitch_ - delta.y * 0.25f, -89.0f, 89.0f);
         float speed = prefs.flySpeed * (io.KeyShift ? 3.0f : 1.0f) * dt;
-        if (ImGui::IsKeyDown(ImGuiKey_W)) cam3D_ += forward * speed;
-        if (ImGui::IsKeyDown(ImGuiKey_S)) cam3D_ -= forward * speed;
-        if (ImGui::IsKeyDown(ImGuiKey_D)) cam3D_ += right * speed;
-        if (ImGui::IsKeyDown(ImGuiKey_A)) cam3D_ -= right * speed;
-        if (ImGui::IsKeyDown(ImGuiKey_E)) cam3D_ += up * speed;
-        if (ImGui::IsKeyDown(ImGuiKey_Q)) cam3D_ -= up * speed;
+        if (keyHeld(&prefs, "fly_forward")) cam3D_ += forward * speed;
+        if (keyHeld(&prefs, "fly_back")) cam3D_ -= forward * speed;
+        if (keyHeld(&prefs, "fly_right")) cam3D_ += right * speed;
+        if (keyHeld(&prefs, "fly_left")) cam3D_ -= right * speed;
+        if (keyHeld(&prefs, "fly_up")) cam3D_ += up * speed;
+        if (keyHeld(&prefs, "fly_down")) cam3D_ -= up * speed;
     }
     if (ImGui::IsMouseDragging(ImGuiMouseButton_Middle, 0)) {
         float s = 0.01f + length(cam3D_) * 0.0015f;
@@ -870,14 +870,13 @@ void Editor::drawViewport(float dt) {
     if (playing_) {
         bool held = paused_ || debugPaused();
         dl->AddRectFilled(pos, {pos.x + size.x, pos.y + 3}, held ? IM_COL32(250, 200, 60, 255) : IM_COL32(60, 200, 120, 255));
-        const char* hint = debugPaused() ? "Stopped at a breakpoint - Continue (F5) or step through it in the Debugger"
-                           : paused_ ? "Paused: click objects to inspect and change them, then Keep or Undo your changes"
-#if defined(__APPLE__)
-                           : viewportFocused_ ? "Playing - Cmd+P or the stop button goes back to editing"
-#else
-                           : viewportFocused_ ? "Playing - Ctrl+P or the stop button goes back to editing"
-#endif
-                                              : "Click the game to control it";
+        static std::string text;
+        text = debugPaused() ? "Stopped at a breakpoint - Continue (" + chordName(prefs.chord("debug_continue")) +
+                                   ") or step through it in the Debugger"
+               : paused_ ? "Paused: click objects to inspect and change them, then Keep or Undo your changes"
+               : viewportFocused_ ? "Playing - " + chordName(prefs.chord("play")) + " or the stop button goes back to editing"
+                                  : "Click the game to control it";
+        const char* hint = text.c_str();
         viewHint(dl, pos, size, hint, 200);
         drawLiveChangesBar(pos, size);
         drawErrorBar(pos, size);

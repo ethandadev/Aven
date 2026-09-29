@@ -1050,14 +1050,14 @@ void Editor::drawScriptTabs() {
         ImGui::PopStyleVar();
         if (visible) {
             if (tab.code) {
-                if (ImGui::Button(keyText("Save (Ctrl+S)").c_str()))
+                if (ImGui::Button(("Save (" + chordName(prefs.chord("save")) + ")").c_str()))
                     saveTab(tab);
                 ImGui::SameLine();
                 if (isNativeSource(tab.path)) {
                     ImGui::TextDisabled("C/C++");
                     ImGui::SameLine();
                     ImGui::BeginDisabled(nativeBuild_ != nullptr);
-                    if (ImGui::SmallButton(keyText(nativeBuild_ ? "Building..." : "Save and Build (Ctrl+B)").c_str()) &&
+                    if (ImGui::SmallButton((nativeBuild_ ? std::string("Building...") : "Save and Build (" + chordName(prefs.chord("build_native")) + ")").c_str()) &&
                         saveTab(tab))
                         buildNativeModule();
                     ImGui::EndDisabled();
@@ -1104,7 +1104,7 @@ void Editor::drawScriptTabs() {
                         checkScript(tab); // with code intelligence, problems are checked as you type
                 }
             } else if (tab.blocks) {
-                if (ImGui::Button(keyText("Save (Ctrl+S)").c_str()))
+                if (ImGui::Button(("Save (" + chordName(prefs.chord("save")) + ")").c_str()))
                     saveTab(tab);
                 ImGui::SameLine();
                 ImGui::Checkbox("Show code", &tab.blocks->showCode);

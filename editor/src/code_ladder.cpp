@@ -269,6 +269,7 @@ void Editor::drawCodeLadder() {
             ladder_.view->readOnly = true;
             ladder_.left = std::make_unique<CodeEditor>();
             ladder_.left->readOnly = true;
+            ladder_.view->prefs = ladder_.left->prefs = &prefs;
         }
         ladder_.view->font = fonts.code;
         ladder_.left->font = fonts.code;

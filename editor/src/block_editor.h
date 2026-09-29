@@ -30,6 +30,7 @@ public:
     ImFont* font = nullptr;
     ImFont* codeFont = nullptr;
     bool showCode = true;
+    const Prefs* prefs = nullptr; // whose undo and redo keys (keymap.h); null: the defaults
     std::function<std::vector<std::string>(blocks::InputType)> assetOptions;
     std::function<void()> onConvertToCode;
 

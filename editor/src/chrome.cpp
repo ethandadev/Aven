@@ -141,10 +141,17 @@ void Editor::drawMenuBar() {
             for (auto& s : projectFiles({".scene"}))
                 if (menu::item(s.c_str(), nullptr, s == scenePath_))
                     openScene(s);
+            menu::separator();
+            if (menu::item("Quick Open...", key("open_scene"))) {
+                showPalette_ = true;
+                paletteSeed_ = ".scene";
+            }
             menu::end();
         }
         if (menu::item("Save Scene", key("save")))
             saveScene();
+        if (menu::item("Save Scene As...", key("save_as"), false, !playing_ && !editingPrefab()))
+            openSaveAs();
         menu::separator();
         if ((unlocked(Feature::Export) || unlocked(Feature::Share)) && menu::item("Build & Share Game..."))
             showExport_ = true;
@@ -166,7 +173,9 @@ void Editor::drawMenuBar() {
             saveAllScripts();
             showHub_ = true;
         }
-        if (!menu::native() && menu::item("Quit", chordName(ImGuiMod_Ctrl | ImGuiKey_Q).c_str()))
+        if (menu::item("Close Tab or Window", key("close_tab")))
+            closeFocusedWindow();
+        if (!menu::native() && menu::item("Quit", key("quit")))
             requestQuit(); // on a Mac: Aven > Quit Aven
         menu::end();
     }
@@ -447,7 +456,7 @@ void Editor::drawToolbar() {
                       ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::PopStyleVar();
     float b = ImGui::GetFrameHeight();
-    // Save, undo and redo, for the mouse (they're also Ctrl+S, Ctrl+Z and Ctrl+Y).
+    // Save, undo and redo, for the mouse (they're also Ctrl+S, Ctrl+Z and Ctrl+Y, or the user's keys).
     {
         static std::string saveTip, undoTip, redoTip;
         saveTip = "Save the scene and scripts (" + chordName(prefs.chord("save")) + ")";
@@ -518,7 +527,7 @@ void Editor::drawToolbar() {
     // Play controls in the middle.
     float center = ImGui::GetWindowWidth() * 0.5f;
     ImGui::SameLine(center - b * 1.6f);
-    if (ui::iconButton("play", playing_ ? ui::Stop : ui::Play, keyText(playing_ ? "Stop (Ctrl+P)" : "Play (Ctrl+P)").c_str(), playing_, b))
+    if (ui::iconButton("play", playing_ ? ui::Stop : ui::Play, ((playing_ ? "Stop (" : "Play (") + chordName(prefs.chord("play")) + ")").c_str(), playing_, b))
         playing_ ? stop() : play();
     ImGui::SameLine();
     ImGui::BeginDisabled(!playing_);
@@ -628,12 +637,19 @@ void Editor::drawStatusBar() {
 // ---------------------------------------------------------------- shortcuts
 
 void Editor::handleShortcuts() {
+    if (!rebindAction_.empty())
+        return; // (Preferences is waiting for the keys of a shortcut)
+    if (shortcut("quit"))
+        requestQuit();
+    if (shortcut("close_tab"))
+        closeFocusedWindow();
+    if (shortcut("play"))
+        playing_ ? stop() : play();
+    if (shortcut("stop") && playing_)
+        stop();
     // The Pixel Editor has its own undo, save and tool keys.
-    if (pixelEditorFocused_) {
-        if (shortcut("play"))
-            playing_ ? stop() : play();
+    if (pixelEditorFocused_)
         return;
-    }
     if (shortcut("save")) {
         bool scriptChanged = false;
         for (auto& t : tabs_)
@@ -644,8 +660,6 @@ void Editor::handleShortcuts() {
         else if (scriptChanged)
             notify("Scripts saved.");
     }
-    if (shortcut("play"))
-        playing_ ? stop() : play();
     if (shortcut("pause") && playing_)
         paused_ = !paused_;
     if (shortcut("step") && playing_) {
@@ -678,17 +692,36 @@ void Editor::handleShortcuts() {
         showFind_ = true;
         findFocus_ = true;
     }
-    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Q))
-        requestQuit();
+    if (shortcut("open_scene")) {
+        showPalette_ = true;
+        paletteSeed_ = ".scene";
+    }
+    if (shortcut("save_as"))
+        openSaveAs();
     if (ImGui::GetIO().WantTextInput || keyboardClaimed())
         return;
     if (shortcut("toggle_2d3d"))
         view3D_ = !view3D_;
+    // The editor's size, like zooming a web page.
+    float scale = prefs.uiScale;
+    if (shortcut("ui_bigger"))
+        scale += 0.125f;
+    if (shortcut("ui_smaller"))
+        scale -= 0.125f;
+    if (shortcut("ui_reset"))
+        scale = 1.0f;
+    if (scale != prefs.uiScale) {
+        prefs.uiScale = std::clamp(scale, 0.75f, 1.75f);
+        styleDirty_ = true;
+        prefs.save();
+    }
     if (playing_)
         return;
+    if (shortcut("new_scene"))
+        newScene(view3D_);
     if (shortcut("undo"))
         undo();
-    if (shortcut("redo") || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Z))
+    if (shortcut("redo"))
         redo();
     bool sceneFocus = viewportFocused_ || hierarchyFocused_;
     auto sel = selectedEntities();
@@ -1028,54 +1061,7 @@ void Editor::drawPreferences() {
             changed = true;
         }
     } else if (prefsSection_ == "Shortcuts") {
-        ui::sectionHeader("Keyboard shortcuts");
-        ImGui::TextDisabled("Click a shortcut, then press the new keys. Esc cancels, Backspace removes it.");
-        if (ImGui::BeginTable("##keys", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp)) {
-            ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Keys", ImGuiTableColumnFlags_WidthFixed, ui::px(200));
-            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, ui::px(60));
-            for (auto& a : keyActions()) {
-                ImGui::PushID(a.id);
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::AlignTextToFramePadding();
-                ImGui::TextUnformatted(a.label);
-                ImGui::TableSetColumnIndex(1);
-                bool waiting = rebindAction_ == a.id;
-                std::string text = waiting ? "Press keys..." : chordName(prefs.chord(a.id));
-                if (ImGui::Button(text.c_str(), {-1, 0}))
-                    rebindAction_ = a.id;
-                if (waiting) {
-                    if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-                        rebindAction_.clear();
-                    } else if (ImGui::IsKeyPressed(ImGuiKey_Backspace)) {
-                        prefs.keys[a.id] = 0;
-                        rebindAction_.clear();
-                        changed = true;
-                    } else {
-                        for (int k = ImGuiKey_NamedKey_BEGIN; k < ImGuiKey_NamedKey_END; ++k) {
-                            ImGuiKey key = static_cast<ImGuiKey>(k);
-                            if (ImGui::IsLRModKey(key) || key >= ImGuiKey_MouseLeft || !ImGui::IsKeyPressed(key, false))
-                                continue;
-                            ImGuiIO& io = ImGui::GetIO();
-                            ImGuiKeyChord c = key | (io.KeyCtrl ? ImGuiMod_Ctrl : 0) | (io.KeyShift ? ImGuiMod_Shift : 0) |
-                                              (io.KeyAlt ? ImGuiMod_Alt : 0);
-                            prefs.keys[a.id] = c;
-                            rebindAction_.clear();
-                            changed = true;
-                            break;
-                        }
-                    }
-                }
-                ImGui::TableSetColumnIndex(2);
-                if (prefs.keys.count(a.id) && ImGui::SmallButton("Reset")) {
-                    prefs.keys.erase(a.id);
-                    changed = true;
-                }
-                ImGui::PopID();
-            }
-            ImGui::EndTable();
-        }
+        changed |= drawShortcutPrefs();
     } else if (prefsSection_ == "Profile") {
         ui::sectionHeader("You");
         ImGui::TextWrapped("Your name and color appear on the game cards you share. They stay on this computer.");

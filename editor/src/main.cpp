@@ -76,6 +76,11 @@ ImGuiKey keyNamed(const std::string& n) {
     if (n == "Right") return ImGuiKey_RightArrow;
     if (n == "Home") return ImGuiKey_Home;
     if (n == "End") return ImGuiKey_End;
+    if (n == "Space") return ImGuiKey_Space;
+    if (n.size() >= 2 && n.size() <= 3 && n[0] == 'F' && std::isdigit(static_cast<unsigned char>(n[1])))
+        return static_cast<ImGuiKey>(ImGuiKey_F1 + std::stoi(n.substr(1)) - 1);
+    if (n.size() == 1 && std::isdigit(static_cast<unsigned char>(n[0])))
+        return static_cast<ImGuiKey>(ImGuiKey_0 + (n[0] - '0'));
     if (n.size() == 1 && std::isalpha(static_cast<unsigned char>(n[0])))
         return static_cast<ImGuiKey>(ImGuiKey_A + (std::toupper(static_cast<unsigned char>(n[0])) - 'A'));
     return ImGuiKey_None;

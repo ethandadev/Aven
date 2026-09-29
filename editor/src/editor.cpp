@@ -51,10 +51,12 @@ Editor::~Editor() {
 
 bool Editor::init(const EditorOptions& options) {
     options_ = options;
-    if (options.screenshot.empty())
+    if (options.screenshot.empty()) {
         prefs.load();
-    else
+    } else {
         prefs.level = options.level > 0 ? options.level : 4; // automated screenshots show everything
+        Prefs::saving = false;
+    }
     if (options.level > 0)
         prefs.level = options.level;
     if (!options.theme.empty())
@@ -174,13 +176,13 @@ void Editor::checkLevelUp() {
 }
 
 bool Editor::shortcut(const char* action) {
-    ImGuiKeyChord chord = prefs.chord(action);
-    if (!chord || !ImGui::IsKeyChordPressed(chord))
+    if (!rebindAction_.empty() || !keyPressed(&prefs, action)) // (keys being chosen in Preferences do nothing)
         return false;
-    for (auto& a : keyActions())
-        if (std::string(a.id) == action && !a.whileTyping && (ImGui::GetIO().WantTextInput || keyboardClaimed()))
-            return false;
-    return true;
+    // While typing (a text box, the code editor), only commands that also work in the code editor,
+    // other than the text editing ones it does itself (Ctrl+C copies the text there).
+    const KeyAction* a = findKeyAction(action);
+    bool typing = ImGui::GetIO().WantTextInput || keyboardClaimed();
+    return !typing || (a && (a->places & InCode) && std::string_view(a->group) != "Edit");
 }
 
 void Editor::autosave(float dt) {
@@ -292,6 +294,39 @@ void Editor::openPanels(const std::string& list) {
         else if (p == "reference") showReference_ = true;
         else if (p == "prefs") showPrefs_ = true;
         else if (p.rfind("prefs:", 0) == 0) { showPrefs_ = true; prefsSection_ = p.substr(6); }
+        else if (p.rfind("keymap:", 0) == 0) applyKeymap(prefs, p.substr(7)); // (not saved)
+        else if (p.rfind("script:", 0) == 0) openScript(p.substr(7));
+        else if (p == "tabs") { // the open script tabs and the scene's file (automated tests)
+            for (auto& t : tabs_)
+                Log::info("tabs: ", t->path);
+            Log::info("tabs: scene ", scenePath_, ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId) ? " (a dialog is open)" : "");
+        }
+        else if (p == "keys") { // the shortcuts that aren't the defaults
+            for (auto& [id, chord] : prefs.keys)
+                Log::info("keys: ", id, " = ", chordName(chord));
+            Log::info("keys: done");
+        }
+        else if (p == "keycheck") { // every keymap, on every platform's defaults here: no two commands on the same keys
+            int clashes = 0;
+            for (auto& k : keymaps()) {
+                Prefs trial;
+                applyKeymap(trial, k.name);
+                for (auto& a : keyActions())
+                    for (int slot = 0; slot < 2; ++slot)
+                        for (const KeyAction* other : keyClashes(&trial, a.id, boundChord(&trial, a.id, slot))) {
+                            Log::info("keycheck: ", k.name, ": ", a.id, " and ", other->id, " are both ",
+                                      chordName(boundChord(&trial, a.id, slot)));
+                            ++clashes;
+                        }
+                for (auto& a : keyActions())
+                    for (int slot = 0; slot < 2; ++slot)
+                        if (ImGuiKeyChord c = boundChord(&trial, a.id, slot); c && !chordProblem(a, c).empty()) {
+                            Log::info("keycheck: ", k.name, ": ", a.id, " can't be ", chordName(c));
+                            ++clashes;
+                        }
+            }
+            Log::info("keycheck: ", clashes, " problems in ", keymaps().size(), " keymaps");
+        }
         else if (p == "levels") showLevels_ = true;
         else if (p == "levelup") levelUpTo_ = std::min(4, prefs.level + 1);
         else if (p == "history") showHistory_ = true;
@@ -1732,6 +1767,7 @@ void Editor::openScript(const std::string& path, int line, bool inAven) {
     auto tab = std::make_unique<ScriptTab>();
     tab->path = path;
     tab->code = std::make_unique<CodeEditor>();
+    tab->code->prefs = &prefs;
     tab->code->setText(*text);
     tab->code->font = fonts.code;
     if (auto bp = breakpoints_.find(path); bp != breakpoints_.end())
@@ -1765,6 +1801,7 @@ void Editor::openBlocks(const std::string& path) {
     auto tab = std::make_unique<ScriptTab>();
     tab->path = path;
     tab->blocks = std::make_unique<BlockEditor>();
+    tab->blocks->prefs = &prefs;
     tab->blocks->load(Json::parse(*text));
     tab->blocks->font = fonts.ui;
     tab->blocks->codeFont = fonts.code;
@@ -2255,6 +2292,7 @@ void Editor::frame(float dt) {
         if (showLighting_)
             drawLighting();
         drawCommandPalette();
+        drawSaveSceneAs();
         handleShortcuts();
     }
     if (showPrefs_)

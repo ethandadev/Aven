@@ -1,7 +1,7 @@
 // The script debugger. Click a line number in a script (or press F9) for a breakpoint; when the
 // game reaches that line, everything stops, the script opens at the line, and the Debugger window
 // shows the calls that led there and every value they can see. Continue (F5) runs on; Step Over
-// (F10), Step Into (F11) and Step Out (Shift+F11) go a line at a time.
+// (F10), Step Into (F11) and Step Out (Shift+F11) go a line at a time. (Keys as in keymap.h.)
 
 #include "editor.h"
 
@@ -82,14 +82,15 @@ void Editor::updateDebugger() {
                 t->code->pausedLine = 0;
     }
     debugWasPaused_ = paused;
-    if (paused && !ImGui::GetIO().WantTextInput) {
-        bool shift = ImGui::GetIO().KeyShift;
-        if (ImGui::IsKeyPressed(ImGuiKey_F5, false))
+    if (paused && !ImGui::GetIO().WantTextInput && rebindAction_.empty()) {
+        if (keyPressed(&prefs, "debug_continue"))
             debugStep(VM::Step::Continue);
-        else if (ImGui::IsKeyPressed(ImGuiKey_F10, false))
+        else if (keyPressed(&prefs, "debug_over"))
             debugStep(VM::Step::Over);
-        else if (ImGui::IsKeyPressed(ImGuiKey_F11, false))
-            debugStep(shift ? VM::Step::Out : VM::Step::Into);
+        else if (keyPressed(&prefs, "debug_into"))
+            debugStep(VM::Step::Into);
+        else if (keyPressed(&prefs, "debug_out"))
+            debugStep(VM::Step::Out);
     }
 }
 
@@ -122,21 +123,21 @@ void Editor::drawDebugger() {
         return;
     }
     // Buttons first: they can change what's below.
-    auto button = [](const char* label, const char* tip) {
+    auto button = [this](const char* label, const char* tip, const char* action) {
         bool pressed = ImGui::Button(label);
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", tip);
+            ImGui::SetTooltip("%s (%s)", tip, keysName(&prefs, action).c_str());
         ImGui::SameLine();
         return pressed;
     };
     std::optional<VM::Step> step;
-    if (button("Continue", "Run on until the next breakpoint (F5)"))
+    if (button("Continue", "Run on until the next breakpoint", "debug_continue"))
         step = VM::Step::Continue;
-    if (button("Step Over", "Run this line, and any function it calls, then stop at the next line (F10)"))
+    if (button("Step Over", "Run this line, and any function it calls, then stop at the next line", "debug_over"))
         step = VM::Step::Over;
-    if (button("Step Into", "Go into the function this line calls (F11)"))
+    if (button("Step Into", "Go into the function this line calls", "debug_into"))
         step = VM::Step::Into;
-    if (button("Step Out", "Finish this function and stop back where it was called from (Shift+F11)"))
+    if (button("Step Out", "Finish this function and stop back where it was called from", "debug_out"))
         step = VM::Step::Out;
     bool stopGame = ImGui::Button("Stop");
     if (ImGui::IsItemHovered())

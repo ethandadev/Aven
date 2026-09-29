@@ -423,7 +423,11 @@ private:
     bool showLevels_ = false;
     std::string pendingLayout_; // applied at the start of the next frame
     std::string prefsSection_ = "Look";
-    std::string rebindAction_;
+    std::string rebindAction_;  // the shortcut whose keys are being chosen ("id", or "id/2" for its second keys)
+    std::string rebindProblem_; // why the keys just pressed can't be used
+    std::string keySearch_;
+    std::string pendingKeymap_; // asking before a keymap replaces the user's own keys
+    bool drawShortcutPrefs();   // Preferences > Shortcuts (shortcuts_prefs.cpp)
 
     // Editor camera
     bool view3D_ = false;
@@ -709,7 +713,13 @@ private:
     bool findCase_ = false, findFocus_ = false;
     std::vector<FindResult> findResults_;
     std::string paletteQuery_;
+    std::string paletteSeed_; // what the palette starts with next time (".scene" for quick open)
     int paletteIndex_ = 0;
+    bool showSaveAs_ = false;
+    std::string saveAsName_;
+    void openSaveAs();
+    void drawSaveSceneAs();
+    void closeFocusedWindow(); // Ctrl+W
     std::string prefabPath_;       // prefab being edited ("" = normal scene)
     Json prefabReturnScene_;       // the scene to go back to
     std::string prefabReturnPath_;
