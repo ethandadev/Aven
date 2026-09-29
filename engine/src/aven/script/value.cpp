@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -280,9 +281,11 @@ std::string formatNumber(double n) {
     if (std::isinf(n))
         return n > 0 ? "inf" : "-inf";
     if (n == std::floor(n) && std::abs(n) < 1e15) {
-        char buf[32];
-        std::snprintf(buf, sizeof buf, "%.0f", n);
-        return std::strcmp(buf, "-0") == 0 ? "0" : buf;
+        // Whole numbers (the usual case: scores, counts, str(i)) without printf.
+        char buf[24];
+        auto [end, ec] = std::to_chars(buf, buf + sizeof buf, static_cast<long long>(n));
+        (void)ec;
+        return std::string(buf, end); // (-0 is 0 as a whole number, so no "-0")
     }
     char buf[40];
     for (int precision = 15; precision <= 17; ++precision) {
@@ -508,7 +511,15 @@ std::string Value::hashKey() const {
         if (n_ == 0)
             return "n0"; // -0 and 0 are the same key
         char buf[48];
-        std::snprintf(buf, sizeof buf, "n%.17g", n_);
+        buf[0] = 'n';
+        if (n_ == std::floor(n_) && std::abs(n_) < 1e15) {
+            // Whole numbers without printf (dicts are looked up a lot). A number always takes the
+            // same one of these two ways, so each number still has exactly one key.
+            auto [end, ec] = std::to_chars(buf + 1, buf + sizeof buf, static_cast<long long>(n_));
+            (void)ec;
+            return std::string(buf, end);
+        }
+        std::snprintf(buf + 1, sizeof buf - 1, "%.17g", n_);
         return buf;
     }
     case Type::String: return "s" + string();
@@ -543,10 +554,14 @@ bool DictObj::erase(const Value& key) {
     auto it = index.find(key.hashKey());
     if (it == index.end())
         return false;
-    entries.erase(entries.begin() + static_cast<std::ptrdiff_t>(it->second));
-    index.clear();
-    for (size_t i = 0; i < entries.size(); ++i)
-        index.emplace(entries[i].first.hashKey(), i);
+    size_t at = it->second;
+    index.erase(it);
+    entries.erase(entries.begin() + static_cast<std::ptrdiff_t>(at));
+    // Entries after it moved down one (the order they were added is kept); the index follows,
+    // without making every key again.
+    for (auto& [k, i] : index)
+        if (i > at)
+            --i;
     return true;
 }
 

@@ -969,6 +969,26 @@ VM::Status VM::run(Task& task) {
         case Op::FloorDiv:
         case Op::Mod:
         case Op::Pow: {
+            // text += more: when the variable about to be given the result holds the only other
+            // reference to the left text, add to that text in place instead of copying it all
+            // (building text in a loop was quadratic). Nothing else can see the change: anything
+            // else holding it (a list, a constant, another variable) keeps the count above 2.
+            if (in.op == Op::Add && st.size() >= 2 && st[st.size() - 2].isString() && st.back().isString() &&
+                f.ip < f.proto->code.size()) {
+                const Instr& next = f.proto->code[f.ip];
+                Value* holder = nullptr;
+                if (next.op == Op::StoreLocal)
+                    holder = &st[f.base + 1 + static_cast<size_t>(next.a)];
+                else if (next.op == Op::StoreName && f.instance)
+                    holder = f.instance->find(static_cast<Symbol>(next.a));
+                Value& a = st[st.size() - 2];
+                if (holder && holder->isString() && holder->obj() == a.obj() && a.obj().use_count() == 2) {
+                    *holder = Value(); // (the store that follows puts the result back)
+                    a.as<StringObj>()->value += st.back().as<StringObj>()->value;
+                    st.pop_back();
+                    break;
+                }
+            }
             Value b = pop();
             Value a = pop();
             st.push_back(binary(in.op, a, b));

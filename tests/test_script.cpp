@@ -569,3 +569,67 @@ make_garbage()
     collectCycles(); // the script is gone, so its self-referencing dict goes too
     CHECK_EQ(trackedContainers(), before);
 }
+
+AVEN_TEST(script_text_added_in_place_stays_unshared) {
+    // text += more adds in place when nothing else holds the text; everything else must see no change.
+    Harness h;
+    auto inst = h.load(R"(
+msg = ""
+def build():
+    t = ""
+    for i in range(5):
+        t += str(i)
+    a = "x"
+    b = a
+    a += "y"
+    items = ["q"]
+    s = items[0]
+    s += "z"
+    u = "ab"
+    u += u
+    print(t, a, b, items[0], s, u)
+
+def grow():
+    global msg
+    keep = msg
+    msg += "a"
+    msg += "b"
+    print(msg, "[" + keep + "]")
+
+build()
+grow()
+first = msg
+grow()
+print(first)
+)");
+    CHECK(inst != nullptr);
+    CHECK_EQ(h.firstError(), std::string());
+    CHECK_EQ(h.output(), std::string("01234 xy x q qz abab\nab []\nabab [ab]\nab\n"));
+}
+
+AVEN_TEST(script_dict_number_keys_and_deleting) {
+    Harness h;
+    auto inst = h.load(R"(
+d = {}
+d[1] = "one"
+d[1.0] = "one again"
+d[-3] = "minus three"
+d[0.5] = "half"
+d[10 ** 20] = "big"
+d[-0.0] = "zero"
+print(len(d), d[1], d[-3], d[0.5], d[10 ** 20], d[0])
+e = {}
+for i in range(10):
+    e[i] = i * i
+for i in range(0, 10, 2):
+    e.pop(i)
+print(list(e.keys()), e[7], len(e))
+e[4] = 16
+print(list(e.keys()), e[4], e[9])
+print(str(12), str(-7), str(10 ** 14), str(2.5), str(-0.0))
+)");
+    CHECK(inst != nullptr);
+    CHECK_EQ(h.firstError(), std::string());
+    CHECK_EQ(h.output(), std::string("5 one again minus three half big zero\n[1, 3, 5, 7, 9] 49 5\n[1, 3, 5, 7, 9, 4] 16 81\n"
+                                     "12 -7 100000000000000 2.5 0\n"));
+}

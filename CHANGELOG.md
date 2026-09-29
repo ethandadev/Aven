@@ -59,6 +59,10 @@ The editor also fits better at bigger UI sizes.
   trees, rocks) go to the graphics chip together instead of one draw call each, in the scene and
   in shadows. A game with 2000 spinning cubes went from 481 to 35 ms a frame; the 3D templates got
   faster too (the explorer 56 to 20 ms, the obby 13 to 8, counting the shadow changes below).
+- **Scripts**: building text with `+=` in a loop adds to the text in place when nothing else is
+  holding it (200,000 additions: 1.2 s before, 10 ms now); whole numbers turn into text without
+  printf, which also speeds up dictionaries keyed by numbers; and removing a key from a big
+  dictionary no longer rebuilds its whole index.
 - **Big scenes**: walking the scene (which the renderer and editor do several times a frame) no
   longer copies every object's list of children, finding the camera looks only at cameras
   instead of every object, and Hierarchy rows scrolled out of sight cost almost nothing, so a
