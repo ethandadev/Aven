@@ -80,6 +80,25 @@ CameraView SceneRenderer::makeCamera(Vec3 position, Quat rotation, bool ortho, f
 }
 
 Entity SceneRenderer::findCamera(const Scene& scene) {
+    // Usually there's one camera (or one marked primary): found from the cameras alone, instead of
+    // walking every object (several times a frame in the editor: most of a frame in a big scene).
+    // Only when several could be "the first" does the order in the hierarchy decide.
+    Entity only, onlyPrimary;
+    int active = 0, primaries = 0;
+    for (Entity e : scene.registry().entitiesWith<Camera>()) {
+        if (!scene.isActive(e))
+            continue;
+        ++active;
+        only = e;
+        if (scene.registry().get<Camera>(e).primary) {
+            ++primaries;
+            onlyPrimary = e;
+        }
+    }
+    if (primaries == 1)
+        return onlyPrimary;
+    if (primaries == 0 && active <= 1)
+        return only;
     Entity fallback;
     Entity primary;
     scene.walk([&](Entity e, int) {

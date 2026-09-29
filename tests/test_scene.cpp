@@ -219,3 +219,40 @@ AVEN_TEST(scene_load_links_parents_in_any_order) {
     CHECK(!p.parent(p.findByName("AlsoNoId")));
     CHECK(p.parent(p.findByName("Kid")) == p.findByName("Top"));
 }
+
+AVEN_TEST(scene_walk_order_and_changes_during_the_walk) {
+    Scene s;
+    Entity a = s.create("A"), b = s.create("B");
+    Entity a1 = s.create("A1", a), a2 = s.create("A2", a), a11 = s.create("A11", a1);
+    (void)b;
+    (void)a2;
+    (void)a11;
+    std::string order;
+    s.walk([&](Entity e, int depth) {
+        order += std::to_string(depth) + s.info(e).name + " ";
+        return true;
+    });
+    CHECK_EQ(order, std::string("0A 1A1 2A11 1A2 0B "));
+    // Returning false skips what's inside.
+    order.clear();
+    s.walk([&](Entity e, int) {
+        order += s.info(e).name + " ";
+        return e != a1;
+    });
+    CHECK_EQ(order, std::string("A A1 A2 B "));
+    // Destroying objects (even the one being visited) or adding them while walking is safe.
+    int visited = 0;
+    s.walk([&](Entity e, int) {
+        ++visited;
+        if (e == a1) {
+            s.destroy(a1); // (and A11 inside it)
+            return true;
+        }
+        if (e == b)
+            s.create("C", b);
+        return true;
+    });
+    CHECK(visited >= 4);
+    CHECK(!s.findByName("A11"));
+    CHECK(s.findByName("C"));
+}

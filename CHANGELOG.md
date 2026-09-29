@@ -59,6 +59,10 @@ The editor also fits better at bigger UI sizes.
   trees, rocks) go to the graphics chip together instead of one draw call each, in the scene and
   in shadows. A game with 2000 spinning cubes went from 481 to 35 ms a frame; the 3D templates got
   faster too (the explorer 56 to 20 ms, the obby 13 to 8, counting the shadow changes below).
+- **Big scenes**: walking the scene (which the renderer and editor do several times a frame) no
+  longer copies every object's list of children, finding the camera looks only at cameras
+  instead of every object, and Hierarchy rows scrolled out of sight cost almost nothing, so a
+  folder of thousands can be open.
 - **Faster 3D**: shadow maps are only drawn again when something in them moved (in the editor
   with the camera still, sun and lamp shadows went from most of the frame to almost nothing; while
   playing, lamps nothing moves near stay free). Solid objects are drawn nearest first, so what's

@@ -482,7 +482,30 @@ void Editor::drawEntityNode(Entity e) {
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     bool open = true;
     bool shown = true;
+    // Rows scrolled out of sight get a stand-in of the same height instead of the whole row (a
+    // folder of thousands, open, cost most of a frame). They keep their place in the order (arrow
+    // keys, Shift-click) and their open state; only rows being renamed, revealed, scrolled to,
+    // dragged or clicked are always drawn in full.
+    bool cheap = false;
     if (shown) {
+        float rowH = ImGui::GetFrameHeight();
+        ImVec2 at = ImGui::GetCursorScreenPos();
+        const ImGuiPayload* drag = ImGui::GetDragDropPayload();
+        bool dragged = drag && drag->IsDataType("ENTITY") && *static_cast<const uint64_t*>(drag->Data) == info.uuid.value;
+        bool special = renaming_ == info.uuid || revealIds_.count(info.uuid.value) || pendingSelect_ == info.uuid || dragged ||
+                       (scrollToSelected_ && !selection_.empty() && selection_.back() == info.uuid);
+        if (!special && !ImGui::IsRectVisible(at, ImVec2(at.x + 1, at.y + rowH))) {
+            cheap = true;
+            hierarchyOrder_.push_back(info.uuid);
+            ImGuiID nodeId = ImGui::GetID("##node");
+            open = kids.empty() || ImGui::TreeNodeGetOpen(nodeId); // (a leaf's tree node counts as open)
+            hierarchyRows_[info.uuid.value] = {nodeId, open && !kids.empty(), !kids.empty()};
+            ImGui::Dummy(ImVec2(1, rowH));
+            if (open)
+                ImGui::TreePush("##node"); // (what an open tree node does: indent, and its ID)
+        }
+    }
+    if (shown && !cheap) {
         hierarchyOrder_.push_back(info.uuid);
         ImVec2 p = ImGui::GetCursorScreenPos();
         bool renaming = renaming_ == info.uuid;

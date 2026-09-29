@@ -121,18 +121,26 @@ bool Scene::setParent(Entity child, Entity newParent, bool keepWorldTransform, i
 }
 
 void Scene::walk(const std::function<bool(Entity, int)>& fn) const {
-    std::function<void(Entity, int)> visit = [&](Entity e, int depth) {
-        if (!fn(e, depth))
-            return;
-        std::vector<Entity> kids = registry_.get<Hierarchy>(e).children;
-        for (Entity c : kids)
-            if (registry_.valid(c))
-                visit(c, depth + 1);
-    };
-    std::vector<Entity> top = roots_;
-    for (Entity e : top)
-        if (registry_.valid(e))
-            visit(e, 0);
+    // Depth first, parents before children, with a stack of its own instead of recursion: the
+    // renderer and the editor walk the whole scene several times a frame. Children are taken when
+    // their parent is visited, so fn can add or remove objects as it goes. (A stack per call: fn
+    // may walk the scene again.)
+    std::vector<std::pair<Entity, int>> stack;
+    stack.reserve(64);
+    for (auto it = roots_.rbegin(); it != roots_.rend(); ++it)
+        stack.emplace_back(*it, 0);
+    while (!stack.empty()) {
+        auto [e, depth] = stack.back();
+        stack.pop_back();
+        if (!registry_.valid(e) || !fn(e, depth))
+            continue;
+        const auto* h = registry_.tryGet<Hierarchy>(e); // (fn may have destroyed e)
+        if (!h)
+            continue;
+        const auto& kids = h->children;
+        for (auto it = kids.rbegin(); it != kids.rend(); ++it)
+            stack.emplace_back(*it, depth + 1);
+    }
 }
 
 Entity Scene::findByName(std::string_view entityName) const {
