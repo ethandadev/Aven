@@ -301,6 +301,8 @@ void Editor::openPanels(const std::string& list) {
         else if (p.rfind("prefs:", 0) == 0) { showPrefs_ = true; prefsSection_ = p.substr(6); }
         else if (p.rfind("keymap:", 0) == 0) applyKeymap(prefs, p.substr(7)); // (not saved)
         else if (p == "onboarding") openOnboarding();
+        else if (p == "mouse") // (automated tests)
+            Log::info("mouse: locked=", window_.cursorLocked() ? 1 : 0, " playing=", playing_ ? 1 : 0);
         else if (p == "profile") { // what the welcome tour set (automated tests)
             std::string engines;
             for (auto& e : prefs.enginesUsed)
@@ -981,7 +983,12 @@ void Editor::play() {
 std::unique_ptr<Game> Editor::makeGame() {
     auto game = std::make_unique<Game>(assets_, gameInput_);
     game->loadProject(projectDir_);
-    game->setCursorLocked = [this](bool locked) { window_.setCursorLocked(locked); };
+    game->setCursorLocked = [this](bool locked) {
+        window_.setCursorLocked(locked);
+        if (locked)
+            focusViewport_ = true; // (a game holding the mouse needs the keys too, or Esc couldn't reach it)
+    };
+    game->isCursorLocked = [this] { return window_.cursorLocked(); };
     game->setFullscreen = [this](bool) { notify("Fullscreen works when the game runs on its own (Build & Export)."); };
     game->isFullscreen = [] { return false; };
     return game;

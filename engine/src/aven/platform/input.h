@@ -54,9 +54,10 @@ public:
     // Holds a key on top of whatever the keyboard does, with its state last frame (for input
     // rebuilt every frame, like the editor's game view).
     void holdKey(int key, bool down, bool wasDown);
-    // Copies another input's state, shifting the mouse by `mouseOffset` (used by the
-    // editor to feed the game only what happens inside its viewport).
-    void mirror(const Input& src, Vec2 mouseOffset);
+    // Copies another input's state, shifting the mouse by `mouseOffset` (used by the editor to feed
+    // the game what happens in its view). Without mouseButtons, the buttons and wheel stay still:
+    // the mouse is outside the game view, and those clicks are the editor's.
+    void mirror(const Input& src, Vec2 mouseOffset, bool mouseButtons = true);
     // Drops all held keys and buttons without generating "pressed" events.
     void reset();
     // The whole input state for one frame, compact enough to record every frame (Bug replay).

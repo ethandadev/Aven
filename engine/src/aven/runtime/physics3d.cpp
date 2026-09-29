@@ -551,6 +551,8 @@ struct Physics3D::Impl {
         if (cc.useInput) {
             Vec2 move{input.axis("horizontal"), input.axis("vertical")};
             if (cc.firstPerson) {
+                if (game.isCursorLocked) // (the editor may have let go of the mouse: Esc, or clicking elsewhere)
+                    cursorLocked = game.isCursorLocked();
                 if (!cursorLocked && game.setCursorLocked && (input.mousePressed(MouseButton::Left))) {
                     game.setCursorLocked(true);
                     cursorLocked = true;

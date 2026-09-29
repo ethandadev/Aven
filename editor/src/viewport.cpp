@@ -669,9 +669,11 @@ void Editor::drawViewport(float dt) {
         updateReplay(dt); // the recording drives the game, not the keyboard
     } else if (playing_) {
         viewportFocused_ = ImGui::IsWindowFocused();
-        // The game only sees input while its view is focused and running.
+        // The game only sees input while its view is focused and running, and only the clicks on
+        // it: a click on the toolbar's Stop button isn't the game's (it would lock the mouse again).
+        bool overGame = ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(pos, {pos.x + size.x, pos.y + size.y});
         if (viewportFocused_ && !paused_ && !ImGui::GetIO().WantTextInput)
-            gameInput_.mirror(window_.input(), viewportPos_);
+            gameInput_.mirror(window_.input(), viewportPos_, overGame || window_.cursorLocked());
         else
             gameInput_.reset();
         // On-screen touch controls (Project Settings): the mouse can press them.
@@ -686,6 +688,21 @@ void Editor::drawViewport(float dt) {
             recordFrame(step);
             game_->update(step);
             stepOnce_ = false;
+        }
+    }
+    // Esc always gives the mouse back while playing in the editor (as in Unity), and so does
+    // anything that takes the keyboard away from the game: otherwise a locked mouse could never
+    // reach the Stop button.
+    // (Losing focus counts once play has settled: the editor moves focus about as it starts.)
+    framesPlaying_ = playing_ ? framesPlaying_ + 1 : 0;
+    bool lostFocus = gameViewWasFocused_ && !viewportFocused_ && framesPlaying_ > 10;
+    gameViewWasFocused_ = playing_ && viewportFocused_;
+    if (playing_ && window_.cursorLocked() &&
+        (window_.input().keyPressed(keys::Escape) || lostFocus || paused_ || debugPaused() || replaying_)) {
+        window_.setCursorLocked(false);
+        if (!mouseFreedHint_) {
+            mouseFreedHint_ = true;
+            notify("The mouse is yours again. Click the game to give it back, or press " + chordName(prefs.chord("play")) + " to stop.");
         }
     }
     if (playing_ && game_ && game_->quitRequested())

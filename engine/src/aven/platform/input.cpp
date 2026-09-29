@@ -141,18 +141,23 @@ void Input::holdKey(int key, bool down, bool wasDown) {
     prevKeys_[static_cast<size_t>(key)] = prevKeys_[static_cast<size_t>(key)] || wasDown;
 }
 
-void Input::mirror(const Input& src, Vec2 mouseOffset) {
+void Input::mirror(const Input& src, Vec2 mouseOffset, bool mouseButtons) {
     keys_ = src.keys_;
     prevKeys_ = src.prevKeys_;
-    mouse_ = src.mouse_;
-    prevMouse_ = src.prevMouse_;
+    if (mouseButtons) {
+        mouse_ = src.mouse_;
+        prevMouse_ = src.prevMouse_;
+    } else {
+        mouse_ = {};
+        prevMouse_ = {};
+    }
     std::copy(std::begin(src.pad_), std::end(src.pad_), std::begin(pad_));
     std::copy(std::begin(src.prevPad_), std::end(src.prevPad_), std::begin(prevPad_));
     std::copy(std::begin(src.padAxes_), std::end(src.padAxes_), std::begin(padAxes_));
     padConnected_ = src.padConnected_;
     mousePos_ = src.mousePos_ - mouseOffset;
     prevMousePos_ = src.prevMousePos_ - mouseOffset;
-    scroll_ = src.scroll_;
+    scroll_ = mouseButtons ? src.scroll_ : Vec2{};
     typed_ = src.typed_;
 }
 

@@ -51,6 +51,11 @@ The editor also fits better at bigger UI sizes.
   version 1 keep working.
 
 ### Fixed
+- **Stuck with a locked mouse** (Crystal Forest and other first-person games, playing in the
+  editor): a panel could take the keyboard as the game started, so the game never heard Esc,
+  and a locked mouse can't click anything, not even Stop. Now Esc always gives the mouse back while
+  playing in the editor, clicking another panel does too, a game that locks the mouse gets the
+  keyboard, and a click outside the game view (like on Stop) is never the game's.
 - **Lag on a Mac**: the menu bar at the top of the screen was built again from scratch whenever
   anything in it changed (selecting an object changes what Cut and Copy can do), and macOS redoes
   the whole menu bar, Services menu included, each time. Now only what changed is changed. The

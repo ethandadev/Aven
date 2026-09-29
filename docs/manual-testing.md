@@ -70,6 +70,9 @@ Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should 
 ## Playing in the editor
 - [ ] Play, Pause (click things and change them live), Step, Stop; keep or throw away live changes.
 - [ ] Each template plays: controls, jumping, collecting, winning, respawning.
+- [ ] Crystal Forest (locks the mouse): Esc gives it back straight after Play and later; then Stop
+      works and doesn't lock it again; clicking the game locks it again. Also with the Hierarchy
+      clicked first.
 - [ ] Errors: the Console, the Doctor's explanation and Fix button; Bug Replay.
 - [ ] Debugger: click a line number in on_update for a breakpoint, Play: it stops there with the
       values shown; F10 steps a line, F11 goes into your own function, Shift+F11 comes back out, F5

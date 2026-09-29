@@ -194,6 +194,7 @@ struct Player {
         game = std::make_unique<Game>(*assets, window.input());
         game->loadProject(projectDir);
         game->setCursorLocked = [this](bool locked) { window.setCursorLocked(locked); };
+        game->isCursorLocked = [this] { return window.cursorLocked(); };
         game->setFullscreen = [this](bool on) { window.setFullscreen(on); };
         game->isFullscreen = [this]() { return window.isFullscreen(); };
         if (!game->loadScene(opt.scene.empty() ? settings.startScene : opt.scene))

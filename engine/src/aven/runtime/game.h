@@ -105,6 +105,7 @@ public:
     std::function<void(bool locked)> setCursorLocked;
     std::function<void(bool fullscreen)> setFullscreen;
     std::function<bool()> isFullscreen;
+    std::function<bool()> isCursorLocked; // (the editor can let go of the mouse without the game asking)
 
     // Destroys an entity the proper way (runs on_destroy, removes physics bodies).
     void destroyEntity(Entity e);

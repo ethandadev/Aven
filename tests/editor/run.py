@@ -634,6 +634,50 @@ def test_welcome_tour(editor):
             return "some code, Godot: expected %s in: %s" % (want, pro)
 
 
+def test_mouse_lock_lets_go(editor):
+    """A first-person game locks the mouse. Esc gives it back, and pressing Stop in the toolbar
+    doesn't lock it again (the click isn't the game's), so Stop works. Clicking another panel
+    lets go too."""
+    def run(lines, panels):
+        _, log, _ = run_editor(editor, "explorer-3d", 50, lines, panels, ["--play"])
+        return [l.split("mouse: ", 1)[1] for l in log.splitlines() if "mouse: " in l]
+
+    states = run("""
+10 move 800 400
+11 down
+12 up
+16 down
+17 up
+22 key Escape down
+23 key Escape up
+30 move 765 46
+31 down
+36 up
+""", "@20:mouse,@27:mouse,@33:mouse,@44:mouse")
+    want = ["locked=1 playing=1", "locked=0 playing=1", "locked=0 playing=1", "locked=0 playing=0"]
+    if states != want:
+        return "lock, Esc, Stop: expected %s, got %s" % (want, states)
+    # The game locks the mouse as it starts, before anyone clicks it: Esc still works.
+    states = run("""
+12 key Escape down
+13 key Escape up
+""", "@8:mouse,@16:mouse")
+    if states != ["locked=1 playing=1", "locked=0 playing=1"]:
+        return "Esc right after Play should give the mouse back: %s" % states
+    states = run("""
+10 move 800 400
+11 down
+12 up
+16 down
+17 up
+24 move 100 300
+25 down
+26 up
+""", "@20:mouse,@32:mouse")
+    if states != ["locked=1 playing=1", "locked=0 playing=1"]:
+        return "clicking the Hierarchy while the game has the mouse should let go of it: %s" % states
+
+
 def test_monkey(editor):
     """Random clicks, drags, keys and typing for a while, editing and playing: no crash."""
     for seed, template, play in ((1, "platformer", False), (2, "obby-3d", True)):

@@ -86,12 +86,30 @@ ImGuiKey keyNamed(const std::string& n) {
     return ImGuiKey_None;
 }
 
+// The same key as GLFW numbers it (the engine's Input), or -1.
+int glfwKeyNamed(const std::string& n) {
+    static const std::pair<const char*, int> named[] = {
+        {"Shift", keys::LeftShift}, {"Ctrl", keys::LeftControl}, {"Alt", keys::LeftAlt}, {"Delete", keys::Delete},
+        {"Escape", keys::Escape},   {"Enter", keys::Enter},      {"Tab", keys::Tab},     {"Backspace", keys::Backspace},
+        {"Up", keys::Up},           {"Down", keys::Down},        {"Left", keys::Left},   {"Right", keys::Right},
+        {"Home", keys::Home},       {"End", keys::End},          {"Space", keys::Space}};
+    for (auto& [name, key] : named)
+        if (n == name)
+            return key;
+    if (n.size() >= 2 && n.size() <= 3 && n[0] == 'F' && std::isdigit(static_cast<unsigned char>(n[1])))
+        return keys::F1 + std::stoi(n.substr(1)) - 1;
+    if (n.size() == 1 && std::isalnum(static_cast<unsigned char>(n[0])))
+        return std::toupper(static_cast<unsigned char>(n[0])); // (GLFW's letters and digits are their ASCII codes)
+    return -1;
+}
+
 struct InputPlayer {
     std::vector<InputStep> steps;
     float x = 0, y = 0, fromX = 0, fromY = 0, toX = 0, toY = 0;
     int glideStart = 0, glideFrames = 0;
 
-    void apply(int frame, GLFWwindow* window) {
+    // Recorded input goes to ImGui (the editor) and to the engine's Input (a game playing in it).
+    void apply(int frame, GLFWwindow* window, Input& input) {
         ImGuiIO& io = ImGui::GetIO();
         if (glideFrames > 0) {
             float t = std::min(1.0f, static_cast<float>(frame - glideStart) / static_cast<float>(glideFrames));
@@ -121,6 +139,7 @@ struct InputPlayer {
                 if (!st.args.empty())
                     button = st.args[0] == "right" ? 1 : st.args[0] == "middle" ? 2 : std::atoi(st.args[0].c_str());
                 io.AddMouseButtonEvent(button, st.command == "down");
+                input.onMouseButton(button, st.command == "down");
             } else if (st.command == "key" && st.args.size() >= 2) {
                 bool down = st.args[1] == "down";
                 const std::string& k = st.args[0];
@@ -128,6 +147,8 @@ struct InputPlayer {
                 if (k == "Ctrl") io.AddKeyEvent(ImGuiMod_Ctrl, down);
                 if (k == "Alt") io.AddKeyEvent(ImGuiMod_Alt, down);
                 io.AddKeyEvent(keyNamed(k), down);
+                if (int key = glfwKeyNamed(k); key >= 0)
+                    input.onKey(key, down);
             } else if (st.command == "type") {
                 for (size_t w = 0; w < st.args.size(); ++w) // words, with the spaces between them
                     io.AddInputCharactersUTF8(((w ? " " : "") + st.args[w]).c_str());
@@ -135,6 +156,7 @@ struct InputPlayer {
         }
         glfwSetCursorPos(window, x, y); // so the backend reads the same position
         io.AddMousePosEvent(x, y);
+        input.onMouseMove({x, y});
     }
 };
 
@@ -319,7 +341,7 @@ int main(int argc, char** argv) {
                 ImGui_ImplOpenGL3_NewFrame();
                 ImGui_ImplGlfw_NewFrame();
                 if (!input.steps.empty())
-                    input.apply(frame, window.native());
+                    input.apply(frame, window.native(), window.input());
                 ImGui::NewFrame();
                 ImGuizmo::BeginFrame();
                 editor.frame(dt);

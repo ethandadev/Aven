@@ -742,6 +742,9 @@ private:
     std::string paletteSeed_; // what the palette starts with next time (".scene" for quick open)
     int paletteIndex_ = 0;
     bool showSaveAs_ = false;
+    bool mouseFreedHint_ = false; // said once how to get the mouse back from a game
+    bool gameViewWasFocused_ = false;
+    int framesPlaying_ = 0;
     std::string saveAsName_;
     void openSaveAs();
     void drawSaveSceneAs();
