@@ -6,9 +6,17 @@ renames it to the version (see [CONTRIBUTING.md](CONTRIBUTING.md#making-a-releas
 
 ## Next
 
-A careful pass over every part of Aven: odd input, full disks, read-only folders, undo at the wrong
-moment and scripts that do strange things now get a clear message instead of a crash or a hang.
-The editor also fits better at bigger UI sizes.
+## 0.5.0
+
+A friendlier, faster Aven. The first time it opens, a playful welcome tour sets it up for you.
+Every shortcut can be changed, starting from keys like Unity's, Godot's or Unreal's, and the usual
+ones (Ctrl/Cmd+W, Ctrl+N, Ctrl+O) are there. Games get Low, Medium, High and Ultra graphics. The
+editor is much lighter on your computer: it rests when nothing's happening, 3D scenes with many
+copies of a model draw many times faster, and the Mac menu bar no longer lags.
+
+There's also a careful pass over every part of Aven: odd input, full disks, read-only folders, undo
+at the wrong moment and scripts that do strange things now get a clear message instead of a crash
+or a hang, and the editor fits better at bigger UI sizes.
 
 ### New
 - **A welcome tour** the first time Aven opens, with Pip, Aven's little diamond: your name, a
