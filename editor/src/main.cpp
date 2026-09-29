@@ -277,6 +277,7 @@ int main(int argc, char** argv) {
             InputPlayer input;
             if (!args.input.empty())
                 input.steps = loadInput(args.input);
+            double restingSince = -1;
             while (!editor.wantsQuit()) {
                 // A second after the last key or mouse move, with nothing moving on its own, the
                 // editor rests: it waits for the next event, but wakes at least 10 times a second
@@ -287,6 +288,12 @@ int main(int argc, char** argv) {
                     window.waitEvents(0.1);
                 else
                     window.pollEvents();
+                // "Resting" only after half a second of it, so the FPS counter doesn't flicker.
+                if (!rest)
+                    restingSince = -1;
+                else if (restingSince < 0)
+                    restingSince = Window::time();
+                editor.setResting(rest && Window::time() - restingSince > 0.5);
                 if (window.shouldClose()) {
                     // Give the editor a chance to ask about unsaved work.
                     window.cancelClose();

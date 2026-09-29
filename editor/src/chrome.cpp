@@ -598,7 +598,8 @@ void Editor::drawStatusBar() {
 
     drawCaptureStatus();
     // Right side: errors, level progress, frame rate.
-    std::string right = std::to_string(static_cast<int>(std::round(ImGui::GetIO().Framerate))) + " FPS";
+    // (while resting, the editor draws a few frames a second on purpose: that isn't a slow editor)
+    std::string right = resting_ ? std::string("Resting") : std::to_string(static_cast<int>(std::round(ImGui::GetIO().Framerate))) + " FPS";
     std::string hint = nextLevelHint(prefs);
     float x = ImGui::GetWindowWidth() - ImGui::CalcTextSize(right.c_str()).x - 16;
     if (errorCount_ > 0) {

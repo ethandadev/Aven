@@ -109,6 +109,7 @@ public:
     // True when nothing on screen moves by itself (no game playing, no particles previewing, no GIF
     // being recorded): the editor can then wait for input instead of drawing every frame.
     bool canRest();
+    void setResting(bool resting) { resting_ = resting; } // (the status bar says so, rather than a low FPS)
     void requestQuit();
     // When Aven quits (main.cpp): puts a downloaded update in place (updater.cpp). Returns the
     // command that starts the new version when the user chose to restart, else "".
@@ -362,6 +363,7 @@ private:
     std::unique_ptr<Scene> scene_;
     std::string scenePath_;
     bool dirty_ = false;
+    bool resting_ = false;
     bool playing_ = false;
     bool paused_ = false;
     bool stepOnce_ = false;
