@@ -54,15 +54,24 @@ std::vector<Editor::EditorTool> Editor::editorTools() const {
         if (!stem.empty())
             stem[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(stem[0])));
         t.name = stem;
-        // The first comment line says what it does.
-        if (auto text = fs::readText(projectDir_ / f)) {
-            size_t start = text->find_first_not_of(" \t\r\n");
-            if (start != std::string::npos && (*text)[start] == '#') {
-                size_t end = text->find('\n', start);
-                t.about = text->substr(start + 1, end == std::string::npos ? std::string::npos : end - start - 1);
-                while (!t.about.empty() && (t.about.front() == ' ' || t.about.front() == '#'))
-                    t.about.erase(0, 1);
+        // The first comment line says what it does (read again only when the file changed).
+        std::error_code ec;
+        auto modified = stdfs::last_write_time(projectDir_ / f, ec);
+        auto cached = toolAbout_.find(f);
+        if (!ec && cached != toolAbout_.end() && cached->second.first == modified) {
+            t.about = cached->second.second;
+        } else {
+            if (auto text = fs::readText(projectDir_ / f)) {
+                size_t start = text->find_first_not_of(" \t\r\n");
+                if (start != std::string::npos && (*text)[start] == '#') {
+                    size_t end = text->find('\n', start);
+                    t.about = text->substr(start + 1, end == std::string::npos ? std::string::npos : end - start - 1);
+                    while (!t.about.empty() && (t.about.front() == ' ' || t.about.front() == '#'))
+                        t.about.erase(0, 1);
+                }
             }
+            if (!ec)
+                toolAbout_[f] = {modified, t.about};
         }
         tools.push_back(std::move(t));
     }

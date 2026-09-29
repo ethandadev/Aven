@@ -187,6 +187,9 @@ public:
     virtual void readPixels(FramebufferHandle fb, int attachment, int x, int y, int w, int h, void* out) = 0;
     // Copies a color texture to the window, scaled to fit.
     virtual void blitToScreen(FramebufferHandle fb, int srcW, int srcH, int dstW, int dstH) = 0;
+    // Copies one framebuffer's first color texture into another's, scaled (smoothly) to fit. Shrinking
+    // on the GPU first makes reading a small picture back cheap (a big readPixels stalls the frame).
+    virtual void blit(FramebufferHandle src, int srcW, int srcH, FramebufferHandle dst, int dstW, int dstH) = 0;
 
     virtual const FrameStats& stats() const = 0;
 };

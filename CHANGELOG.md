@@ -11,12 +11,23 @@ moment and scripts that do strange things now get a clear message instead of a c
 The editor also fits better at bigger UI sizes.
 
 ### New
+- **Scene view resolution** (Preferences > Scene view): on Retina and other high-density screens the
+  scene and game view now draw up to 1.5 pixels per point by default ("Balanced") instead of every
+  pixel, which is much less work for the graphics chip. "Sharpest" goes back to every pixel;
+  "Fastest" draws one per point. Exported games aren't affected.
 - **C API version 2** for native C/C++ behaviors: `aven_parent`, `aven_children` and
   `aven_find_child` walk an object's family, and `aven_call_with` / `aven_call_text` call methods
   that take or give text (`play_state("Run")`, or a script's own functions). Modules built for
   version 1 keep working.
 
 ### Fixed
+- **Lag on a Mac**: the menu bar at the top of the screen was built again from scratch whenever
+  anything in it changed (selecting an object changes what Cut and Copy can do), and macOS redoes
+  the whole menu bar, Services menu included, each time. Now only what changed is changed. The
+  Editor tools menu also stopped reading every tool's file from disk a few times a second.
+- **Stutter while playing**: Bug Replay's thumbnails read the whole game view back from the
+  graphics chip every half second (millions of pixels on a Retina screen); now it's shrunk on the
+  chip first and only the thumbnail is read.
 - **Your work is never quietly lost.** When a script, scene, drawing or sound can't be saved (a
   read-only folder, a full disk), Aven says so and keeps it unsaved. Save and close, Save and
   restart (for an update), switching scenes and closing a script tab wait until it's saved.

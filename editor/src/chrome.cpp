@@ -907,6 +907,15 @@ void Editor::drawPreferences() {
         changed |= ImGui::Checkbox("##colliders", &prefs.showColliders);
         label("Show control hints");
         changed |= ImGui::Checkbox("##hints", &prefs.showHints);
+        label("Resolution on sharp screens",
+              "On Retina and other high-density screens, the scene and game view can draw every pixel\n"
+              "(sharpest, but the most work for the graphics chip) or fewer, which keeps the editor smooth.\n"
+              "The finished game isn't affected. On other screens, all three look the same.");
+        {
+            const char* choices[] = {"Sharpest", "Balanced", "Fastest"};
+            ImGui::SetNextItemWidth(-1);
+            changed |= ImGui::Combo("##viewres", &prefs.viewResolution, choices, 3);
+        }
         ui::sectionHeader("Camera and gizmos");
         label("3D fly speed");
         changed |= ImGui::SliderFloat("##fly", &prefs.flySpeed, 1.0f, 40.0f, "%.0f");

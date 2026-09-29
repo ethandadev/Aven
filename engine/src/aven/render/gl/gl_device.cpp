@@ -789,6 +789,18 @@ public:
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
+    void blit(FramebufferHandle srch, int srcW, int srcH, FramebufferHandle dsth, int dstW, int dstH) override {
+        GLFramebuffer* src = framebuffers_.get(srch.id);
+        GLFramebuffer* dst = framebuffers_.get(dsth.id);
+        if (!src || !dst)
+            return;
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, src->id);
+        glReadBuffer(GL_COLOR_ATTACHMENT0);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dst->id);
+        glBlitFramebuffer(0, 0, srcW, srcH, 0, 0, dstW, dstH, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
     const FrameStats& stats() const override { return stats_; }
 
 private:

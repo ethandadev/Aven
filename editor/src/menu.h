@@ -4,8 +4,9 @@
 // as the real menu bar at the top of the screen, with the standard Aven menu (About, Settings,
 // Check for Updates, Hide, Quit). Used like ImGui's: the same calls, in menu::.
 //
-// On a Mac the menus are described every few frames; when something changed (an item enabled,
-// a check mark, a new scene in Open Scene), the native menus are rebuilt. A click on a native item
+// On a Mac the menus are described every few frames; when something changed, the native menus
+// follow: an item enabled or checked is changed in place, and only a menu whose items changed
+// (a new scene in Open Scene) is made again. A click on a native item
 // is remembered and returned by item() the next time that item is described. Shortcuts show in
 // the native menus, but the keys still go to the editor, which knows when they apply (Cmd+C
 // copies text in a text box, objects elsewhere).

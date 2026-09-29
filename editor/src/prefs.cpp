@@ -174,6 +174,7 @@ Json Prefs::toJson() const {
     j["show_icons"] = showIcons;
     j["show_colliders"] = showColliders;
     j["show_debug_draw"] = showDebugDraw;
+    j["view_resolution"] = viewResolution;
     j["preview_particles"] = previewParticles;
     j["move_snap"] = moveSnap;
     j["rotate_snap"] = rotateSnap;
@@ -240,6 +241,7 @@ void Prefs::fromJson(const Json& j) {
     showIcons = j["show_icons"].asBool(d.showIcons);
     showColliders = j["show_colliders"].asBool(d.showColliders);
     showDebugDraw = j["show_debug_draw"].asBool(d.showDebugDraw);
+    viewResolution = std::clamp(j["view_resolution"].asInt(d.viewResolution), 0, 2);
     previewParticles = j["preview_particles"].asBool(d.previewParticles);
     moveSnap = j["move_snap"].asFloat(d.moveSnap);
     rotateSnap = j["rotate_snap"].asFloat(d.rotateSnap);
@@ -304,6 +306,16 @@ Color axisColor(int axis, float alpha) {
 unsigned int axisColorU32(int axis) {
     Color c = axisColor(axis);
     return IM_COL32(static_cast<int>(c.r * 255), static_cast<int>(c.g * 255), static_cast<int>(c.b * 255), 255);
+}
+
+float Prefs::viewPixelScale(float screenScale) const {
+    if (!(screenScale > 1.0f))
+        return 1.0f;
+    switch (viewResolution) {
+    case 0: return screenScale;
+    case 2: return 1.0f;
+    default: return std::min(screenScale, 1.5f);
+    }
 }
 
 void applyStyle(const Prefs& prefs, float dpiScale) {

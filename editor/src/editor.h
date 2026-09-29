@@ -663,6 +663,9 @@ private:
     Replay lastReplay_, replayData_;
     ReplayPlayer replayPlayer_;
     std::deque<Thumb> thumbs_; // pictures of the last 20 seconds of play
+    rhi::TextureHandle thumbTex_; // the view shrunk on the GPU for a thumbnail (only it is read back)
+    rhi::FramebufferHandle thumbFb_;
+    int thumbFbW_ = 0, thumbFbH_ = 0;
     float thumbTimer_ = 0, recordTime_ = 0, replayClock_ = 0, replaySpeed_ = 1;
     int replayShowFrom_ = 0;
     bool replaying_ = false, replayDone_ = false, showReplay_ = false, focusReplay_ = false, replayEditNoted_ = false;
@@ -797,6 +800,9 @@ private:
         std::string path, name, about;
     };
     std::vector<EditorTool> editorTools() const;
+    // Each tool's first comment line, by path, with the file time it was read at: the Mac menu bar
+    // lists the tools a few times a second, and reading every file each time adds up.
+    mutable std::unordered_map<std::string, std::pair<stdfs::file_time_type, std::string>> toolAbout_;
     bool runEditorTool(const std::string& path);
     void newEditorTool();
     void drawEditorToolsMenu();

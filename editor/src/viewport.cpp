@@ -657,7 +657,8 @@ void Editor::drawViewport(float dt) {
     }
     viewportPos_ = {pos.x, pos.y};
     viewportSize_ = {std::max(size.x, 1.0f), std::max(size.y, 1.0f)};
-    float scale = ImGui::GetIO().DisplayFramebufferScale.x;
+    // (fewer pixels than the screen has, on a Retina screen, unless Preferences say otherwise)
+    float scale = prefs.viewPixelScale(ImGui::GetIO().DisplayFramebufferScale.x);
     int w = static_cast<int>(viewportSize_.x * scale), h = static_cast<int>(viewportSize_.y * scale);
 
     if (!playing_)

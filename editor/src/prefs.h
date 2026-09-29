@@ -60,6 +60,10 @@ struct Prefs {
     bool showColliders = true;
     bool showDebugDraw = true; // scripts' debug_line() shapes while playing
     bool previewParticles = true; // selected particle emitters play in the scene view
+    // How many pixels the scene and game view draw on a high-density (Retina) screen: 0 all of them
+    // (sharpest), 1 up to 1.5 per point (balanced), 2 one per point (fastest). The same on 1x screens.
+    int viewResolution = 1;
+    float viewPixelScale(float screenScale) const; // what that means on this screen
     float moveSnap = 0.5f, rotateSnap = 15.0f, scaleSnap = 0.25f;
     bool gizmoLocal = false;
 

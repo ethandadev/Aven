@@ -78,25 +78,41 @@ void Editor::captureThumbnail(int w, int h) {
     if (!recorder_.recording() || thumbTimer_ < kThumbEvery || w <= 0 || h <= 0)
         return;
     thumbTimer_ = 0;
-    std::vector<uint8_t> pixels(static_cast<size_t>(w) * h * 4);
-    device_.readPixels(renderer_.outputFramebuffer(), 0, 0, 0, w, h, pixels.data());
     Thumb t;
     t.frame = static_cast<int>(recorder_.replay().frames.size());
     t.time = recordTime_;
     t.w = kThumbWidth;
-    t.h = std::max(1, kThumbWidth * h / w);
-    t.rgba.resize(static_cast<size_t>(t.w) * t.h * 4);
-    // Box-sample down and flip (the framebuffer is bottom-up).
-    for (int y = 0; y < t.h; ++y)
-        for (int x = 0; x < t.w; ++x) {
-            int sx = x * w / t.w, sy = (t.h - 1 - y) * h / t.h;
-            int sx2 = std::min(w - 1, sx + w / t.w / 2), sy2 = std::min(h - 1, sy + h / t.h / 2);
-            for (int c = 0; c < 4; ++c) {
-                int sum = pixels[(static_cast<size_t>(sy) * w + sx) * 4 + c] + pixels[(static_cast<size_t>(sy) * w + sx2) * 4 + c] +
-                          pixels[(static_cast<size_t>(sy2) * w + sx) * 4 + c] + pixels[(static_cast<size_t>(sy2) * w + sx2) * 4 + c];
-                t.rgba[(static_cast<size_t>(y) * t.w + x) * 4 + c] = static_cast<uint8_t>(c == 3 ? 255 : sum / 4);
-            }
-        }
+    t.h = std::clamp(kThumbWidth * h / w, 1, kThumbWidth * 4);
+    // Shrunk on the GPU, then only the thumbnail is read back: reading the whole view (millions of
+    // pixels on a Retina screen) every half second made playing stutter.
+    if (!thumbFb_.valid() || thumbFbW_ != t.w || thumbFbH_ != t.h) {
+        if (thumbFb_.valid())
+            device_.destroy(thumbFb_);
+        if (thumbTex_.valid())
+            device_.destroy(thumbTex_);
+        rhi::TextureDesc desc;
+        desc.width = t.w;
+        desc.height = t.h;
+        desc.renderTarget = true;
+        desc.label = "replay thumbnail";
+        thumbTex_ = device_.createTexture(desc);
+        rhi::FramebufferDesc fb;
+        fb.colors = {thumbTex_};
+        fb.label = "replay thumbnail";
+        thumbFb_ = device_.createFramebuffer(fb);
+        thumbFbW_ = t.w;
+        thumbFbH_ = t.h;
+    }
+    device_.blit(renderer_.outputFramebuffer(), w, h, thumbFb_, t.w, t.h);
+    std::vector<uint8_t> pixels(static_cast<size_t>(t.w) * t.h * 4);
+    device_.readPixels(thumbFb_, 0, 0, 0, t.w, t.h, pixels.data());
+    t.rgba.resize(pixels.size());
+    size_t row = static_cast<size_t>(t.w) * 4;
+    for (int y = 0; y < t.h; ++y) { // flipped (the framebuffer is bottom-up), and opaque
+        std::copy_n(pixels.data() + static_cast<size_t>(t.h - 1 - y) * row, row, t.rgba.data() + static_cast<size_t>(y) * row);
+        for (size_t x = 3; x < row; x += 4)
+            t.rgba[static_cast<size_t>(y) * row + x] = 255;
+    }
     thumbs_.push_back(std::move(t));
     while (!thumbs_.empty() && thumbs_.front().time < recordTime_ - kWindow - 0.01f) {
         if (thumbs_.front().texture)
