@@ -103,5 +103,11 @@ Editors that are already installed find the release on their own (`editor/src/up
 download `rynax-<version>-<system>.zip`, so keep those names, and install it only if its `.sig` (made
 by the "Sign the updates" job with the update key) checks out.
 
+Rynax was called Aven until 0.6, and copies of Aven 0.4 and 0.5 are still out there. Keep what they
+need, or they'll never update: the same download published as `aven-<version>-<system>.zip` (with its
+own `.sig`), the `aven-editor` program they restart after updating (`editor/compat/aven_editor.c`,
+which starts `rynax-editor`), the `<!-- aven:download -->` line in the notes, and the
+`aven-update-v1` text that signatures sign. The release workflow does all of this already.
+
 To try the build without publishing, open the Release workflow on the Actions tab and click
 **Run workflow**: the zips are attached to that run instead.

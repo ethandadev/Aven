@@ -49,3 +49,14 @@ add_custom_command(TARGET rynax_editor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/quests $<TARGET_FILE_DIR:rynax_editor>/quests
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/sdk/include $<TARGET_FILE_DIR:rynax_editor>/sdk/include
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/sdk/template $<TARGET_FILE_DIR:rynax_editor>/sdk/template)
+
+# aven-editor: Rynax was called Aven before 0.6. Aven 0.4 and 0.5 update themselves by starting
+# "aven-editor" from the new version, and their shortcuts point at it: this tiny program starts
+# rynax-editor instead (compat/aven_editor.c). Releases ship it next to rynax-editor.
+if(WIN32)
+    add_executable(rynax_aven_launcher WIN32 ${CMAKE_CURRENT_SOURCE_DIR}/compat/aven_editor.c)
+else()
+    add_executable(rynax_aven_launcher ${CMAKE_CURRENT_SOURCE_DIR}/compat/aven_editor.c)
+endif()
+set_target_properties(rynax_aven_launcher PROPERTIES OUTPUT_NAME "aven-editor")
+add_dependencies(rynax_editor rynax_aven_launcher)

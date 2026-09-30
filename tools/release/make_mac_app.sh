@@ -45,6 +45,8 @@ if [ -n "$existing" ]; then
 else
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$pkg/rynax-editor" "$pkg/rynax-player" "$app/Contents/MacOS/"
+# (aven-editor starts rynax-editor: Aven 0.4 and 0.5, as Rynax was called, update by starting it.)
+if [ -f "$pkg/aven-editor" ]; then cp "$pkg/aven-editor" "$app/Contents/MacOS/"; fi
 for d in data templates quests sdk web players; do
     if [ -d "$pkg/$d" ]; then cp -R "$pkg/$d" "$app/Contents/Resources/"; fi
 done
@@ -90,6 +92,9 @@ EOF
 
 # Every Mach-O program inside, then the app (which seals everything else).
 programs=("$app/Contents/MacOS/rynax-player")
+if [ -f "$app/Contents/MacOS/aven-editor" ]; then
+    programs+=("$app/Contents/MacOS/aven-editor")
+fi
 if [ -f "$app/Contents/Resources/players/macos-arm64/rynax-player" ]; then
     programs+=("$app/Contents/Resources/players/macos-arm64/rynax-player")
 fi

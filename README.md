@@ -3,6 +3,7 @@
 [![CI](https://github.com/ethandadev/Rynax/actions/workflows/ci.yml/badge.svg)](https://github.com/ethandadev/Rynax/actions/workflows/ci.yml)
 
 A 2D and 3D game engine for beginners who want to make real games, and then keep growing.
+(Rynax was called Aven until 0.6: everything made with Aven opens in Rynax.)
 
 You can start the way Roblox and Scratch start: pick a template, press Play, snap blocks together.
 From there Rynax teaches its way up. Blocks become EasyScript, a Python-like language. EasyScript

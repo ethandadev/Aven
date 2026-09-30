@@ -6,6 +6,26 @@ renames it to the version (see [CONTRIBUTING.md](CONTRIBUTING.md#making-a-releas
 
 ## Next
 
+**Aven is now Rynax.** Same engine, new name (another company is well known as Aven). Nothing
+you've made is lost, and there's nothing to redo:
+
+- **Updating**: Aven 0.4 and 0.5 update to Rynax by themselves (Help > Check for Updates), in the
+  same folder. Your preferences, recent games, layout, keys and profile picture come along, and
+  Preferences > Updates > "Go back to Aven" still works.
+- **Your games**: opening one renames its `project.aven` to `project.rynax` (Aven 0.5 and older
+  can't open it after that; rename it back to go back). Exported games keep finding their
+  players' saves where Aven put them, and games made with Aven and Rynax find each other on the
+  same Wi-Fi.
+- **Native C/C++ code**: modules written with `aven.h` still build and load. New code uses
+  `rynax.h`, the same functions named `rynax_...`. Ask Aven is now Ask Rynax.
+- **The programs** are `rynax-editor`, `rynax-player` and `rynax-relay`. A tiny `aven-editor`
+  stays next to them, so old shortcuts still open the editor. The Windows installer upgrades an
+  Aven install and swaps its shortcuts for Rynax ones. On a Mac an updated Aven.app keeps its
+  name (rename it if you like), and the download is Rynax.app. The Flatpak has a new id
+  (`io.github.ethandadev.Rynax`): install it, then remove the Aven one.
+- **On GitHub** Aven is now [ethandadev/Rynax](https://github.com/ethandadev/Rynax); the old
+  address sends you there.
+
 ## 0.5.0
 
 A friendlier, faster Aven. The first time it opens, a playful welcome tour sets it up for you.

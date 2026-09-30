@@ -56,6 +56,12 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "{#Source}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+[InstallDelete]
+; The shortcuts from when Rynax was called Aven (before 0.6): this installer upgrades that install
+; (the same AppId), and makes Rynax ones.
+Type: files; Name: "{autoprograms}\Aven.lnk"
+Type: files; Name: "{autodesktop}\Aven.lnk"
+
 [Icons]
 Name: "{autoprograms}\Rynax"; Filename: "{app}\rynax-editor.exe"; Comment: "Make 2D and 3D games"
 Name: "{autodesktop}\Rynax"; Filename: "{app}\rynax-editor.exe"; Tasks: desktopicon
@@ -66,6 +72,7 @@ Filename: "{app}\rynax-editor.exe"; Description: "{cm:LaunchProgram,Rynax}"; Fla
 [UninstallDelete]
 ; Folders the updater may have replaced or added to since installing (never anything else in {app}).
 Type: filesandordirs; Name: "{app}\.rynax-update"
+Type: filesandordirs; Name: "{app}\.aven-update"
 Type: filesandordirs; Name: "{app}\templates"
 Type: filesandordirs; Name: "{app}\data"
 Type: filesandordirs; Name: "{app}\quests"

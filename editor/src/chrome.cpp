@@ -1047,7 +1047,7 @@ void Editor::drawPreferences() {
         if (std::string previous = previousVersion(); !previous.empty()) {
             label("Go back", "The version the last update replaced is kept until the next update. Going back\n"
                              "restarts Rynax with it (your projects aren't changed).");
-            if (ImGui::SmallButton(("Go back to Rynax " + previous + "##rollback").c_str())) {
+            if (ImGui::SmallButton(("Go back to " + productName(previous) + " " + previous + "##rollback").c_str())) {
                 rollbackPending_ = true;
                 saveAndRestart();
             }

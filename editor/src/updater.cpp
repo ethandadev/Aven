@@ -78,6 +78,15 @@ const char* editorProgram() {
 #endif
 }
 
+// The editor's name before 0.6, when Rynax was called Aven (what "Go back" to such a version restarts).
+const char* avenEditorProgram() {
+#if defined(_WIN32)
+    return "aven-editor.exe";
+#else
+    return "aven-editor";
+#endif
+}
+
 // A test build's stand-in for GitHub (RYNAX_UPDATE_URL), or nothing.
 const char* testReleases() {
 #if RYNAX_TEST_HOOKS
@@ -139,6 +148,13 @@ UpdateInstall thisInstall() {
     } else {
         in.cantUpdate = "This copy of Rynax was built from its source code, so it doesn't replace itself: pull the new "
                         "code, or download Rynax from the release page.";
+    }
+    // An update from Aven 0.4 or 0.5 (Rynax's old name) left its folder as .aven-update, with the
+    // version it replaced in it (for "Go back"): it's Rynax's now.
+    if (!in.work.empty() && !stdfs::exists(in.work, ec)) {
+        stdfs::path aven = in.work.parent_path() / ".aven-update";
+        if (stdfs::is_directory(aven, ec))
+            stdfs::rename(aven, in.work, ec);
     }
     if (in.cantUpdate.empty() && updateKey().size() != 64)
         in.cantUpdate = "This copy of Rynax was built without the key that proves an update really comes from Rynax's "
@@ -309,7 +325,7 @@ void drawNotes(const std::string& notes, ImFont* bold) {
     while (std::getline(ss, line)) {
         if (!line.empty() && line.back() == '\r')
             line.pop_back();
-        if (line.find("<!-- rynax:download -->") != std::string::npos)
+        if (line.find("<!-- rynax:download -->") != std::string::npos || line.find("<!-- aven:download -->") != std::string::npos)
             break;
         size_t start = line.find_first_not_of(' ');
         if (start == std::string::npos || line.compare(start, 4, "<!--") == 0 || line[start] == '|') {
@@ -431,7 +447,12 @@ std::string restartCommand(const UpdateInstall& in, const stdfs::path& project) 
     // Through Launch Services, so it starts as the app (its name in the menu bar, its icon in the Dock).
     std::string command = "/usr/bin/open -n \"" + in.root.string() + "\" --args";
 #else
-    std::string command = "\"" + (in.root / in.program).string() + "\"";
+    // (After going back to a version from before 0.6, the editor is still called aven-editor.)
+    std::error_code ec;
+    stdfs::path program = in.root / in.program;
+    if (!stdfs::exists(program, ec) && stdfs::exists(in.root / avenEditorProgram(), ec))
+        program = in.root / avenEditorProgram();
+    std::string command = "\"" + program.string() + "\"";
 #endif
     if (!project.empty())
         command += " \"" + project.string() + "\"";
@@ -571,6 +592,12 @@ void Editor::downloadUpdate(bool wait) {
         std::thread(run).detach();
 }
 
+// What a version of Rynax was called: Aven before 0.6.
+std::string productName(const std::string& version) {
+    update::Version v = update::parseVersion(version);
+    return v.valid && update::compare(v, update::parseVersion("0.6.0")) < 0 ? "Aven" : "Rynax";
+}
+
 std::string Editor::previousVersion() const {
     UpdateInstall in = thisInstall();
     std::error_code ec;
@@ -616,7 +643,7 @@ std::string Editor::installPendingUpdate() {
             return "";
         std::string error;
         if (!update::swapIn(in.root, in.work / "old", in.work / "undone", error)) {
-            Log::error("Update: couldn't go back to Rynax ", previous, ": ", error);
+            Log::error("Update: couldn't go back to ", productName(previous), " ", previous, ": ", error);
             fs::writeText(in.work / "failed.txt", error);
             return "";
         }
@@ -624,7 +651,7 @@ std::string Editor::installPendingUpdate() {
         stdfs::remove_all(in.work / "old", ec);
         stdfs::remove(in.work / "old-version.txt", ec);
         setInstalledVersion(in.root, previous);
-        Log::info("Update: went back to Rynax ", previous, ".");
+        Log::info("Update: went back to ", productName(previous), " ", previous, ".");
         return updateRestart_ ? restartCommand(in, projectDir_) : "";
     }
     if (!job || job->stage != UpdateJob::Ready || !job->install.cantUpdate.empty())

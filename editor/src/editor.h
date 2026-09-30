@@ -929,6 +929,8 @@ inline std::string plural(size_t n, const std::string& word) { return std::to_st
 inline std::string plural(size_t n, const std::string& one, const std::string& many) { return std::to_string(n) + " " + (n == 1 ? one : many); }
 const Json& editorData(const std::string& name);
 
+std::string productName(const std::string& version); // "Aven" for versions before 0.6 (Rynax's old name), else "Rynax"
+
 // Small shared UI helpers.
 namespace ui {
 void panelClass();
