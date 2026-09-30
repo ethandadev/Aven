@@ -1540,7 +1540,8 @@ void Editor::pasteClipboard(bool inPlace) {
     if (const char* text = ImGui::GetClipboardText()) {
         std::string error;
         Json j = Json::parse(text, &error);
-        if (error.empty() && j["rynax"].asString(j["aven"].asString()) == "objects") // (or copied in Aven)
+        const Json& c = j; // (const: looking up a missing key doesn't add it)
+        if (error.empty() && c["rynax"].asString(c["aven"].asString()) == "objects") // (or copied in Aven)
             clipboard_ = j;
     }
     if (clipboard_.isNull())

@@ -13,7 +13,9 @@
 #include "rynax/runtime/network.h"
 
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
+#include <optional>
 #include <thread>
 
 using namespace rynax;
@@ -604,18 +606,38 @@ RYNAX_TEST(projects_and_saves_from_aven) {
     CHECK(p.save(dir));
     CHECK(stdfs::exists(dir / "project.rynax") && !stdfs::exists(dir / "project.aven"));
 
-    stdfs::path data = stdfs::temp_directory_path() / "rynax_aven_saves";
-    stdfs::remove_all(data, ec);
-#ifdef _WIN32
-    _putenv_s("APPDATA", data.string().c_str());
+    stdfs::path home = stdfs::temp_directory_path() / "rynax_aven_saves";
+    stdfs::remove_all(home, ec);
+#if defined(_WIN32)
+    const char* variable = "APPDATA";
+    stdfs::path data = home;
+#elif defined(__APPLE__)
+    const char* variable = "HOME";
+    stdfs::path data = home / "Library" / "Application Support";
 #else
-    setenv("XDG_DATA_HOME", data.string().c_str(), 1);
+    const char* variable = "XDG_DATA_HOME";
+    stdfs::path data = home;
 #endif
+    const char* was = std::getenv(variable);
+    std::optional<std::string> old = was ? std::optional<std::string>(was) : std::nullopt;
+    auto setVariable = [&](const std::string& value) {
+#ifdef _WIN32
+        _putenv_s(variable, value.c_str()); // (an empty value removes it)
+#else
+        if (value.empty())
+            unsetenv(variable);
+        else
+            setenv(variable, value.c_str(), 1);
+#endif
+    };
+    setVariable(home.string());
     CHECK_EQ(fs::userDataDir("Old Game"), data / "Rynax" / "Old Game"); // nothing yet: Rynax's folder
     stdfs::create_directories(data / "Aven" / "Old Game", ec);
     CHECK_EQ(fs::userDataDir("Old Game"), data / "Aven" / "Old Game"); // the saves made with Aven
     stdfs::create_directories(data / "Rynax" / "Old Game", ec);
     CHECK_EQ(fs::userDataDir("Old Game"), data / "Rynax" / "Old Game");
+    setVariable(old.value_or(""));
+    stdfs::remove_all(home, ec);
 }
 
 // Graphics quality presets, and a player's choice from set_graphics_quality() kept for next time.

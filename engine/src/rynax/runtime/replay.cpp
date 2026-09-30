@@ -94,7 +94,9 @@ bool Replay::load(const std::filesystem::path& file, std::string* error) {
         if (!parseError.empty())
             break; // a crash can leave a half-written last line
         if (!header) {
-            if (j["rynax"].asString(j["aven"].asString("")) != "replay") { // ("aven": made before the rename)
+            // ("aven": made before the rename. Read through const, which never adds a key: adding
+            // one could move the other key's value while it's still being used.)
+            if (const Json& h = j; h["rynax"].asString(h["aven"].asString("")) != "replay") {
                 if (error)
                     *error = "This isn't a Rynax replay.";
                 return false;
