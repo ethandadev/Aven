@@ -1,17 +1,17 @@
 #include "test_framework.h"
 
-#include "aven/core/fs.h"
-#include "aven/script/vm.h"
+#include "rynax/core/fs.h"
+#include "rynax/script/vm.h"
 
 #include <filesystem>
 #include <sstream>
 
-using namespace aven;
+using namespace rynax;
 
 // Every ```easyscript example in docs/ must compile, so the guides can't teach broken code.
-AVEN_TEST(docs_examples_compile) {
+RYNAX_TEST(docs_examples_compile) {
     int examples = 0;
-    for (auto& entry : std::filesystem::directory_iterator(std::filesystem::path(AVEN_SOURCE_DIR) / "docs")) {
+    for (auto& entry : std::filesystem::directory_iterator(std::filesystem::path(RYNAX_SOURCE_DIR) / "docs")) {
         if (entry.path().extension() != ".md")
             continue;
         auto text = fs::readText(entry.path());

@@ -1,34 +1,34 @@
 #include "test_framework.h"
 
-#include "aven/blocks/blocks.h"
-#include "aven/core/fs.h"
-#include "aven/runtime/behavior_code.h"
-#include "aven/scene/components.h"
-#include "aven/scene/reflection.h"
-#include "aven/script/translate.h"
+#include "rynax/blocks/blocks.h"
+#include "rynax/core/fs.h"
+#include "rynax/runtime/behavior_code.h"
+#include "rynax/scene/components.h"
+#include "rynax/scene/reflection.h"
+#include "rynax/script/translate.h"
 
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 
-using namespace aven;
-using namespace aven::script;
+using namespace rynax;
+using namespace rynax::script;
 
 namespace {
 
 const TargetLanguage kAll[] = {TargetLanguage::Unity, TargetLanguage::Godot, TargetLanguage::Roblox, TargetLanguage::Unreal,
-                               TargetLanguage::AvenC};
+                               TargetLanguage::RynaxC};
 
 bool contains(const std::string& text, const std::string& part) { return text.find(part) != std::string::npos; }
 
 } // namespace
 
-AVEN_TEST(translate_every_template_script) {
-    // Set AVEN_DUMP_TRANSLATIONS=folder to write the translations out for reading.
-    const char* dump = std::getenv("AVEN_DUMP_TRANSLATIONS");
+RYNAX_TEST(translate_every_template_script) {
+    // Set RYNAX_DUMP_TRANSLATIONS=folder to write the translations out for reading.
+    const char* dump = std::getenv("RYNAX_DUMP_TRANSLATIONS");
     int count = 0;
-    for (auto& entry : std::filesystem::recursive_directory_iterator(std::filesystem::path(AVEN_SOURCE_DIR) / "templates")) {
+    for (auto& entry : std::filesystem::recursive_directory_iterator(std::filesystem::path(RYNAX_SOURCE_DIR) / "templates")) {
         std::string ext = entry.path().extension().string();
         if (ext != ".es" && ext != ".blocks")
             continue;
@@ -52,9 +52,9 @@ AVEN_TEST(translate_every_template_script) {
             CHECK(!t.code.empty());
             // No EasyScript-only syntax should leak through.
             CHECK(!contains(t.code, " ? ") || lang == TargetLanguage::Unity || lang == TargetLanguage::Unreal ||
-                  lang == TargetLanguage::AvenC);
+                  lang == TargetLanguage::RynaxC);
             std::string code = t.code;
-            if (lang == TargetLanguage::AvenC) // what couldn't be translated is quoted in comments
+            if (lang == TargetLanguage::RynaxC) // what couldn't be translated is quoted in comments
                 for (size_t a; (a = code.find("/*")) != std::string::npos;)
                     code.erase(a, code.find("*/", a) == std::string::npos ? std::string::npos : code.find("*/", a) + 2 - a);
             CHECK(!contains(code, "self.") || lang == TargetLanguage::Godot);
@@ -73,7 +73,7 @@ AVEN_TEST(translate_every_template_script) {
     CHECK(count >= 50);
 }
 
-AVEN_TEST(translate_maps_events_and_api) {
+RYNAX_TEST(translate_maps_events_and_api) {
     const char* source = R"(# A slime
 speed = 1.5  # how fast it walks
 _dir = 1
@@ -137,7 +137,7 @@ def on_trigger(other):
 }
 
 // Counting down (range(10, 0, -1)) stays counting down, and numbers keep all their digits.
-AVEN_TEST(translate_counts_down_and_keeps_digits) {
+RYNAX_TEST(translate_counts_down_and_keeps_digits) {
     const char* source = "tau = 6.2831853\ndef on_start():\n    for i in range(10, 0, -1):\n        print(i)\n";
     Translation u = translate(source, TargetLanguage::Unity, {"Countdown", false});
     CHECK(u.ok);
@@ -148,7 +148,7 @@ AVEN_TEST(translate_counts_down_and_keeps_digits) {
     CHECK(contains(r.code, "for i = 10, 1, -1 do"));
 }
 
-AVEN_TEST(translate_reports_syntax_errors) {
+RYNAX_TEST(translate_reports_syntax_errors) {
     Translation t = translate("def on_update(dt)\n    pass\n", TargetLanguage::Unity);
     CHECK(!t.ok);
     CHECK(t.errorLine == 1);
@@ -156,15 +156,15 @@ AVEN_TEST(translate_reports_syntax_errors) {
     CHECK_EQ(classNameFor("scripts/slime_enemy.es"), std::string("SlimeEnemy"));
 }
 
-#include "aven/audio/sfx.h"
+#include "rynax/audio/sfx.h"
 
-AVEN_TEST(sfx_presets_make_sound) {
+RYNAX_TEST(sfx_presets_make_sound) {
     for (const char* kind : {"coin", "laser", "explosion", "powerup", "hurt", "jump", "blip", "random"}) {
         for (uint32_t seed : {1u, 2u, 3u}) {
-            aven::SfxParams p = aven::sfxPreset(kind, seed);
-            std::vector<float> s = aven::sfxSynthesize(p);
+            rynax::SfxParams p = rynax::sfxPreset(kind, seed);
+            std::vector<float> s = rynax::sfxSynthesize(p);
             CHECK(s.size() > 100);
-            CHECK(s.size() <= static_cast<size_t>(aven::kSfxSampleRate) * 6);
+            CHECK(s.size() <= static_cast<size_t>(rynax::kSfxSampleRate) * 6);
             float peak = 0;
             for (float v : s) {
                 CHECK(v >= -1.0f && v <= 1.0f);
@@ -172,27 +172,27 @@ AVEN_TEST(sfx_presets_make_sound) {
             }
             CHECK(peak > 0.001f); // not silent
             // Settings survive a round trip through the .sfx file format.
-            aven::SfxParams back = aven::SfxParams::fromJson(p.toJson());
+            rynax::SfxParams back = rynax::SfxParams::fromJson(p.toJson());
             CHECK_EQ(back.wave, p.wave);
             CHECK_NEAR(back.baseFreq, p.baseFreq, 0.001f);
         }
     }
-    auto path = std::filesystem::temp_directory_path() / "aven_sfx_test.wav";
-    CHECK(aven::writeWav(path, aven::sfxSynthesize(aven::sfxPreset("coin", 7))));
+    auto path = std::filesystem::temp_directory_path() / "rynax_sfx_test.wav";
+    CHECK(rynax::writeWav(path, rynax::sfxSynthesize(rynax::sfxPreset("coin", 7))));
     auto bytes = fs::readBinary(path);
     CHECK(bytes && bytes->size() > 44 && std::memcmp(bytes->data(), "RIFF", 4) == 0);
 }
 
-#ifdef AVEN_C_COMPILER
-// Every template script, translated to Aven C, compiles against aven.h without warnings (-Wall).
-AVEN_TEST(translate_to_c_compiles) {
-    std::filesystem::path dir = std::filesystem::temp_directory_path() / "aven_c_ladder";
+#ifdef RYNAX_C_COMPILER
+// Every template script, translated to Rynax C, compiles against rynax.h without warnings (-Wall).
+RYNAX_TEST(translate_to_c_compiles) {
+    std::filesystem::path dir = std::filesystem::temp_directory_path() / "rynax_c_ladder";
     std::error_code ec;
     std::filesystem::remove_all(dir, ec);
     std::filesystem::create_directories(dir, ec);
     int files = 0;
     std::string all;
-    for (auto& entry : std::filesystem::recursive_directory_iterator(std::filesystem::path(AVEN_SOURCE_DIR) / "templates")) {
+    for (auto& entry : std::filesystem::recursive_directory_iterator(std::filesystem::path(RYNAX_SOURCE_DIR) / "templates")) {
         std::string ext = entry.path().extension().string();
         if (ext != ".es" && ext != ".blocks")
             continue;
@@ -201,7 +201,7 @@ AVEN_TEST(translate_to_c_compiles) {
         TranslateOptions options;
         options.className = classNameFor(entry.path().string());
         options.is3D = contains(entry.path().string(), "3d");
-        Translation t = translate(source, TargetLanguage::AvenC, options);
+        Translation t = translate(source, TargetLanguage::RynaxC, options);
         CHECK(t.ok);
         auto out = dir / (entry.path().parent_path().parent_path().filename().string() + "_" + entry.path().stem().string() + ".c");
         fs::writeText(out, t.code);
@@ -231,7 +231,7 @@ AVEN_TEST(translate_to_c_compiles) {
         std::string source = behaviorAsEasyScript(ci.name, values, [](const std::string&) { return std::string("Menu"); });
         TranslateOptions options;
         options.className = ci.name;
-        Translation t = translate(source, TargetLanguage::AvenC, options);
+        Translation t = translate(source, TargetLanguage::RynaxC, options);
         CHECK(t.ok);
         for (auto lang : {TargetLanguage::Unity, TargetLanguage::Godot, TargetLanguage::Roblox, TargetLanguage::Unreal})
             CHECK(translate(source, lang, options).ok);
@@ -245,18 +245,18 @@ AVEN_TEST(translate_to_c_compiles) {
                              "    self.play_state(\"Run\")\n    if self.is_touching(\"coin\"):\n        print(\"coin\")\n";
         TranslateOptions options;
         options.className = "Family";
-        Translation t = translate(source, TargetLanguage::AvenC, options);
+        Translation t = translate(source, TargetLanguage::RynaxC, options);
         CHECK(t.ok);
-        CHECK(contains(t.code, "aven_find_child(self, \"Gun\")"));
-        CHECK(contains(t.code, "aven_call_with(self, \"play_state\", (const AvenArg[]){aven_text_arg(\"Run\")}, 1)"));
-        CHECK(contains(t.code, "aven_call_with(self, \"is_touching\""));
+        CHECK(contains(t.code, "rynax_find_child(self, \"Gun\")"));
+        CHECK(contains(t.code, "rynax_call_with(self, \"play_state\", (const RynaxArg[]){rynax_text_arg(\"Run\")}, 1)"));
+        CHECK(contains(t.code, "rynax_call_with(self, \"is_touching\""));
         auto out = dir / "api2_family.c";
         fs::writeText(out, t.code);
         all += " \"" + out.string() + "\"";
     }
     std::string log = (dir / "compile.log").string();
-    std::string command = std::string("\"") + AVEN_C_COMPILER + "\" -std=c11 -fsyntax-only -Wall -Wno-unused-but-set-variable -I\"" +
-                          AVEN_SOURCE_DIR + "/sdk/include\"" + all + " > \"" + log + "\" 2>&1";
+    std::string command = std::string("\"") + RYNAX_C_COMPILER + "\" -std=c11 -fsyntax-only -Wall -Wno-unused-but-set-variable -I\"" +
+                          RYNAX_SOURCE_DIR + "/sdk/include\"" + all + " > \"" + log + "\" 2>&1";
     int status = std::system(command.c_str());
     auto output = fs::readText(log).value_or("");
     if (status != 0 || !output.empty())

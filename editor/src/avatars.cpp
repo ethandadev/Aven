@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 const std::vector<Critter>& critters() {
     static const std::vector<Critter> list = {
@@ -189,4 +189,4 @@ void drawCritter(ImDrawList* dl, ImVec2 center, float radius, std::string_view i
     }
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

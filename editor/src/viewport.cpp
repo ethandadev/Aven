@@ -1,11 +1,11 @@
 #include "editor.h"
 
-#include "aven/core/fs.h"
-#include "aven/render/renderer3d.h"
-#include "aven/render/ui_layout.h"
-#include "aven/runtime/script_system.h"
-#include "aven/runtime/systems.h"
-#include "aven/scene/reflection.h"
+#include "rynax/core/fs.h"
+#include "rynax/render/renderer3d.h"
+#include "rynax/render/ui_layout.h"
+#include "rynax/runtime/script_system.h"
+#include "rynax/runtime/systems.h"
+#include "rynax/scene/reflection.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -17,7 +17,7 @@
 #include <cmath>
 #include <cstdio>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -924,4 +924,4 @@ void Editor::drawStats(ImVec2 pos) {
     dl->AddText({a.x + 8, a.y + 6}, IM_COL32(230, 240, 235, 255), text);
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

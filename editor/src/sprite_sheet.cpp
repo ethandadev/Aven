@@ -9,7 +9,7 @@
 #include <cmath>
 #include <cstdio>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 void Editor::openSpriteSheet() {
     showSpriteSheet_ = focusSpriteSheet_ = true;
@@ -189,4 +189,4 @@ void Editor::drawSpriteSheet() {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

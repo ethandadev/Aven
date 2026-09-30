@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Draws the Aven app icon at every size the platforms need.
+"""Draws the Rynax app icon at every size the platforms need.
 
     python3 tools/icon/make_icon.py
 
 Writes:
-  engine/data/icon/aven_{16,32,48,64,128,256}.png   (embedded; used as the window icon)
-  resources/icon/aven_{512,1024}.png, aven.ico, aven.icns, aven.svg
+  engine/data/icon/rynax_{16,32,48,64,128,256}.png   (embedded; used as the window icon)
+  resources/icon/rynax_{512,1024}.png, rynax.ico, rynax.icns, rynax.svg
 
 Standard library only. Shapes are signed distance fields, so edges are anti-aliased
 at any size.
@@ -77,7 +77,7 @@ def render(size):
             # Soft shadow under the diamond.
             shadow = sd_diamond(x - 0.012, y + 0.03, 0.27)
             col = blend(col, (20, 16, 60), clamp(0.5 - shadow / 0.06) * 0.35)
-            # The diamond ring (the Aven mark).
+            # The diamond ring (the Rynax mark).
             outer = sd_diamond(x, y, 0.27)
             inner = sd_diamond(x, y, 0.115)
             ring = max(outer, -inner)
@@ -160,15 +160,15 @@ def main():
         pngs[s] = png_bytes(render(s))
         print("rendered", s)
     for s in (16, 32, 48, 64, 128, 256):
-        write(os.path.join(ROOT, "engine", "data", "icon", f"aven_{s}.png"), pngs[s])
+        write(os.path.join(ROOT, "engine", "data", "icon", f"rynax_{s}.png"), pngs[s])
     res = os.path.join(ROOT, "resources", "icon")
     for s in sizes:
         if s >= 512:
-            write(os.path.join(res, f"aven_{s}.png"), pngs[s])
-    write(os.path.join(res, "aven.ico"), ico([(s, pngs[s]) for s in (16, 32, 48, 64, 128, 256)]))
+            write(os.path.join(res, f"rynax_{s}.png"), pngs[s])
+    write(os.path.join(res, "rynax.ico"), ico([(s, pngs[s]) for s in (16, 32, 48, 64, 128, 256)]))
     if 1024 in pngs:
-        write(os.path.join(res, "aven.icns"), icns([(s, pngs[s]) for s in (128, 256, 512, 1024)]))
-    write(os.path.join(res, "aven.svg"), SVG.encode())
+        write(os.path.join(res, "rynax.icns"), icns([(s, pngs[s]) for s in (128, 256, 512, 1024)]))
+    write(os.path.join(res, "rynax.svg"), SVG.encode())
 
 
 if __name__ == "__main__":

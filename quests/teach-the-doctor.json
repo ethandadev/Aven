@@ -6,7 +6,7 @@
   "touches": "A JSON file of explanations (no C++)",
   "summary": "The Error Doctor turns confusing error messages into plain words. Pick an error that confused you and write the explanation you wish you'd had.",
   "why": "Every rule helps every beginner who hits that error after you.",
-  "learn": ["JSON", "How Aven explains errors"],
+  "learn": ["JSON", "How Rynax explains errors"],
   "steps": [
     {"text": "Find an error message that isn't explained well yet: make a small mistake in a script on purpose, or look in the Console, then press Doctor on it."},
     {"text": "Open editor/data/doctor_rules.json. Each rule has 'match' (part of the error message), 'title' and 'explanation'.",

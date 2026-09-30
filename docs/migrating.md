@@ -1,12 +1,12 @@
 # Moving to other engines
 
-Everything you learn in Aven has a counterpart in the big engines. This page maps the ideas.
+Everything you learn in Rynax has a counterpart in the big engines. This page maps the ideas.
 To map your own code, open the **Code Ladder** on a script and pick an engine: it translates
 the script and notes where that engine works differently.
 
 ## The big ideas
 
-| Aven | Unity | Godot | Roblox | Unreal |
+| Rynax | Unity | Godot | Roblox | Unreal |
 |---|---|---|---|---|
 | Object (in the Hierarchy) | GameObject | Node | Instance (Part, Model...) | Actor |
 | Component | Component | Child node / node type | Child instance | Component |
@@ -15,7 +15,7 @@ the script and notes where that engine works differently.
 | Script / EasyScript | C# `MonoBehaviour` | GDScript | Script / LocalScript (Luau) | C++ class or Blueprint |
 | Behavior (settings, no code) | Ready-made components and assets | Built-in nodes | Studio plugins, free models | Blueprint components |
 | Blocks | Visual Scripting | none built in | none built in | Blueprints |
-| Native C (`aven.h`) | Native plugins | GDExtension | none | C++ modules |
+| Native C (`rynax.h`) | Native plugins | GDExtension | none | C++ modules |
 | Tag (`other.tag`) | Tag | Groups | CollectionService tags | Actor tags |
 | `game.score` | A static class / ScriptableObject | An autoload singleton | Values in ReplicatedStorage, leaderstats | GameInstance / GameState |
 | `broadcast` / `send` | Events, `SendMessage` | Signals | BindableEvents | Delegates / Event dispatchers |
@@ -24,7 +24,7 @@ the script and notes where that engine works differently.
 
 ## Events
 
-| Aven (EasyScript) | Unity (C#) | Godot (GDScript) | Roblox (Luau) | Unreal (C++) |
+| Rynax (EasyScript) | Unity (C#) | Godot (GDScript) | Roblox (Luau) | Unreal (C++) |
 |---|---|---|---|---|
 | `on_start()` | `Start()` | `_ready()` | code at the top of the script | `BeginPlay()` |
 | `on_update(dt)` | `Update()` + `Time.deltaTime` | `_process(delta)` | `RunService.Heartbeat` | `Tick(DeltaTime)` |
@@ -51,11 +51,11 @@ the script and notes where that engine works differently.
 - **Types.** C#, C++ and C need declared types (`float speed = 5f;`). GDScript and Luau, like
   EasyScript, don't.
 - **Units.** Unity uses meters and Unreal centimeters. Godot 2D uses pixels. Roblox uses studs.
-  Aven uses one unit per tile or meter.
+  Rynax uses one unit per tile or meter.
 - **Angles.** EasyScript's `sin()`/`cos()` take degrees. Most languages' math libraries take
   radians. The Code Ladder converts for you.
 - **Lists start at 0** everywhere here except Luau, where they start at 1.
-- **Assets.** Aven reads files straight from the project folder. Unity, Godot and Unreal import
+- **Assets.** Rynax reads files straight from the project folder. Unity, Godot and Unreal import
   them into their own formats with import settings.
-- **Multiplayer.** Roblox is multiplayer-first (server scripts vs client scripts). Aven, like a
+- **Multiplayer.** Roblox is multiplayer-first (server scripts vs client scripts). Rynax, like a
   fresh Unity or Godot project, is single-player unless you add networking.

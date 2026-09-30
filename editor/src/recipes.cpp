@@ -1,10 +1,10 @@
 // Game recipes: "I want to make a platformer" -> pick a hero, things to collect, dangers
-// and a goal, and Aven cooks a small working game out of behaviors, with a card that
+// and a goal, and Rynax cooks a small working game out of behaviors, with a card that
 // explains every part and suggests what to try changing.
 
 #include "editor.h"
 
-#include "aven/core/fs.h"
+#include "rynax/core/fs.h"
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -14,7 +14,7 @@
 #include <cstring>
 #include <random>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -121,7 +121,7 @@ Json body(double gravity, bool fixed = true) { return obj({{"gravity_scale", gra
 class SceneBuilder {
 public:
     explicit SceneBuilder(const std::string& name) {
-        doc_ = obj({{"aven", "scene"}, {"version", 1}, {"name", name}});
+        doc_ = obj({{"rynax", "scene"}, {"version", 1}, {"name", name}});
         doc_["entities"] = Json::array();
         std::random_device rd;
         base_ = (static_cast<uint64_t>(rd()) << 32 | rd()) & 0x00FFFFFFFFFF0000ull;
@@ -850,7 +850,7 @@ void Editor::drawRecipes() {
     ImGui::PushFont(fonts.big);
     ImGui::TextUnformatted("What do you want to make?");
     ImGui::PopFont();
-    ImGui::TextDisabled("Pick a recipe and the ingredients. Aven builds a small working game and explains every part.");
+    ImGui::TextDisabled("Pick a recipe and the ingredients. Rynax builds a small working game and explains every part.");
     ImGui::Spacing();
 
     // Recipe cards.
@@ -1095,4 +1095,4 @@ void Editor::drawRecipeCard() {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

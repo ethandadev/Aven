@@ -2,13 +2,13 @@
 
 #include "editor.h"
 
-#include "aven/blocks/blocks.h"
-#include "aven/core/fs.h"
-#include "aven/core/log.h"
-#include "aven/runtime/script_system.h"
-#include "aven/runtime/systems.h"
-#include "aven/scene/reflection.h"
-#include "aven/script/vm.h"
+#include "rynax/blocks/blocks.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/log.h"
+#include "rynax/runtime/script_system.h"
+#include "rynax/runtime/systems.h"
+#include "rynax/scene/reflection.h"
+#include "rynax/script/vm.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -19,7 +19,7 @@
 #include <cstring>
 #include <set>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -118,7 +118,7 @@ bool Editor::drawComponent(Entity e, const ComponentInfo& info, void* data) {
             continue;
         ImGui::PushID(f.name.c_str());
         ImGui::TableNextRow();
-        // Settings just changed by Ask Aven or a recipe glow for a moment.
+        // Settings just changed by Ask Rynax or a recipe glow for a moment.
         for (const std::string& key : {info.name + "/" + f.name, info.name + "/*"}) {
             auto flash = flashFields_.find(key);
             if (flash != flashFields_.end() && flash->second > 0) {
@@ -1154,4 +1154,4 @@ void Editor::drawInspector() {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

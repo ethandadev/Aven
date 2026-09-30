@@ -1,9 +1,9 @@
 #include "test_framework.h"
 
-#include "aven/scene/reflection.h"
-#include "aven/scene/scene.h"
+#include "rynax/scene/reflection.h"
+#include "rynax/scene/scene.h"
 
-using namespace aven;
+using namespace rynax;
 
 namespace {
 struct TestHealth {
@@ -14,7 +14,7 @@ struct Speed {
 };
 } // namespace
 
-AVEN_TEST(ecs_create_destroy_generations) {
+RYNAX_TEST(ecs_create_destroy_generations) {
     Registry r;
     Entity a = r.create();
     r.emplace<TestHealth>(a, 50);
@@ -29,7 +29,7 @@ AVEN_TEST(ecs_create_destroy_generations) {
     CHECK(Entity::fromHandle(b.toHandle()) == b);
 }
 
-AVEN_TEST(ecs_each_filters_and_survives_removal) {
+RYNAX_TEST(ecs_each_filters_and_survives_removal) {
     Registry r;
     std::vector<Entity> es;
     for (int i = 0; i < 10; ++i) {
@@ -50,7 +50,7 @@ AVEN_TEST(ecs_each_filters_and_survives_removal) {
     CHECK_EQ(r.aliveCount(), size_t(5));
 }
 
-AVEN_TEST(reflection_names) {
+RYNAX_TEST(reflection_names) {
     CHECK_EQ(toSnakeCase("RigidBody2D"), std::string("rigid_body_2d"));
     CHECK_EQ(toSnakeCase("UIElement"), std::string("ui_element"));
     CHECK_EQ(toSnakeCase("gravityScale"), std::string("gravity_scale"));
@@ -62,7 +62,7 @@ AVEN_TEST(reflection_names) {
     CHECK(ComponentRegistry::find("NotAThing") == nullptr);
 }
 
-AVEN_TEST(scene_hierarchy_world_transforms) {
+RYNAX_TEST(scene_hierarchy_world_transforms) {
     Scene s;
     Entity parent = s.create("Parent");
     Entity child = s.create("Child", parent);
@@ -86,7 +86,7 @@ AVEN_TEST(scene_hierarchy_world_transforms) {
     CHECK(!s.setParent(parent, child));
 }
 
-AVEN_TEST(scene_destroy_is_recursive) {
+RYNAX_TEST(scene_destroy_is_recursive) {
     Scene s;
     Entity a = s.create("A");
     Entity b = s.create("B", a);
@@ -99,7 +99,7 @@ AVEN_TEST(scene_destroy_is_recursive) {
     CHECK(s.roots().empty());
 }
 
-AVEN_TEST(scene_save_load_roundtrip) {
+RYNAX_TEST(scene_save_load_roundtrip) {
     Scene s;
     s.name = "Level 1";
     Entity player = s.create("Player");
@@ -140,7 +140,7 @@ AVEN_TEST(scene_save_load_roundtrip) {
     CHECK_EQ(loaded.save().dump(2), saved.dump(2));
 }
 
-AVEN_TEST(scene_instantiate_remaps_ids) {
+RYNAX_TEST(scene_instantiate_remaps_ids) {
     Scene s;
     Entity root = s.create("Turret");
     Entity barrel = s.create("Barrel", root);
@@ -159,7 +159,7 @@ AVEN_TEST(scene_instantiate_remaps_ids) {
     CHECK_EQ(s.entityCount(), size_t(4));
 }
 
-AVEN_TEST(scene_duplicate_places_after_original) {
+RYNAX_TEST(scene_duplicate_places_after_original) {
     Scene s;
     Entity a = s.create("A");
     Entity b = s.create("B");
@@ -170,7 +170,7 @@ AVEN_TEST(scene_duplicate_places_after_original) {
     CHECK(s.roots()[2] == b);
 }
 
-AVEN_TEST(scene_unknown_component_is_skipped) {
+RYNAX_TEST(scene_unknown_component_is_skipped) {
     Scene s;
     std::string err;
     CHECK(s.load(Json::parse(R"({"entities":[{"id":"1","name":"X","components":{"Bogus":{},"Transform":{"position":[5,0,0]}}}]})"),
@@ -180,7 +180,7 @@ AVEN_TEST(scene_unknown_component_is_skipped) {
 }
 
 // Hand-edited scenes: a camelCase field name is still read, and a bad choice keeps the default.
-AVEN_TEST(scene_forgives_camel_case_fields) {
+RYNAX_TEST(scene_forgives_camel_case_fields) {
     Json data = Json::parse(R"({"entities": [{"id": "0000000000000001", "name": "Box", "components": {
         "RigidBody2D": {"gravityScale": 0.5, "type": "Sideways"}}}]})");
     Scene s;
@@ -194,7 +194,7 @@ AVEN_TEST(scene_forgives_camel_case_fields) {
 
 // Hand-edited and merged files: a child listed before its parent still finds it; a parent loop
 // doesn't hang (the entities end up at the top); prefab entries without an id don't adopt others.
-AVEN_TEST(scene_load_links_parents_in_any_order) {
+RYNAX_TEST(scene_load_links_parents_in_any_order) {
     Scene s;
     CHECK(s.load(Json::parse(R"({"entities":[
         {"id":"2","name":"Child","parent":"1","components":{}},
@@ -220,7 +220,7 @@ AVEN_TEST(scene_load_links_parents_in_any_order) {
     CHECK(p.parent(p.findByName("Kid")) == p.findByName("Top"));
 }
 
-AVEN_TEST(scene_walk_order_and_changes_during_the_walk) {
+RYNAX_TEST(scene_walk_order_and_changes_during_the_walk) {
     Scene s;
     Entity a = s.create("A"), b = s.create("B");
     Entity a1 = s.create("A1", a), a2 = s.create("A2", a), a11 = s.create("A11", a1);

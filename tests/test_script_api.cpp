@@ -1,18 +1,18 @@
 #include "test_framework.h"
 
-#include "aven/assets/assets.h"
-#include "aven/core/fs.h"
-#include "aven/core/log.h"
-#include "aven/platform/input.h"
-#include "aven/runtime/game.h"
-#include "aven/runtime/script_system.h"
-#include "aven/runtime/systems.h"
-#include "aven/scene/scene.h"
+#include "rynax/assets/assets.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/log.h"
+#include "rynax/platform/input.h"
+#include "rynax/runtime/game.h"
+#include "rynax/runtime/script_system.h"
+#include "rynax/runtime/systems.h"
+#include "rynax/scene/scene.h"
 
 #include <cmath>
 #include <filesystem>
 
-using namespace aven;
+using namespace rynax;
 
 namespace {
 
@@ -64,8 +64,8 @@ struct ScriptRun {
 
 } // namespace
 
-AVEN_TEST(tween_calls_back_functions_with_or_without_a_value) {
-    ScriptRun run("aven_tween_test", "done = 0\n\n"
+RYNAX_TEST(tween_calls_back_functions_with_or_without_a_value) {
+    ScriptRun run("rynax_tween_test", "done = 0\n\n"
                                      "def plain():\n    done += 1\n\n"
                                      "def with_object(obj):\n    done += 10\n\n"
                                      "def on_start():\n"
@@ -76,8 +76,8 @@ AVEN_TEST(tween_calls_back_functions_with_or_without_a_value) {
     CHECK_NEAR(run.game.scene().transform(run.hero).position.x, 5.0f, 1e-4f);
 }
 
-AVEN_TEST(say_keeps_the_newest_bubble_up_for_its_own_time) {
-    ScriptRun run("aven_say_test", "t = 0\n\n"
+RYNAX_TEST(say_keeps_the_newest_bubble_up_for_its_own_time) {
+    ScriptRun run("rynax_say_test", "t = 0\n\n"
                                    "def on_start():\n    self.say(\"first\", 1)\n\n"
                                    "def on_update(dt):\n"
                                    "    t += dt\n"
@@ -91,17 +91,17 @@ AVEN_TEST(say_keeps_the_newest_bubble_up_for_its_own_time) {
     CHECK(!run.bubble());
 }
 
-AVEN_TEST(a_number_rotation_turns_without_resetting_other_axes) {
-    ScriptRun run("aven_rotation_test", "def on_start():\n    self.rotation_x = 20\n    self.rotation = 45\n", true);
+RYNAX_TEST(a_number_rotation_turns_without_resetting_other_axes) {
+    ScriptRun run("rynax_rotation_test", "def on_start():\n    self.rotation_x = 20\n    self.rotation = 45\n", true);
     run.frames(2);
     Vec3 r = run.game.scene().transform(run.hero).rotation;
     CHECK_NEAR(r.x, 20.0f, 1e-4f);
     CHECK_NEAR(r.y, 45.0f, 1e-4f);
 }
 
-AVEN_TEST(velocity_set_right_after_spawning_a_3d_body_is_kept) {
+RYNAX_TEST(velocity_set_right_after_spawning_a_3d_body_is_kept) {
     // The clone's physics body is only made on the next step; its velocity must wait for it.
-    ScriptRun run("aven_velocity3d_test", "copy = None\n\n"
+    ScriptRun run("rynax_velocity3d_test", "copy = None\n\n"
                                           "def on_start():\n"
                                           "    if not self.is_clone:\n"
                                           "        copy = self.clone()\n"
@@ -118,7 +118,7 @@ AVEN_TEST(velocity_set_right_after_spawning_a_3d_body_is_kept) {
 
 // Numbers that aren't numbers never reach the transforms: properties refuse them, and a nan made by
 // a script's own maths (self.move) is put back before physics and drawing see it.
-AVEN_TEST(nan_and_huge_numbers_stay_out_of_the_scene) {
+RYNAX_TEST(nan_and_huge_numbers_stay_out_of_the_scene) {
     std::vector<std::string> log;
     int sink = Log::addSink([&](const LogMessage& m) { log.push_back(m.text); });
     auto logged = [&](const char* text) {
@@ -128,7 +128,7 @@ AVEN_TEST(nan_and_huge_numbers_stay_out_of_the_scene) {
         return false;
     };
     {
-        ScriptRun run("aven_nan_test", "def on_start():\n"
+        ScriptRun run("rynax_nan_test", "def on_start():\n"
                                        "    self.move(float(\"nan\"), 1)\n"
                                        "    self.play_animation(1e300, float(\"nan\"))\n");
         run.frames(2);
@@ -143,14 +143,14 @@ AVEN_TEST(nan_and_huge_numbers_stay_out_of_the_scene) {
         CHECK(logged("isn't a number"));
     }
     {
-        ScriptRun run("aven_nan_prop_test", "def on_start():\n    self.x = float(\"inf\")\n");
+        ScriptRun run("rynax_nan_prop_test", "def on_start():\n    self.x = float(\"inf\")\n");
         run.frames(1);
         CHECK(logged("should be an ordinary number"));
         CHECK(std::isfinite(run.game.scene().transform(run.hero).position.x));
     }
     {
         // Given by name, too.
-        ScriptRun run("aven_nan_keyword_test", "def on_start():\n    self.play_animation(0, 1, fps=float(\"nan\"))\n");
+        ScriptRun run("rynax_nan_keyword_test", "def on_start():\n    self.play_animation(0, 1, fps=float(\"nan\"))\n");
         run.frames(1);
         CHECK(logged("'fps' should be an ordinary number"));
     }

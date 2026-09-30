@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Rynax
+GenericName=Game Engine
+Comment=Make 2D and 3D games, learning as you go
+Exec=rynax-editor %f
+Icon=io.github.ethandadev.Rynax
+Terminal=false
+Categories=Development;IDE;Game;
+Keywords=game;engine;2d;3d;editor;

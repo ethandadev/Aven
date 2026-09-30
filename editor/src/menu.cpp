@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-namespace aven::editor::menu {
+namespace rynax::editor::menu {
 
 namespace detail {
 bool nativeOn = false;
@@ -190,4 +190,4 @@ std::string appCommand() {
     return "";
 }
 
-} // namespace aven::editor::menu
+} // namespace rynax::editor::menu

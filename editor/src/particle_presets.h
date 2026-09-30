@@ -1,11 +1,11 @@
 #pragma once
 
-#include "aven/scene/components.h"
+#include "rynax/scene/components.h"
 
 #include <string>
 #include <vector>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 // Ready-made particle looks: fire, smoke, sparkles, rain...
 struct ParticlePreset {
@@ -17,4 +17,4 @@ struct ParticlePreset {
 const std::vector<ParticlePreset>& particlePresets();
 const ParticlePreset* findParticlePreset(const std::string& name); // case-insensitive, also matches "sparkle"
 
-} // namespace aven::editor
+} // namespace rynax::editor

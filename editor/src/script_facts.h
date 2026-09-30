@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 // What a script does, read from its code: used by Explain and the Error doctor.
 struct ScriptFacts {
@@ -27,4 +27,4 @@ struct ScriptFacts {
 // Reads EasyScript source (blocks: pass the compiled code, and `blocksJson` for friendlier sentences).
 ScriptFacts analyzeScript(const std::string& source, const std::string& blocksJson = "");
 
-} // namespace aven::editor
+} // namespace rynax::editor

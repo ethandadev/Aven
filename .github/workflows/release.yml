@@ -1,6 +1,6 @@
 name: Release
 
-# Push a tag like v0.2.0 to build Aven for Windows, macOS and Linux and publish a GitHub
+# Push a tag like v0.2.0 to build Rynax for Windows, macOS and Linux and publish a GitHub
 # release with the downloads. Tags with a dash (v0.2.0-beta.1) become pre-releases.
 # "Run workflow" on the Actions tab builds the same zips without publishing (a dry run).
 on:
@@ -62,8 +62,8 @@ jobs:
         run: |
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then v="${GITHUB_REF_NAME#v}"; else v="${{ inputs.version }}"; fi
           echo "VERSION=$v" >> "$GITHUB_ENV"
-          echo "PACKAGE=aven-$v-${{ matrix.suffix }}" >> "$GITHUB_ENV"
-          echo "Building Aven $v"
+          echo "PACKAGE=rynax-$v-${{ matrix.suffix }}" >> "$GITHUB_ENV"
+          echo "Building Rynax $v"
 
       - name: Install Linux packages
         if: runner.os == 'Linux'
@@ -76,7 +76,7 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: build/_deps
-          key: deps-${{ matrix.os }}-${{ hashFiles('cmake/AvenDependencies.cmake') }}
+          key: deps-${{ matrix.os }}-${{ hashFiles('cmake/RynaxDependencies.cmake') }}
 
       - name: Configure
         shell: bash
@@ -91,9 +91,9 @@ jobs:
           if [ -z "$UPDATE_PUBLIC_KEY" ]; then
             echo "::warning::No UPDATE_PUBLIC_KEY variable: this build won't install updates itself (docs/releasing.md)."
           fi
-          # Release builds leave out the test hooks (AVEN_UPDATE_URL and friends).
-          cmake -S . -B build $generator -DCMAKE_BUILD_TYPE=Release -DAVEN_VERSION="$VERSION" \
-            -DAVEN_TEST_HOOKS=OFF -DAVEN_UPDATE_PUBLIC_KEY="$UPDATE_PUBLIC_KEY"
+          # Release builds leave out the test hooks (RYNAX_UPDATE_URL and friends).
+          cmake -S . -B build $generator -DCMAKE_BUILD_TYPE=Release -DRYNAX_VERSION="$VERSION" \
+            -DRYNAX_TEST_HOOKS=OFF -DRYNAX_UPDATE_PUBLIC_KEY="$UPDATE_PUBLIC_KEY"
 
       - name: Build
         run: cmake --build build --config Release --parallel
@@ -101,7 +101,7 @@ jobs:
       - name: Test
         shell: bash
         run: |
-          tests=$(find build -name 'aven_tests' -o -name 'aven_tests.exe' | head -n 1)
+          tests=$(find build -name 'rynax_tests' -o -name 'rynax_tests.exe' | head -n 1)
           "$tests"
 
       - name: Get the web player
@@ -118,7 +118,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          # Copied next to the programs, so Aven runs on PCs without the Visual C++ Redistributable.
+          # Copied next to the programs, so Rynax runs on PCs without the Visual C++ Redistributable.
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $dlls = & $vswhere -latest -find "VC\Redist\MSVC\*\x64\Microsoft.VC*.CRT\*.dll"
           if (-not $dlls) { throw "Couldn't find the Visual C++ runtime DLLs." }
@@ -132,11 +132,11 @@ jobs:
           mkdir -p /tmp/try && cd /tmp/try && unzip -q "$GITHUB_WORKSPACE/dist/$PACKAGE.zip"
           cd "$GITHUB_WORKSPACE" && mv editor/data editor/data.hidden && mv sdk sdk.hidden && mv quests quests.hidden && mv templates templates.hidden
           app="/tmp/try/$PACKAGE"
-          xvfb-run -a -s "-screen 0 1920x1080x24" "$app/aven-editor" --screenshot hub.png --frames 20 2>&1 | tee editor.log
-          xvfb-run -a -s "-screen 0 1920x1080x24" "$app/aven-editor" "$app/templates/platformer" --screenshot editor.png --frames 20 2>&1 | tee -a editor.log
-          xvfb-run -a -s "-screen 0 1280x720x24" "$app/aven-player" "$app/templates/platformer" --screenshot player.png --frames 30 --hidden 2>&1 | tee player.log
+          xvfb-run -a -s "-screen 0 1920x1080x24" "$app/rynax-editor" --screenshot hub.png --frames 20 2>&1 | tee editor.log
+          xvfb-run -a -s "-screen 0 1920x1080x24" "$app/rynax-editor" "$app/templates/platformer" --screenshot editor.png --frames 20 2>&1 | tee -a editor.log
+          xvfb-run -a -s "-screen 0 1280x720x24" "$app/rynax-player" "$app/templates/platformer" --screenshot player.png --frames 30 --hidden 2>&1 | tee player.log
           test -s hub.png && test -s editor.png && test -s player.png
-          grep -q "Aven Editor $VERSION" editor.log
+          grep -q "Rynax Editor $VERSION" editor.log
           if grep -h "\[error\]" editor.log player.log; then echo "The packaged build logged errors."; exit 1; fi
 
       - name: Upload screenshots of the packaged build
@@ -155,7 +155,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p "players/${{ matrix.suffix }}"
-          for f in aven-player aven-player.exe; do
+          for f in rynax-player rynax-player.exe; do
             if [ -e "dist/$PACKAGE/$f" ]; then cp "dist/$PACKAGE/$f" "players/${{ matrix.suffix }}/"; fi
           done
           for f in dist/$PACKAGE/*.dll; do if [ -e "$f" ]; then cp "$f" "players/${{ matrix.suffix }}/"; fi; done
@@ -236,7 +236,7 @@ jobs:
           tar -xf parts/bundled-windows-x64.tar -C stage
           pkg="$(ls stage)"
           echo "PKG=$pkg" >> "$GITHUB_ENV"
-          echo "VERSION=$(echo "$pkg" | sed -E 's/^aven-(.*)-windows-x64$/\1/')" >> "$GITHUB_ENV"
+          echo "VERSION=$(echo "$pkg" | sed -E 's/^rynax-(.*)-windows-x64$/\1/')" >> "$GITHUB_ENV"
       - name: Sign the programs (Azure Trusted Signing)
         if: env.HAS_AZURE == 'true'
         uses: azure/trusted-signing-action@0d74250c661747df006298d0fb49944c10f16e03 # v0.5.1
@@ -277,7 +277,7 @@ jobs:
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y; }
           $numeric = $env:VERSION.Split('-')[0]
-          & $iscc "/DVersion=$env:VERSION" "/DNumericVersion=$numeric" "/DSource=$pwd\stage\$env:PKG" "/DOutput=$pwd\out" tools\release\windows\aven.iss
+          & $iscc "/DVersion=$env:VERSION" "/DNumericVersion=$numeric" "/DSource=$pwd\stage\$env:PKG" "/DOutput=$pwd\out" tools\release\windows\rynax.iss
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
       - name: Sign the installer (Azure Trusted Signing)
         if: env.HAS_AZURE == 'true'
@@ -306,9 +306,9 @@ jobs:
         shell: pwsh
         run: |
           $setup = (Get-ChildItem out\*-Setup.exe).FullName
-          $dir = Join-Path $env:RUNNER_TEMP "AvenInstall"
+          $dir = Join-Path $env:RUNNER_TEMP "RynaxInstall"
           Start-Process $setup -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CURRENTUSER", "/DIR=`"$dir`"" -Wait
-          foreach ($f in "aven-editor.exe", "aven-player.exe", "START HERE.txt", "templates\platformer\project.aven", "players\macos-arm64\aven-player") {
+          foreach ($f in "rynax-editor.exe", "rynax-player.exe", "START HERE.txt", "templates\platformer\project.rynax", "players\macos-arm64\rynax-player") {
             if (-not (Test-Path (Join-Path $dir $f))) { throw "The installer didn't install $f" }
           }
           Get-ChildItem out
@@ -317,7 +317,7 @@ jobs:
           name: release-windows
           path: out/*
 
-  # macOS: Aven.app, in a .dmg to drag into Applications and a zip for the updater. Signed with a
+  # macOS: Rynax.app, in a .dmg to drag into Applications and a zip for the updater. Signed with a
   # Developer ID and notarized when those secrets are set (docs/releasing.md), ad-hoc signed if not.
   macos:
     name: macOS app
@@ -338,7 +338,7 @@ jobs:
           tar -xf parts/bundled-macos-arm64.tar -C stage
           pkg="$(ls stage)"
           echo "PKG=$pkg" >> "$GITHUB_ENV"
-          echo "VERSION=$(echo "$pkg" | sed -E 's/^aven-(.*)-macos-arm64$/\1/')" >> "$GITHUB_ENV"
+          echo "VERSION=$(echo "$pkg" | sed -E 's/^rynax-(.*)-macos-arm64$/\1/')" >> "$GITHUB_ENV"
       - name: Load the signing certificate
         if: env.HAS_MAC_CERT == 'true'
         env:
@@ -362,7 +362,7 @@ jobs:
             echo "$APPLE_API_KEY" | base64 --decode > "$RUNNER_TEMP/api_key.p8"
             echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/api_key.p8" >> "$GITHUB_ENV"
           fi
-      - name: Make Aven.app, the zip and the installer
+      - name: Make Rynax.app, the zip and the installer
         env:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
@@ -372,13 +372,13 @@ jobs:
         run: tools/release/make_mac_app.sh "stage/$PKG" "$VERSION" out
       - name: Check the app
         run: |
-          hdiutil attach out/*.dmg -mountpoint /tmp/aven-dmg -nobrowse
-          app=/tmp/aven-dmg/Aven.app
-          test -x "$app/Contents/MacOS/aven-editor" && test -d "$app/Contents/Resources/templates/platformer"
+          hdiutil attach out/*.dmg -mountpoint /tmp/rynax-dmg -nobrowse
+          app=/tmp/rynax-dmg/Rynax.app
+          test -x "$app/Contents/MacOS/rynax-editor" && test -d "$app/Contents/Resources/templates/platformer"
           codesign --verify --deep --strict "$app"
           spctl --assess --type execute --verbose "$app" || echo "(Gatekeeper accepts it only when it's signed and notarized)"
-          "$app/Contents/MacOS/aven-editor" --help > /dev/null
-          hdiutil detach /tmp/aven-dmg
+          "$app/Contents/MacOS/rynax-editor" --help > /dev/null
+          hdiutil detach /tmp/rynax-dmg
           ls -la out
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -404,20 +404,20 @@ jobs:
           mkdir -p stage
           tar -xf parts/bundled-linux-x64.tar -C stage
           pkg="$(ls stage)"
-          echo "VERSION=$(echo "$pkg" | sed -E 's/^aven-(.*)-linux-x64$/\1/')" >> "$GITHUB_ENV"
+          echo "VERSION=$(echo "$pkg" | sed -E 's/^rynax-(.*)-linux-x64$/\1/')" >> "$GITHUB_ENV"
           # Only this system's player: a Flatpak runs on Linux (and exports for other systems use players/).
-          cp -a "stage/$pkg" tools/release/flatpak/aven
-          cp resources/icon/aven_512.png tools/release/flatpak/
+          cp -a "stage/$pkg" tools/release/flatpak/rynax
+          cp resources/icon/rynax_512.png tools/release/flatpak/
       - uses: flathub-infra/flatpak-github-actions/flatpak-builder@933e9e8ca36e85046ebca8e211f0785c6becac40 # master, 2026-09
         with:
-          bundle: Aven-${{ env.VERSION }}-linux.flatpak
-          manifest-path: tools/release/flatpak/io.github.ethandadev.Aven.yml
+          bundle: Rynax-${{ env.VERSION }}-linux.flatpak
+          manifest-path: tools/release/flatpak/io.github.ethandadev.Rynax.yml
           cache: false
           upload-artifact: false
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-flatpak
-          path: Aven-*.flatpak
+          path: Rynax-*.flatpak
 
   # Signs what the editor's updater downloads (the three zips) with the release key. Its own job, so
   # the key is only ever next to this repository's script and GitHub's own artifact actions.
@@ -440,7 +440,7 @@ jobs:
           UPDATE_PUBLIC_KEY: ${{ vars.UPDATE_PUBLIC_KEY }}
         run: |
           mkdir -p sigs
-          zips=$(ls dist/aven-*-windows-x64.zip dist/aven-*-macos-arm64.zip dist/aven-*-linux-x64.zip)
+          zips=$(ls dist/rynax-*-windows-x64.zip dist/rynax-*-macos-arm64.zip dist/rynax-*-linux-x64.zip)
           if [ -z "$UPDATE_SIGNING_KEY" ]; then
             if [ -n "$UPDATE_PUBLIC_KEY" ]; then
               echo "::error::UPDATE_PUBLIC_KEY is set but the UPDATE_SIGNING_KEY secret isn't: editors would refuse this release."
@@ -488,16 +488,16 @@ jobs:
           # The editor's Update window shows the notes above this line.
           cat >> body.md <<EOF
 
-          <!-- aven:download -->
+          <!-- rynax:download -->
           ## Download
 
           | | Install | Or unzip and run |
           |---|---|---|
-          | Windows | [Aven-$v-Setup.exe](https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Aven-$v-Setup.exe) | \`aven-$v-windows-x64.zip\` |
-          | macOS (Apple silicon) | [Aven-$v-macOS.dmg](https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Aven-$v-macOS.dmg): drag Aven into Applications | \`aven-$v-macos-arm64.zip\` |
-          | Linux | [Aven-$v-linux.flatpak](https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Aven-$v-linux.flatpak): \`flatpak install Aven-$v-linux.flatpak\` | \`aven-$v-linux-x64.zip\` |
+          | Windows | [Rynax-$v-Setup.exe](https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Rynax-$v-Setup.exe) | \`rynax-$v-windows-x64.zip\` |
+          | macOS (Apple silicon) | [Rynax-$v-macOS.dmg](https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Rynax-$v-macOS.dmg): drag Rynax into Applications | \`rynax-$v-macos-arm64.zip\` |
+          | Linux | [Rynax-$v-linux.flatpak](https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Rynax-$v-linux.flatpak): \`flatpak install Rynax-$v-linux.flatpak\` | \`rynax-$v-linux-x64.zip\` |
 
-          Versions of Aven after 0.3.0 update themselves (Help > Check for Updates).
+          Versions of Rynax after 0.3.0 update themselves (Help > Check for Updates).
           EOF
           cat body.md
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3

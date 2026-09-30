@@ -1,9 +1,9 @@
-// aven-relay: lets Aven games on different networks play together. Hosts get a room code from it,
+// rynax-relay: lets Rynax games on different networks play together. Hosts get a room code from it,
 // players join with the code, and it passes their messages along. See docs/online-multiplayer.md.
 //
-//   aven-relay [--port 4243] [--max-rooms 1000] [--max-players 16] [--rate 512]
+//   rynax-relay [--port 4243] [--max-rooms 1000] [--max-players 16] [--rate 512]
 
-#include "aven/runtime/relay.h"
+#include "rynax/runtime/relay.h"
 
 #include <atomic>
 #include <chrono>
@@ -20,20 +20,20 @@ std::atomic<bool> running{true};
 void onSignal(int) { running = false; }
 
 int usage() {
-    std::printf("aven-relay: the server for Aven's online multiplayer.\n\n"
+    std::printf("rynax-relay: the server for Rynax's online multiplayer.\n\n"
                 "  --port N          where to listen (default %d, TCP)\n"
                 "  --max-rooms N     games at once (default 1000)\n"
                 "  --max-players N   players in one game, besides the host (default 16)\n"
                 "  --rate KB         what one player may send each second, on average (default 512)\n",
-                aven::relay::kDefaultPort);
+                rynax::relay::kDefaultPort);
     return 1;
 }
 
 } // namespace
 
 int main(int argc, char** argv) {
-    int port = aven::relay::kDefaultPort;
-    aven::relay::ServerLimits limits;
+    int port = rynax::relay::kDefaultPort;
+    rynax::relay::ServerLimits limits;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         // A whole number from `low` to `high`, or a clear message and the usage.
@@ -64,13 +64,13 @@ int main(int argc, char** argv) {
     std::signal(SIGPIPE, SIG_IGN); // a player gone mid-send is an error to handle, not a reason to stop
 #endif
 
-    aven::relay::Server server(limits);
+    rynax::relay::Server server(limits);
     std::string error;
     if (!server.start(port, error)) {
-        std::fprintf(stderr, "aven-relay: %s\n", error.c_str());
+        std::fprintf(stderr, "rynax-relay: %s\n", error.c_str());
         return 1;
     }
-    std::printf("aven-relay: listening on port %d\n", server.port());
+    std::printf("rynax-relay: listening on port %d\n", server.port());
     std::fflush(stdout);
     auto lastReport = std::chrono::steady_clock::now();
     int lastRooms = -1, lastConnections = -1;
@@ -82,12 +82,12 @@ int main(int argc, char** argv) {
             if (server.rooms() != lastRooms || server.connections() != lastConnections) {
                 lastRooms = server.rooms();
                 lastConnections = server.connections();
-                std::printf("aven-relay: %d games, %d connections\n", lastRooms, lastConnections);
+                std::printf("rynax-relay: %d games, %d connections\n", lastRooms, lastConnections);
                 std::fflush(stdout);
             }
         }
     }
     server.stop();
-    std::printf("aven-relay: stopped\n");
+    std::printf("rynax-relay: stopped\n");
     return 0;
 }

@@ -1,22 +1,22 @@
 #include "test_framework.h"
 
-#include "aven/assets/assets.h"
-#include "aven/core/fs.h"
-#include "aven/core/log.h"
-#include "aven/platform/input.h"
-#include "aven/runtime/game.h"
-#include "aven/runtime/network.h"
-#include "aven/runtime/net_socket.h"
-#include "aven/runtime/relay.h"
-#include "aven/runtime/script_system.h"
-#include "aven/runtime/systems.h"
+#include "rynax/assets/assets.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/log.h"
+#include "rynax/platform/input.h"
+#include "rynax/runtime/game.h"
+#include "rynax/runtime/network.h"
+#include "rynax/runtime/net_socket.h"
+#include "rynax/runtime/relay.h"
+#include "rynax/runtime/script_system.h"
+#include "rynax/runtime/systems.h"
 
 #include <cctype>
 #include <chrono>
 #include <filesystem>
 #include <thread>
 
-using namespace aven;
+using namespace rynax;
 
 namespace {
 
@@ -58,7 +58,7 @@ int avatars(Game& g) {
 
 } // namespace
 
-AVEN_TEST(relay_frames) {
+RYNAX_TEST(relay_frames) {
     std::string buffer = relay::frame(relay::Data, 7, "hello") + relay::frame(relay::Room, 0, "KX7P2M");
     buffer += relay::frame(relay::Data, 1, "partial").substr(0, 6); // the rest hasn't arrived
     std::vector<std::string> got;
@@ -75,7 +75,7 @@ AVEN_TEST(relay_frames) {
 
 // Two games that can't see each other directly play through a relay: the host gets a room code,
 // the player joins with it, and everything works as on a local network.
-AVEN_TEST(online_two_games_through_a_relay) {
+RYNAX_TEST(online_two_games_through_a_relay) {
     relay::Server server;
     std::string error;
     if (!server.start(0, error, true)) {
@@ -84,7 +84,7 @@ AVEN_TEST(online_two_games_through_a_relay) {
     }
     std::string address = "127.0.0.1:" + std::to_string(server.port());
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_relay_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_relay_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "scripts", ec);
@@ -102,7 +102,7 @@ AVEN_TEST(online_two_games_through_a_relay) {
         auto& reg = scene->registry();
         reg.emplace<Script>(scene->create("Brain")).path = script;
         Entity box = scene->create("Box");
-        scene->setUUID(box, aven::UUID{0x1234});
+        scene->setUUID(box, rynax::UUID{0x1234});
         reg.emplace<NetworkSync>(box);
         return scene;
     };
@@ -207,7 +207,7 @@ AVEN_TEST(online_two_games_through_a_relay) {
 
 // The relay says no, clearly: a wrong code, a different game, guessing codes, and connections
 // that never say what they want.
-AVEN_TEST(online_relay_refusals) {
+RYNAX_TEST(online_relay_refusals) {
     relay::ServerLimits limits;
     limits.wrongCodesPerMinute = 2;
     limits.helloSeconds = 0.3;
@@ -264,7 +264,7 @@ AVEN_TEST(online_relay_refusals) {
     CHECK(before >= 2);
     CHECK(pumpUntil([&] { server.poll(5); }, [&] { return server.connections() == 1; }, 3.0)); // only the host
     if (idle != INVALID_SOCKET)
-        AVEN_CLOSE(idle);
+        RYNAX_CLOSE(idle);
     host.stop();
     player.stop();
 }

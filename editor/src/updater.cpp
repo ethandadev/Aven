@@ -1,9 +1,9 @@
-// Updates: when the editor starts, Aven asks GitHub for its releases. When there's a newer one, a
+// Updates: when the editor starts, Rynax asks GitHub for its releases. When there's a newer one, a
 // small "Update to 0.4.0" button shows in the menu bar (and on the start screen); nothing pops up.
 // The Update window shows what's new, downloads this system's zip, checks it against the SHA-256
-// GitHub lists for it, and unpacks it into .aven-update/ beside the editor. The new files are
-// swapped in when Aven quits (or restarts from that window): a running program can be renamed on
-// every system but not overwritten, so the old files move to .aven-update/old, which the new
+// GitHub lists for it, and unpacks it into .rynax-update/ beside the editor. The new files are
+// swapped in when Rynax quits (or restarts from that window): a running program can be renamed on
+// every system but not overwritten, so the old files move to .rynax-update/old, which the new
 // version deletes when it starts. If anything can't be moved, everything is put back.
 //
 // Downloads use curl, which comes with Windows 10 and later, macOS and most Linux systems, so the
@@ -11,19 +11,19 @@
 // update themselves; a build from source just says there's a new version.
 //
 // Every download must come with its .sig: an Ed25519 signature, by the release key, of the file's
-// name and SHA-256 (tools/release/update_key.py). The public key is built in (AVEN_UPDATE_PUBLIC_KEY,
+// name and SHA-256 (tools/release/update_key.py). The public key is built in (RYNAX_UPDATE_PUBLIC_KEY,
 // set by the release workflow); a build without one doesn't install updates itself. So publishing a
 // release on GitHub isn't enough to reach people's computers: it also takes the private key.
 //
-// Test builds (AVEN_TEST_HOOKS, off for releases) also read AVEN_UPDATE_URL, which replaces GitHub's
-// release list (file:// links work then), and AVEN_UPDATE_PUBLIC_KEY.
+// Test builds (RYNAX_TEST_HOOKS, off for releases) also read RYNAX_UPDATE_URL, which replaces GitHub's
+// release list (file:// links work then), and RYNAX_UPDATE_PUBLIC_KEY.
 
 #include "editor.h"
 
-#include "aven/core/fs.h"
-#include "aven/core/log.h"
-#include "aven/core/update.h"
-#include "aven/core/zip.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/log.h"
+#include "rynax/core/update.h"
+#include "rynax/core/zip.h"
 
 #include <imgui.h>
 
@@ -53,12 +53,12 @@
 extern char** environ;
 #endif
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
-constexpr const char* kReleases = "https://api.github.com/repos/ethandadev/Aven/releases?per_page=20";
-constexpr const char* kReleasePage = "https://github.com/ethandadev/Aven/releases/latest";
+constexpr const char* kReleases = "https://api.github.com/repos/ethandadev/Rynax/releases?per_page=20";
+constexpr const char* kReleasePage = "https://github.com/ethandadev/Rynax/releases/latest";
 
 const char* hostSystem() {
 #if defined(_WIN32)
@@ -72,16 +72,16 @@ const char* hostSystem() {
 
 const char* editorProgram() {
 #if defined(_WIN32)
-    return "aven-editor.exe";
+    return "rynax-editor.exe";
 #else
-    return "aven-editor";
+    return "rynax-editor";
 #endif
 }
 
-// A test build's stand-in for GitHub (AVEN_UPDATE_URL), or nothing.
+// A test build's stand-in for GitHub (RYNAX_UPDATE_URL), or nothing.
 const char* testReleases() {
-#if AVEN_TEST_HOOKS
-    const char* custom = std::getenv("AVEN_UPDATE_URL");
+#if RYNAX_TEST_HOOKS
+    const char* custom = std::getenv("RYNAX_UPDATE_URL");
     return custom && *custom ? custom : nullptr;
 #else
     return nullptr;
@@ -92,18 +92,18 @@ std::string releasesUrl() { return testReleases() ? testReleases() : kReleases; 
 
 // The key release downloads are signed with (64 hex digits), or "" in builds made without one.
 std::string updateKey() {
-#if AVEN_TEST_HOOKS
-    if (const char* key = std::getenv("AVEN_UPDATE_PUBLIC_KEY"))
+#if RYNAX_TEST_HOOKS
+    if (const char* key = std::getenv("RYNAX_UPDATE_PUBLIC_KEY"))
         return key;
 #endif
-    return AVEN_UPDATE_PUBLIC_KEY;
+    return RYNAX_UPDATE_PUBLIC_KEY;
 }
 
 } // namespace
 
-// How this copy of Aven was installed, and so how it's updated.
+// How this copy of Rynax was installed, and so how it's updated.
 struct UpdateInstall {
-    stdfs::path root;       // what an update replaces: Aven's folder, or Aven.app (empty: not a release)
+    stdfs::path root;       // what an update replaces: Rynax's folder, or Rynax.app (empty: not a release)
     stdfs::path work;       // downloads and the old version; on the same drive as root, so files can move
     std::string program;    // the editor, inside root
     std::string cantUpdate; // why this copy can't replace itself (empty: it can)
@@ -117,31 +117,31 @@ UpdateInstall thisInstall() {
     UpdateInstall in;
     if (std::getenv("FLATPAK_ID") || stdfs::exists("/.flatpak-info", ec)) {
         in.root = dir;
-        in.cantUpdate = "Aven was installed with Flatpak, which keeps its files read-only: download the new .flatpak "
+        in.cantUpdate = "Rynax was installed with Flatpak, which keeps its files read-only: download the new .flatpak "
                         "from the release page and open it to update.";
     } else if (dir.filename() == "MacOS" && stdfs::exists(dir.parent_path() / "Info.plist", ec)) {
-        // Aven.app/Contents/MacOS/aven-editor: the update replaces Aven.app's Contents.
+        // Rynax.app/Contents/MacOS/rynax-editor: the update replaces Rynax.app's Contents.
         in.root = dir.parent_path().parent_path();
-        in.work = in.root.parent_path() / ".aven-update";
-        in.program = "Contents/MacOS/aven-editor";
+        in.work = in.root.parent_path() / ".rynax-update";
+        in.program = "Contents/MacOS/rynax-editor";
         if (in.root.string().find("/AppTranslocation/") != std::string::npos)
-            in.cantUpdate = "macOS is running Aven from a temporary read-only copy, because it hasn't been moved since it "
-                            "was downloaded. Drag Aven into your Applications folder, open it from there, and update again.";
+            in.cantUpdate = "macOS is running Rynax from a temporary read-only copy, because it hasn't been moved since it "
+                            "was downloaded. Drag Rynax into your Applications folder, open it from there, and update again.";
 #if !defined(_WIN32)
         else if (access(in.root.parent_path().c_str(), W_OK) != 0) // e.g. still on the .dmg it came in
-            in.cantUpdate = "Aven can't update itself where it is (" + in.root.parent_path().string() +
-                            "). Drag Aven into your Applications folder, open it from there, and update again.";
+            in.cantUpdate = "Rynax can't update itself where it is (" + in.root.parent_path().string() +
+                            "). Drag Rynax into your Applications folder, open it from there, and update again.";
 #endif
     } else if (stdfs::exists(dir / "START HERE.txt", ec) && stdfs::exists(dir / editorProgram(), ec)) {
         in.root = dir; // a release zip (or the Windows installer, which installs the same files)
-        in.work = dir / ".aven-update";
+        in.work = dir / ".rynax-update";
         in.program = editorProgram();
     } else {
-        in.cantUpdate = "This copy of Aven was built from its source code, so it doesn't replace itself: pull the new "
-                        "code, or download Aven from the release page.";
+        in.cantUpdate = "This copy of Rynax was built from its source code, so it doesn't replace itself: pull the new "
+                        "code, or download Rynax from the release page.";
     }
     if (in.cantUpdate.empty() && updateKey().size() != 64)
-        in.cantUpdate = "This copy of Aven was built without the key that proves an update really comes from Aven's "
+        in.cantUpdate = "This copy of Rynax was built without the key that proves an update really comes from Rynax's "
                         "release, so it doesn't install updates itself: download the new version from the release page.";
     return in;
 }
@@ -253,13 +253,13 @@ int runProgram(const std::vector<std::string>& args, const std::atomic<bool>* ca
 std::string fetch(const std::string& url, const stdfs::path& to, bool big, const std::atomic<bool>* cancel) {
     stdfs::path curl = findCurl();
     if (curl.empty())
-        return "Aven uses curl to download, and it isn't installed here (on Linux: sudo apt install curl).";
+        return "Rynax uses curl to download, and it isn't installed here (on Linux: sudo apt install curl).";
     stdfs::path err = to.string() + ".log";
-    // https only (file:// too in a test build with AVEN_UPDATE_URL), also after redirects.
+    // https only (file:// too in a test build with RYNAX_UPDATE_URL), also after redirects.
     const char* protocols = testReleases() ? "=https,file" : "=https";
     std::vector<std::string> args = {curl.string(), "--fail", "--silent", "--show-error", "--location", "--proto", protocols,
                                      "--proto-redir", protocols, "--retry", "2", "--connect-timeout", "20",
-                                     "--user-agent", std::string("Aven-Editor/") + AVEN_VERSION, "--stderr", err.string(),
+                                     "--user-agent", std::string("Rynax-Editor/") + RYNAX_VERSION, "--stderr", err.string(),
                                      "--output", to.string()};
     if (big) // give up on a stalled download (slower than 1 KB/s for a minute), not a slow one
         args.insert(args.end(), {"--speed-limit", "1024", "--speed-time", "60"});
@@ -309,7 +309,7 @@ void drawNotes(const std::string& notes, ImFont* bold) {
     while (std::getline(ss, line)) {
         if (!line.empty() && line.back() == '\r')
             line.pop_back();
-        if (line.find("<!-- aven:download -->") != std::string::npos)
+        if (line.find("<!-- rynax:download -->") != std::string::npos)
             break;
         size_t start = line.find_first_not_of(' ');
         if (start == std::string::npos || line.compare(start, 4, "<!--") == 0 || line[start] == '|') {
@@ -451,10 +451,10 @@ void Editor::startUpdater() {
     }
     if (!options_.screenshot.empty())
         return;
-    if (!prefs.lastVersion.empty() && update::isNewer(AVEN_VERSION, prefs.lastVersion))
-        notify(std::string("Aven is updated to ") + AVEN_VERSION + ". Have fun!");
-    if (prefs.lastVersion != AVEN_VERSION) {
-        prefs.lastVersion = AVEN_VERSION;
+    if (!prefs.lastVersion.empty() && update::isNewer(RYNAX_VERSION, prefs.lastVersion))
+        notify(std::string("Rynax is updated to ") + RYNAX_VERSION + ". Have fun!");
+    if (prefs.lastVersion != RYNAX_VERSION) {
+        prefs.lastVersion = RYNAX_VERSION;
         prefs.save();
     }
     // Builds from source don't look on their own (Help > Check for Updates still does).
@@ -471,10 +471,10 @@ void Editor::checkForUpdates(bool manual, bool wait) {
     job->manual = manual;
     job->install = thisInstall();
     updateJob_ = job;
-    bool betas = prefs.betaUpdates || !update::parseVersion(AVEN_VERSION).pre.empty(); // beta testers keep getting betas
+    bool betas = prefs.betaUpdates || !update::parseVersion(RYNAX_VERSION).pre.empty(); // beta testers keep getting betas
     std::string skipped = manual ? "" : prefs.skippedUpdate;
     auto work = [job, betas, skipped] {
-        stdfs::path list = fs::userDataDir("Aven Editor") / "releases.json";
+        stdfs::path list = fs::userDataDir("Rynax Editor") / "releases.json";
         std::error_code ec;
         stdfs::create_directories(list.parent_path(), ec);
         std::string problem = fetch(releasesUrl(), list, false, nullptr);
@@ -486,12 +486,12 @@ void Editor::checkForUpdates(bool manual, bool wait) {
             return job->fail("GitHub's answer didn't list any releases" +
                              (releases["message"].isString() ? " (" + releases["message"].asString() + ")." : std::string(".")));
         update::Release release;
-        if (!update::newestRelease(releases, AVEN_VERSION, hostSystem(), betas, release) || release.version == skipped) {
+        if (!update::newestRelease(releases, RYNAX_VERSION, hostSystem(), betas, release) || release.version == skipped) {
             job->stage = UpdateJob::UpToDate;
             return;
         }
         job->release = release;
-        Log::info("Update: Aven ", release.version, " is out (this is ", AVEN_VERSION, ").");
+        Log::info("Update: Rynax ", release.version, " is out (this is ", RYNAX_VERSION, ").");
         job->stage = UpdateJob::Available;
     };
     if (wait)
@@ -511,7 +511,7 @@ void Editor::downloadUpdate(bool wait) {
     bool writable = fs::writeText(work / "can-write", "yes");
     stdfs::remove(work / "can-write", ec);
     if (!writable) {
-        job->fail("Aven can't change its own folder (" + job->install.root.string() +
+        job->fail("Rynax can't change its own folder (" + job->install.root.string() +
                   "). Download the new version from the release page and unzip it instead.");
         return;
     }
@@ -554,15 +554,15 @@ void Editor::downloadUpdate(bool wait) {
         stdfs::remove(sigFile, e);
         if (!problem.empty()) {
             stdfs::remove(job->part, e);
-            Log::error("Update: refused Aven ", r.version, ": ", problem);
-            return job->fail("This download couldn't be confirmed as a real Aven release (" + problem + "), so it wasn't installed.");
+            Log::error("Update: refused Rynax ", r.version, ": ", problem);
+            return job->fail("This download couldn't be confirmed as a real Rynax release (" + problem + "), so it wasn't installed.");
         }
         if (!zip::extract(job->part, work / "new", error))
             return job->fail("Couldn't unpack the download: " + error + ".");
         stdfs::remove(job->part, e);
         if (!stdfs::exists(work / "new" / job->install.program, e))
             return job->fail("The download doesn't have the editor in it, so it wasn't installed.");
-        Log::info("Update: Aven ", r.version, " is ready; it's installed when Aven closes.");
+        Log::info("Update: Rynax ", r.version, " is ready; it's installed when Rynax closes.");
         job->stage = UpdateJob::Ready;
     };
     if (wait)
@@ -602,7 +602,7 @@ void Editor::saveAndRestart() {
 std::string Editor::installPendingUpdate() {
     auto job = updateJob_;
     if (job && job->stage == UpdateJob::Downloading) {
-        // Quitting mid-download: stop curl rather than leave it running without Aven.
+        // Quitting mid-download: stop curl rather than leave it running without Rynax.
         job->cancel = true;
         for (int i = 0; i < 50 && job->stage == UpdateJob::Downloading; ++i)
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -616,7 +616,7 @@ std::string Editor::installPendingUpdate() {
             return "";
         std::string error;
         if (!update::swapIn(in.root, in.work / "old", in.work / "undone", error)) {
-            Log::error("Update: couldn't go back to Aven ", previous, ": ", error);
+            Log::error("Update: couldn't go back to Rynax ", previous, ": ", error);
             fs::writeText(in.work / "failed.txt", error);
             return "";
         }
@@ -624,7 +624,7 @@ std::string Editor::installPendingUpdate() {
         stdfs::remove_all(in.work / "old", ec);
         stdfs::remove(in.work / "old-version.txt", ec);
         setInstalledVersion(in.root, previous);
-        Log::info("Update: went back to Aven ", previous, ".");
+        Log::info("Update: went back to Rynax ", previous, ".");
         return updateRestart_ ? restartCommand(in, projectDir_) : "";
     }
     if (!job || job->stage != UpdateJob::Ready || !job->install.cantUpdate.empty())
@@ -633,12 +633,12 @@ std::string Editor::installPendingUpdate() {
     stdfs::remove_all(work / "old", ec);
     std::string error;
     if (!update::swapIn(job->install.root, work / "new", work / "old", error)) {
-        Log::error("Update: couldn't install Aven ", job->release.version, ": ", error);
-        fs::writeText(work / "failed.txt", error); // said when Aven next starts
+        Log::error("Update: couldn't install Rynax ", job->release.version, ": ", error);
+        fs::writeText(work / "failed.txt", error); // said when Rynax next starts
         return "";
     }
-    fs::writeText(work / "old-version.txt", AVEN_VERSION); // for "Go back to Aven ..."
-    Log::info("Update: installed Aven ", job->release.version, ".");
+    fs::writeText(work / "old-version.txt", RYNAX_VERSION); // for "Go back to Rynax ..."
+    Log::info("Update: installed Rynax ", job->release.version, ".");
     setInstalledVersion(job->install.root, job->release.version);
     return updateRestart_ ? restartCommand(job->install, projectDir_) : "";
 }
@@ -686,7 +686,7 @@ void Editor::drawUpdateBadge(bool small) {
         showUpdater_ = true;
     ImGui::PopStyleColor(2);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("A new version of Aven is out. Click to see what's new.");
+        ImGui::SetTooltip("A new version of Rynax is out. Click to see what's new.");
 }
 
 void Editor::drawUpdater() {
@@ -696,7 +696,7 @@ void Editor::drawUpdater() {
     ImGuiViewport* vp = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(vp->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
     ImGui::SetNextWindowSize(ui::fitted({560, 460}), ImGuiCond_Appearing);
-    if (!ImGui::Begin("Update Aven", &showUpdater_, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking)) {
+    if (!ImGui::Begin("Update Rynax", &showUpdater_, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking)) {
         ImGui::End();
         return;
     }
@@ -711,7 +711,7 @@ void Editor::drawUpdater() {
         ImGui::PushFont(fonts.big);
         ImGui::TextUnformatted("You're up to date");
         ImGui::PopFont();
-        ImGui::TextDisabled("Aven %s is the newest%s version.", AVEN_VERSION, prefs.betaUpdates ? "" : " released");
+        ImGui::TextDisabled("Rynax %s is the newest%s version.", RYNAX_VERSION, prefs.betaUpdates ? "" : " released");
     } else if (stage == UpdateJob::Failed && !known) {
         ImGui::TextWrapped("Couldn't check for a new version.");
         ImGui::TextDisabled("%s", job->why().c_str());
@@ -720,9 +720,9 @@ void Editor::drawUpdater() {
     if (known) {
         const update::Release& r = job->release;
         ImGui::PushFont(fonts.big);
-        ImGui::Text("Aven %s is here", r.version.c_str());
+        ImGui::Text("Rynax %s is here", r.version.c_str());
         ImGui::PopFont();
-        ImGui::TextDisabled("You have %s%s", AVEN_VERSION, r.beta ? "  ·  this one is a beta" : "");
+        ImGui::TextDisabled("You have %s%s", RYNAX_VERSION, r.beta ? "  ·  this one is a beta" : "");
         ImGui::Spacing();
         bool textLine = stage == UpdateJob::Failed || stage == UpdateJob::Ready || !job->install.cantUpdate.empty() || r.download.empty();
         float notesH = ImGui::GetContentRegionAvail().y - buttonH * (textLine ? 2.4f : 1.4f);
@@ -749,7 +749,7 @@ void Editor::drawUpdater() {
         } else if (stage == UpdateJob::Unpacking) {
             ImGui::ProgressBar(-static_cast<float>(ImGui::GetTime()), {-1, buttonH}, "Checking and unpacking...");
         } else if (stage == UpdateJob::Ready) {
-            ImGui::TextWrapped("Ready. Aven %s goes in when you close Aven, or now:", r.version.c_str());
+            ImGui::TextWrapped("Ready. Rynax %s goes in when you close Rynax, or now:", r.version.c_str());
             bool unsaved = (dirty_ && hasProject()) || pixel_.dirty;
             for (auto& t : tabs_)
                 unsaved = unsaved || t->modified;
@@ -791,4 +791,4 @@ void Editor::drawUpdater() {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

@@ -1,16 +1,16 @@
 #include "editor.h"
 
-#include "aven/runtime/native.h"
+#include "rynax/runtime/native.h"
 
-#include "aven/blocks/blocks.h"
-#include "aven/core/fs.h"
-#include "aven/core/zip.h"
-#include "aven/core/log.h"
-#include "aven/runtime/script_system.h"
-#include "aven/scene/reflection.h"
+#include "rynax/blocks/blocks.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/zip.h"
+#include "rynax/core/log.h"
+#include "rynax/runtime/script_system.h"
+#include "rynax/scene/reflection.h"
 #include "block_editor.h"
 #include "code_editor.h"
-#include "aven/scene/terrain.h"
+#include "rynax/scene/terrain.h"
 
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
@@ -21,7 +21,7 @@
 #include <optional>
 #include <random>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 std::mutex g_consoleMutex;
@@ -53,7 +53,7 @@ bool Editor::init(const EditorOptions& options) {
     options_ = options;
     if (options.screenshot.empty()) {
         prefs.load();
-        showOnboarding_ = !prefs.onboarded; // (the first time Aven runs: no preferences yet)
+        showOnboarding_ = !prefs.onboarded; // (the first time Rynax runs: no preferences yet)
     } else {
         prefs.level = options.level > 0 ? options.level : 4; // automated screenshots show everything
         Prefs::saving = false;
@@ -226,8 +226,8 @@ void Editor::openPanels(const std::string& list) {
         else if (p.rfind("import:", 0) == 0) { selectedAssets_ = {p.substr(7)}; showImport_ = focusImport_ = true; } // Import Settings for a file
         else if (p.rfind("tool:", 0) == 0) runEditorTool(p.substr(5)); // run an editor tool
         else if (p.rfind("drop:", 0) == 0) onFilesDropped({p.substr(5)}); // as if dragged in from the desktop
-        else if (p.rfind("ask:", 0) == 0) { // ask:bigger and red (automated tests): Ask Aven's proposals, logged
-            askAven(p.substr(4));
+        else if (p.rfind("ask:", 0) == 0) { // ask:bigger and red (automated tests): Ask Rynax's proposals, logged
+            askRynax(p.substr(4));
             for (auto& pr : assistant_.proposals)
                 Log::info("ask proposal: ", pr.text);
             for (auto& u : assistant_.unknown)
@@ -240,7 +240,7 @@ void Editor::openPanels(const std::string& list) {
                     all.push_back(t);
             startDesktopExport(all, true);
         }
-        else if (p == "update") { // Help > Check for Updates, then download it (automated tests: AVEN_UPDATE_URL)
+        else if (p == "update") { // Help > Check for Updates, then download it (automated tests: RYNAX_UPDATE_URL)
             checkForUpdates(true, true);
             downloadUpdate(true);
             Log::info("update: ", updateStatus());
@@ -273,7 +273,7 @@ void Editor::openPanels(const std::string& list) {
         else if (p == "play") play();
         else if (p == "recover") recover(true);            // the recovery prompt's buttons
         else if (p == "discard") recover(false);
-#if AVEN_TEST_HOOKS
+#if RYNAX_TEST_HOOKS
         else if (p == "crash") std::_Exit(3); // closing without cleaning up, as a crash would (tests)
 #endif // Preferences > Updates > Go back (automated tests)
         else if (p == "gamedetails") { showExport_ = true; exportTab_ = 3; }
@@ -502,12 +502,12 @@ void Editor::openPanels(const std::string& list) {
         else if (p.rfind("prefab:", 0) == 0) openPrefab(p.substr(7));
         else if (p.rfind("aspect:", 0) == 0) gameAspect_ = std::atoi(p.substr(7).c_str());
         else if (p.rfind("layout:", 0) == 0) prefs.layout = p.substr(7);
-        else if (p.rfind("ask:", 0) == 0) { assistantText_ = p.substr(4); askAven(assistantText_); }
+        else if (p.rfind("ask:", 0) == 0) { assistantText_ = p.substr(4); askRynax(assistantText_); }
         else if (p.rfind("askapply:", 0) == 0) {
-            askAven(p.substr(9));
-            recordUndo("Ask Aven");
+            askRynax(p.substr(9));
+            recordUndo("Ask Rynax");
             for (auto& prop : assistant_.proposals) {
-                Log::info("Ask Aven: ", prop.text);
+                Log::info("Ask Rynax: ", prop.text);
                 prop.apply(*this);
             }
             assistant_ = {};
@@ -517,9 +517,9 @@ void Editor::openPanels(const std::string& list) {
 }
 
 void Editor::refreshTitle() {
-    std::string title = "Aven";
+    std::string title = "Rynax";
     if (hasProject())
-        title = settings_.name + " - " + (scenePath_.empty() ? "untitled" : scenePath_) + (dirty_ ? " *" : "") + " - Aven";
+        title = settings_.name + " - " + (scenePath_.empty() ? "untitled" : scenePath_) + (dirty_ ? " *" : "") + " - Rynax";
     window_.setTitle(title);
 }
 
@@ -532,7 +532,7 @@ void Editor::notify(const std::string& message, bool error) {
 // ---------------------------------------------------------------- recent projects
 
 void Editor::loadRecent() {
-    auto text = fs::readText(fs::userDataDir("Aven Editor") / "recent.json");
+    auto text = fs::readText(fs::userDataDir("Rynax Editor") / "recent.json");
     if (!text)
         return;
     Json j = Json::parse(*text);
@@ -549,14 +549,14 @@ void Editor::saveRecent() {
     for (auto& r : recentProjects_)
         list.push(r);
     j["recent"] = list;
-    fs::writeText(fs::userDataDir("Aven Editor") / "recent.json", j.dump(2));
+    fs::writeText(fs::userDataDir("Rynax Editor") / "recent.json", j.dump(2));
 }
 
 // ---------------------------------------------------------------- projects
 
 std::vector<TemplateInfo> Editor::templates() const {
     std::vector<TemplateInfo> out;
-    std::vector<stdfs::path> roots = {fs::resourceDir() / "templates", stdfs::path(AVEN_TEMPLATES_DIR)};
+    std::vector<stdfs::path> roots = {fs::resourceDir() / "templates", stdfs::path(RYNAX_TEMPLATES_DIR)};
     for (auto& root : roots) {
         std::error_code ec;
         if (!stdfs::is_directory(root, ec))
@@ -594,7 +594,7 @@ bool Editor::createProject(const stdfs::path& dir, const std::string& name, cons
     if (deferIfUnsaved([this, dir, name, copy] { createProject(dir, name, copy ? &*copy : nullptr); }, true))
         return false;
     std::error_code ec;
-    if (stdfs::exists(dir / ProjectSettings::kFileName, ec)) {
+    if (ProjectSettings::isProject(dir)) {
         notify("There's already a project in that folder.", true);
         return false;
     }
@@ -621,10 +621,10 @@ bool Editor::createProject(const stdfs::path& dir, const std::string& name, cons
     s.save(dir);
     for (const char* folder : {"scenes", "scripts", "images", "sounds", "prefabs"})
         stdfs::create_directories(dir / folder, ec);
-    // Ready for Git: everything Aven makes from the project stays out of version control.
+    // Ready for Git: everything Rynax makes from the project stays out of version control.
     if (!stdfs::exists(dir / ".gitignore", ec))
-        fs::writeText(dir / ".gitignore", "# Made by Aven from the project; no need to keep them in version control.\n"
-                                          ".aven/\nexports/\ncaptures/\nbug_reports/\nnative/build/\nimgui.ini\n");
+        fs::writeText(dir / ".gitignore", "# Made by Rynax from the project; no need to keep them in version control.\n"
+                                          ".rynax/\nexports/\ncaptures/\nbug_reports/\nnative/build/\nimgui.ini\n");
     if (!openProject(dir))
         return false;
     if (!fs::exists(dir / s.startScene)) {
@@ -642,6 +642,8 @@ bool Editor::openProject(const stdfs::path& dir) {
     if (deferIfUnsaved([this, dir] { openProject(dir); }, true))
         return false;
     clearRecovery(); // the project being left: its unsaved changes were answered for
+    if (options_.screenshot.empty() && ProjectSettings::migrate(dir)) // (a game made when Rynax was called Aven)
+        Log::info("Renamed project.aven to project.rynax in ", fs::toUtf8(dir));
     ProjectSettings s;
     std::string error;
     if (!s.load(dir, &error)) {
@@ -684,7 +686,7 @@ bool Editor::openProject(const stdfs::path& dir) {
     checkLastSession();
     nativePromptDismissed_ = false;
     NativeModules::get().refresh(projectDir_); // C/C++ behaviors it has, if built here or allowed
-    checkRecovery(); // unsaved changes from a time Aven closed unexpectedly
+    checkRecovery(); // unsaved changes from a time Rynax closed unexpectedly
     Log::info("Opened project '", settings_.name, "'");
     return true;
 }
@@ -1507,7 +1509,7 @@ void Editor::copySelection(bool cut) {
     if (sel.empty())
         return;
     clipboard_ = scene_->saveEntities(sel);
-    clipboard_["aven"] = "objects";
+    clipboard_["rynax"] = "objects";
     // Where they were, so pasting puts them back beside the originals: the shared parent, and world positions.
     Entity parent = scene_->parent(sel[0]);
     bool sameParent = std::all_of(sel.begin(), sel.end(), [&](Entity e) { return scene_->parent(e) == parent; });
@@ -1534,11 +1536,11 @@ void Editor::copySelection(bool cut) {
 }
 
 void Editor::pasteClipboard(bool inPlace) {
-    // Objects copied in another project (or another Aven window) arrive through the system clipboard.
+    // Objects copied in another project (or another Rynax window) arrive through the system clipboard.
     if (const char* text = ImGui::GetClipboardText()) {
         std::string error;
         Json j = Json::parse(text, &error);
-        if (error.empty() && j["aven"].asString() == "objects")
+        if (error.empty() && j["rynax"].asString(j["aven"].asString()) == "objects") // (or copied in Aven)
             clipboard_ = j;
     }
     if (clipboard_.isNull())
@@ -1765,7 +1767,7 @@ void Editor::attachScript(Entity e, const std::string& path) {
     scene_->registry().getOrEmplace<Script>(e).path = path;
 }
 
-void Editor::openScript(const std::string& path, int line, bool inAven) {
+void Editor::openScript(const std::string& path, int line, bool inRynax) {
     for (auto& t : tabs_)
         if (t->path == path) {
             t->focus = true;
@@ -1777,7 +1779,7 @@ void Editor::openScript(const std::string& path, int line, bool inAven) {
         openBlocks(path);
         return;
     }
-    if (prefs.useExternalEditor && !prefs.externalEditor.empty() && !inAven) {
+    if (prefs.useExternalEditor && !prefs.externalEditor.empty() && !inRynax) {
         std::string cmd = prefs.externalEditor;
         auto fill = [&](const std::string& key, const std::string& value) {
             for (size_t at = cmd.find(key); at != std::string::npos; at = cmd.find(key, at + value.size()))
@@ -1960,7 +1962,9 @@ void Editor::onFilesDropped(const std::vector<std::string>& files) {
         bool hasGame = false;
         if (zip::list(files[0], names, error))
             for (auto& name : names)
-                hasGame = hasGame || name == "project.aven" || (name.find('/') == name.rfind('/') && name.ends_with("/project.aven"));
+                for (const char* file : {ProjectSettings::kFileName, ProjectSettings::kLegacyFileName})
+                    hasGame = hasGame || name == file ||
+                              (name.find('/') == name.rfind('/') && name.ends_with(std::string("/") + file));
         if (hasGame || !hasProject()) {
             importProjectZip(files[0]);
             return;
@@ -2057,7 +2061,7 @@ void Editor::setupCodeIntel() {
     for (auto& m : docs.members())
         if (m.key[0] != '_')
             codeIndex_.docs[m.key] = m.value.asString();
-    if (auto header = fs::readText(sdkDir() / "include" / "aven.h"))
+    if (auto header = fs::readText(sdkDir() / "include" / "rynax.h"))
         codeIndex_.readCApi(*header);
     engineKeyNames_ = codeIndex_.keyNames;
     easyIntel_ = std::make_unique<script::CodeIntel>(codeIndex_, script::CodeKind::EasyScript);
@@ -2115,8 +2119,8 @@ void Editor::refreshCodeIndex() {
 // docs/easyscript-api.md is made from the same list the Reference panel shows (tools/docs/make_api_reference.sh).
 void Editor::writeApiReference(const std::string& path) {
     std::string md = "# EasyScript API\n\nEverything scripts can use, generated from the engine itself (the same list as the "
-                     "editor's Scripting Reference). Blocks turn into these calls, and the C API (sdk/include/aven.h) uses "
-                     "`aven_` plus the same names.\n";
+                     "editor's Scripting Reference). Blocks turn into these calls, and the C API (sdk/include/rynax.h) uses "
+                     "`rynax_` plus the same names.\n";
     std::vector<std::string> groups;
     for (auto& e : api_)
         if (std::find(groups.begin(), groups.end(), e.group) == groups.end())
@@ -2482,4 +2486,4 @@ void Editor::drawNotification(float dt) {
                 notification_.c_str(), nullptr, 520);
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cctype>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -77,4 +77,4 @@ const ParticlePreset* findParticlePreset(const std::string& name) {
     return nullptr;
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

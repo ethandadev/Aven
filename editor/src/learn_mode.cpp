@@ -4,12 +4,12 @@
 
 #include <algorithm>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 const std::vector<FeatureInfo>& featureList() {
     static const std::vector<FeatureInfo> list = {
-        {Feature::Recipes, "Game recipes", "Tell Aven what game you want and get a small working version, explained step by step.", 1},
-        {Feature::Assistant, "Ask Aven", "Describe a change in plain words, like \"make it faster\", and see the settings it changes.", 1},
+        {Feature::Recipes, "Game recipes", "Tell Rynax what game you want and get a small working version, explained step by step.", 1},
+        {Feature::Assistant, "Ask Rynax", "Describe a change in plain words, like \"make it faster\", and see the settings it changes.", 1},
         {Feature::Explain, "Explain", "Select anything to read what it does and how it connects to the rest of the game.", 1},
         {Feature::Doctor, "Error doctor", "Errors in plain English with a Fix button.", 1},
         {Feature::Blocks, "Block coding", "Snap blocks together to give objects behavior.", 1},
@@ -33,8 +33,8 @@ const std::vector<FeatureInfo>& featureList() {
         {Feature::Capture, "Screenshots and GIFs", "Capture your game to share it.", 2},
 
         {Feature::Code, "EasyScript code", "Type code in EasyScript, a friendly Python-like language.", 3},
-        {Feature::CodeLadder, "Code ladder", "See your script in C (Aven's native tier) and as C#, GDScript, Luau or C++ for other engines.", 3},
-        {Feature::Export, "Build & export", "Make a version of your game that runs without Aven.", 3},
+        {Feature::CodeLadder, "Code ladder", "See your script in C (Rynax's native tier) and as C#, GDScript, Luau or C++ for other engines.", 3},
+        {Feature::Export, "Build & export", "Make a version of your game that runs without Rynax.", 3},
         {Feature::History, "Undo history", "Jump back to any earlier change.", 3},
         {Feature::Find, "Find in project", "Search every script and scene.", 3},
         {Feature::BugReplay, "Bug replay", "Watch the last 20 seconds before an error.", 3},
@@ -44,7 +44,7 @@ const std::vector<FeatureInfo>& featureList() {
 
         {Feature::Advanced, "Advanced settings", "Every setting of every component.", 4},
         {Feature::Profiler, "Profiler", "See where each frame's time goes.", 4},
-        {Feature::Quests, "Contributor quests", "Small guided tasks to help improve Aven itself.", 4},
+        {Feature::Quests, "Contributor quests", "Small guided tasks to help improve Rynax itself.", 4},
         {Feature::NativeCode, "Native C/C++ code", "Write performance-critical parts in C or C++.", 4},
         {Feature::Keybindings, "Custom shortcuts", "Change any keyboard shortcut.", 4},
     };
@@ -115,4 +115,4 @@ std::string nextLevelHint(const Prefs& p) {
     }
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

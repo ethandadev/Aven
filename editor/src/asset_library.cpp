@@ -5,8 +5,8 @@
 
 #include "editor.h"
 
-#include "aven/core/fs.h"
-#include "aven/render/renderer3d.h"
+#include "rynax/core/fs.h"
+#include "rynax/render/renderer3d.h"
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -14,7 +14,7 @@
 #include <algorithm>
 #include <cctype>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -277,4 +277,4 @@ void Editor::drawAssetLibrary() {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

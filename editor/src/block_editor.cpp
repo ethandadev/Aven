@@ -2,7 +2,7 @@
 #include "ui_scale.h"
 #include "code_editor.h"
 
-#include "aven/platform/input.h"
+#include "rynax/platform/input.h"
 
 #include <algorithm>
 #include <cctype>
@@ -10,7 +10,7 @@
 #include <cstdio>
 #include <cstring>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 using blocks::BlockDef;
 using blocks::InputType;
@@ -1269,4 +1269,4 @@ bool parseBlockColor(const std::string& name, Color& out) {
     return false;
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

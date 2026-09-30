@@ -1,35 +1,35 @@
 #include "test_framework.h"
 
-#include "aven/assets/assets.h"
-#include "aven/core/fs.h"
-#include "aven/core/log.h"
-#include "aven/platform/input.h"
-#include "aven/runtime/game.h"
-#include "aven/runtime/native.h"
-#include "aven/runtime/script_system.h"
-#include "aven/scene/scene.h"
+#include "rynax/assets/assets.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/log.h"
+#include "rynax/platform/input.h"
+#include "rynax/runtime/game.h"
+#include "rynax/runtime/native.h"
+#include "rynax/runtime/script_system.h"
+#include "rynax/scene/scene.h"
 
 #include <cmath>
 #include <filesystem>
 
-using namespace aven;
+using namespace rynax;
 namespace stdfs = std::filesystem;
 
 namespace {
 
 stdfs::path makeProject() {
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_native_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_native_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(NativeModules::binDir(dir), ec);
     stdfs::create_directories(dir / "scripts", ec);
-    stdfs::copy_file(AVEN_TEST_MODULE, NativeModules::binDir(dir) / (std::string("movers") + NativeModules::libraryExtension()), ec);
+    stdfs::copy_file(RYNAX_TEST_MODULE, NativeModules::binDir(dir) / (std::string("movers") + NativeModules::libraryExtension()), ec);
     return dir;
 }
 
 } // namespace
 
-AVEN_TEST(native_module_loads_behaviors_and_properties) {
+RYNAX_TEST(native_module_loads_behaviors_and_properties) {
     stdfs::path dir = makeProject();
     NativeModules& modules = NativeModules::get();
     CHECK(modules.refresh(dir));
@@ -63,7 +63,23 @@ AVEN_TEST(native_module_loads_behaviors_and_properties) {
     modules.unloadAll();
 }
 
-AVEN_TEST(native_behaviors_run_in_the_game) {
+// A module built with aven.h, from when Rynax was called Aven: found, with its settings.
+RYNAX_TEST(native_module_from_aven_still_loads) {
+    stdfs::path dir = makeProject();
+    std::error_code ec;
+    stdfs::remove(NativeModules::binDir(dir) / (std::string("movers") + NativeModules::libraryExtension()), ec);
+    stdfs::copy_file(RYNAX_AVEN_MODULE, NativeModules::binDir(dir) / (std::string("old") + NativeModules::libraryExtension()), ec);
+    NativeModules& modules = NativeModules::get();
+    CHECK(modules.refresh(dir));
+    CHECK_EQ(modules.modules().size(), size_t(1));
+    CHECK(modules.modules().empty() || modules.modules()[0].error.empty());
+    const NativeBehaviorInfo* old = modules.find("OldTimer");
+    CHECK(old != nullptr);
+    CHECK(old && old->properties.size() == 1 && std::abs(old->properties[0].defaultValue - 3.5) < 1e-9);
+    modules.unloadAll();
+}
+
+RYNAX_TEST(native_behaviors_run_in_the_game) {
     stdfs::path dir = makeProject();
     // EasyScript talks to the C behavior, and hears C's broadcast.
     fs::writeText(dir / "scripts/talker.es", "t = 0\nsent = False\n\ndef on_update(dt):\n    t += dt\n"
@@ -158,14 +174,14 @@ AVEN_TEST(native_behaviors_run_in_the_game) {
     NativeModules::get().unloadAll();
 }
 
-#ifdef AVEN_EXAMPLE_CPP_MODULE
+#ifdef RYNAX_EXAMPLE_CPP_MODULE
 // Modules written in C++ export the same entry point (no name mangling).
-AVEN_TEST(native_module_in_cpp_loads) {
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_native_cpp_test";
+RYNAX_TEST(native_module_in_cpp_loads) {
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_native_cpp_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(NativeModules::binDir(dir), ec);
-    stdfs::copy_file(AVEN_EXAMPLE_CPP_MODULE, NativeModules::binDir(dir) / (std::string("patrol") + NativeModules::libraryExtension()), ec);
+    stdfs::copy_file(RYNAX_EXAMPLE_CPP_MODULE, NativeModules::binDir(dir) / (std::string("patrol") + NativeModules::libraryExtension()), ec);
     NativeModules& modules = NativeModules::get();
     CHECK(modules.refresh(dir));
     CHECK(modules.modules().size() == 1 && modules.modules()[0].error.empty());

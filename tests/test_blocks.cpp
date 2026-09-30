@@ -1,9 +1,9 @@
 #include "test_framework.h"
 
-#include "aven/blocks/blocks.h"
-#include "aven/script/vm.h"
+#include "rynax/blocks/blocks.h"
+#include "rynax/script/vm.h"
 
-using namespace aven;
+using namespace rynax;
 
 namespace {
 
@@ -22,7 +22,7 @@ bool compilesAsEasyScript(const std::string& source, std::string& error) {
 
 } // namespace
 
-AVEN_TEST(blocks_every_block_generates_valid_code) {
+RYNAX_TEST(blocks_every_block_generates_valid_code) {
     // One script per hat, with every statement block (and reporters inside a print) in a forever loop.
     Json doc = blocks::emptyDocument();
     Json var = Json::object();
@@ -65,9 +65,9 @@ AVEN_TEST(blocks_every_block_generates_valid_code) {
     CHECK(ok);
 }
 
-AVEN_TEST(blocks_simple_script_reads_naturally) {
+RYNAX_TEST(blocks_simple_script_reads_naturally) {
     std::string text = R"({
-      "aven": "blocks", "version": 1,
+      "rynax": "blocks", "version": 1,
       "variables": [{"name": "speed", "value": 5}],
       "scripts": [
         {"blocks": [{"type": "when_start"}, {"type": "say", "inputs": {"text": "Hi!", "seconds": 2}}]},
@@ -86,7 +86,7 @@ AVEN_TEST(blocks_simple_script_reads_naturally) {
     CHECK(code.find("move") == code.find("move") && code.find("self.move(") == std::string::npos); // loose blocks don't run
 }
 
-AVEN_TEST(blocks_multiple_hats_run_side_by_side) {
+RYNAX_TEST(blocks_multiple_hats_run_side_by_side) {
     std::string text = R"({"scripts": [
         {"blocks": [{"type": "when_start"}, {"type": "forever", "body": [{"type": "turn"}]}]},
         {"blocks": [{"type": "when_start"}, {"type": "say"}]},

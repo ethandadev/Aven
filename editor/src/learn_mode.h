@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 struct Prefs;
 
@@ -39,4 +39,4 @@ int earnedLevel(const Prefs& prefs);
 // What's still needed for the next level, in plain words (empty at Pro).
 std::string nextLevelHint(const Prefs& prefs);
 
-} // namespace aven::editor
+} // namespace rynax::editor

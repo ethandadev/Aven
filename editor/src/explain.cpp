@@ -3,10 +3,10 @@
 
 #include "editor.h"
 
-#include "aven/runtime/native.h"
+#include "rynax/runtime/native.h"
 
-#include "aven/blocks/blocks.h"
-#include "aven/core/fs.h"
+#include "rynax/blocks/blocks.h"
+#include "rynax/core/fs.h"
 #include "script_facts.h"
 
 #include <imgui.h>
@@ -14,7 +14,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -316,7 +316,7 @@ std::vector<Editor::ExplainSection> Editor::explainEntity(Entity e) {
             }
             if (!props.empty())
                 native.lines.push_back("Its settings: " + props + ".");
-            const AvenBehavior& cb = b->callbacks;
+            const RynaxBehavior& cb = b->callbacks;
             std::string when;
             auto add = [&](bool has, const char* label) {
                 if (has)
@@ -595,4 +595,4 @@ void Editor::drawExplain() {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

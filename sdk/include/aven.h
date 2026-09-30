@@ -1,4 +1,8 @@
 /*
+ * aven.h - the C API from when Rynax was called Aven, kept so modules written for it still build
+ * and load. It won't get new functions: new code should include "rynax.h" (the same API, with
+ * rynax_ names, and everything added since).
+ *
  * aven.h - the Aven C API for native modules.
  *
  * A native module is a shared library (.dll on Windows, .so on Linux, .dylib on macOS) with

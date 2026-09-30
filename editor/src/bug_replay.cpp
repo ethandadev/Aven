@@ -1,11 +1,11 @@
 // Bug replay: every play session is recorded (inputs, frame times and the random seed), so the
-// moments before an error, or before Aven closed unexpectedly, can be played again exactly,
+// moments before an error, or before Rynax closed unexpectedly, can be played again exactly,
 // paused and inspected, or saved as a bug report someone else can replay.
 
 #include "editor.h"
 
-#include "aven/core/fs.h"
-#include "aven/platform/input.h"
+#include "rynax/core/fs.h"
+#include "rynax/platform/input.h"
 
 #include <imgui.h>
 
@@ -15,7 +15,7 @@
 #include <ctime>
 #include <random>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -40,7 +40,7 @@ std::string timestamp() {
 
 } // namespace
 
-stdfs::path Editor::sessionReplayPath() const { return projectDir_ / ".aven" / "last_session.replay"; }
+stdfs::path Editor::sessionReplayPath() const { return projectDir_ / ".rynax" / "last_session.replay"; }
 
 // ---------------------------------------------------------------- recording
 
@@ -137,9 +137,9 @@ void Editor::checkLastSession() {
     // Keep it, but don't ask again next time.
     stdfs::rename(sessionReplayPath(), sessionReplayPath().parent_path() / "crashed_session.replay", ec);
     clearThumbnails();
-    replayReason_ = "Aven closed while your game was running.";
+    replayReason_ = "Rynax closed while your game was running.";
     showReplay_ = focusReplay_ = true;
-    notify("Aven closed unexpectedly last time while your game was running. The Bug Replay window can play the last 20 "
+    notify("Rynax closed unexpectedly last time while your game was running. The Bug Replay window can play the last 20 "
            "seconds again.", true);
 }
 
@@ -307,7 +307,7 @@ std::string Editor::saveBugReport() {
     md += "- When: " + timestamp() + "\n";
     md += "- Scene: " + r.scenePath + "\n";
     md += "- Played for: " + clock(r.duration()) + " (" + std::to_string(r.frames.size()) + " frames)\n";
-    md += std::string("- Aven: ") + AVEN_VERSION + "\n\n";
+    md += std::string("- Rynax: ") + RYNAX_VERSION + "\n\n";
     if (!replayReason_.empty())
         md += "## What happened\n\n" + replayReason_ + "\n\n";
     if (!r.events.empty()) {
@@ -322,7 +322,7 @@ std::string Editor::saveBugReport() {
     }
     if (r.edited())
         md += "Note: things were changed while the game was paused, so the replay may not match exactly.\n\n";
-    md += "## How to watch it\n\nOpen this project in Aven, then Window > Bug Replay > Open a saved replay, and pick\n`" + folder +
+    md += "## How to watch it\n\nOpen this project in Rynax, then Window > Bug Replay > Open a saved replay, and pick\n`" + folder +
           "/session.replay`. It plays the game again with the same inputs, so the problem happens again.\n";
     if (saved)
         md += "\n![The last moments](filmstrip.png)\n";
@@ -357,7 +357,7 @@ void Editor::drawBugReplay() {
         lastReplay_ = recorder_.replay();
     const Replay& r = lastReplay_;
     if (r.empty()) {
-        ImGui::TextWrapped("Every time you press Play, Aven records what happens (it's tiny: just the keys, the mouse and "
+        ImGui::TextWrapped("Every time you press Play, Rynax records what happens (it's tiny: just the keys, the mouse and "
                            "the timing). When something goes wrong, you can play the last 20 seconds again exactly, pause, "
                            "step frame by frame and inspect every object.");
         if (!prefs.recordReplays)
@@ -455,7 +455,7 @@ void Editor::drawBugReplay() {
                 notify("Saved " + folder + ": the replay, pictures of the last moments and report.md.");
         }
         if (!r.cleanExit && !replaying_ && !recorder_.recording())
-            ImGui::TextColored({1, 0.7f, 0.35f, 1}, "If Aven itself crashed, the replay may crash it again. A saved bug report is "
+            ImGui::TextColored({1, 0.7f, 0.35f, 1}, "If Rynax itself crashed, the replay may crash it again. A saved bug report is "
                                                     "the safe way to share it.");
 
         // Errors in the recording.
@@ -506,4 +506,4 @@ void Editor::drawBugReplay() {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

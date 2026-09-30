@@ -1,9 +1,9 @@
-# Aven for experienced developers
+# Rynax for experienced developers
 
-Aven starts simple for beginners, but none of that gets in your way. This page collects what
+Rynax starts simple for beginners, but none of that gets in your way. This page collects what
 people coming from Unity, Godot or their own engines tend to look for. Set **Learn > Level** to
 **Pro** to see every feature at once, and turn off **Preferences > Learning > Beginner helpers**
-to hide the Ask Aven box, the Doctor buttons and the tips.
+to hide the Ask Rynax box, the Doctor buttons and the tips.
 
 ## Editor workflow
 
@@ -194,7 +194,7 @@ play_sound("sounds/radio.wav", bus="Voice")
 - **Debug drawing**: `debug_line(a, b)`, `debug_circle(center, radius)`, `debug_box(center, size)`
   and `debug_text(position, text)`. Each takes `color=` and `seconds=` (0 = this frame only).
   Positions can be vectors or objects. They show in the editor while playing (the **Debug**
-  toggle above the game view), and in `aven-player --debug-draw`, never in normal exports.
+  toggle above the game view), and in `rynax-player --debug-draw`, never in normal exports.
 - **Modules**: `import utils`, `import lib.tools as t`, `from utils import jump, speed as s`
   or `import "folder/utils.es"`. Lookup is the importing script's folder, then `scripts/`
   (always inside the game folder). A module is loaded once per game and shared by everything
@@ -250,7 +250,7 @@ The host is in charge: players can only move, spawn and delete their own objects
 host says who joined or left. Physics isn't shared (each owner simulates its own objects).
 
 **Over the internet**: the same game, with `host_online()` and `join_online(code)` instead. Both
-connect out to a small relay server (`aven-relay`), so nobody opens ports on their router; the host
+connect out to a small relay server (`rynax-relay`), so nobody opens ports on their router; the host
 gets a room code to share. See [Online multiplayer](online-multiplayer.md).
 
 ## Editor tools: scripting the editor
@@ -284,19 +284,19 @@ Tools don't run in games, and editor tools can't add windows or buttons to the e
 ## Command line and CI
 
 ```sh
-aven-editor path/to/game --check           # scripts, scenes and file references; exit 1 on errors
-aven-editor path/to/game --check --strict  # warnings fail too
-aven-editor path/to/game --export out/     # a playable build
-aven-player path/to/game --screenshot shot.png --frames 60 --hidden
-aven-player path/to/game --debug-draw      # show debug_line() and friends
+rynax-editor path/to/game --check           # scripts, scenes and file references; exit 1 on errors
+rynax-editor path/to/game --check --strict  # warnings fail too
+rynax-editor path/to/game --export out/     # a playable build
+rynax-player path/to/game --screenshot shot.png --frames 60 --hidden
+rynax-player path/to/game --debug-draw      # show debug_line() and friends
 ```
 
 `--check` needs no window or GPU. It prints problems as `file:line:col: error: message`, which
-GitHub Actions, GitLab and most editors turn into annotations. Aven's own CI runs it on every
+GitHub Actions, GitLab and most editors turn into annotations. Rynax's own CI runs it on every
 template.
 
 ## Projects and version control
 
-A project is a folder of plain files: `project.aven` (settings), scenes and prefabs as JSON, and
+A project is a folder of plain files: `project.rynax` (settings), scenes and prefabs as JSON, and
 scripts as text, so they diff and merge well. New projects come with a `.gitignore` that leaves
-out what Aven makes (`exports/`, `captures/`, `bug_reports/`, `.aven/`, `native/build/`).
+out what Rynax makes (`exports/`, `captures/`, `bug_reports/`, `.rynax/`, `native/build/`).

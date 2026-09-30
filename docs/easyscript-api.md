@@ -1,6 +1,6 @@
 # EasyScript API
 
-Everything scripts can use, generated from the engine itself (the same list as the editor's Scripting Reference). Blocks turn into these calls, and the C API (sdk/include/aven.h) uses `aven_` plus the same names.
+Everything scripts can use, generated from the engine itself (the same list as the editor's Scripting Reference). Blocks turn into these calls, and the C API (sdk/include/rynax.h) uses `rynax_` plus the same names.
 
 ## Basics
 

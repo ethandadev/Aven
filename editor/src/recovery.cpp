@@ -1,7 +1,7 @@
 // Crash recovery. While there are unsaved changes, a copy of them goes to the user data folder
 // every 30 seconds: the scene (or prefab) being edited and every script with unsaved edits. The
-// real files are never touched. Saving everything, or closing Aven normally (whatever the answer to
-// "Save changes?"), removes the copy; if Aven closes any other way (a crash, a power cut), opening
+// real files are never touched. Saving everything, or closing Rynax normally (whatever the answer to
+// "Save changes?"), removes the copy; if Rynax closes any other way (a crash, a power cut), opening
 // the project again offers the changes back.
 
 #include "editor.h"
@@ -9,9 +9,9 @@
 #include "block_editor.h"
 #include "code_editor.h"
 
-#include "aven/core/fs.h"
-#include "aven/core/log.h"
-#include "aven/core/update.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/log.h"
+#include "rynax/core/update.h"
 
 #include <imgui.h>
 
@@ -19,7 +19,7 @@
 #include <chrono>
 #include <cstdlib>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -48,7 +48,7 @@ std::string timeAgo(int64_t seconds) {
 stdfs::path Editor::recoveryDir() const {
     // One folder per project, named after a fingerprint of where it is.
     std::string where = projectDir_.string();
-    return fs::userDataDir("Aven Editor") / "recovery" / update::sha256(where.data(), where.size()).substr(0, 16);
+    return fs::userDataDir("Rynax Editor") / "recovery" / update::sha256(where.data(), where.size()).substr(0, 16);
 }
 
 bool Editor::hasUnsavedWork() const {
@@ -91,7 +91,7 @@ void Editor::writeRecovery() {
     info["scene"] = editingPrefab() ? prefabPath_ : scenePath_;
     info["prefab"] = editingPrefab();
     info["time"] = static_cast<double>(nowSeconds());
-    info["version"] = AVEN_VERSION;
+    info["version"] = RYNAX_VERSION;
     if (dirty_) {
         Json scene = editingPrefab() ? scene_->saveEntities(scene_->roots()) : scene_->save();
         fs::writeText(dir / "scene.json", scene.dump());
@@ -194,7 +194,7 @@ void Editor::recover(bool keep) {
                 ++restored;
             }
     }
-    // Still unsaved (until you save): the copy stays until then, in case Aven closes again.
+    // Still unsaved (until you save): the copy stays until then, in case Rynax closes again.
     writeRecovery();
     notify(restored ? "Recovered your unsaved changes. Save to keep them." : "There was nothing left to recover.", !restored);
 }
@@ -210,7 +210,7 @@ void Editor::drawRecoveryPrompt() {
     const Json& info = pendingRecovery_;
     ImGui::PushTextWrapPos(0);
     int64_t ago = nowSeconds() - static_cast<int64_t>(std::clamp(info["time"].asNumber(0), 0.0, 1e15));
-    ImGui::Text("Aven closed before these changes were saved (the last copy is from %s):", timeAgo(std::max<int64_t>(ago, 0)).c_str());
+    ImGui::Text("Rynax closed before these changes were saved (the last copy is from %s):", timeAgo(std::max<int64_t>(ago, 0)).c_str());
     if (info["sceneChanged"].asBool(false))
         ImGui::BulletText("%s", info["scene"].asString("the scene").c_str());
     for (auto& s : info["scripts"].elements())
@@ -236,4 +236,4 @@ void Editor::drawRecoveryPrompt() {
     ImGui::EndPopup();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

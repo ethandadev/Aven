@@ -2,7 +2,7 @@
 
 #include "editor.h"
 
-#include "aven/core/fs.h"
+#include "rynax/core/fs.h"
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -11,7 +11,7 @@
 #include <cfloat>
 #include <ctime>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -143,7 +143,7 @@ bool Editor::drawFolderBrowser(bool projectsOnly, stdfs::path* picked) {
     float footer = ImGui::GetFrameHeightWithSpacing() + 6;
     ImGui::BeginChild("##folders", {0, -footer}, ImGuiChildFlags_Borders);
     if (ProjectSettings::isProject(browsePath_))
-        ImGui::TextColored({0.45f, 0.75f, 1.0f, 1.0f}, "This folder is an Aven project.");
+        ImGui::TextColored({0.45f, 0.75f, 1.0f, 1.0f}, "This folder is a Rynax project.");
     if (entries.empty())
         ImGui::TextDisabled("No folders here.");
     for (auto& e : entries) {
@@ -193,7 +193,7 @@ bool Editor::drawFolderBrowser(bool projectsOnly, stdfs::path* picked) {
             ImGui::OpenPopup("New folder");
         }
         if (ImGui::BeginPopup("New folder")) {
-            static std::string folderName = "Aven Games";
+            static std::string folderName = "Rynax Games";
             ImGui::SetNextItemWidth(ui::px(220));
             bool enter = ImGui::InputText("##name", &folderName, ImGuiInputTextFlags_EnterReturnsTrue);
             ImGui::SameLine();
@@ -355,7 +355,7 @@ void Editor::drawHub() {
                           ImGui::GetColorU32(ImGuiCol_WindowBg));
         ImGui::SetCursorScreenPos({p.x + r * 2 + em * 0.6f, p.y});
         pushFont(fonts.big);
-        ImGui::TextUnformatted("Aven");
+        ImGui::TextUnformatted("Rynax");
         ImGui::PopFont();
         ImGui::TextDisabled("Make games. Learn as you go.");
         ImGui::Dummy({0, em * 0.8f});
@@ -406,7 +406,7 @@ void Editor::drawHub() {
         }
 
         ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(), ImGui::GetWindowHeight() - em * 3.2f));
-        ImGui::TextDisabled("Aven %s", AVEN_VERSION);
+        ImGui::TextDisabled("Rynax %s", RYNAX_VERSION);
         if (updateAvailable()) {
             ImGui::SameLine();
             drawUpdateBadge();
@@ -628,7 +628,7 @@ void Editor::drawHub() {
         pushFont(fonts.big);
         ImGui::TextUnformatted("Open a game");
         ImGui::PopFont();
-        ImGui::TextDisabled("Find the folder of a game you made before. Aven games have a project.aven file inside.");
+        ImGui::TextDisabled("Find the folder of a game you made before. Rynax games have a project.rynax file inside.");
         ImGui::Dummy({0, em * 0.4f});
         stdfs::path picked;
         if (drawFolderBrowser(true, &picked))
@@ -638,4 +638,4 @@ void Editor::drawHub() {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

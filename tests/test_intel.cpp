@@ -1,14 +1,14 @@
 #include "test_framework.h"
 
-#include "aven/blocks/blocks.h"
-#include "aven/core/fs.h"
-#include "aven/core/json.h"
-#include "aven/script/intel.h"
+#include "rynax/blocks/blocks.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/json.h"
+#include "rynax/script/intel.h"
 
 #include <filesystem>
 
-using namespace aven;
-using namespace aven::script;
+using namespace rynax;
+using namespace rynax::script;
 
 namespace {
 
@@ -28,12 +28,12 @@ const ProjectIndex& engineIndex() {
     static ProjectIndex ix = [] {
         ProjectIndex i;
         i.fillFromEngine();
-        if (auto text = fs::readText(std::filesystem::path(AVEN_SOURCE_DIR) / "editor/data/api_docs.json")) {
+        if (auto text = fs::readText(std::filesystem::path(RYNAX_SOURCE_DIR) / "editor/data/api_docs.json")) {
             Json docs = Json::parse(*text);
             for (auto& m : docs.members())
                 i.docs[m.key] = m.value.asString();
         }
-        if (auto header = fs::readText(std::filesystem::path(AVEN_SOURCE_DIR) / "sdk/include/aven.h"))
+        if (auto header = fs::readText(std::filesystem::path(RYNAX_SOURCE_DIR) / "sdk/include/rynax.h"))
             i.readCApi(*header);
         i.files = {"sounds/jump.wav", "sounds/coin.wav", "prefabs/coin.prefab", "scenes/main.scene", "images/hero.png"};
         i.tags = {"player", "enemy"};
@@ -71,7 +71,7 @@ bool mentions(const std::vector<Diagnostic>& list, const std::string& text) {
 
 } // namespace
 
-AVEN_TEST(intel_matches_prefixes_initials_and_words) {
+RYNAX_TEST(intel_matches_prefixes_initials_and_words) {
     CHECK(matchScore("key_pressed", "key") > matchScore("key_pressed", "kp"));
     CHECK(matchScore("key_pressed", "kp") > 0);
     CHECK(matchScore("play_sound", "sound") > 0);
@@ -79,7 +79,7 @@ AVEN_TEST(intel_matches_prefixes_initials_and_words) {
     CHECK(matchScore("Velocity", "vel") > 0);
 }
 
-AVEN_TEST(intel_suggests_by_context) {
+RYNAX_TEST(intel_suggests_by_context) {
     // Members after self.
     auto self = suggestAtEnd("def on_update(dt):\n    self.vel");
     CHECK(has(self, "velocity"));
@@ -109,7 +109,7 @@ AVEN_TEST(intel_suggests_by_context) {
     CHECK(suggestAtEnd("# self.vel").empty());
 }
 
-AVEN_TEST(intel_shows_parameter_hints_and_help) {
+RYNAX_TEST(intel_shows_parameter_hints_and_help) {
     CodeIntel intel(engineIndex(), CodeKind::EasyScript);
     SignatureHelp sig;
     auto lines = split("play_sound(\"sounds/jump.wav\", ");
@@ -138,7 +138,7 @@ AVEN_TEST(intel_shows_parameter_hints_and_help) {
     CHECK_EQ(outline.size(), size_t(2));
 }
 
-AVEN_TEST(intel_finds_likely_mistakes) {
+RYNAX_TEST(intel_finds_likely_mistakes) {
     auto d = check("speed = 5\n\ndef on_update(dt):\n    self.x += spd * dt\n");
     CHECK_EQ(d.size(), size_t(1));
     CHECK(mentions(d, "Did you mean 'speed'?"));
@@ -172,10 +172,10 @@ AVEN_TEST(intel_finds_likely_mistakes) {
     CHECK(imports.empty());
 }
 
-AVEN_TEST(intel_has_no_false_alarms_on_the_templates) {
+RYNAX_TEST(intel_has_no_false_alarms_on_the_templates) {
     // Every script in every template (and the code the blocks become) must check clean.
     namespace stdfs = std::filesystem;
-    stdfs::path root = stdfs::path(AVEN_SOURCE_DIR) / "templates";
+    stdfs::path root = stdfs::path(RYNAX_SOURCE_DIR) / "templates";
     int files = 0;
     for (auto& t : stdfs::directory_iterator(root)) {
         ProjectIndex ix = engineIndex();
@@ -200,16 +200,16 @@ AVEN_TEST(intel_has_no_false_alarms_on_the_templates) {
     CHECK(files > 20);
 }
 
-AVEN_TEST(intel_knows_the_c_api) {
-    auto s = suggestAtEnd("aven_key_d", false, CodeKind::C);
-    CHECK(has(s, "aven_key_down"));
+RYNAX_TEST(intel_knows_the_c_api) {
+    auto s = suggestAtEnd("rynax_key_d", false, CodeKind::C);
+    CHECK(has(s, "rynax_key_down"));
     CHECK(has(suggestAtEnd("b->on_up", false, CodeKind::C), "on_update"));
-    CHECK(has(suggestAtEnd("aven_key_down(\"sp", false, CodeKind::C), "space"));
+    CHECK(has(suggestAtEnd("rynax_key_down(\"sp", false, CodeKind::C), "space"));
     CodeIntel intel(engineIndex(), CodeKind::C);
     SignatureHelp sig;
-    auto lines = split("aven_set(self, ");
+    auto lines = split("rynax_set(self, ");
     CHECK(intel.signature(lines, 0, static_cast<int>(lines[0].size()), sig));
     CHECK_EQ(sig.active, 1);
-    CHECK(sig.label.find("aven_set(") != std::string::npos);
+    CHECK(sig.label.find("rynax_set(") != std::string::npos);
 }
 

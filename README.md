@@ -1,16 +1,16 @@
-# Aven
+# Rynax
 
-[![CI](https://github.com/ethandadev/Aven/actions/workflows/ci.yml/badge.svg)](https://github.com/ethandadev/Aven/actions/workflows/ci.yml)
+[![CI](https://github.com/ethandadev/Rynax/actions/workflows/ci.yml/badge.svg)](https://github.com/ethandadev/Rynax/actions/workflows/ci.yml)
 
 A 2D and 3D game engine for beginners who want to make real games, and then keep growing.
 
 You can start the way Roblox and Scratch start: pick a template, press Play, snap blocks together.
-From there Aven teaches its way up. Blocks become EasyScript, a Python-like language. EasyScript
-becomes C in Aven's native tier, and the **Code Ladder** shows the same script as C# for Unity,
-GDScript for Godot, Luau for Roblox and C++ for Unreal. By the time you outgrow Aven, you already
+From there Rynax teaches its way up. Blocks become EasyScript, a Python-like language. EasyScript
+becomes C in Rynax's native tier, and the **Code Ladder** shows the same script as C# for Unity,
+GDScript for Godot, Luau for Roblox and C++ for Unreal. By the time you outgrow Rynax, you already
 know how the bigger engines think.
 
-![The Aven editor with the Platformer template](docs/images/editor.png)
+![The Rynax editor with the Platformer template](docs/images/editor.png)
 
 ## What's inside
 
@@ -41,8 +41,8 @@ know how the bigger engines think.
   - **Blocks** snap together like Scratch.
   - **EasyScript** is Python-like, with events such as `on_update(dt)` and `wait()`, and
     `import` to share code between scripts.
-  - **Native C/C++** is a stable C API (`sdk/include/aven.h`). It uses EasyScript's names, so
-    `aven_get(self, "x")` does what `self.x` does.
+  - **Native C/C++** is a stable C API (`sdk/include/rynax.h`). It uses EasyScript's names, so
+    `rynax_get(self, "x")` does what `self.x` does.
 - **Behaviors** give an object gameplay with settings instead of code: platformer and top-down
   controllers, collectibles, hazards, health, spawners, scene links and more.
 - **Runs on:** Linux, Windows and in browsers (WebGL2), all used by hand. macOS builds compile
@@ -62,7 +62,7 @@ know how the bigger engines think.
 - **Sharing:** Windows, macOS and Linux apps from any computer (with your icon, name and
   description, optionally signed and notarized), a web version that installs on phones, an
   itch.io zip, or the whole project as a .zip. Exported games can open with a title screen, and
-  say "Made with Aven" for a moment.
+  say "Made with Rynax" for a moment.
 - **Asset Library:** 69 ready-made, free-to-use (CC0) assets: pixel-art sprites and animations,
   parallax backgrounds, 19 low-poly 3D models (trees, rocks, houses, props, a stand-in character)
   and 18 tileable 3D textures (grass, stone, bricks, wood, metal, prototype grids...). Click to
@@ -76,12 +76,12 @@ know how the bigger engines think.
   - Screenshot and GIF capture.
 - **Personalization and accessibility:** a playful welcome tour, themes (including High Contrast),
   accent colors, font sizes and UI scale, colorblind-friendly axis colors, a calm mode with less
-  motion, layouts, and shortcuts that can all be changed, starting from Aven's own keys or ones
+  motion, layouts, and shortcuts that can all be changed, starting from Rynax's own keys or ones
   like Unity's, Godot's or Unreal's.
 - **For experienced developers:** collision layers, script debug drawing, Inspector hints in
   comments (`# @range(0, 10)`), Hierarchy filters (`t:RigidBody2D tag:enemy`), align and select
   tools, editor tools written in EasyScript (Tools > Editor tools), per-file import settings,
-  your own code editor, and `aven-editor --check` for CI. See
+  your own code editor, and `rynax-editor --check` for CI. See
   [docs/advanced.md](docs/advanced.md).
 
 **Features built for beginners**
@@ -90,7 +90,7 @@ know how the bigger engines think.
   collect coins and avoid spikes".
 - **The Error Doctor** explains errors in plain words, points at the line, and offers a fix.
 - **Play-and-edit** lets you pause the game, change anything, then keep or undo your changes.
-- **Ask Aven** is a natural-language Inspector ("make it faster and bouncier").
+- **Ask Rynax** is a natural-language Inspector ("make it faster and bouncier").
 - **Explain my game** describes what any object, or the whole game, does and how the parts
   connect.
 - **The Code Ladder** shows one script, one rung at a time: behavior or blocks, EasyScript, C,
@@ -99,7 +99,7 @@ know how the bigger engines think.
   your Wi-Fi can play from a link.
 - **Bug replay** records the last 20 seconds and replays a crash or bug exactly. It can save a bug
   report.
-- **Contributor quests** are small, guided ways to help improve Aven itself.
+- **Contributor quests** are small, guided ways to help improve Rynax itself.
 
 | 3D: the Obby template | The Code Ladder |
 |---|---|
@@ -110,28 +110,28 @@ Clicker, 3D Obby and Crystal Forest (3D exploring).
 
 ## Download
 
-Aven for Windows, macOS (Apple silicon) and Linux is on the
-[Releases page](https://github.com/ethandadev/Aven/releases):
+Rynax for Windows, macOS (Apple silicon) and Linux is on the
+[Releases page](https://github.com/ethandadev/Rynax/releases):
 
-- **Windows**: `Aven-<version>-Setup.exe` installs it (no administrator needed).
-- **macOS**: open `Aven-<version>-macOS.dmg` and drag Aven into Applications.
-- **Linux**: `flatpak install Aven-<version>-linux.flatpak`.
+- **Windows**: `Rynax-<version>-Setup.exe` installs it (no administrator needed).
+- **macOS**: open `Rynax-<version>-macOS.dmg` and drag Rynax into Applications.
+- **Linux**: `flatpak install Rynax-<version>-linux.flatpak`.
 
-Or take the `.zip` for your system, unzip it and open `aven-editor` (`START HERE.txt` explains the
-first run). After that, Aven updates itself: when a new version is out, an
+Or take the `.zip` for your system, unzip it and open `rynax-editor` (`START HERE.txt` explains the
+first run). After that, Rynax updates itself: when a new version is out, an
 **Update to ...** button shows in the menu bar ([what's new](CHANGELOG.md)).
 
 ## Building
 
 You need CMake 3.21+, a C++20 compiler (Visual Studio 2022, Xcode, GCC or Clang) and Git. The
 other libraries are downloaded on the first configure. On Linux, also install the window-system
-packages GLFW needs; [getting started](docs/getting-started.md#1-build-aven) lists them.
+packages GLFW needs; [getting started](docs/getting-started.md#1-build-rynax) lists them.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
-./build/bin/aven-editor           # the editor (opens the project hub)
-./build/bin/aven_tests            # the test suite
+./build/bin/rynax-editor           # the editor (opens the project hub)
+./build/bin/rynax_tests            # the test suite
 ```
 
 With Visual Studio the programs are in `build\bin\Release\` instead.
@@ -140,9 +140,9 @@ What gets built:
 
 | Program | What it is |
 |---|---|
-| `aven-editor` | The editor. `aven-editor path/to/game` opens a project directly. |
-| `aven-player` | Runs a game without the editor. Exports ship this. |
-| `aven_tests` | Unit and integration tests. |
+| `rynax-editor` | The editor. `rynax-editor path/to/game` opens a project directly. |
+| `rynax-player` | Runs a game without the editor. Exports ship this. |
+| `rynax_tests` | Unit and integration tests. |
 
 For the web player, see [docs/getting-started.md](docs/getting-started.md#the-web-player). It
 uses Emscripten: `tools/web/build_web_player.sh`.
@@ -165,5 +165,5 @@ uses Emscripten: `tools/web/build_web_player.sh`.
 
 ## License
 
-MIT; see [LICENSE](LICENSE). The libraries Aven builds on are listed in
+MIT; see [LICENSE](LICENSE). The libraries Rynax builds on are listed in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

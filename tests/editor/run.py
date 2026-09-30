@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Editor interaction tests: the real editor, driven by recorded mouse and keyboard input.
 
-    python3 tests/editor/run.py build/bin/aven-editor [name-filter]
+    python3 tests/editor/run.py build/bin/rynax-editor [name-filter]
 
 Each test copies a template to a temporary folder, runs the editor headless (--screenshot mode,
 under xvfb-run on Linux when there's no display) with an --input file, and checks the result:
@@ -23,7 +23,7 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Every folder a test makes, removed once the run ends (AVEN_KEEP_TEST_FILES=1 keeps them, to look
+# Every folder a test makes, removed once the run ends (RYNAX_KEEP_TEST_FILES=1 keeps them, to look
 # at after a failure). The update test alone makes the best part of a gigabyte.
 _made = []
 
@@ -36,7 +36,7 @@ def temp_dir(prefix):
 
 def run_editor(editor, template, frames, inputs="", panels="", extra=()):
     """Runs the editor on a copy of a template; returns (project folder, log, exit code)."""
-    work = temp_dir("aven-editor-test-")
+    work = temp_dir("rynax-editor-test-")
     project = os.path.join(work, "game")
     shutil.copytree(os.path.join(ROOT, "templates", template), project)
     if os.path.exists(os.path.join(project, "template.json")):
@@ -229,7 +229,7 @@ def test_export_desktop_app(editor):
     z = zipfile.ZipFile(os.path.join(exports, zips[0]))
     if z.testzip() is not None:
         return "the zip is damaged"
-    out = temp_dir("aven-app-")
+    out = temp_dir("rynax-app-")
     program = None
     for info in z.infolist():
         path = z.extract(info, out)
@@ -249,7 +249,7 @@ def test_export_desktop_app(editor):
 
 
 def test_update_downloads_and_installs(editor):
-    """The updater: a newer, signed release is found, downloaded, checked and swapped in when Aven
+    """The updater: a newer, signed release is found, downloaded, checked and swapped in when Rynax
     closes, and "Go back" restores the old one. Refused, changing nothing: a download that doesn't
     match its SHA-256, one with no signature, one signed by another key, and an old version's signed
     download passed off as a new one. (Linux: a copy of the editor stands in for a download.)"""
@@ -259,18 +259,18 @@ def test_update_downloads_and_installs(editor):
     import update_key
     if not sys.platform.startswith("linux"):
         return None
-    work = temp_dir("aven-update-test-")
+    work = temp_dir("rynax-update-test-")
     game = os.path.join(work, "game")
     shutil.copytree(os.path.join(ROOT, "templates", "platformer"), game)
-    marker = b"AVEN-NEW-BUILD"
+    marker = b"RYNAX-NEW-BUILD"
     key, other_key = os.urandom(32), os.urandom(32)
 
     def make_package(version):
-        path = os.path.join(work, "aven-%s-linux-x64.zip" % version)
+        path = os.path.join(work, "rynax-%s-linux-x64.zip" % version)
         with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
-            for name, data, mode in (("aven-editor", open(editor, "rb").read() + marker, 0o755),
+            for name, data, mode in (("rynax-editor", open(editor, "rb").read() + marker, 0o755),
                                      ("START HERE.txt", b"new", 0o644), ("templates/new.txt", b"hello", 0o644)):
-                info = zipfile.ZipInfo("aven-%s-linux-x64/" % version + name)
+                info = zipfile.ZipInfo("rynax-%s-linux-x64/" % version + name)
                 info.create_system, info.external_attr, info.compress_type = 3, (0o100000 | mode) << 16, zipfile.ZIP_DEFLATED
                 z.writestr(info, data)
         return path
@@ -289,43 +289,43 @@ def test_update_downloads_and_installs(editor):
     count = [0]
 
     def run_editor_copy(install, extra_env, panel):
-        cmd = [os.path.join(install, "aven-editor"), game, "--screenshot", os.path.join(work, "shot.png"),
+        cmd = [os.path.join(install, "rynax-editor"), game, "--screenshot", os.path.join(work, "shot.png"),
                "--frames", "6", "--panel", panel]
         if not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
             cmd = ["xvfb-run", "-a", "-s", "-screen 0 1920x1080x24"] + cmd
-        env = dict(os.environ, AVEN_UPDATE_PUBLIC_KEY=update_key.public_key(key).hex(), **extra_env)
+        env = dict(os.environ, RYNAX_UPDATE_PUBLIC_KEY=update_key.public_key(key).hex(), **extra_env)
         run = subprocess.run(cmd, capture_output=True, text=True, timeout=300, env=env)
         return run.stdout + run.stderr
 
     def attempt(digest=None, sig=good_sig, package_path=package):
         count[0] += 1
-        install = os.path.join(work, "Aven-%d" % count[0])
+        install = os.path.join(work, "Rynax-%d" % count[0])
         os.makedirs(os.path.join(install, "templates"))
         shutil.copy2(editor, install)
         for name, text in (("START HERE.txt", "old"), ("templates/old.txt", "old"), ("My notes.txt", "mine")):
             with open(os.path.join(install, name), "w") as f:
                 f.write(text)
         releases = os.path.join(work, "releases-%d.json" % count[0])
-        assets = [{"name": "aven-9.9.9-linux-x64.zip", "size": os.path.getsize(package_path),
+        assets = [{"name": "rynax-9.9.9-linux-x64.zip", "size": os.path.getsize(package_path),
                    "digest": "sha256:" + (digest or hashlib.sha256(open(package_path, "rb").read()).hexdigest()),
                    "browser_download_url": "file://" + package_path}]
         if sig:
-            assets.append({"name": "aven-9.9.9-linux-x64.zip.sig", "size": 128, "browser_download_url": "file://" + sig})
+            assets.append({"name": "rynax-9.9.9-linux-x64.zip.sig", "size": 128, "browser_download_url": "file://" + sig})
         with open(releases, "w") as f:
             json.dump([{"tag_name": "v9.9.9", "prerelease": False, "draft": False, "body": "## New\n- things",
                         "html_url": "https://example.com", "assets": assets}], f)
-        return install, run_editor_copy(install, {"AVEN_UPDATE_URL": "file://" + releases}, "@3:update")
+        return install, run_editor_copy(install, {"RYNAX_UPDATE_URL": "file://" + releases}, "@3:update")
 
     def unchanged(install):
-        return (not open(os.path.join(install, "aven-editor"), "rb").read().endswith(marker)
+        return (not open(os.path.join(install, "rynax-editor"), "rb").read().endswith(marker)
                 and open(os.path.join(install, "START HERE.txt")).read() == "old")
 
     install, log = attempt()
     if "update: 9.9.9 ready" not in log:
         return "the update wasn't downloaded:\n" + log[-1500:]
-    if not open(os.path.join(install, "aven-editor"), "rb").read().endswith(marker):
+    if not open(os.path.join(install, "rynax-editor"), "rb").read().endswith(marker):
         return "the new editor wasn't put in place:\n" + log[-1500:]
-    if not os.access(os.path.join(install, "aven-editor"), os.X_OK):
+    if not os.access(os.path.join(install, "rynax-editor"), os.X_OK):
         return "the new editor isn't runnable"
     if open(os.path.join(install, "START HERE.txt")).read() != "new" or not os.path.exists(os.path.join(install, "templates/new.txt")):
         return "the new files weren't put in place"
@@ -335,11 +335,11 @@ def test_update_downloads_and_installs(editor):
         return "a file of the user's was touched"
     # The new version starts and keeps the old one, to go back to...
     log = run_editor_copy(install, {}, "@3:dump")
-    if "Aven Editor" not in log or not os.path.exists(os.path.join(install, ".aven-update", "old", "aven-editor")):
-        return "the updated editor should start, keeping the old version in .aven-update/old:\n" + log[-1500:]
+    if "Rynax Editor" not in log or not os.path.exists(os.path.join(install, ".rynax-update", "old", "rynax-editor")):
+        return "the updated editor should start, keeping the old version in .rynax-update/old:\n" + log[-1500:]
     # ...which "Go back" puts back.
     log = run_editor_copy(install, {}, "@3:rollback")
-    if open(os.path.join(install, "aven-editor"), "rb").read().endswith(marker) or open(os.path.join(install, "START HERE.txt")).read() != "old":
+    if open(os.path.join(install, "rynax-editor"), "rb").read().endswith(marker) or open(os.path.join(install, "START HERE.txt")).read() != "old":
         return "going back should restore the old version:\n" + log[-1500:]
     if not os.path.exists(os.path.join(install, "templates/old.txt")) or open(os.path.join(install, "My notes.txt")).read() != "mine":
         return "going back should restore the old templates and leave the user's files alone"
@@ -347,15 +347,15 @@ def test_update_downloads_and_installs(editor):
     cases = [
         ("a download that doesn't match its SHA-256", dict(digest="0" * 64), "SHA-256"),
         ("an unsigned release", dict(sig=None), "isn't signed"),
-        ("a release signed by another key", dict(sig=sign(make_package("9.9.9-other"), other_key, "aven-9.9.9-linux-x64.zip")), "signed by Aven's release key"),
+        ("a release signed by another key", dict(sig=sign(make_package("9.9.9-other"), other_key, "rynax-9.9.9-linux-x64.zip")), "signed by Rynax's release key"),
     ]
     # An old version's genuine download, renamed to look like 9.9.9: its signature names the old version.
     old = make_package("0.0.1")
     old_sig = sign(old, key)
-    fake = os.path.join(work, "fake", "aven-9.9.9-linux-x64.zip")
+    fake = os.path.join(work, "fake", "rynax-9.9.9-linux-x64.zip")
     os.makedirs(os.path.dirname(fake))
     shutil.copy2(old, fake)
-    cases.append(("an old version's signed download posing as 9.9.9", dict(sig=old_sig, package_path=fake), "signed by Aven's release key"))
+    cases.append(("an old version's signed download posing as 9.9.9", dict(sig=old_sig, package_path=fake), "signed by Rynax's release key"))
     for what, kwargs, reason in cases:
         install, log = attempt(**kwargs)
         if "update: 9.9.9 failed" not in log or reason not in log:
@@ -366,8 +366,8 @@ def test_update_downloads_and_installs(editor):
 
 def test_native_build_asks_before_running_someone_elses_cmake(editor):
     """A project's own native/CMakeLists.txt can run any command while building, so Build asks first
-    (and runs nothing) unless it's the one Aven makes."""
-    work = temp_dir("aven-native-test-")
+    (and runs nothing) unless it's the one Rynax makes."""
+    work = temp_dir("rynax-native-test-")
     project = os.path.join(work, "game")
     shutil.copytree(os.path.join(ROOT, "templates", "platformer"), project)
     os.makedirs(os.path.join(project, "native", "src"))
@@ -385,17 +385,17 @@ def test_native_build_asks_before_running_someone_elses_cmake(editor):
         return "Build should ask before running this CMakeLists.txt:\n" + log[-1500:]
     if os.path.exists(ran):
         return "the project's CMake script ran without asking"
-    # Aven's own CMakeLists.txt builds straight away.
+    # Rynax's own CMakeLists.txt builds straight away.
     shutil.copy2(os.path.join(ROOT, "sdk", "template", "CMakeLists.txt"), os.path.join(project, "native", "CMakeLists.txt"))
     run = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     if "native build: started" not in run.stdout + run.stderr:
-        return "Aven's own CMakeLists.txt should build without asking:\n" + (run.stdout + run.stderr)[-1500:]
+        return "Rynax's own CMakeLists.txt should build without asking:\n" + (run.stdout + run.stderr)[-1500:]
 
 
 def test_crash_recovery(editor):
-    """Unsaved changes survive Aven closing unexpectedly: the next time the project opens, they're
+    """Unsaved changes survive Rynax closing unexpectedly: the next time the project opens, they're
     offered back; a normal close leaves nothing behind."""
-    work = temp_dir("aven-recovery-test-")
+    work = temp_dir("rynax-recovery-test-")
     project = os.path.join(work, "game")
     shutil.copytree(os.path.join(ROOT, "templates", "platformer"), project)
 
@@ -477,7 +477,7 @@ def test_shadows_follow_moved_objects(editor):
     """Shadow maps are kept between frames while nothing changes. Moving an object has to draw them
     again: a cube moved mid-run looks the same as one that started there (its shadow moved too)."""
     def shot(move_at, start_x):
-        work = temp_dir("aven-shadow-test-")
+        work = temp_dir("rynax-shadow-test-")
         project = os.path.join(work, "game")
         shutil.copytree(os.path.join(ROOT, "templates", "blank-3d"), project)
         scene_path = os.path.join(project, "scenes", "main.scene")
@@ -584,7 +584,7 @@ def test_shortcuts(editor):
 
 
 def test_welcome_tour(editor):
-    """The welcome tour: name, picture and how they found Aven are kept; "never coded" skips the
+    """The welcome tour: name, picture and how they found Rynax are kept; "never coded" skips the
     engines step and starts at Starter; "some" plus Godot starts at Creator with Godot's keys."""
     def tour(coding_y, extra):
         lines = """
@@ -615,7 +615,7 @@ def test_welcome_tour(editor):
 40 key Enter down
 41 key Enter up
 """)
-    for want in ("name=Robin", "avatar=fox", "found=GitHub", "coding=0", "level=1", "keymap=Aven", "onboarded=1", "tour=closed"):
+    for want in ("name=Robin", "avatar=fox", "found=GitHub", "coding=0", "level=1", "keymap=Rynax", "onboarded=1", "tour=closed"):
         if want not in new:
             return "new to code: expected %s in: %s" % (want, new)
     pro = tour(418, """
@@ -722,7 +722,7 @@ def main():
             print(("ok   " if problem is None else "FAIL ") + name[5:] + ("" if problem is None else ": " + problem), flush=True)
             failed += problem is not None
     finally:
-        if not os.environ.get("AVEN_KEEP_TEST_FILES"):
+        if not os.environ.get("RYNAX_KEEP_TEST_FILES"):
             for path in _made:
                 shutil.rmtree(path, ignore_errors=True)
     print("%d/%d editor tests passed" % (len(tests) - failed, len(tests)))

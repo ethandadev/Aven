@@ -1,7 +1,7 @@
 #pragma once
 
 // Menus written once that show as ImGui's menu bar inside the window (Windows, Linux), or on a Mac
-// as the real menu bar at the top of the screen, with the standard Aven menu (About, Settings,
+// as the real menu bar at the top of the screen, with the standard Rynax menu (About, Settings,
 // Check for Updates, Hide, Quit). Used like ImGui's: the same calls, in menu::.
 //
 // On a Mac the menus are described every few frames; when something changed, the native menus
@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-namespace aven::editor::menu {
+namespace rynax::editor::menu {
 
 bool native(); // true once installNative() ran (macOS)
 void installNative(); // macOS: take over the menu bar (menu_mac.mm). Elsewhere: nothing.
@@ -33,7 +33,7 @@ void tooltip(const char* text);  // for the item just added
 void beginDisabled(bool disabled);
 void endDisabled();
 
-// The standard Aven menu on a Mac: "about", "settings" or "updates" when one was chosen since the
+// The standard Rynax menu on a Mac: "about", "settings" or "updates" when one was chosen since the
 // last call (Quit, Hide and the rest are handled by macOS).
 std::string appCommand();
 
@@ -53,4 +53,4 @@ extern void (*apply)(const Node& bar); // builds the native menus (menu_mac.mm)
 extern std::vector<std::string> clicks; // paths of native items clicked, oldest first
 } // namespace detail
 
-} // namespace aven::editor::menu
+} // namespace rynax::editor::menu

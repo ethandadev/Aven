@@ -239,7 +239,7 @@ class Model:
         while len(bin_data) % 4:
             bin_data.append(0)
         doc = {
-            "asset": {"version": "2.0", "generator": "Aven asset library (tools/library)"},
+            "asset": {"version": "2.0", "generator": "Rynax asset library (tools/library)"},
             "scene": 0,
             "scenes": [{"nodes": [0]}],
             "nodes": [{"mesh": 0}],

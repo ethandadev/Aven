@@ -1,16 +1,16 @@
 #pragma once
 
-#include "aven/assets/assets.h"
-#include "aven/audio/sfx.h"
-#include "aven/core/log.h"
-#include "aven/platform/window.h"
-#include "aven/render/scene_renderer.h"
-#include "aven/runtime/game.h"
-#include "aven/runtime/project.h"
-#include "aven/runtime/replay.h"
-#include "aven/scene/reflection.h"
-#include "aven/scene/scene.h"
-#include "aven/script/vm.h"
+#include "rynax/assets/assets.h"
+#include "rynax/audio/sfx.h"
+#include "rynax/core/log.h"
+#include "rynax/platform/window.h"
+#include "rynax/render/scene_renderer.h"
+#include "rynax/runtime/game.h"
+#include "rynax/runtime/project.h"
+#include "rynax/runtime/replay.h"
+#include "rynax/scene/reflection.h"
+#include "rynax/scene/scene.h"
+#include "rynax/script/vm.h"
 
 #include "code_editor.h"
 #include "learn_mode.h"
@@ -34,13 +34,13 @@
 
 #include "ui_scale.h"
 
-namespace aven::script {
+namespace rynax::script {
 class VM;
 struct Module;
-} // namespace aven::script
+} // namespace rynax::script
 
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace stdfs = std::filesystem;
 
@@ -92,7 +92,7 @@ struct EditorOptions {
     std::string theme;         // --theme name
 };
 
-// The Aven editor: project hub, scene editing, scripting, block coding, play mode and export.
+// The Rynax editor: project hub, scene editing, scripting, block coding, play mode and export.
 class Editor {
 public:
     Editor(Window& window, rhi::Device& device);
@@ -116,7 +116,7 @@ public:
     void drawProfileAvatar(ImDrawList* dl, ImVec2 center, float radius, float time = 0);
     // A little sound for the UI ("blip", "coin", "powerup"...), when Preferences > Little sounds is on.
     void uiSound(const char* kind);
-    // When Aven quits (main.cpp): puts a downloaded update in place (updater.cpp). Returns the
+    // When Rynax quits (main.cpp): puts a downloaded update in place (updater.cpp). Returns the
     // command that starts the new version when the user chose to restart, else "".
     std::string installPendingUpdate();
     // Runs `action` now, or asks to save first when there are unsaved changes (the scene's,
@@ -159,7 +159,7 @@ public:
     bool playing() const { return playing_; }
 
     // --- scripts
-    void openScript(const std::string& path, int line = 0, bool inAven = false); // inAven: never the external editor
+    void openScript(const std::string& path, int line = 0, bool inRynax = false); // inRynax: never the external editor
     void openBlocks(const std::string& path);
     std::string newScriptFile(const std::string& baseName, bool blocks);
     void attachScript(Entity e, const std::string& path);
@@ -178,7 +178,7 @@ public:
     };
     void noteLiveChange(Entity e, const std::string& key);
 
-    // --- Ask Aven (assistant.cpp)
+    // --- Ask Rynax (assistant.cpp)
     struct AssistantProposal {
         std::string text;
         std::function<void(Editor&)> apply;
@@ -189,7 +189,7 @@ public:
         std::vector<AssistantProposal> proposals;
         std::vector<std::string> understood, unknown, notes;
     };
-    void askAven(const std::string& request);
+    void askRynax(const std::string& request);
     const AssistantResult& assistantResult() const { return assistant_; }
     // Reflection helpers used by the assistant, recipes and explanations.
     Json fieldValue(Entity e, const std::string& component, const std::string& field);
@@ -252,12 +252,12 @@ public:
     std::shared_ptr<DesktopJob> desktopJob_;
     std::map<std::string, bool> exportTargets_{{"windows-x64", true}, {"macos-arm64", true}, {"linux-x64", true}};
     std::string signPassword_; // for this export only; never saved
-    // Updates (updater.cpp): new versions of Aven from its GitHub releases.
+    // Updates (updater.cpp): new versions of Rynax from its GitHub releases.
     struct UpdateJob;
     std::shared_ptr<UpdateJob> updateJob_;
     bool showUpdater_ = false;
     bool updateRestart_ = false; // start the new version after installing it
-    bool rollbackPending_ = false; // "Go back to Aven ...": put the previous version back when quitting
+    bool rollbackPending_ = false; // "Go back to Rynax ...": put the previous version back when quitting
     std::string previousVersion() const; // the version an update replaced, while it's kept ("" if none)
     void saveAndRestart();
     void startUpdater();         // at startup: tidy up after an update, say what's new, check for one
@@ -265,7 +265,7 @@ public:
     void downloadUpdate(bool wait = false);
     void drawUpdater();
     void drawUpdateBadge(bool small = true); // "Update to 0.3.1": menu bar, start screen, Mac toolbar
-    void drawAppDialogs();  // About, and the Aven menu's commands on a Mac (chrome.cpp)
+    void drawAppDialogs();  // About, and the Rynax menu's commands on a Mac (chrome.cpp)
     bool updateAvailable() const; // a new version to show the badge for
     float updateBadgeWidth() const;
     std::string updateStatus() const; // "0.4.0 ready", "up to date", "failed: ..." (tests)
@@ -590,7 +590,7 @@ private:
     std::set<std::string> trustedNative_;
     std::map<std::string, int64_t> nativeBeforeBuild_; // native/bin as it was when the build started
     bool nativePromptDismissed_ = false;
-    bool confirmNativeBuild_ = false; // ask before running a native/ build script that isn't Aven's
+    bool confirmNativeBuild_ = false; // ask before running a native/ build script that isn't Rynax's
     void saveNativeTrust();
     void loadNativeTrust();
     void trustNative(const std::vector<stdfs::path>& libraries);
@@ -918,8 +918,8 @@ private:
 
 // Editor data files (editor/data), read fresh when they change (editor_data.cpp).
 stdfs::path editorDataDir();
-stdfs::path sourceDir(); // Aven's source code, when the editor was built from it (else empty)
-stdfs::path sdkDir();    // aven.h and the native module template
+stdfs::path sourceDir(); // Rynax's source code, when the editor was built from it (else empty)
+stdfs::path sdkDir();    // rynax.h and the native module template
 void openExternal(const std::string& target); // a file, folder or link in the system's app
 std::string displayName(const std::string& componentName); // "RigidBody2D" -> "Rigid Body 2D"
 std::string lowered(std::string text); // A-Z to a-z; other bytes (UTF-8 too) stay as they are
@@ -948,4 +948,4 @@ enum Icon { Play, Pause, Stop, Step, Move, Rotate, Scale, Grid, Magnet, Folder, 
             Model, Scene, Prefab, Save, Undo, Redo };
 } // namespace ui
 
-} // namespace aven::editor
+} // namespace rynax::editor

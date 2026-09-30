@@ -1,18 +1,18 @@
 #include "test_framework.h"
 
-#include "aven/core/fs.h"
-#include "aven/core/json.h"
-#include "aven/render/model.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/json.h"
+#include "rynax/render/model.h"
 
 #include <filesystem>
 #include <set>
 
-using namespace aven;
+using namespace rynax;
 
 // The editor's Asset Library: every item's file exists, ids are unique, and every 3D model loads.
-AVEN_TEST(asset_library_is_complete) {
+RYNAX_TEST(asset_library_is_complete) {
     namespace stdfs = std::filesystem;
-    stdfs::path root = stdfs::path(AVEN_SOURCE_DIR) / "editor" / "data" / "library";
+    stdfs::path root = stdfs::path(RYNAX_SOURCE_DIR) / "editor" / "data" / "library";
     auto text = fs::readText(root / "library.json");
     CHECK(text.has_value());
     Json lib = Json::parse(*text);

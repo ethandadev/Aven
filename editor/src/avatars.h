@@ -8,7 +8,7 @@
 #include <string_view>
 #include <vector>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 struct Critter {
     const char* id;   // saved in the preferences ("cat")
@@ -20,4 +20,4 @@ const std::vector<Critter>& critters();
 // (seconds) makes it blink now and then, 0 keeps it still. Unknown ids draw the first critter.
 void drawCritter(ImDrawList* dl, ImVec2 center, float radius, std::string_view id, ImU32 background, float time = 0);
 
-} // namespace aven::editor
+} // namespace rynax::editor

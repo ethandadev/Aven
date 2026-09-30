@@ -1,17 +1,17 @@
-// Contributor quests: small, guided ways to help build Aven (quests/*.json). The panel walks
+// Contributor quests: small, guided ways to help build Rynax (quests/*.json). The panel walks
 // through the steps, opens the files involved and checks the work, so a first open-source
 // contribution feels like a game quest instead of a wall of code.
 
 #include "editor.h"
 
-#include "aven/core/fs.h"
+#include "rynax/core/fs.h"
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
 #include <algorithm>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -158,7 +158,7 @@ bool Editor::packageTemplate(std::string& message) {
         Assets::savePng(dest / "thumbnail.png", shot.data(), 640, 360, false);
     templateCache_.clear();
     templatesScanned_ = false;
-    message = "Packaged as a template in " + dest.string() + (sourceDir().empty() ? " (copy it into Aven's templates folder)." : ".");
+    message = "Packaged as a template in " + dest.string() + (sourceDir().empty() ? " (copy it into Rynax's templates folder)." : ".");
     return true;
 }
 
@@ -175,7 +175,7 @@ void Editor::drawQuests() {
     if (!questsLoaded_)
         loadQuests();
     if (quests_.empty()) {
-        ImGui::TextWrapped("No quests found. They live in the quests folder of Aven's source code.");
+        ImGui::TextWrapped("No quests found. They live in the quests folder of Rynax's source code.");
         ImGui::End();
         return;
     }
@@ -184,7 +184,7 @@ void Editor::drawQuests() {
     // Quest list.
     ImGui::BeginChild("##questlist", {ui::px(280), 0}, ImGuiChildFlags_Border);
     ImGui::PushFont(fonts.bold);
-    ImGui::TextUnformatted("Help build Aven");
+    ImGui::TextUnformatted("Help build Rynax");
     ImGui::PopFont();
     ImGui::TextDisabled("Small tasks, one step at a time.");
     ImGui::Separator();
@@ -228,9 +228,9 @@ void Editor::drawQuests() {
 
     if (sourceDir().empty()) {
         ImGui::Spacing();
-        ImGui::TextColored({1, 0.75f, 0.35f, 1}, "This Aven wasn't built from its source code, so files can't be opened or checked here.");
-        ImGui::TextWrapped("Get the code (it's free and open source), build it, and run that Aven to do quests:");
-        std::string cmd = "git clone https://github.com/ethandadev/Aven\ncd Aven\ncmake -B build -G Ninja && cmake --build build";
+        ImGui::TextColored({1, 0.75f, 0.35f, 1}, "This Rynax wasn't built from its source code, so files can't be opened or checked here.");
+        ImGui::TextWrapped("Get the code (it's free and open source), build it, and run that Rynax to do quests:");
+        std::string cmd = "git clone https://github.com/ethandadev/Rynax\ncd Rynax\ncmake -B build -G Ninja && cmake --build build";
         ImGui::InputTextMultiline("##clone", &cmd, {-1, ImGui::GetTextLineHeight() * 4}, ImGuiInputTextFlags_ReadOnly);
     }
 
@@ -255,7 +255,7 @@ void Editor::drawQuests() {
         }
         ImGui::EndDisabled();
         if (auto_ >= 0 && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("Aven checks this one for you.");
+            ImGui::SetTooltip("Rynax checks this one for you.");
         ImGui::SameLine();
         ImGui::PushTextWrapPos(0);
         ImGui::TextColored(ticked ? ImVec4(0.6f, 0.65f, 0.7f, 1) : ImGui::GetStyleColorVec4(ImGuiCol_Text), "%d. %s", static_cast<int>(i) + 1,
@@ -318,7 +318,7 @@ void Editor::drawQuests() {
         if (ImGui::Button("I sent it! Mark this quest done")) {
             prefs.counters["quest_done:" + id] = 1;
             milestone("quests");
-            notify("Thank you for helping build Aven!");
+            notify("Thank you for helping build Rynax!");
         }
         besideSomething = true;
     }
@@ -328,10 +328,10 @@ void Editor::drawQuests() {
     }
     if (besideSomething)
         ImGui::SameLine();
-    if (ImGui::SmallButton("Open Aven on GitHub"))
-        openExternal("https://github.com/ethandadev/Aven");
+    if (ImGui::SmallButton("Open Rynax on GitHub"))
+        openExternal("https://github.com/ethandadev/Rynax");
     ImGui::EndChild();
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

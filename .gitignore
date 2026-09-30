@@ -11,7 +11,7 @@ __pycache__/
 imgui.ini
 
 # A game project made in the repo folder by mistake (e.g. cooking a recipe there)
-/project.aven
+/project.rynax
 /scenes/
 /scripts/
 /prefabs/

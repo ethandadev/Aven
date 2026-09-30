@@ -309,7 +309,7 @@
   "vec.b": "The blue part of a color (0-1).",
   "vec.a": "How solid a color is (0-1).",
 
-  "def": "Makes a function: def jump(): ... Events like on_start are functions Aven calls for you.",
+  "def": "Makes a function: def jump(): ... Events like on_start are functions Rynax calls for you.",
   "if": "Runs the lines below only when something is True.",
   "elif": "Another check, tried when the ones above were False.",
   "else": "Runs when none of the checks above were True.",

@@ -3,8 +3,8 @@
 
 #include "editor.h"
 
-#include "aven/audio/sfx.h"
-#include "aven/core/fs.h"
+#include "rynax/audio/sfx.h"
+#include "rynax/core/fs.h"
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -12,7 +12,7 @@
 #include <algorithm>
 #include <random>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -247,4 +247,4 @@ void Editor::drawSoundMaker() {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

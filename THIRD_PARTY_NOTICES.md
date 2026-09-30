@@ -1,7 +1,7 @@
 # Third-party notices
 
-Aven is MIT licensed. It builds on these projects, which CMake downloads at the pinned versions
-in `cmake/AvenDependencies.cmake` (glad is kept in `third_party/`). Games exported with Aven
+Rynax is MIT licensed. It builds on these projects, which CMake downloads at the pinned versions
+in `cmake/RynaxDependencies.cmake` (glad is kept in `third_party/`). Games exported with Rynax
 include the player, so the libraries marked "player" ship with every game. Their licenses allow
 that; keep this file (or equivalent credits) with your game.
 
@@ -24,7 +24,7 @@ that; keep this file (or equivalent credits) with your game.
 For web builds, [Emscripten](https://emscripten.org) (MIT / University of Illinois NCSA) compiles
 the player and adds its runtime.
 
-Aven's own art is made by scripts in this repository, and is part of Aven, under the MIT License:
+Rynax's own art is made by scripts in this repository, and is part of Rynax, under the MIT License:
 - the app icon (`tools/icon`);
 - the template sprites and sounds (`tools/templates`);
 - the starter tileset (`tools/art`).

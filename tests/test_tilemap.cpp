@@ -1,18 +1,18 @@
 #include "test_framework.h"
 
-#include "aven/assets/assets.h"
-#include "aven/core/fs.h"
-#include "aven/platform/input.h"
-#include "aven/runtime/game.h"
-#include "aven/runtime/systems.h"
-#include "aven/scene/scene.h"
+#include "rynax/assets/assets.h"
+#include "rynax/core/fs.h"
+#include "rynax/platform/input.h"
+#include "rynax/runtime/game.h"
+#include "rynax/runtime/systems.h"
+#include "rynax/scene/scene.h"
 
 #include <filesystem>
 #include <set>
 
-using namespace aven;
+using namespace rynax;
 
-AVEN_TEST(tilemap_keys_sort_by_row_then_column) {
+RYNAX_TEST(tilemap_keys_sort_by_row_then_column) {
     Tilemap t;
     for (int y : {-3, 0, 2})
         for (int x : {5, -7, 0, -1, 3})
@@ -33,7 +33,7 @@ AVEN_TEST(tilemap_keys_sort_by_row_then_column) {
     CHECK_EQ(t.get(-7, -3), -1);
 }
 
-AVEN_TEST(tilemap_saves_as_runs_and_loads_back) {
+RYNAX_TEST(tilemap_saves_as_runs_and_loads_back) {
     Scene scene;
     Entity e = scene.create("Level");
     auto& t = scene.registry().emplace<Tilemap>(e);
@@ -66,7 +66,7 @@ AVEN_TEST(tilemap_saves_as_runs_and_loads_back) {
     CHECK_EQ(runs[0][3].asInt(), 21);
 }
 
-AVEN_TEST(tilemap_rects_cover_exactly_the_tiles) {
+RYNAX_TEST(tilemap_rects_cover_exactly_the_tiles) {
     Tilemap t;
     // An L shape, a floating block and a 3x3 square.
     for (int x = 0; x < 8; ++x)
@@ -90,9 +90,9 @@ AVEN_TEST(tilemap_rects_cover_exactly_the_tiles) {
     CHECK(rects.size() <= 5);
 }
 
-AVEN_TEST(tilemap_is_solid_and_scripts_can_change_it) {
+RYNAX_TEST(tilemap_is_solid_and_scripts_can_change_it) {
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_tilemap_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_tilemap_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "scripts", ec);
@@ -128,7 +128,7 @@ AVEN_TEST(tilemap_is_solid_and_scripts_can_change_it) {
     game.stop();
 }
 
-AVEN_TEST(tilemap_pass_through_tiles_have_no_collision) {
+RYNAX_TEST(tilemap_pass_through_tiles_have_no_collision) {
     Tilemap t;
     for (int x = 0; x < 6; ++x)
         t.set(x, 0, x < 3 ? 0 : 6); // ground, then water

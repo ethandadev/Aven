@@ -1,6 +1,6 @@
 #pragma once
 
-#include "aven/blocks/blocks.h"
+#include "rynax/blocks/blocks.h"
 #include "code_editor.h"
 
 #include <imgui.h>
@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 // Scratch-style block coding canvas. Blocks snap together into scripts, and the
 // EasyScript they turn into is shown live next to them.
@@ -156,4 +156,4 @@ private:
     std::vector<std::string> variableNames() const;
 };
 
-} // namespace aven::editor
+} // namespace rynax::editor

@@ -1,10 +1,10 @@
 #include "test_framework.h"
 
-#include "aven/core/log.h"
+#include "rynax/core/log.h"
 
 #include <cstring>
 
-namespace aven::test {
+namespace rynax::test {
 
 namespace {
 int g_failures = 0;
@@ -20,12 +20,12 @@ void reportFailure(const char* file, int line, const std::string& message) {
     std::cerr << "  " << file << ":" << line << ": " << message << "\n";
 }
 
-} // namespace aven::test
+} // namespace rynax::test
 
 int main(int argc, char** argv) {
-    using namespace aven::test;
+    using namespace rynax::test;
     const char* filter = argc > 1 ? argv[1] : nullptr;
-    aven::Log::setEchoToStdout(false);
+    rynax::Log::setEchoToStdout(false);
     int run = 0, failedTests = 0;
     for (auto& t : registry()) {
         if (filter && !std::strstr(t.name, filter))

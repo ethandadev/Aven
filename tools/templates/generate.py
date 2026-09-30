@@ -2,9 +2,9 @@
 """Regenerates every starter template in templates/.
 
     python3 tools/templates/generate.py
-    python3 tools/templates/generate.py --thumbnails build/bin/aven-player   # also render thumbnail.png files
+    python3 tools/templates/generate.py --thumbnails build/bin/rynax-player   # also render thumbnail.png files
 
-Templates are ordinary Aven projects plus a template.json (shown in the editor's
+Templates are ordinary Rynax projects plus a template.json (shown in the editor's
 new-project gallery) and a tutorial.json (shown in the Learn panel).
 """
 
@@ -42,7 +42,7 @@ def blank_2d(root):
         os.makedirs(t.path(folder), exist_ok=True)
         t.write_text(f"{folder}/.keep", "")
     t.tutorial("Your first game", [
-        {"title": "Welcome to Aven!",
+        {"title": "Welcome to Rynax!",
          "text": "This is an empty 2D game. The big area in the middle is the Scene view: it shows your game world. "
                  "On the left is the Hierarchy (every object in the scene) and on the right is the Inspector "
                  "(the settings of the selected object)."},
@@ -348,7 +348,7 @@ def render_thumbnails(root, player):
     }
     for name in sorted(os.listdir(root)):
         folder = os.path.join(root, name)
-        if not os.path.isfile(os.path.join(folder, "project.aven")) or name.startswith("blank"):
+        if not os.path.isfile(os.path.join(folder, "project.rynax")) or name.startswith("blank"):
             continue
         out = os.path.join(folder, "thumbnail.png")
         subprocess.run(prefix + [player, folder, "--screenshot", out, "--frames", "100", "--size", "480x270", "--hidden"] +

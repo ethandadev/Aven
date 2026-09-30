@@ -1,6 +1,6 @@
 # Online multiplayer
 
-Friends on different networks (at home, at school, on a phone hotspot) can play an Aven game
+Friends on different networks (at home, at school, on a phone hotspot) can play a Rynax game
 together through a **relay**: a small server that the host and the players all connect *out* to.
 Nobody has to open ports on their router or know an IP address. The host gets a **room code**
 like `KX7P2M`; the others type it in.
@@ -38,30 +38,30 @@ Which relay: **Project Settings > Game > Online relay** (for example `relay.exam
 
 ## Running a relay
 
-`aven-relay` comes with the Linux download of Aven (and builds with the rest of Aven from source on
+`rynax-relay` comes with the Linux download of Rynax (and builds with the rest of Rynax from source on
 any system). It needs no screen and very little: the smallest cloud server (1 CPU, 512 MB) handles
 hundreds of games. It listens on TCP port **4243**.
 
 1. Get a Linux server with a public address (any cloud provider, or a computer at home with that
    port forwarded).
-2. Copy `aven-relay` from the Linux download onto it and start it:
+2. Copy `rynax-relay` from the Linux download onto it and start it:
    ```sh
-   ./aven-relay                  # --port 4243 --max-rooms 1000 --max-players 16 --rate 512
+   ./rynax-relay                  # --port 4243 --max-rooms 1000 --max-players 16 --rate 512
    ```
 3. Allow TCP port 4243 in the server's firewall (for example `sudo ufw allow 4243/tcp`, or the
    provider's security group).
 4. Put its address in Project Settings > Game > Online relay, and export the game.
 
 To keep it running after you log out and after restarts, a systemd service
-(`/etc/systemd/system/aven-relay.service`):
+(`/etc/systemd/system/rynax-relay.service`):
 
 ```ini
 [Unit]
-Description=Aven multiplayer relay
+Description=Rynax multiplayer relay
 After=network-online.target
 
 [Service]
-ExecStart=/opt/aven/aven-relay
+ExecStart=/opt/rynax/rynax-relay
 Restart=always
 DynamicUser=yes
 
@@ -69,17 +69,17 @@ DynamicUser=yes
 WantedBy=multi-user.target
 ```
 
-then `sudo systemctl enable --now aven-relay`. Or in a container:
+then `sudo systemctl enable --now rynax-relay`. Or in a container:
 
 ```dockerfile
 FROM debian:stable-slim
-COPY aven-relay /usr/local/bin/
+COPY rynax-relay /usr/local/bin/
 EXPOSE 4243
 USER nobody
-ENTRYPOINT ["aven-relay"]
+ENTRYPOINT ["rynax-relay"]
 ```
 
-It prints a line a minute when the number of games changes, and `aven-relay: listening on port
+It prints a line a minute when the number of games changes, and `rynax-relay: listening on port
 4243` at the start.
 
 ## Limits, and what the relay can see
@@ -104,4 +104,4 @@ A player connects and asks to join that code, for the same game; the relay tells
 player has arrived, and from then on passes each message between them, in order, over the same
 TCP connections. The host sees each player as if they had connected directly, so the rules of
 [local multiplayer](advanced.md#multiplayer-on-the-local-network) (who owns what, who may move
-what) are the same. The protocol is in `engine/src/aven/runtime/relay.h`.
+what) are the same. The protocol is in `engine/src/rynax/runtime/relay.h`.

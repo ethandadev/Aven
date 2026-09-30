@@ -1,16 +1,16 @@
 #include "test_framework.h"
 
-#include "aven/assets/assets.h"
-#include "aven/core/fs.h"
-#include "aven/core/log.h"
-#include "aven/platform/input.h"
-#include "aven/runtime/game.h"
-#include "aven/runtime/script_system.h"
-#include "aven/runtime/systems.h"
+#include "rynax/assets/assets.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/log.h"
+#include "rynax/platform/input.h"
+#include "rynax/runtime/game.h"
+#include "rynax/runtime/script_system.h"
+#include "rynax/runtime/systems.h"
 
 #include <filesystem>
 
-using namespace aven;
+using namespace rynax;
 
 namespace {
 
@@ -60,8 +60,8 @@ void runScripts(Game& game, std::initializer_list<const char*> scripts) {
 // its variables (changed by one importer, seen by the other), dotted names for folders (the last
 // part is the name: `import lib.tools` gives `tools`), `as`,
 // `from ... import`, and a file name in quotes.
-AVEN_TEST(import_shares_one_module) {
-    stdfs::path dir = freshProject("aven_import_test");
+RYNAX_TEST(import_shares_one_module) {
+    stdfs::path dir = freshProject("rynax_import_test");
     fs::writeText(dir / "scripts/utils.es", "count = 0\nspeed = 7\n"
                                             "def double(x):\n    return x * 2\n"
                                             "def bump():\n    global count\n    count += 1\n    return count\n");
@@ -98,8 +98,8 @@ AVEN_TEST(import_shares_one_module) {
 }
 
 // Mistakes get messages that say what to do.
-AVEN_TEST(import_errors_explain_themselves) {
-    stdfs::path dir = freshProject("aven_import_errors_test");
+RYNAX_TEST(import_errors_explain_themselves) {
+    stdfs::path dir = freshProject("rynax_import_errors_test");
     fs::writeText(dir / "scripts/missing.es", "import nothing_here\n");
     fs::writeText(dir / "scripts/x.es", "import y\ndef hi():\n    return 1\n");
     fs::writeText(dir / "scripts/y.es", "import x\ndef hi():\n    return 2\n");

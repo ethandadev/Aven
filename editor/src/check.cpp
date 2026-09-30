@@ -1,4 +1,4 @@
-// aven-editor <project> --check: checks a game without opening a window, for build scripts and CI.
+// rynax-editor <project> --check: checks a game without opening a window, for build scripts and CI.
 // It compiles every script and looks for likely mistakes (the code editor's checks), loads every
 // scene and prefab, and makes sure the files they use exist. Problems print as
 // "file:line:col: error: message" (the format CI systems and editors turn into annotations).
@@ -6,21 +6,21 @@
 
 #include "check.h"
 
-#include "aven/blocks/blocks.h"
-#include "aven/core/fs.h"
-#include "aven/core/json.h"
-#include "aven/core/log.h"
-#include "aven/platform/input.h"
-#include "aven/runtime/project.h"
-#include "aven/scene/reflection.h"
-#include "aven/scene/scene.h"
-#include "aven/script/intel.h"
+#include "rynax/blocks/blocks.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/json.h"
+#include "rynax/core/log.h"
+#include "rynax/platform/input.h"
+#include "rynax/runtime/project.h"
+#include "rynax/scene/reflection.h"
+#include "rynax/scene/scene.h"
+#include "rynax/script/intel.h"
 
 #include <algorithm>
 #include <cstdio>
 #include <set>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace stdfs = std::filesystem;
 
@@ -178,4 +178,4 @@ int runProjectCheck(const stdfs::path& dir, bool strict) {
     return report.errors > 0 || (strict && report.warnings > 0) ? 1 : 0;
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

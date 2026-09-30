@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Signs Aven's release downloads, so the editor's updater installs only what you released.
+"""Signs Rynax's release downloads, so the editor's updater installs only what you released.
 
     python3 tools/release/update_key.py new
         Makes a key pair. The public key goes in the repository's Actions *variable*
@@ -13,9 +13,9 @@
         Checks FILE.sig.
 
 What's signed is the text "aven-update-v1\\n<file name>\\n<SHA-256 of the file>\\n". The file name
-has the version in it (aven-0.4.0-windows-x64.zip), so an older signed download can't be passed off
+has the version in it (rynax-0.4.0-windows-x64.zip), so an older signed download can't be passed off
 as a newer release. Signatures are Ed25519 (RFC 8032); this is the RFC's reference algorithm, using
-only Python's standard library. editor's side: engine/src/aven/core/ed25519.cpp.
+only Python's standard library. editor's side: engine/src/rynax/core/ed25519.cpp.
 """
 
 import hashlib
@@ -129,7 +129,7 @@ def verify(public, msg, signature):
     return point_equal(point_mul(s, G), point_add(R, point_mul(h, A)))
 
 
-# --- what Aven signs
+# --- what Rynax signs
 
 
 def message(path):
@@ -145,7 +145,7 @@ def main(argv):
         seed = os.urandom(32)
         print("Public key  (Actions variable UPDATE_PUBLIC_KEY):  " + public_key(seed).hex())
         print("Private key (Actions secret UPDATE_SIGNING_KEY):   " + seed.hex())
-        print("\nKeep a copy of the private key offline. Anyone with it can sign updates for Aven.")
+        print("\nKeep a copy of the private key offline. Anyone with it can sign updates for Rynax.")
         return 0
     if len(argv) >= 3 and argv[1] == "sign":
         key = os.environ.get("UPDATE_SIGNING_KEY", "").strip()

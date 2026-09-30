@@ -9,10 +9,10 @@
   "learn": ["C++", "How a programming language's built-in functions work"],
   "steps": [
     {"text": "Pick a function that beginners would find useful and that isn't there yet (check the Scripting Reference)."},
-    {"text": "Add it in engine/src/aven/script/stdlib.cpp with vm.defineFunction, with a friendly error message when used wrongly.",
-     "open": "engine/src/aven/script/stdlib.cpp"},
+    {"text": "Add it in engine/src/rynax/script/stdlib.cpp with vm.defineFunction, with a friendly error message when used wrongly.",
+     "open": "engine/src/rynax/script/stdlib.cpp"},
     {"text": "Add a test in tests/test_script.cpp.", "open": "tests/test_script.cpp"},
-    {"text": "Build and run the tests: cmake --build build && build/bin/aven_tests"},
+    {"text": "Build and run the tests: cmake --build build && build/bin/rynax_tests"},
     {"text": "Regenerate the function list in the docs: tools/docs/make_api_reference.sh"}
   ],
   "submit": "Open a pull request. Put 'Quest: add-a-script-function' in the description."

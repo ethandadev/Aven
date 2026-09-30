@@ -1,6 +1,6 @@
 #pragma once
 
-#include "aven/script/intel.h"
+#include "rynax/script/intel.h"
 #include "keymap.h"
 
 #include <imgui.h>
@@ -10,7 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 // Syntax colors for the code editor (chosen in Preferences).
 struct CodePalette {
@@ -159,4 +159,4 @@ private:
     void shiftBreakpoints(int editLine, int delta);
 };
 
-} // namespace aven::editor
+} // namespace rynax::editor

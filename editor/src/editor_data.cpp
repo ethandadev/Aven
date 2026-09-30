@@ -1,18 +1,18 @@
 // Editor data files (editor/data/*.json): things contributors can extend without C++,
-// like the Error Doctor's explanations and the words Ask Aven understands.
+// like the Error Doctor's explanations and the words Ask Rynax understands.
 
 #include "editor.h"
 
-#include "aven/core/fs.h"
+#include "rynax/core/fs.h"
 
 #include <map>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 stdfs::path editorDataDir() {
     std::error_code ec;
     // A build from source reads the source folder, so edits show up after a restart.
-    stdfs::path source = stdfs::path(AVEN_SOURCE_DIR) / "editor" / "data";
+    stdfs::path source = stdfs::path(RYNAX_SOURCE_DIR) / "editor" / "data";
     if (stdfs::exists(source, ec))
         return source;
     return fs::resourceDir() / "data";
@@ -20,14 +20,14 @@ stdfs::path editorDataDir() {
 
 stdfs::path sourceDir() {
     std::error_code ec;
-    stdfs::path source(AVEN_SOURCE_DIR);
+    stdfs::path source(RYNAX_SOURCE_DIR);
     return stdfs::exists(source / "engine", ec) && stdfs::exists(source / "editor", ec) ? source : stdfs::path();
 }
 
 stdfs::path sdkDir() {
     std::error_code ec;
-    stdfs::path source = stdfs::path(AVEN_SOURCE_DIR) / "sdk";
-    if (stdfs::exists(source / "include" / "aven.h", ec))
+    stdfs::path source = stdfs::path(RYNAX_SOURCE_DIR) / "sdk";
+    if (stdfs::exists(source / "include" / "rynax.h", ec))
         return source;
     return fs::resourceDir() / "sdk";
 }
@@ -55,4 +55,4 @@ const Json& editorData(const std::string& name) {
     return e.json;
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

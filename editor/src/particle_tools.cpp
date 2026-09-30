@@ -3,12 +3,12 @@
 
 #include "editor.h"
 
-#include "aven/runtime/particles.h"
+#include "rynax/runtime/particles.h"
 #include "particle_presets.h"
 
 #include <imgui.h>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 void Editor::drawParticlePresets(Entity e, const std::vector<Entity>& selection) {
     auto& reg = scene().registry();
@@ -79,4 +79,4 @@ void Editor::previewParticles(float dt) {
             simulateParticles(*scene_, x, *em, dt, previewRng_);
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

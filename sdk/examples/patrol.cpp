@@ -1,7 +1,7 @@
 // A native behavior in C++: walks back and forth, and turns around at walls or at the edge of its
 // patrol. C++ uses the same C API; wrap it in classes if you like.
 
-#include "aven.h"
+#include "rynax.h"
 
 #include <cmath>
 
@@ -13,33 +13,33 @@ struct Patrol {
     float startX;
     float direction;
 
-    void start(AvenEntity self) {
-        startX = static_cast<float>(aven_get(self, "x"));
+    void start(RynaxEntity self) {
+        startX = static_cast<float>(rynax_get(self, "x"));
         direction = 1;
     }
 
-    void update(AvenEntity self, float dt) {
-        double x = aven_get(self, "x") + direction * speed * dt;
+    void update(RynaxEntity self, float dt) {
+        double x = rynax_get(self, "x") + direction * speed * dt;
         if (std::fabs(x - startX) > distance)
             turn(self);
-        aven_set(self, "x", x);
+        rynax_set(self, "x", x);
     }
 
-    void turn(AvenEntity self) {
+    void turn(RynaxEntity self) {
         direction = -direction;
-        aven_set(self, "flip_x", direction < 0 ? 1 : 0);
+        rynax_set(self, "flip_x", direction < 0 ? 1 : 0);
     }
 };
 
-void setup(AvenModule* module) {
-    AvenBehavior* b = aven_behavior(module, "Patrol", sizeof(Patrol));
-    aven_number(b, "speed", offsetof(Patrol, speed), 2, "Units per second");
-    aven_number(b, "distance", offsetof(Patrol, distance), 3, "How far it walks each way");
-    b->on_start = [](AvenEntity self, void* data) { static_cast<Patrol*>(data)->start(self); };
-    b->on_update = [](AvenEntity self, void* data, float dt) { static_cast<Patrol*>(data)->update(self, dt); };
-    b->on_collide = [](AvenEntity self, void* data, AvenEntity) { static_cast<Patrol*>(data)->turn(self); };
+void setup(RynaxModule* module) {
+    RynaxBehavior* b = rynax_behavior(module, "Patrol", sizeof(Patrol));
+    rynax_number(b, "speed", offsetof(Patrol, speed), 2, "Units per second");
+    rynax_number(b, "distance", offsetof(Patrol, distance), 3, "How far it walks each way");
+    b->on_start = [](RynaxEntity self, void* data) { static_cast<Patrol*>(data)->start(self); };
+    b->on_update = [](RynaxEntity self, void* data, float dt) { static_cast<Patrol*>(data)->update(self, dt); };
+    b->on_collide = [](RynaxEntity self, void* data, RynaxEntity) { static_cast<Patrol*>(data)->turn(self); };
 }
 
 } // namespace
 
-AVEN_MODULE(setup)
+RYNAX_MODULE(setup)

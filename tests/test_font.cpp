@@ -1,13 +1,13 @@
 #include "test_framework.h"
 
-#include "aven/assets/assets.h"
-#include "aven/render/font.h"
+#include "rynax/assets/assets.h"
+#include "rynax/render/font.h"
 
-using namespace aven;
+using namespace rynax;
 
 // The built-in font has more than the characters prepared up front: other alphabets and accented
 // letters are added the first time they're drawn, and ones it doesn't have fall back to '?'.
-AVEN_TEST(font_adds_characters_on_first_use) {
+RYNAX_TEST(font_adds_characters_on_first_use) {
     Assets assets;
     Font& font = assets.defaultFont();
     CHECK(font.glyph('A') != nullptr);

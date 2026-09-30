@@ -1,6 +1,6 @@
 # EasyScript
 
-EasyScript is Aven's scripting language. It reads like Python: indentation groups lines, `def`
+EasyScript is Rynax's scripting language. It reads like Python: indentation groups lines, `def`
 makes a function, and there are no semicolons or type names. Each script belongs to one object
 (`self`). The engine calls its events, such as `on_update(dt)`, for you.
 
@@ -24,7 +24,7 @@ def on_update(dt):
 - `speed = 90` at the top is a **variable** of this object. Top-level variables that don't start
   with `_` appear in the Inspector, so you can give each object its own speed without touching
   the code. Start a name with `_` to keep it private.
-- `def on_update(dt):` is an **event**. Aven runs it every frame. `dt` is the time since the last
+- `def on_update(dt):` is an **event**. Rynax runs it every frame. `dt` is the time since the last
   frame in seconds, so `speed * dt` is "90 degrees per second" whatever the frame rate.
 
 ## Values
@@ -185,7 +185,7 @@ def on_collide(other):
 - `import utils as u` gives it a shorter name; `from utils import double, hits as h` takes
   just those names.
 - Every script that imports `utils` shares **one** copy: when one of them changes `utils.hits`,
-  the others see it. It isn't on an object, so it has no `self`, and Aven doesn't call its
+  the others see it. It isn't on an object, so it has no `self`, and Rynax doesn't call its
   events (`on_update`...); it's for functions and shared values.
 - Saving an imported script while the game runs reloads it, like any script.
 
@@ -224,7 +224,7 @@ def on_update(dt):
 
 ## The code editor
 
-Aven's editor is built for EasyScript (and for C in native modules), so you don't need another
+Rynax's editor is built for EasyScript (and for C in native modules), so you don't need another
 program:
 
 - **Suggestions as you type.** After `self.` you get the object's properties and actions, after
@@ -237,7 +237,7 @@ program:
   the one you're typing highlighted. Rest the mouse on any name to see what it does.
 - **Problems as you type.** A wavy underline marks likely mistakes, like a misspelled name
   ("I don't know 'spd'. Did you mean 'speed'?"), a sound file that isn't in the project, or
-  `def update(dt):` where Aven expects `on_update`. Red means the script can't run; yellow means
+  `def update(dt):` where Rynax expects `on_update`. Red means the script can't run; yellow means
   it probably won't do what you want. The count at the bottom lists them all.
 - **Moving around.** **F12** or **Ctrl+click** jumps to where a variable or function is made,
   **Go to...** lists the file's functions, **Ctrl+F** finds, **Ctrl+H** replaces and **Ctrl+G** goes
@@ -273,8 +273,8 @@ Then:
 - **Step Into** (F11) goes into the function the line calls, if it's one of yours.
 - **Step Out** (Shift+F11) finishes the function and stops back where it was called.
 
-Click the dot again to remove it. Breakpoints work in functions Aven runs (events like
-`on_update`, timers, messages), not in the lines at the top of a script. They stay while Aven is
+Click the dot again to remove it. Breakpoints work in functions Rynax runs (events like
+`on_update`, timers, messages), not in the lines at the top of a script. They stay while Rynax is
 open.
 
 Comments can also shape how a variable looks in the Inspector:
@@ -283,7 +283,7 @@ group. More in [For experienced developers](advanced.md#scripting).
 
 ## Mistakes
 
-When a script has an error, Aven pauses the game and the **Error Doctor** explains it: what went
+When a script has an error, Rynax pauses the game and the **Error Doctor** explains it: what went
 wrong, on which line, and usually a one-click fix. Common ones:
 
 - **Indentation:** the lines inside `if`, `for`, `while` and `def` must be indented the same

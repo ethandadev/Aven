@@ -4,10 +4,10 @@
 
 #include "editor.h"
 
-#include "aven/blocks/blocks.h"
-#include "aven/core/fs.h"
-#include "aven/runtime/behavior_code.h"
-#include "aven/script/translate.h"
+#include "rynax/blocks/blocks.h"
+#include "rynax/core/fs.h"
+#include "rynax/runtime/behavior_code.h"
+#include "rynax/script/translate.h"
 #include "block_editor.h"
 #include "code_editor.h"
 
@@ -16,7 +16,7 @@
 
 #include <algorithm>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -44,12 +44,12 @@ const Rung kTranslations[] = {
     {"C++", "Unreal",
      "Unreal uses C++, the most advanced rung: classes, pointers (->), UPROPERTY for settings and Tick() for every frame.",
      CodeLanguage::Cpp, script::TargetLanguage::Unreal},
-    {"C", "Aven",
-     "The same behavior in C, for Aven's native code tier. Each object gets its own struct of data, and aven_get / "
-     "aven_set use EasyScript's names. Save it to native/src, build, and it runs in this very game.",
-     CodeLanguage::Cpp, script::TargetLanguage::AvenC},
+    {"C", "Rynax",
+     "The same behavior in C, for Rynax's native code tier. Each object gets its own struct of data, and rynax_get / "
+     "rynax_set use EasyScript's names. Save it to native/src, build, and it runs in this very game.",
+     CodeLanguage::Cpp, script::TargetLanguage::RynaxC},
 };
-constexpr int kAvenC = 4; // index of the C rung in kTranslations
+constexpr int kRynaxC = 4; // index of the C rung in kTranslations
 
 std::string lowerName(std::string s) {
     for (auto& c : s)
@@ -247,11 +247,11 @@ void Editor::drawCodeLadder() {
         ImGui::TextDisabled(">");
         ImGui::SameLine();
     }
-    rungButton(1, std::string(first.empty() ? "1" : "2") + "  EasyScript", "Aven's own language: simple and Python-like");
+    rungButton(1, std::string(first.empty() ? "1" : "2") + "  EasyScript", "Rynax's own language: simple and Python-like");
     ImGui::SameLine();
     ImGui::TextDisabled(">");
     ImGui::SameLine();
-    rungButton(2 + kAvenC, std::string(first.empty() ? "2" : "3") + "  C (Aven)", kTranslations[kAvenC].about);
+    rungButton(2 + kRynaxC, std::string(first.empty() ? "2" : "3") + "  C (Rynax)", kTranslations[kRynaxC].about);
     ImGui::SameLine();
     ImGui::TextDisabled(">");
     ImGui::SameLine();
@@ -308,7 +308,7 @@ void Editor::drawCodeLadder() {
             ImGui::TextUnformatted("A behavior is the first rung: it works with no code at all, and you change it with "
                                    "settings in the Inspector. Next rung: the EasyScript that does the same job.");
     } else if (ladder_.rung == 1) {
-        ImGui::TextUnformatted("EasyScript is Aven's own language. It reads like Python: 'def' makes a function, indentation "
+        ImGui::TextUnformatted("EasyScript is Rynax's own language. It reads like Python: 'def' makes a function, indentation "
                                "groups lines, and events like on_update(dt) run by themselves.");
     } else {
         ImGui::TextUnformatted(kTranslations[ladder_.rung - 2].about);
@@ -329,7 +329,7 @@ void Editor::drawCodeLadder() {
             ImGui::SameLine();
             ImGui::Checkbox("Side by side with EasyScript", &ladder_.sideBySide);
         }
-        if (ladder_.rung == 2 + kAvenC && unlocked(Feature::NativeCode) && ladder_.error.empty()) {
+        if (ladder_.rung == 2 + kRynaxC && unlocked(Feature::NativeCode) && ladder_.error.empty()) {
             ImGui::SameLine();
             ImGui::BeginDisabled(nativeBuild_ != nullptr);
             if (ImGui::Button("Save to native/src and build")) {
@@ -452,4 +452,4 @@ void Editor::drawCodeLadder() {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

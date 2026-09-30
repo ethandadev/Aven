@@ -53,7 +53,7 @@
   <div id="error"></div>
 </div>
 <button id="full" title="Full screen">Full screen</button>
-<div id="made">Made with <a href="https://github.com/ethandadev/Aven" target="_blank" rel="noopener">Aven</a></div>
+<div id="made">Made with <a href="https://github.com/ethandadev/Rynax" target="_blank" rel="noopener">Rynax</a></div>
 <script>
 (function () {
   const files = {};
@@ -131,8 +131,8 @@
       printErr: t => { console.warn(t); if (/\[error\]/.test(t)) error.textContent = t; },
     };
     const s = document.createElement('script');
-    s.src = 'aven-player.js';
-    s.onerror = () => { error.textContent = 'aven-player.js is missing next to index.html.'; };
+    s.src = 'rynax-player.js';
+    s.onerror = () => { error.textContent = 'rynax-player.js is missing next to index.html.'; };
     document.body.appendChild(s);
   }
   play.addEventListener('click', start);

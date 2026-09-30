@@ -5,12 +5,12 @@
 
 #include "editor.h"
 
-#include "aven/core/log.h"
-#include "aven/runtime/script_system.h"
+#include "rynax/core/log.h"
+#include "rynax/runtime/script_system.h"
 
 #include <imgui.h>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 using script::VM;
 
@@ -35,7 +35,7 @@ void Editor::setBreakpoint(const std::string& path, int line, bool on) {
         game_->scripts().vm().setBreakpoints(breakpoints_);
 }
 
-// Shows where the paused code is: its script, opened at the line (in Aven's own code editor).
+// Shows where the paused code is: its script, opened at the line (in Rynax's own code editor).
 void Editor::showDebugFrame(size_t index) {
     debugFrame_ = index;
     for (auto& t : tabs_)
@@ -224,4 +224,4 @@ void Editor::drawDebugger() {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

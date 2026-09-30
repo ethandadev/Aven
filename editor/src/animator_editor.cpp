@@ -4,8 +4,8 @@
 
 #include "editor.h"
 
-#include "aven/render/model.h"
-#include "aven/render/renderer3d.h"
+#include "rynax/render/model.h"
+#include "rynax/render/renderer3d.h"
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -407,4 +407,4 @@ void Editor::drawAnimator(Entity e, const std::vector<Entity>& selection) {
     }
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

@@ -1,4 +1,4 @@
-// Preferences > Shortcuts: a keymap to start from (Aven, Unity, Godot, Unreal), then any command's
+// Preferences > Shortcuts: a keymap to start from (Rynax, Unity, Godot, Unreal), then any command's
 // keys changed by clicking them and pressing new ones. Each command can have two sets of keys.
 
 #include "editor.h"
@@ -8,7 +8,7 @@
 
 #include <cstring>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 bool Editor::drawShortcutPrefs() {
     bool changed = false;
@@ -177,4 +177,4 @@ bool Editor::drawShortcutPrefs() {
     return changed;
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

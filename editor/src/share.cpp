@@ -2,18 +2,18 @@
 // a zip ready for itch.io, and a small web server so anyone on the same Wi-Fi can play
 // from a link or by scanning the card's QR code.
 //
-// Aven doesn't host games on the internet. The web build plus zip is what a free host
+// Rynax doesn't host games on the internet. The web build plus zip is what a free host
 // (itch.io, GitHub Pages...) needs to give the game a public link.
 
 #include "editor.h"
 
-#include "aven/runtime/native.h"
+#include "rynax/runtime/native.h"
 
-#include "aven/core/embedded.h"
-#include "aven/core/fs.h"
-#include "aven/core/icons.h"
-#include "aven/core/zip.h"
-#include "aven/render/scene_renderer.h"
+#include "rynax/core/embedded.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/icons.h"
+#include "rynax/core/zip.h"
+#include "rynax/render/scene_renderer.h"
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -34,8 +34,8 @@
 #include <ws2tcpip.h>
 #include <shellapi.h>
 using socket_t = SOCKET;
-#define AVEN_CLOSE_SOCKET closesocket
-#define AVEN_SEND_FLAGS 0
+#define RYNAX_CLOSE_SOCKET closesocket
+#define RYNAX_SEND_FLAGS 0
 #else
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -48,15 +48,15 @@ using socket_t = SOCKET;
 extern char** environ;
 using socket_t = int;
 #define INVALID_SOCKET (-1)
-#define AVEN_CLOSE_SOCKET ::close
+#define RYNAX_CLOSE_SOCKET ::close
 #ifdef MSG_NOSIGNAL
-#define AVEN_SEND_FLAGS MSG_NOSIGNAL // a phone leaving mid-download must not kill the editor (SIGPIPE)
+#define RYNAX_SEND_FLAGS MSG_NOSIGNAL // a phone leaving mid-download must not kill the editor (SIGPIPE)
 #else
-#define AVEN_SEND_FLAGS 0
+#define RYNAX_SEND_FLAGS 0
 #endif
 #endif
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -209,7 +209,7 @@ std::string mimeType(const std::string& ext) {
     if (ext == ".js") return "text/javascript";
     if (ext == ".webmanifest") return "application/manifest+json";
     if (ext == ".wasm") return "application/wasm";
-    if (ext == ".json" || ext == ".scene" || ext == ".prefab" || ext == ".aven" || ext == ".blocks") return "application/json";
+    if (ext == ".json" || ext == ".scene" || ext == ".prefab" || ext == ".rynax" || ext == ".aven" || ext == ".blocks") return "application/json";
     if (ext == ".png") return "image/png";
     if (ext == ".jpg" || ext == ".jpeg") return "image/jpeg";
     if (ext == ".wav") return "audio/wav";
@@ -238,7 +238,7 @@ std::string lanAddress() {
                 ip = buf;
         }
     }
-    AVEN_CLOSE_SOCKET(s);
+    RYNAX_CLOSE_SOCKET(s);
     return ip;
 }
 
@@ -372,7 +372,7 @@ public:
             }
         }
         if (!port_ || ::listen(listen_, 16) != 0) {
-            AVEN_CLOSE_SOCKET(listen_);
+            RYNAX_CLOSE_SOCKET(listen_);
             listen_ = INVALID_SOCKET;
             error = "Couldn't find a free network port (8080-8099).";
             return false;
@@ -388,7 +388,7 @@ public:
         running_ = false;
         if (thread_.joinable())
             thread_.join();
-        AVEN_CLOSE_SOCKET(listen_);
+        RYNAX_CLOSE_SOCKET(listen_);
         listen_ = INVALID_SOCKET;
     }
 
@@ -428,13 +428,13 @@ private:
             setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeout), sizeof timeout);
             setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&timeout), sizeof timeout);
             if (clients_ >= kMaxClients) {
-                AVEN_CLOSE_SOCKET(client);
+                RYNAX_CLOSE_SOCKET(client);
                 continue;
             }
             ++clients_;
             std::thread([this, client] {
                 handle(client);
-                AVEN_CLOSE_SOCKET(client);
+                RYNAX_CLOSE_SOCKET(client);
                 --clients_;
             }).detach();
         }
@@ -445,7 +445,7 @@ private:
     void sendAll(socket_t c, const std::string& data) {
         size_t sent = 0;
         while (sent < data.size()) {
-            auto n = ::send(c, data.data() + sent, static_cast<int>(std::min<size_t>(data.size() - sent, 1 << 16)), AVEN_SEND_FLAGS);
+            auto n = ::send(c, data.data() + sent, static_cast<int>(std::min<size_t>(data.size() - sent, 1 << 16)), RYNAX_SEND_FLAGS);
             if (n <= 0)
                 return;
             sent += static_cast<size_t>(n);
@@ -560,9 +560,9 @@ void Editor::copyGameFiles(const stdfs::path& to, const stdfs::path& skip, std::
 }
 
 stdfs::path Editor::webPlayerDir() const {
-    for (const stdfs::path& dir : {fs::resourceDir() / "web", stdfs::path(AVEN_WEB_PLAYER_DIR)}) {
+    for (const stdfs::path& dir : {fs::resourceDir() / "web", stdfs::path(RYNAX_WEB_PLAYER_DIR)}) {
         std::error_code ec;
-        if (stdfs::exists(dir / "aven-player.wasm", ec) && stdfs::exists(dir / "aven-player.js", ec) &&
+        if (stdfs::exists(dir / "rynax-player.wasm", ec) && stdfs::exists(dir / "rynax-player.js", ec) &&
             stdfs::exists(dir / "index.html", ec))
             return dir;
     }
@@ -619,7 +619,7 @@ std::string Editor::gameDescription() const {
         return settings_.description;
     if (!recipeCard_.summary.empty())
         return recipeCard_.summary;
-    return "A game made with Aven.";
+    return "A game made with Rynax.";
 }
 
 bool Editor::exportWeb(const stdfs::path& folder, std::string& message) {
@@ -635,10 +635,10 @@ bool Editor::exportWeb(const stdfs::path& folder, std::string& message) {
     std::error_code ec;
     stdfs::path out = folder / (safeGameName() + "-web");
     if (stdfs::exists(out, ec)) {
-        bool previous = stdfs::exists(out / "aven-player.wasm", ec) && stdfs::exists(out / "game" / "files.json", ec);
+        bool previous = stdfs::exists(out / "rynax-player.wasm", ec) && stdfs::exists(out / "game" / "files.json", ec);
         bool empty = stdfs::is_directory(out, ec) && stdfs::directory_iterator(out, ec) == stdfs::directory_iterator();
         if (!previous && !empty) {
-            message = "There's already a folder called '" + out.filename().string() + "' that isn't an Aven web build. Pick another folder.";
+            message = "There's already a folder called '" + out.filename().string() + "' that isn't a Rynax web build. Pick another folder.";
             return false;
         }
         stdfs::remove_all(out, ec);
@@ -653,7 +653,7 @@ bool Editor::exportWeb(const stdfs::path& folder, std::string& message) {
     for (auto& f : files)
         list["files"].push(Json(f));
     fs::writeText(out / "game" / "files.json", list.dump(1));
-    for (const char* f : {"aven-player.js", "aven-player.wasm"})
+    for (const char* f : {"rynax-player.js", "rynax-player.wasm"})
         stdfs::copy_file(player / f, out / f, stdfs::copy_options::overwrite_existing, ec);
 
     // The page, filled in for this game.
@@ -681,15 +681,15 @@ bool Editor::exportWeb(const stdfs::path& folder, std::string& message) {
     replaceAll("{{ORIENTATION}}", orientation);
     fs::writeText(out / "index.html", page);
     writeWebAppFiles(out, accentHex, orientation);
-    // The card doubles as the page's preview picture; the Aven icon as its tab icon.
+    // The card doubles as the page's preview picture; the Rynax icon as its tab icon.
     std::string cardMessage;
     makeGameCard(out / "card.png", "", cardMessage);
     std::size_t iconSize = 0;
-    if (const unsigned char* icon = embedded::find("aven_64.png", &iconSize))
+    if (const unsigned char* icon = embedded::find("rynax_64.png", &iconSize))
         fs::writeText(out / "icon.png", std::string(reinterpret_cast<const char*>(icon), iconSize));
     fs::writeText(out / "README.txt",
                   settings_.name + " for web browsers.\n\nBrowsers won't run a game opened straight from your disk. To play or share it:\n"
-                                   "- In Aven: Build & Export > Share > Share on this Wi-Fi.\n"
+                                   "- In Rynax: Build & Export > Share > Share on this Wi-Fi.\n"
                                    "- Online: upload the zip (Build & Export > Web > Make a zip for itch.io) to itch.io as an HTML game.\n"
                                    "- Any web server works: put these files in a folder it serves.\n");
     webExportDir_ = out.string();
@@ -746,9 +746,9 @@ void Editor::writeWebAppFiles(const stdfs::path& out, const std::string& color, 
 
     auto stamp = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     fs::writeText(out / "sw.js",
-                  "// Keeps the game's files so it plays offline. Made by Aven for each export.\n"
-                  "const CACHE = 'aven-" + safeGameName() + "-" + std::to_string(stamp) + "';\n"
-                  "const CORE = ['./', 'index.html', 'aven-player.js', 'aven-player.wasm', 'manifest.webmanifest', 'icon.png',\n"
+                  "// Keeps the game's files so it plays offline. Made by Rynax for each export.\n"
+                  "const CACHE = 'rynax-" + safeGameName() + "-" + std::to_string(stamp) + "';\n"
+                  "const CORE = ['./', 'index.html', 'rynax-player.js', 'rynax-player.wasm', 'manifest.webmanifest', 'icon.png',\n"
                   "              'icon-192.png', 'icon-512.png', 'card.png', 'game/files.json'];\n"
                   "self.addEventListener('install', e => e.waitUntil((async () => {\n"
                   "  const cache = await caches.open(CACHE);\n"
@@ -805,7 +805,7 @@ bool Editor::exportProjectZip(std::string& message) {
         message = "Couldn't write " + zipPath.string() + ".";
         return false;
     }
-    message = "Made " + zipPath.string() + ". To open it, pick it in Aven's Open a game list (or drop it on Aven).";
+    message = "Made " + zipPath.string() + ". To open it, pick it in Rynax's Open a game list (or drop it on Rynax).";
     return true;
 }
 
@@ -823,7 +823,7 @@ bool Editor::importProjectZip(const stdfs::path& zipPath) {
     }
     if (!ProjectSettings::isProject(folder)) {
         stdfs::remove_all(folder, ec);
-        notify(zipPath.filename().string() + " doesn't have an Aven game in it (there's no project.aven).", true);
+        notify(zipPath.filename().string() + " doesn't have a Rynax game in it (there's no project.rynax).", true);
         return false;
     }
     Log::info("Unpacked ", zipPath.filename().string(), " into ", folder.string());
@@ -877,17 +877,17 @@ bool Editor::makeGameCard(const stdfs::path& png, const std::string& shareUrl, s
     Color accent = prefs.accentColor();
     bool qr = !shareUrl.empty();
     float textW = qr ? W - 96 - 230 : W - 96;
-    // "Made with Aven" badge.
+    // "Made with Rynax" badge.
     card.roundRect(32, 28, 32 + 230, 28 + 52, 26, Color(0.04f, 0.06f, 0.12f, 0.75f));
     std::size_t iconSize = 0;
-    if (const unsigned char* icon = embedded::find("aven_64.png", &iconSize)) {
+    if (const unsigned char* icon = embedded::find("rynax_64.png", &iconSize)) {
         int iw, ih, n;
         if (unsigned char* px = stbi_load_from_memory(icon, static_cast<int>(iconSize), &iw, &ih, &n, 4)) {
             card.image(px, iw, ih, 42, 34, 40, 40);
             stbi_image_free(px);
         }
     }
-    font.draw(card, 92, 40, 26, "Made with Aven", Color(1, 1, 1));
+    font.draw(card, 92, 40, 26, "Made with Rynax", Color(1, 1, 1));
     // Title, description and controls.
     float y = H - 230;
     font.draw(card, 48, y, 64, settings_.name, Color(1, 1, 1));
@@ -1048,7 +1048,7 @@ void Editor::drawExport() {
                 ImGui::TextUnformatted(shareUrl_.c_str());
                 ImGui::PopFont();
                 ImGui::TextWrapped("Anyone on the same Wi-Fi can open this link, or scan the QR code on the game card. It keeps "
-                                   "working while Aven is open. (%d requests so far)",
+                                   "working while Rynax is open. (%d requests so far)",
                                    shareServer_->requests());
                 if (ImGui::Button("Copy the link"))
                     ImGui::SetClipboardText(shareUrl_.c_str());
@@ -1074,7 +1074,7 @@ void Editor::drawExport() {
             // The internet.
             ui::sectionHeader("Put it online");
             ImGui::PushTextWrapPos(0);
-            ImGui::TextUnformatted("Aven doesn't host games itself. For a link anyone in the world can open, upload the web "
+            ImGui::TextUnformatted("Rynax doesn't host games itself. For a link anyone in the world can open, upload the web "
                                    "version to a free game host:");
             ImGui::BulletText("itch.io: make the zip, create a project, choose HTML and upload it.");
             ImGui::BulletText("GitHub Pages or any web host: upload the web folder.");
@@ -1108,21 +1108,21 @@ bool Editor::exportGame(const stdfs::path& folder, std::string& message) {
         bool empty = stdfs::is_directory(out, ec) && stdfs::directory_iterator(out, ec) == stdfs::directory_iterator();
         if (!previousExport && !empty) {
             message = "There's already a folder called '" + safeName + "' in " + folder.string() +
-                      " that isn't an Aven export. Pick a different folder so nothing gets overwritten.";
+                      " that isn't a Rynax export. Pick a different folder so nothing gets overwritten.";
             return false;
         }
         stdfs::remove_all(out / "game", ec);
     }
     copyGameFiles(out / "game", folder, nullptr, GameCopy::Desktop);
 #ifdef _WIN32
-    stdfs::path player = fs::executableDir() / "aven-player.exe";
+    stdfs::path player = fs::executableDir() / "rynax-player.exe";
     stdfs::path exe = out / (safeName + ".exe");
 #else
-    stdfs::path player = fs::executableDir() / "aven-player";
+    stdfs::path player = fs::executableDir() / "rynax-player";
     stdfs::path exe = out / safeName;
 #endif
     if (!fs::exists(player)) {
-        message = "Couldn't find aven-player next to the editor, so only the game files were exported to " + out.string();
+        message = "Couldn't find rynax-player next to the editor, so only the game files were exported to " + out.string();
         return false;
     }
     stdfs::copy_file(player, exe, stdfs::copy_options::overwrite_existing, ec);
@@ -1133,11 +1133,11 @@ bool Editor::exportGame(const stdfs::path& folder, std::string& message) {
     stdfs::permissions(exe, stdfs::perms::owner_exec | stdfs::perms::group_exec | stdfs::perms::others_exec,
                        stdfs::perm_options::add, ec);
     fs::writeText(out / "README.txt", settings_.name + " " + settings_.version + "\n\nRun " + exe.filename().string() +
-                                          " to play.\nMade with Aven.\n");
+                                          " to play.\nMade with Rynax.\n");
     message = "Done! Your game is in:\n" + out.string() + "\nRun " + exe.filename().string() + " to play it.";
     Log::info("Exported game to ", out.string());
     milestone("exports");
     return true;
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

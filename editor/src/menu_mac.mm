@@ -1,4 +1,4 @@
-// The macOS menu bar for menu.h: the standard Aven menu, then the editor's menus as described.
+// The macOS menu bar for menu.h: the standard Rynax menu, then the editor's menus as described.
 
 #include "menu.h"
 
@@ -8,17 +8,17 @@
 #include <string>
 #include <vector>
 
-using aven::editor::menu::detail::Node;
+using rynax::editor::menu::detail::Node;
 
-@interface AvenMenuTarget : NSObject
+@interface RynaxMenuTarget : NSObject
 - (void)clicked:(id)sender;
 @end
 
-@implementation AvenMenuTarget
+@implementation RynaxMenuTarget
 - (void)clicked:(id)sender {
     NSString* path = [sender representedObject];
     if (path)
-        aven::editor::menu::detail::clicks.push_back(std::string([path UTF8String]));
+        rynax::editor::menu::detail::clicks.push_back(std::string([path UTF8String]));
 }
 @end
 
@@ -27,10 +27,10 @@ static const NSInteger kSystemItem = 7;
 
 // The editor's menus show their shortcuts but let the keys through to the editor, which knows
 // when they apply (Cmd+C copies text in a text box, objects in the scene).
-@interface AvenShowOnlyMenu : NSMenu
+@interface RynaxShowOnlyMenu : NSMenu
 @end
 
-@implementation AvenShowOnlyMenu
+@implementation RynaxShowOnlyMenu
 - (BOOL)performKeyEquivalent:(NSEvent*)event {
     const NSEventModifierFlags relevant =
         NSEventModifierFlagCommand | NSEventModifierFlagShift | NSEventModifierFlagOption | NSEventModifierFlagControl;
@@ -48,7 +48,7 @@ static const NSInteger kSystemItem = 7;
 
 namespace {
 
-AvenMenuTarget* target = nil;
+RynaxMenuTarget* target = nil;
 
 NSString* str(const std::string& s) {
     NSString* out = [NSString stringWithUTF8String:s.c_str()];
@@ -112,7 +112,7 @@ NSMenuItem* makeItem(const Node& n, Built& built) {
     if (!n.tip.empty())
         item.toolTip = str(n.tip);
     if (n.kind == Node::Menu) {
-        AvenShowOnlyMenu* sub = [[AvenShowOnlyMenu alloc] initWithTitle:str(n.label)];
+        RynaxShowOnlyMenu* sub = [[RynaxShowOnlyMenu alloc] initWithTitle:str(n.label)];
         sub.autoenablesItems = NO;
         built.children.resize(n.children.size());
         bool lastSeparator = true; // no separators at the top, bottom, or two in a row
@@ -170,7 +170,7 @@ NSMenuItem* appItem(NSString* title, NSString* command, NSString* key) {
     return item;
 }
 
-// The menu bar: the Aven menu (made once), then the editor's menus as last applied.
+// The menu bar: the Rynax menu (made once), then the editor's menus as last applied.
 NSMenu* mainMenu = nil;
 std::vector<Node> shownMenus;
 std::vector<Built> builtMenus;
@@ -178,7 +178,7 @@ std::vector<Built> builtMenus;
 void installMainMenu() {
     NSString* name = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"];
     if (!name.length)
-        name = @"Aven";
+        name = @"Rynax";
     mainMenu = [[NSMenu alloc] init];
 
     // The standard application menu. Its keys work as usual (Cmd+Q, Cmd+H, Cmd+,).
@@ -252,7 +252,7 @@ void apply(const Node& bar) {
                 if (sameShape(menus[i], shownMenus[i])) {
                     update(menus[i], shownMenus[i], builtMenus[i]);
                 } else { // this menu's items changed (a new scene to open, a tool added): this one again
-                    NSInteger at = static_cast<NSInteger>(i) + 1; // (after the Aven menu)
+                    NSInteger at = static_cast<NSInteger>(i) + 1; // (after the Rynax menu)
                     builtMenus[i] = Built{};
                     NSMenuItem* top = makeTop(menus[i], builtMenus[i]);
                     [mainMenu removeItemAtIndex:at];
@@ -266,7 +266,7 @@ void apply(const Node& bar) {
 
 } // namespace
 
-namespace aven::editor::menu {
+namespace rynax::editor::menu {
 
 void installNative() {
     if (!NSApp)
@@ -278,10 +278,10 @@ void installNative() {
         @"NSDisabledCharacterPaletteMenuItem" : @YES,
         @"NSFullScreenMenuItemEverywhere" : @NO,
     }];
-    target = [[AvenMenuTarget alloc] init];
+    target = [[RynaxMenuTarget alloc] init];
     detail::nativeOn = true;
     detail::apply = apply;
     apply(Node{});
 }
 
-} // namespace aven::editor::menu
+} // namespace rynax::editor::menu

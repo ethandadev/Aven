@@ -1,22 +1,22 @@
 #include "test_framework.h"
 
-#include "aven/assets/assets.h"
-#include "aven/core/fs.h"
-#include "aven/core/log.h"
-#include "aven/platform/input.h"
-#include "aven/runtime/behavior_code.h"
-#include "aven/runtime/game.h"
-#include "aven/runtime/script_system.h"
-#include "aven/runtime/systems.h"
-#include "aven/scene/reflection.h"
-#include "aven/scene/terrain.h"
-#include "aven/runtime/network.h"
+#include "rynax/assets/assets.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/log.h"
+#include "rynax/platform/input.h"
+#include "rynax/runtime/behavior_code.h"
+#include "rynax/runtime/game.h"
+#include "rynax/runtime/script_system.h"
+#include "rynax/runtime/systems.h"
+#include "rynax/scene/reflection.h"
+#include "rynax/scene/terrain.h"
+#include "rynax/runtime/network.h"
 
 #include <chrono>
 #include <filesystem>
 #include <thread>
 
-using namespace aven;
+using namespace rynax;
 
 namespace {
 
@@ -61,9 +61,9 @@ std::unique_ptr<Scene> testScene(const std::string& script) {
 } // namespace
 
 // Every behavior can be shown as EasyScript. That code must actually work: run each one.
-AVEN_TEST(behaviors_easyscript_equivalents_run) {
+RYNAX_TEST(behaviors_easyscript_equivalents_run) {
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_behavior_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_behavior_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "scripts", ec);
@@ -105,7 +105,7 @@ AVEN_TEST(behaviors_easyscript_equivalents_run) {
 }
 
 // The behaviors themselves: a coin is collected by the player and counted.
-AVEN_TEST(behavior_collectible_counts) {
+RYNAX_TEST(behavior_collectible_counts) {
     Assets assets;
     Input input;
     Game game(assets, input);
@@ -132,9 +132,9 @@ AVEN_TEST(behavior_collectible_counts) {
 }
 
 // A bullet (Hazard + Vanish On Hit) destroys an enemy with 1 health; the enemy's script scores on_destroy.
-AVEN_TEST(behavior_bullet_hits_enemy) {
+RYNAX_TEST(behavior_bullet_hits_enemy) {
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_bullet_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_bullet_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "scripts", ec);
@@ -178,9 +178,9 @@ AVEN_TEST(behavior_bullet_hits_enemy) {
 
 // Click Actions: a no-code list of steps. The steps survive saving, and the code the
 // editor shows for them does the same thing.
-AVEN_TEST(behavior_click_actions_run_steps) {
+RYNAX_TEST(behavior_click_actions_run_steps) {
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_click_actions_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_click_actions_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "scripts", ec);
@@ -270,7 +270,7 @@ AVEN_TEST(behavior_click_actions_run_steps) {
 }
 
 // A Value Bar follows a game value; with max 0 its highest value counts as full.
-AVEN_TEST(behavior_value_bar_follows_game_value) {
+RYNAX_TEST(behavior_value_bar_follows_game_value) {
     Assets assets;
     Input input;
     Game game(assets, input);
@@ -297,7 +297,7 @@ AVEN_TEST(behavior_value_bar_follows_game_value) {
 
 // Collision layers: objects on layers set to pass through each other don't collide,
 // raycasts can be limited to layers, and scripts can change an object's layer.
-AVEN_TEST(physics_collision_layers) {
+RYNAX_TEST(physics_collision_layers) {
     for (bool threeD : {false, true}) {
         Assets assets;
         Input input;
@@ -354,7 +354,7 @@ AVEN_TEST(physics_collision_layers) {
         CHECK(s.worldPosition(s.findByName("Solid")).y < -1.0f); // now falls through too
         game.stop();
     }
-    // Saved in project.aven and read back.
+    // Saved in project.rynax and read back.
     ProjectSettings p;
     p.layers = {"Player", "Bullet"};
     p.setLayersCollide("Player", "Bullet", false);
@@ -366,7 +366,7 @@ AVEN_TEST(physics_collision_layers) {
 }
 
 // Debug shapes last one frame unless given seconds, and scripts can draw them.
-AVEN_TEST(debug_draw_lifetimes) {
+RYNAX_TEST(debug_draw_lifetimes) {
     DebugDraw d;
     d.line({0, 0, 0}, {1, 0, 0}, {1, 1, 0, 1}, 0);
     d.circle({0, 0, 0}, 1, {1, 1, 0, 1}, 0.5f);
@@ -378,7 +378,7 @@ AVEN_TEST(debug_draw_lifetimes) {
     CHECK(d.shapes().empty());
 
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_debug_draw_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_debug_draw_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "scripts", ec);
@@ -404,7 +404,7 @@ AVEN_TEST(debug_draw_lifetimes) {
 
 // The audio mixer: buses are saved in the project, scripts can change them, and a wrong bus
 // name gets a clear message. (Works without a sound device too.)
-AVEN_TEST(audio_mixer_buses) {
+RYNAX_TEST(audio_mixer_buses) {
     ProjectSettings p;
     CHECK(p.toJson()["audio_buses"].isNull()); // defaults aren't written out
     p.audioBuses.push_back({"Ambience", 0.4f, false, 800.0f, 0.3f, 0.5f});
@@ -420,7 +420,7 @@ AVEN_TEST(audio_mixer_buses) {
     CHECK_EQ(r.audioBuses.size(), size_t(3));
 
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_mixer_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_mixer_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "scripts", ec);
@@ -443,7 +443,7 @@ AVEN_TEST(audio_mixer_buses) {
 
 // Animator: a platformer state machine picks Idle / Run / Jump from the built-in parameters,
 // scripts drive it with set_param / trigger / play_state, and it survives saving.
-AVEN_TEST(animator_state_machine) {
+RYNAX_TEST(animator_state_machine) {
     Animator a;
     a.startState = "Idle";
     a.states = {{"Idle", 0, 1, 4, true, "", 1}, {"Run", 2, 5, 10, true, "", 1}, {"Jump", 6, 6, 8, true, "", 1},
@@ -476,7 +476,7 @@ AVEN_TEST(animator_state_machine) {
     CHECK(b.params[0].trigger);
 
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_animator_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_animator_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "scripts", ec);
@@ -540,13 +540,13 @@ AVEN_TEST(animator_state_machine) {
 
 // save_data() keeps values in memory, writes them when the game stops, and two games with the
 // same name but different ids keep separate saves.
-AVEN_TEST(save_data_cached_and_per_game) {
+RYNAX_TEST(save_data_cached_and_per_game) {
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_save_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_save_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "scripts", ec);
-    stdfs::path data = stdfs::temp_directory_path() / "aven_save_home";
+    stdfs::path data = stdfs::temp_directory_path() / "rynax_save_home";
     stdfs::remove_all(data, ec);
 #ifdef _WIN32
     _putenv_s("APPDATA", data.string().c_str());
@@ -582,11 +582,47 @@ AVEN_TEST(save_data_cached_and_per_game) {
     CHECK_EQ(run("bbbbbbbb22222222", 1), -1.0); // another game with the same name starts fresh
 }
 
+// Games made when Rynax was called Aven: project.aven is read, and becomes project.rynax (with the
+// .aven folder); a player's saves stay in the old Aven folder until the game makes a Rynax one.
+RYNAX_TEST(projects_and_saves_from_aven) {
+    namespace stdfs = std::filesystem;
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_aven_project";
+    std::error_code ec;
+    stdfs::remove_all(dir, ec);
+    stdfs::create_directories(dir / ".aven" / "trash", ec);
+    fs::writeText(dir / "project.aven", "{\"name\": \"Old Game\"}");
+    CHECK(ProjectSettings::isProject(dir));
+    ProjectSettings p;
+    CHECK(p.load(dir));
+    CHECK_EQ(p.name, std::string("Old Game"));
+    CHECK(ProjectSettings::migrate(dir));
+    CHECK(stdfs::exists(dir / "project.rynax") && !stdfs::exists(dir / "project.aven"));
+    CHECK(stdfs::is_directory(dir / ".rynax" / "trash") && !stdfs::exists(dir / ".aven"));
+    CHECK(!ProjectSettings::migrate(dir)); // (once)
+    // Saving an old project that wasn't migrated leaves one settings file, the new one.
+    stdfs::rename(dir / "project.rynax", dir / "project.aven", ec);
+    CHECK(p.save(dir));
+    CHECK(stdfs::exists(dir / "project.rynax") && !stdfs::exists(dir / "project.aven"));
+
+    stdfs::path data = stdfs::temp_directory_path() / "rynax_aven_saves";
+    stdfs::remove_all(data, ec);
+#ifdef _WIN32
+    _putenv_s("APPDATA", data.string().c_str());
+#else
+    setenv("XDG_DATA_HOME", data.string().c_str(), 1);
+#endif
+    CHECK_EQ(fs::userDataDir("Old Game"), data / "Rynax" / "Old Game"); // nothing yet: Rynax's folder
+    stdfs::create_directories(data / "Aven" / "Old Game", ec);
+    CHECK_EQ(fs::userDataDir("Old Game"), data / "Aven" / "Old Game"); // the saves made with Aven
+    stdfs::create_directories(data / "Rynax" / "Old Game", ec);
+    CHECK_EQ(fs::userDataDir("Old Game"), data / "Rynax" / "Old Game");
+}
+
 // Graphics quality presets, and a player's choice from set_graphics_quality() kept for next time.
-AVEN_TEST(graphics_quality_presets_and_choice) {
+RYNAX_TEST(graphics_quality_presets_and_choice) {
     RenderQuality high = RenderQuality::preset(GraphicsQuality::High);
     RenderQuality plain;
-    CHECK(high.sunShadows && high.lampShadows && high.ssao && high.bloom && high.fxaa); // what Aven always drew
+    CHECK(high.sunShadows && high.lampShadows && high.ssao && high.bloom && high.fxaa); // what Rynax always drew
     CHECK_EQ(high.shadowMapSize, plain.shadowMapSize);
     CHECK_EQ(high.renderScale, 1.0f);
     RenderQuality low = RenderQuality::preset(GraphicsQuality::Low);
@@ -600,11 +636,11 @@ AVEN_TEST(graphics_quality_presets_and_choice) {
     CHECK_EQ(std::string(qualityName(GraphicsQuality::Low)), std::string("Low"));
 
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_quality_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_quality_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "scripts", ec);
-    stdfs::path data = stdfs::temp_directory_path() / "aven_quality_home";
+    stdfs::path data = stdfs::temp_directory_path() / "rynax_quality_home";
     stdfs::remove_all(data, ec);
 #ifdef _WIN32
     _putenv_s("APPDATA", data.string().c_str());
@@ -648,9 +684,9 @@ AVEN_TEST(graphics_quality_presets_and_choice) {
 }
 
 // Pathfinding: around a wall in 2D and 3D, go_to() + on_arrive(), and Chase's "Walk around walls".
-AVEN_TEST(pathfinding_around_walls) {
+RYNAX_TEST(pathfinding_around_walls) {
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_path_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_path_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "scripts", ec);
@@ -789,7 +825,7 @@ AVEN_TEST(pathfinding_around_walls) {
 
 // Terrain: heights survive saving, brushes shape it, balls land on it, and scripts can ask
 // how high the ground is.
-AVEN_TEST(terrain_shape_save_and_collide) {
+RYNAX_TEST(terrain_shape_save_and_collide) {
     Terrain t;
     t.size = {20, 20};
     t.resolution = 33;
@@ -819,7 +855,7 @@ AVEN_TEST(terrain_shape_save_and_collide) {
     CHECK(std::abs(terrainHeightAt(back, 0, 0) - peak) < 0.3f);
 
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_terrain_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_terrain_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "scripts", ec);
@@ -853,7 +889,7 @@ AVEN_TEST(terrain_shape_save_and_collide) {
 
 // Touch controls: the stick holds arrow keys, buttons press their key once, and other fingers
 // act as the mouse; fingers on controls never click the game.
-AVEN_TEST(touch_controls_press_keys) {
+RYNAX_TEST(touch_controls_press_keys) {
     TouchControls tc;
     TouchSettings s;
     s.mode = TouchMode::Auto;
@@ -909,9 +945,9 @@ bool pumpUntil(Step&& step, Done&& done, double seconds = 10.0) {
 
 // Multiplayer: two games on this computer. The second joins the first, messages get through,
 // networked spawns show up on both, synced objects follow their owner, and leaving tidies up.
-AVEN_TEST(multiplayer_two_games_on_localhost) {
+RYNAX_TEST(multiplayer_two_games_on_localhost) {
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_net_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_net_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "scripts", ec);
@@ -1015,7 +1051,7 @@ AVEN_TEST(multiplayer_two_games_on_localhost) {
 }
 
 // find_games() hears a game hosting on this computer.
-AVEN_TEST(multiplayer_find_games) {
+RYNAX_TEST(multiplayer_find_games) {
     Assets a1, a2;
     Input i1, i2;
     Game host(a1, i1), finder(a2, i2);
@@ -1045,7 +1081,7 @@ AVEN_TEST(multiplayer_find_games) {
 
 // Input between frames: a key that goes down (and even up again) before the game looks is still a
 // press. Browsers deliver keys between frames; a quick tap at a low frame rate is down and up at once.
-AVEN_TEST(input_presses_between_frames_and_quick_taps) {
+RYNAX_TEST(input_presses_between_frames_and_quick_taps) {
     Input in;
     in.beginFrame();
     in.onKey(keys::Space, true); // arrives, then the game looks
@@ -1074,7 +1110,7 @@ AVEN_TEST(input_presses_between_frames_and_quick_taps) {
 
 // A "gamepad" whose stick sits pushed all the way when it appears doesn't walk the player; once it
 // comes back to the middle it's a normal stick.
-AVEN_TEST(input_ignores_stuck_gamepad_sticks) {
+RYNAX_TEST(input_ignores_stuck_gamepad_sticks) {
     Input in;
     bool buttons[static_cast<int>(PadButton::Count)]{};
     float axes[static_cast<int>(PadAxis::Count)] = {-1, -1, 0, 0, -1, -1};

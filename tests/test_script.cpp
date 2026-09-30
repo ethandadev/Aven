@@ -1,10 +1,10 @@
 #include "test_framework.h"
 
-#include "aven/script/vm.h"
+#include "rynax/script/vm.h"
 
 #include <cstdio>
 
-using namespace aven::script;
+using namespace rynax::script;
 
 namespace {
 
@@ -42,14 +42,14 @@ struct Harness {
 
 } // namespace
 
-AVEN_TEST(script_arithmetic_and_printing) {
+RYNAX_TEST(script_arithmetic_and_printing) {
     Harness h;
     auto inst = h.load("a = 7\nb = 2\nprint(a + b, a - b, a * b, a / b, a // b, a % b, a ** b)\nprint(-7 % 3, 0.1 + 0.2)\n");
     CHECK(inst != nullptr);
     CHECK_EQ(h.output(), std::string("9 5 14 3.5 3 1 49\n2 0.30000000000000004\n"));
 }
 
-AVEN_TEST(script_control_flow) {
+RYNAX_TEST(script_control_flow) {
     Harness h;
     auto inst = h.load(R"(
 total = 0
@@ -77,7 +77,7 @@ else:
     CHECK_EQ(h.var(inst, "grade").string(), std::string("b"));
 }
 
-AVEN_TEST(script_functions_defaults_keywords) {
+RYNAX_TEST(script_functions_defaults_keywords) {
     Harness h;
     auto inst = h.load(R"(
 def greet(name, greeting="Hello", punct="!"):
@@ -100,7 +100,7 @@ f = fact(10)
     CHECK_EQ(h.var(inst, "f").number(), 3628800.0);
 }
 
-AVEN_TEST(script_functions_update_script_variables_without_global) {
+RYNAX_TEST(script_functions_update_script_variables_without_global) {
     Harness h;
     auto inst = h.load(R"(
 score = 0
@@ -117,7 +117,7 @@ def add_points(p):
     CHECK(inst->find(intern("temp")) == nullptr); // locals stay local
 }
 
-AVEN_TEST(script_collections) {
+RYNAX_TEST(script_collections) {
     Harness h;
     auto inst = h.load(R"(
 items = [3, 1, 2]
@@ -154,7 +154,7 @@ s = sorted([5, 2, 8], reverse=True)
     CHECK_EQ(h.var(inst, "s").repr(), std::string("[8, 5, 2]"));
 }
 
-AVEN_TEST(script_fstrings_and_text) {
+RYNAX_TEST(script_fstrings_and_text) {
     Harness h;
     auto inst = h.load(R"(
 score = 42
@@ -173,7 +173,7 @@ colon = f"{'time: ' + str(3)}"
 
 // Files from other editors: a byte order mark, Windows line endings, numbers written in
 // different ways, and characters written by number.
-AVEN_TEST(script_source_text_edge_cases) {
+RYNAX_TEST(script_source_text_edge_cases) {
     Harness h;
     auto inst = h.load("\xEF\xBB\xBF" "a = 0xFF + 0x_10\r\nb = 1_000.000_5\r\n"
                        "c = 1 + \\\r\n    2\r\nd = \"caf\\u00e9 \\\r\nbar\"\r\ne = '''x\r\ny'''\r\n");
@@ -190,7 +190,7 @@ AVEN_TEST(script_source_text_edge_cases) {
 
 // Absurdly nested code gives an error instead of running out of stack space (the web player's
 // stack is small), and so does a very long chain of operators.
-AVEN_TEST(script_deep_nesting_is_an_error) {
+RYNAX_TEST(script_deep_nesting_is_an_error) {
     for (std::string src : {"x = " + std::string(5000, '(') + "1" + std::string(5000, ')') + "\n",
                             [] {
                                 std::string s = "x = ";
@@ -219,7 +219,7 @@ AVEN_TEST(script_deep_nesting_is_an_error) {
     }
 }
 
-AVEN_TEST(script_c_style_aliases) {
+RYNAX_TEST(script_c_style_aliases) {
     Harness h;
     auto inst = h.load("a = true && !false\nb = false || null == None;\nif a: c = 1\nelse if b: c = 2\n");
     CHECK(inst != nullptr);
@@ -228,7 +228,7 @@ AVEN_TEST(script_c_style_aliases) {
     CHECK_EQ(h.var(inst, "c").number(), 1.0);
 }
 
-AVEN_TEST(script_bools_compare_like_numbers) {
+RYNAX_TEST(script_bools_compare_like_numbers) {
     Harness h;
     auto inst = h.load("eq = 1 == True\nne = 1 != True\nne0 = 0 != False\ncount = True + True\n");
     CHECK(inst != nullptr);
@@ -238,7 +238,7 @@ AVEN_TEST(script_bools_compare_like_numbers) {
     CHECK_EQ(h.var(inst, "count").number(), 2.0);
 }
 
-AVEN_TEST(script_vectors_and_colors) {
+RYNAX_TEST(script_vectors_and_colors) {
     Harness h;
     auto inst = h.load(R"(
 v = vec(3, 4) * 2
@@ -254,7 +254,7 @@ w = rgb(255, 255, 255)
     CHECK_EQ(h.var(inst, "w").repr(), std::string("rgb(255, 255, 255, 1)"));
 }
 
-AVEN_TEST(script_exports_for_inspector) {
+RYNAX_TEST(script_exports_for_inspector) {
     VM vm;
     auto m = vm.compile("speed = 5  # how fast we run\nname = \"Hero\"\n_private = 3\ntint = rgb(255, 0, 0)\ncomputed = speed * 2\n",
                         "p.es");
@@ -265,7 +265,7 @@ AVEN_TEST(script_exports_for_inspector) {
     CHECK_EQ(m->exports[2].name, std::string("tint"));
 }
 
-AVEN_TEST(script_inspector_hints) {
+RYNAX_TEST(script_inspector_hints) {
     VM vm;
     auto m = vm.compile("# @header Movement\nspeed = 5  # @range(0, 20) how fast\nlives = 3  # @range(1, 9)\n"
                         "hit = \"sounds/hit.wav\"  # @sound when hit\nsecret = 1  # @hide\nlink = \"#tag\"  # a # inside text\n",
@@ -285,7 +285,7 @@ AVEN_TEST(script_inspector_hints) {
     CHECK_EQ(m->exports[4].comment, std::string("a # inside text"));
 }
 
-AVEN_TEST(script_errors_are_friendly) {
+RYNAX_TEST(script_errors_are_friendly) {
     struct Case {
         const char* src;
         const char* expect;
@@ -331,7 +331,7 @@ AVEN_TEST(script_errors_are_friendly) {
     }
 }
 
-AVEN_TEST(script_runtime_error_trace) {
+RYNAX_TEST(script_runtime_error_trace) {
     Harness h;
     auto inst = h.load("def inner():\n    return None.x\ndef outer():\n    inner()\n");
     CHECK(inst != nullptr);
@@ -344,7 +344,7 @@ AVEN_TEST(script_runtime_error_trace) {
     CHECK(std::string(h.errors[0].what()).find("None") != std::string::npos);
 }
 
-AVEN_TEST(script_infinite_loop_is_stopped) {
+RYNAX_TEST(script_infinite_loop_is_stopped) {
     Harness h;
     h.vm.instructionBudget = 100000;
     auto inst = h.load("def forever():\n    while True:\n        pass\n");
@@ -353,7 +353,7 @@ AVEN_TEST(script_infinite_loop_is_stopped) {
     CHECK(h.firstError().find("wait()") != std::string::npos);
 }
 
-AVEN_TEST(script_wait_resumes_later) {
+RYNAX_TEST(script_wait_resumes_later) {
     Harness h;
     auto inst = h.load(R"(
 steps = []
@@ -379,13 +379,13 @@ def on_start():
     CHECK_EQ(h.vm.waitingCount(), size_t(0));
 }
 
-AVEN_TEST(script_wait_not_allowed_at_top_level) {
+RYNAX_TEST(script_wait_not_allowed_at_top_level) {
     Harness h;
     h.load("wait(1)\n");
     CHECK(h.firstError().find("wait() can't be used here") != std::string::npos);
 }
 
-AVEN_TEST(script_timers) {
+RYNAX_TEST(script_timers) {
     Harness h;
     auto inst = h.load(R"(
 ticks = 0
@@ -410,7 +410,7 @@ def on_start():
 }
 
 // A timer can stop another timer that's due in the same frame; the stopped one doesn't run.
-AVEN_TEST(script_timer_stopped_by_another_in_the_same_frame) {
+RYNAX_TEST(script_timer_stopped_by_another_in_the_same_frame) {
     Harness h;
     auto inst = h.load(R"(
 fired = []
@@ -433,7 +433,7 @@ def on_start():
 
 // Odd values that used to be able to crash: lists inside themselves, huge or missing numbers,
 // and functions that start themselves through the engine.
-AVEN_TEST(script_odd_values_give_errors_not_crashes) {
+RYNAX_TEST(script_odd_values_give_errors_not_crashes) {
     Harness h;
     auto inst = h.load(R"(
 a = [1]
@@ -481,7 +481,7 @@ twin_text = str(p) == str(r1)
     CHECK(h.var(inst, "twins").boolean());
     CHECK(h.var(inst, "twin_text").boolean());
     CHECK(VM::toJson(h.var(inst, "p")).isArray());
-    aven::Json j = VM::toJson(h.var(inst, "a")); // a list inside itself: cut off, not endless
+    rynax::Json j = VM::toJson(h.var(inst, "a")); // a list inside itself: cut off, not endless
     CHECK(j.isArray());
 
     struct Case {
@@ -512,7 +512,7 @@ twin_text = str(p) == str(r1)
     CHECK(tasks.var(t, "n").number() < 100);
 }
 
-AVEN_TEST(script_hot_reload_keeps_changed_state) {
+RYNAX_TEST(script_hot_reload_keeps_changed_state) {
     Harness h;
     auto m1 = h.vm.compile("speed = 5\nhealth = 100\ndef value():\n    return 1\n", "r.es");
     auto inst = h.vm.createInstance(m1, Value(), "R");
@@ -525,21 +525,21 @@ AVEN_TEST(script_hot_reload_keeps_changed_state) {
     CHECK_EQ(h.vm.callFunction(inst, intern("value"), {}).value.number(), 2.0);
 }
 
-AVEN_TEST(script_callbacks_may_omit_parameters) {
+RYNAX_TEST(script_callbacks_may_omit_parameters) {
     Harness h;
     auto inst = h.load("n = 0\ndef on_update():\n    n += 1\n");
     CHECK(h.vm.callFunction(inst, intern("on_update"), {Value(0.016)}).ok);
     CHECK_EQ(h.var(inst, "n").number(), 1.0);
 }
 
-AVEN_TEST(script_json_roundtrip) {
-    aven::Json j = VM::toJson(Value::list({Value(1), Value("a"), Value::color(1, 0, 0, 1)}));
+RYNAX_TEST(script_json_roundtrip) {
+    rynax::Json j = VM::toJson(Value::list({Value(1), Value("a"), Value::color(1, 0, 0, 1)}));
     Value back = VM::fromJson(j);
     CHECK_EQ(back.repr(), std::string("[1, \"a\", rgb(255, 0, 0, 1)]"));
 }
 
 // Lists and dicts that only refer to each other are freed; anything still used is left alone.
-AVEN_TEST(script_cycles_are_collected) {
+RYNAX_TEST(script_cycles_are_collected) {
     collectCycles(); // start clean
     size_t before = trackedContainers();
     {
@@ -570,7 +570,7 @@ make_garbage()
     CHECK_EQ(trackedContainers(), before);
 }
 
-AVEN_TEST(script_text_added_in_place_stays_unshared) {
+RYNAX_TEST(script_text_added_in_place_stays_unshared) {
     // text += more adds in place when nothing else holds the text; everything else must see no change.
     Harness h;
     auto inst = h.load(R"(
@@ -607,7 +607,7 @@ print(first)
     CHECK_EQ(h.output(), std::string("01234 xy x q qz abab\nab []\nabab [ab]\nab\n"));
 }
 
-AVEN_TEST(script_dict_number_keys_and_deleting) {
+RYNAX_TEST(script_dict_number_keys_and_deleting) {
     Harness h;
     auto inst = h.load(R"(
 d = {}

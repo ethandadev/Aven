@@ -6,7 +6,7 @@
 
 #include <cstring>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -33,7 +33,7 @@ const std::vector<KeyAction>& keyActions() {
         {"save_as", "Save scene as...", "File", Ctrl | Shift | ImGuiKey_S, 0, InScene | InCode},
         {"close_tab", "Close the tab or window", "File", Ctrl | ImGuiKey_W, 0, Anywhere},
         {"preferences", "Preferences", "File", Ctrl | ImGuiKey_Comma, 0, Anywhere},
-        {"quit", "Quit Aven", "File", Ctrl | ImGuiKey_Q, 0, Anywhere},
+        {"quit", "Quit Rynax", "File", Ctrl | ImGuiKey_Q, 0, Anywhere},
 
         {"undo", "Undo", "Edit", Ctrl | ImGuiKey_Z, 0, Anywhere, true},
         {"redo", "Redo", "Edit", kMac ? Ctrl | Shift | ImGuiKey_Z : Ctrl | ImGuiKey_Y,
@@ -76,7 +76,7 @@ const std::vector<KeyAction>& keyActions() {
         {"fly_down", "Fly down", "Scene view", ImGuiKey_Q, 0, InFly},
 
         {"command_palette", "Command palette (search everything)", "Windows and tools", Ctrl | ImGuiKey_K, 0, Anywhere},
-        {"ask", "Ask Aven (describe a change)", "Windows and tools", Ctrl | ImGuiKey_J, 0, Anywhere},
+        {"ask", "Ask Rynax (describe a change)", "Windows and tools", Ctrl | ImGuiKey_J, 0, Anywhere},
         {"find", "Find in project", "Windows and tools", Ctrl | Shift | ImGuiKey_F, 0, Anywhere},
         {"explain", "Explain the selected object", "Windows and tools", ImGuiKey_F1, 0, InScene},
         {"doctor", "Error Doctor (check my game)", "Windows and tools", ImGuiKey_F8, 0, Anywhere},
@@ -133,8 +133,8 @@ const KeyAction* findKeyAction(std::string_view id) {
 
 const std::vector<Keymap>& keymaps() {
     static const std::vector<Keymap> list = {
-        {"Aven", "Aven's own keys: Ctrl+P plays, W / E / R move, rotate and scale, F focuses.", {}},
-        {"Unity", "Unity's keys, which Aven's own already follow: Ctrl+P plays, Ctrl+Shift+P pauses, "
+        {"Rynax", "Rynax's own keys: Ctrl+P plays, W / E / R move, rotate and scale, F focuses.", {}},
+        {"Unity", "Unity's keys, which Rynax's own already follow: Ctrl+P plays, Ctrl+Shift+P pauses, "
                   "W / E / R, F to focus, Ctrl+D duplicates.",
          {}},
         {"Godot",
@@ -172,7 +172,7 @@ const std::vector<Keymap>& keymaps() {
 
 void applyKeymap(Prefs& prefs, const std::string& name) {
     prefs.keys.clear();
-    prefs.keymap = "Aven";
+    prefs.keymap = "Rynax";
     for (auto& k : keymaps()) {
         if (name != k.name)
             continue;
@@ -301,4 +301,4 @@ std::string keyText(std::string text) {
     return text;
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

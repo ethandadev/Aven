@@ -1,7 +1,7 @@
 #include "prefs.h"
 
-#include "aven/core/embedded.h"
-#include "aven/core/fs.h"
+#include "rynax/core/embedded.h"
+#include "rynax/core/fs.h"
 #include "editor.h"
 
 #include <ImGuizmo.h>
@@ -9,7 +9,7 @@
 
 #include <algorithm>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 // ---------------------------------------------------------------- themes
 
@@ -39,7 +39,7 @@ ImVec4 lerp4(ImVec4 a, ImVec4 b, float t) {
     return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t};
 }
 
-std::string prefsPath() { return (fs::userDataDir("Aven Editor") / "preferences.json").string(); }
+std::string prefsPath() { return (fs::userDataDir("Rynax Editor") / "preferences.json").string(); }
 
 Json colorJson(Color c) {
     Json a = Json::array();
@@ -233,7 +233,7 @@ void Prefs::fromJson(const Json& j) {
     for (auto& e : j["engines_used"].elements())
         enginesUsed.push_back(e.asString());
     ladderEngine = j["ladder_engine"].asString("");
-    // (Anyone who used Aven before the welcome tour existed has a preferences file already: no tour.)
+    // (Anyone who used Rynax before the welcome tour existed has a preferences file already: no tour.)
     onboarded = j["onboarded"].asBool(true);
     reduceMotion = j["reduce_motion"].asBool(d.reduceMotion);
     zoomSpeed = std::clamp(j["zoom_speed"].asFloat(d.zoomSpeed), 0.25f, 4.0f);
@@ -259,6 +259,34 @@ bool Prefs::load() {
 void Prefs::save() const {
     if (saving)
         fs::writeText(prefsPath(), toJson().dump(2));
+}
+
+// ---------------------------------------------------------------- from Aven
+
+bool bringOverAvenData() {
+    // (userDataDir finds Aven's folder, <base>/Aven/Aven Editor, when there's no Rynax one of that name.)
+    stdfs::path old = fs::userDataDir("Aven Editor"), now = fs::userDataDir("Rynax Editor");
+    std::error_code ec;
+    if (old.parent_path().filename() != "Aven" || !stdfs::is_directory(old, ec) || stdfs::exists(now, ec))
+        return false;
+    stdfs::create_directories(now.parent_path(), ec);
+    stdfs::copy(old, now, stdfs::copy_options::recursive, ec);
+    if (ec) {
+        Log::warn("Couldn't bring over Aven's editor settings from ", fs::toUtf8(old), ": ", ec.message());
+        return false;
+    }
+    // The profile picture's path points into Aven's folder: into the copy now.
+    if (auto text = fs::readText(now / "preferences.json")) {
+        Json j = Json::parse(*text);
+        std::string picture = j["profile_picture"].asString("");
+        std::string from = old.string();
+        if (!picture.empty() && picture.rfind(from, 0) == 0) {
+            j["profile_picture"] = now.string() + picture.substr(from.size());
+            fs::writeText(now / "preferences.json", j.dump(2));
+        }
+    }
+    Log::info("Brought over Aven's editor settings from ", fs::toUtf8(old));
+    return true;
 }
 
 // ---------------------------------------------------------------- style
@@ -421,4 +449,4 @@ void buildFonts(const Prefs& prefs, float dpiScale, Fonts& fonts, float density)
     io.Fonts->Build();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

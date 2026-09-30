@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the web player (aven-player.js + .wasm) with Emscripten and puts it where the
+# Builds the web player (rynax-player.js + .wasm) with Emscripten and puts it where the
 # editor looks for it (build/bin/web), so "Build & Export > Web" works.
 #
 #   source /path/to/emsdk/emsdk_env.sh
@@ -11,8 +11,8 @@ if ! command -v emcmake >/dev/null; then
     exit 1
 fi
 emcmake cmake -S "$root" -B "$root/build-web" -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build "$root/build-web" --target aven_player
+cmake --build "$root/build-web" --target rynax_player
 out="${1:-$root/build/bin/web}"
 mkdir -p "$out"
-cp "$root/build-web/bin/aven-player.js" "$root/build-web/bin/aven-player.wasm" "$root/build-web/bin/index.html" "$out/"
+cp "$root/build-web/bin/rynax-player.js" "$root/build-web/bin/rynax-player.wasm" "$root/build-web/bin/index.html" "$out/"
 echo "Web player ready in $out"

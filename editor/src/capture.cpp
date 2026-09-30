@@ -3,7 +3,7 @@
 
 #include "editor.h"
 
-#include "aven/core/fs.h"
+#include "rynax/core/fs.h"
 
 #include <gif.h>
 
@@ -13,7 +13,7 @@
 #include <ctime>
 #include <thread>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -155,4 +155,4 @@ void Editor::drawCaptureStatus() {
     }
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

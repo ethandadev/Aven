@@ -1,10 +1,10 @@
-// Pixel Editor: draw sprites and animation frames right inside Aven. Pencil, eraser, fill,
+// Pixel Editor: draw sprites and animation frames right inside Rynax. Pencil, eraser, fill,
 // lines, rectangles, an eyedropper, mirror drawing, onion skin for animations, and one click
 // to put the drawing on the selected object.
 
 #include "editor.h"
 
-#include "aven/core/fs.h"
+#include "rynax/core/fs.h"
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -14,7 +14,7 @@
 #include <cmath>
 #include <cstring>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -536,4 +536,4 @@ void Editor::drawPixelEditor() {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

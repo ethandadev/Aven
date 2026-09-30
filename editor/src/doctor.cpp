@@ -4,8 +4,8 @@
 
 #include "editor.h"
 
-#include "aven/core/fs.h"
-#include "aven/render/scene_renderer.h"
+#include "rynax/core/fs.h"
+#include "rynax/render/scene_renderer.h"
 #include "block_editor.h"
 #include "code_editor.h"
 #include "script_facts.h"
@@ -16,7 +16,7 @@
 #include <cctype>
 #include <regex>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -374,7 +374,7 @@ std::vector<Editor::Diagnosis> Editor::diagnose(const std::string& message, cons
         openFix();
     } else if (message.find("ran for too long") != std::string::npos) {
         d.title = "A loop that never stops";
-        d.explanation = "The script kept running without a break, which would freeze the game, so Aven paused it. A 'while' loop "
+        d.explanation = "The script kept running without a break, which would freeze the game, so Rynax paused it. A 'while' loop "
                         "probably never becomes false. Inside long loops, add wait() so the game can draw a frame" + where + ".";
         openFix();
     } else if (message.find("None (nothing)") != std::string::npos || message.find("isn't available. Check that it still exists") != std::string::npos) {
@@ -821,4 +821,4 @@ void Editor::drawDoctor() {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

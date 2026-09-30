@@ -5,11 +5,11 @@
 
 #include "editor.h"
 
-#include "aven/core/fs.h"
-#include "aven/core/log.h"
-#include "aven/render/model.h"
-#include "aven/render/renderer3d.h"
-#include "aven/scene/reflection.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/log.h"
+#include "rynax/render/model.h"
+#include "rynax/render/renderer3d.h"
+#include "rynax/scene/reflection.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -20,7 +20,7 @@
 #include <chrono>
 #include <cstring>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -226,9 +226,9 @@ void Editor::moveAssetsInto(const std::vector<std::string>& items, const std::st
 }
 
 void Editor::deleteAssets(const std::vector<std::string>& items) {
-    // Into .aven/trash rather than gone for good: easy to get back from the file manager.
+    // Into .rynax/trash rather than gone for good: easy to get back from the file manager.
     auto stamp = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    stdfs::path trash = projectDir_ / ".aven" / "trash" / std::to_string(stamp);
+    stdfs::path trash = projectDir_ / ".rynax" / "trash" / std::to_string(stamp);
     std::error_code ec;
     int deleted = 0;
     for (auto& rel : items) {
@@ -254,7 +254,7 @@ void Editor::deleteAssets(const std::vector<std::string>& items) {
     scanAssets();
     if (deleted > 0)
         notify("Deleted " + (deleted == 1 ? items.front() : plural(static_cast<size_t>(deleted), "item")) +
-               ". A copy is in .aven/trash in the project folder.");
+               ". A copy is in .rynax/trash in the project folder.");
 }
 
 // Double-click (or Enter): into a folder, or open the file in its editor.
@@ -377,7 +377,7 @@ void Editor::drawAssets() {
     std::error_code ec;
     stdfs::path dir = projectDir_ / assetFolder_;
     if (!assetFolder_.empty() && !stdfs::is_directory(dir, ec)) {
-        assetFolder_.clear(); // it was moved or deleted outside Aven
+        assetFolder_.clear(); // it was moved or deleted outside Rynax
         dir = projectDir_;
     }
     std::vector<stdfs::directory_entry> entries;
@@ -394,7 +394,8 @@ void Editor::drawAssets() {
     } else {
         for (auto& entry : stdfs::directory_iterator(dir, ec)) {
             std::string name = entry.path().filename().string();
-            if (name.empty() || name[0] == '.' || name == ProjectSettings::kFileName || name == "tutorial.json" ||
+            if (name.empty() || name[0] == '.' || name == ProjectSettings::kFileName ||
+                name == ProjectSettings::kLegacyFileName || name == "tutorial.json" ||
                 name == Assets::kImportFile)
                 continue;
             entries.push_back(entry);
@@ -674,7 +675,7 @@ void Editor::drawAssets() {
                 ImGui::BulletText("%s", deleteUsers_[k].c_str());
         }
         ImGui::Spacing();
-        ImGui::TextDisabled("A copy goes to .aven/trash in the project folder.");
+        ImGui::TextDisabled("A copy goes to .rynax/trash in the project folder.");
         ImGui::Spacing();
         if (ImGui::IsWindowAppearing())
             ImGui::SetKeyboardFocusHere();
@@ -824,4 +825,4 @@ void Editor::drawImportSettings() {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

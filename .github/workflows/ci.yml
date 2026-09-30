@@ -35,7 +35,7 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: build/_deps
-          key: deps-${{ matrix.os }}-${{ hashFiles('cmake/AvenDependencies.cmake') }}
+          key: deps-${{ matrix.os }}-${{ hashFiles('cmake/RynaxDependencies.cmake') }}
 
       - name: Configure
         shell: bash
@@ -49,35 +49,35 @@ jobs:
       - name: Test
         shell: bash
         run: |
-          tests=$(find build -name 'aven_tests' -o -name 'aven_tests.exe' | head -n 1)
+          tests=$(find build -name 'rynax_tests' -o -name 'rynax_tests.exe' | head -n 1)
           "$tests"
 
-      - name: Check every template (aven-editor --check)
+      - name: Check every template (rynax-editor --check)
         if: runner.os == 'Linux'
         run: |
-          for t in templates/*/; do build/bin/aven-editor "$t" --check --strict; done
+          for t in templates/*/; do build/bin/rynax-editor "$t" --check --strict; done
 
       - name: Editor smoke test (screenshot)
         if: runner.os == 'Linux'
         run: |
-          xvfb-run -a -s "-screen 0 1920x1080x24" build/bin/aven-editor templates/platformer --screenshot editor.png --frames 20
-          xvfb-run -a -s "-screen 0 1920x1080x24" build/bin/aven-player templates/obby-3d --screenshot player.png --frames 30 --hidden
+          xvfb-run -a -s "-screen 0 1920x1080x24" build/bin/rynax-editor templates/platformer --screenshot editor.png --frames 20
+          xvfb-run -a -s "-screen 0 1920x1080x24" build/bin/rynax-player templates/obby-3d --screenshot player.png --frames 30 --hidden
 
       - name: Editor interaction tests (recorded mouse and keyboard input)
         if: runner.os == 'Linux'
-        run: python3 tests/editor/run.py build/bin/aven-editor
+        run: python3 tests/editor/run.py build/bin/rynax-editor
 
-      - name: Package as Aven.app and start it (macOS)
+      - name: Package as Rynax.app and start it (macOS)
         if: runner.os == 'macOS'
         run: |
-          tools/release/package.sh build/bin aven-ci-macos-arm64 "" dist
-          tools/release/make_mac_app.sh dist/aven-ci-macos-arm64 0.0.0-ci dist/mac
-          ditto -x -k dist/mac/aven-0.0.0-ci-macos-arm64.zip dist/unzipped
+          tools/release/package.sh build/bin rynax-ci-macos-arm64 "" dist
+          tools/release/make_mac_app.sh dist/rynax-ci-macos-arm64 0.0.0-ci dist/mac
+          ditto -x -k dist/mac/rynax-0.0.0-ci-macos-arm64.zip dist/unzipped
           # Hide the source folders, so the app can only use what's inside it (Contents/Resources).
           mv editor/data editor/data.hidden && mv templates templates.hidden && mv quests quests.hidden && mv sdk sdk.hidden
-          app=dist/unzipped/Aven.app
+          app=dist/unzipped/Rynax.app
           # (GitHub's Mac runners have no GPU for an OpenGL window, so no screenshot here.)
-          "$app/Contents/MacOS/aven-editor" "$PWD/$app/Contents/Resources/templates/platformer" --check --strict
+          "$app/Contents/MacOS/rynax-editor" "$PWD/$app/Contents/Resources/templates/platformer" --check --strict
           mv editor/data.hidden editor/data && mv templates.hidden templates && mv quests.hidden quests && mv sdk.hidden sdk
           codesign --verify --deep --strict "$app"
 
@@ -107,20 +107,20 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: build/_deps
-          key: deps-sanitizers-${{ hashFiles('cmake/AvenDependencies.cmake') }}
+          key: deps-sanitizers-${{ hashFiles('cmake/RynaxDependencies.cmake') }}
       - name: Configure
         run: |
           flags="-fsanitize=address,undefined -fno-sanitize=vptr -fno-sanitize-recover=undefined -fno-omit-frame-pointer"
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="$flags" -DCMAKE_CXX_FLAGS="$flags" \
             -DCMAKE_EXE_LINKER_FLAGS="$flags" -DCMAKE_SHARED_LINKER_FLAGS="$flags"
       - name: Build the tests
-        run: cmake --build build --target aven_tests aven_test_module --parallel
+        run: cmake --build build --target rynax_tests rynax_test_module --parallel
       - name: Test
         env:
           ASAN_OPTIONS: detect_leaks=1
-          AVEN_FUZZ_ROUNDS: "3000"
+          RYNAX_FUZZ_ROUNDS: "3000"
           UBSAN_OPTIONS: print_stacktrace=1
-        run: build/bin/aven_tests
+        run: build/bin/rynax_tests
 
   web:
     name: Web player

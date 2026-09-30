@@ -1,12 +1,12 @@
 #include "test_framework.h"
 
-#include "aven/assets/assets.h"
-#include "aven/core/fs.h"
-#include "aven/core/json.h"
-#include "aven/core/uuid.h"
-#include "aven/core/icons.h"
-#include "aven/core/zip.h"
-#include "aven/math/math.h"
+#include "rynax/assets/assets.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/json.h"
+#include "rynax/core/uuid.h"
+#include "rynax/core/icons.h"
+#include "rynax/core/zip.h"
+#include "rynax/math/math.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -17,9 +17,9 @@
 #include <windows.h>
 #endif
 
-using namespace aven;
+using namespace rynax;
 
-AVEN_TEST(math_vector_ops) {
+RYNAX_TEST(math_vector_ops) {
     Vec3 a{1, 2, 3}, b{4, 5, 6};
     CHECK(a + b == Vec3(5, 7, 9));
     CHECK_NEAR(dot(a, b), 32, 1e-6);
@@ -27,14 +27,14 @@ AVEN_TEST(math_vector_ops) {
     CHECK_NEAR(length(normalize(b)), 1, 1e-6);
 }
 
-AVEN_TEST(math_matrix_inverse) {
+RYNAX_TEST(math_matrix_inverse) {
     Mat4 m = Mat4::trs({3, -2, 5}, Quat::fromEuler({30, 45, 60}), {2, 3, 0.5f});
     Mat4 id = m * inverse(m);
     for (int i = 0; i < 16; ++i)
         CHECK_NEAR(id.m[i], Mat4::identity().m[i], 1e-4);
 }
 
-AVEN_TEST(math_euler_roundtrip) {
+RYNAX_TEST(math_euler_roundtrip) {
     for (Vec3 e : {Vec3(10, 20, 30), Vec3(-45, 170, 5), Vec3(0, 0, 90), Vec3(80, -30, -120)}) {
         Vec3 back = Quat::fromEuler(e).toEuler();
         Quat q1 = Quat::fromEuler(e), q2 = Quat::fromEuler(back);
@@ -43,7 +43,7 @@ AVEN_TEST(math_euler_roundtrip) {
     }
 }
 
-AVEN_TEST(math_euler_order_matches_unity) {
+RYNAX_TEST(math_euler_order_matches_unity) {
     // Z is applied first, then X, then Y.
     Quat q = Quat::fromEuler({90, 90, 0});
     Vec3 v = rotate(q, {0, 0, 1});
@@ -53,7 +53,7 @@ AVEN_TEST(math_euler_order_matches_unity) {
     CHECK_NEAR(v.z, 0, 1e-5);
 }
 
-AVEN_TEST(math_decompose) {
+RYNAX_TEST(math_decompose) {
     Vec3 t{1, 2, 3}, s{2, 1, 4};
     Quat r = Quat::fromEuler({15, 25, 35});
     Vec3 t2, s2;
@@ -64,7 +64,7 @@ AVEN_TEST(math_decompose) {
     CHECK_NEAR(std::abs(dot(r, r2)), 1, 1e-4);
 }
 
-AVEN_TEST(math_rotation_of_a_damaged_matrix_is_not_nan) {
+RYNAX_TEST(math_rotation_of_a_damaged_matrix_is_not_nan) {
     // A matrix with nan in it (from maths gone wrong somewhere) reads as no rotation, not nan.
     Mat4 bad = Mat4::trs({0, 0, 0}, Quat::fromEuler({10, 20, 30}), {1, 1, 1});
     bad.m[0] = std::nanf("");
@@ -77,7 +77,7 @@ AVEN_TEST(math_rotation_of_a_damaged_matrix_is_not_nan) {
     }
 }
 
-AVEN_TEST(math_projection) {
+RYNAX_TEST(math_projection) {
     Mat4 p = Mat4::perspective(radians(90), 1, 0.1f, 100);
     Vec4 nearPt = p * Vec4(0, 0, -0.1f, 1);
     Vec4 farPt = p * Vec4(0, 0, -100, 1);
@@ -87,7 +87,7 @@ AVEN_TEST(math_projection) {
     CHECK_NEAR(transformPoint(view, {0, 0, 0}).z, -5, 1e-5);
 }
 
-AVEN_TEST(json_roundtrip) {
+RYNAX_TEST(json_roundtrip) {
     std::string err;
     Json j = Json::parse(R"({"name": "Player", "pos": [1.5, -2, 3], "tags": ["a", "b"], "on": true,
         "nested": {"x": null, "s": "line\nbreak é"}})",
@@ -105,14 +105,14 @@ AVEN_TEST(json_roundtrip) {
     CHECK_EQ(back["nested"]["s"].asString(), std::string("line\nbreak \xc3\xa9"));
 }
 
-AVEN_TEST(json_errors_have_locations) {
+RYNAX_TEST(json_errors_have_locations) {
     std::string err;
     Json::parse("{\n  \"a\": 1,\n  \"b\": }", &err);
     CHECK(err.find("line 3") != std::string::npos);
 }
 
 // Hand-edited files: // comments and trailing commas are forgiven.
-AVEN_TEST(json_is_forgiving_about_hand_edits) {
+RYNAX_TEST(json_is_forgiving_about_hand_edits) {
     std::string err;
     Json j = Json::parse("{\n  // the player\n  \"speed\": 5,\n  \"list\": [1, 2,],\n}", &err);
     CHECK(err.empty());
@@ -120,30 +120,30 @@ AVEN_TEST(json_is_forgiving_about_hand_edits) {
     CHECK_EQ(j["list"].size(), size_t(2));
 }
 
-AVEN_TEST(json_float_formatting) {
+RYNAX_TEST(json_float_formatting) {
     Json j = Json(0.1f);
     CHECK_EQ(j.dump(), std::string("0.1"));
     CHECK_EQ(Json(42).dump(), std::string("42"));
     CHECK_EQ(Json(-3.25).dump(), std::string("-3.25"));
 }
 
-AVEN_TEST(json_preserves_key_order) {
+RYNAX_TEST(json_preserves_key_order) {
     Json j = Json::object();
     j["zebra"] = 1;
     j["apple"] = 2;
     CHECK_EQ(j.dump(), std::string(R"({"zebra":1,"apple":2})"));
 }
 
-AVEN_TEST(uuid_string_roundtrip) {
+RYNAX_TEST(uuid_string_roundtrip) {
     UUID id = UUID::generate();
     CHECK(static_cast<bool>(id));
     CHECK(UUID::fromString(id.toString()) == id);
 }
 
 // Paths from games and web requests stay inside their folder (the share server and scripts use this).
-AVEN_TEST(fs_inside_folder_blocks_escapes) {
+RYNAX_TEST(fs_inside_folder_blocks_escapes) {
     namespace stdfs = std::filesystem;
-    stdfs::path root = stdfs::temp_directory_path() / "aven_inside_test";
+    stdfs::path root = stdfs::temp_directory_path() / "rynax_inside_test";
     std::error_code ec;
     stdfs::remove_all(root, ec);
     stdfs::create_directories(root / "images", ec);
@@ -164,9 +164,9 @@ AVEN_TEST(fs_inside_folder_blocks_escapes) {
 }
 
 // Import settings: saved in import.json with only what differs, read back, and forgotten when reset.
-AVEN_TEST(import_settings_roundtrip) {
+RYNAX_TEST(import_settings_roundtrip) {
     namespace stdfs = std::filesystem;
-    stdfs::path root = stdfs::temp_directory_path() / "aven_import_test";
+    stdfs::path root = stdfs::temp_directory_path() / "rynax_import_test";
     std::error_code ec;
     stdfs::remove_all(root, ec);
     stdfs::create_directories(root, ec);
@@ -192,9 +192,9 @@ AVEN_TEST(import_settings_roundtrip) {
 
 // Zip files: a folder packs and unpacks the same (text compressed, the rest stored); a zip made by
 // another tool (Python's zipfile, deflated, in a top folder) reads; unsafe or broken ones don't.
-AVEN_TEST(zip_roundtrip_and_safety) {
+RYNAX_TEST(zip_roundtrip_and_safety) {
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_zip_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_zip_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "src/scenes", ec);
@@ -242,7 +242,7 @@ AVEN_TEST(zip_roundtrip_and_safety) {
     std::vector<uint8_t> py(kPython, kPython + sizeof kPython - 1);
     fs::writeBinary(dir / "py.zip", py.data(), py.size());
     CHECK(zip::extract(dir / "py.zip", dir / "py", error));
-    CHECK(fs::readText(dir / "py/project.aven").value_or("").find("Zipped") != std::string::npos);
+    CHECK(fs::readText(dir / "py/project.aven").value_or("").find("Zipped") != std::string::npos); // (made when Rynax was Aven)
     CHECK(stdfs::exists(dir / "py/scenes/main.scene"));
 
     // "../evil.txt" is refused.
@@ -291,8 +291,8 @@ AVEN_TEST(zip_roundtrip_and_safety) {
 }
 
 // App icons: resizing keeps a picture's look; .icns files are laid out right; the icon inside a
-// Windows program can be swapped (tested on aven-player.exe on Windows, or AVEN_TEST_EXE).
-AVEN_TEST(icons_resize_icns_and_exe) {
+// Windows program can be swapped (tested on rynax-player.exe on Windows, or RYNAX_TEST_EXE).
+RYNAX_TEST(icons_resize_icns_and_exe) {
     // A 40 x 20 picture: the middle 20 x 20 square is red, the sides blue.
     std::vector<uint8_t> px(40 * 20 * 4);
     for (int y = 0; y < 20; ++y)
@@ -317,8 +317,8 @@ AVEN_TEST(icons_resize_icns_and_exe) {
     std::string error;
     std::vector<uint8_t> notExe(100, 0);
     CHECK(!icons::replaceExeIcon(notExe, png, error));
-    std::filesystem::path exePath = std::getenv("AVEN_TEST_EXE") ? std::filesystem::path(std::getenv("AVEN_TEST_EXE"))
-                                                                  : fs::executableDir() / "aven-player.exe";
+    std::filesystem::path exePath = std::getenv("RYNAX_TEST_EXE") ? std::filesystem::path(std::getenv("RYNAX_TEST_EXE"))
+                                                                  : fs::executableDir() / "rynax-player.exe";
     auto exe = fs::readBinary(exePath);
     if (!exe) {
         std::printf("  (no Windows program to try the icon on here)\n");
@@ -346,7 +346,7 @@ AVEN_TEST(icons_resize_icns_and_exe) {
         CHECK_EQ(signedExe.size(), static_cast<size_t>(at));
         CHECK(signedExe[dirs + 32] == 0 && signedExe[dirs + 36] == 0 && signedExe[dirs + 37] == 0);
     }
-    std::filesystem::path out = std::filesystem::temp_directory_path() / "aven_icon_test.exe";
+    std::filesystem::path out = std::filesystem::temp_directory_path() / "rynax_icon_test.exe";
     CHECK(fs::writeBinary(out, exe->data(), exe->size()));
 #ifdef _WIN32
     // Windows reads it back the way Explorer does.

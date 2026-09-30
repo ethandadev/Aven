@@ -1,24 +1,24 @@
 // Fuzzing: mangled scripts and JSON must give errors, never crashes or hangs. Seeds are the
 // templates' scripts and scenes; each round flips, deletes, duplicates and splices bytes.
-// A fixed seed keeps it repeatable; AVEN_FUZZ_ROUNDS=N runs longer (CI runs it under the
+// A fixed seed keeps it repeatable; RYNAX_FUZZ_ROUNDS=N runs longer (CI runs it under the
 // sanitizers, where a crash or bad memory access fails the build).
 
 #include "test_framework.h"
 
-#include "aven/blocks/blocks.h"
-#include "aven/core/fs.h"
-#include "aven/core/json.h"
-#include "aven/core/zip.h"
-#include "aven/scene/scene.h"
-#include "aven/script/intel.h"
-#include "aven/script/translate.h"
-#include "aven/script/vm.h"
+#include "rynax/blocks/blocks.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/json.h"
+#include "rynax/core/zip.h"
+#include "rynax/scene/scene.h"
+#include "rynax/script/intel.h"
+#include "rynax/script/translate.h"
+#include "rynax/script/vm.h"
 
 #include <cstdlib>
 #include <filesystem>
 #include <random>
 
-using namespace aven;
+using namespace rynax;
 
 namespace {
 
@@ -26,7 +26,7 @@ std::vector<std::string> seeds(const std::vector<std::string>& extensions) {
     std::vector<std::string> out;
     namespace stdfs = std::filesystem;
     std::error_code ec;
-    for (auto& e : stdfs::recursive_directory_iterator(stdfs::path(AVEN_SOURCE_DIR) / "templates", ec))
+    for (auto& e : stdfs::recursive_directory_iterator(stdfs::path(RYNAX_SOURCE_DIR) / "templates", ec))
         for (auto& ext : extensions)
             if (e.path().extension() == ext)
                 if (auto t = fs::readText(e.path()))
@@ -74,13 +74,13 @@ std::string mutate(std::string s, std::mt19937& rng, const std::vector<std::stri
 }
 
 int rounds(int fallback) {
-    const char* env = std::getenv("AVEN_FUZZ_ROUNDS");
+    const char* env = std::getenv("RYNAX_FUZZ_ROUNDS");
     return env ? std::max(1, std::atoi(env)) : fallback;
 }
 
 } // namespace
 
-AVEN_TEST(fuzz_easyscript_compile_and_run) {
+RYNAX_TEST(fuzz_easyscript_compile_and_run) {
     auto pool = seeds({".es"});
     CHECK(!pool.empty());
     std::mt19937 rng(1234);
@@ -102,8 +102,8 @@ AVEN_TEST(fuzz_easyscript_compile_and_run) {
     CHECK(errors > 0); // mangled code does produce errors
 }
 
-AVEN_TEST(fuzz_json_parse) {
-    auto pool = seeds({".scene", ".json", ".aven", ".blocks", ".prefab"});
+RYNAX_TEST(fuzz_json_parse) {
+    auto pool = seeds({".scene", ".json", ".rynax", ".blocks", ".prefab"});
     CHECK(!pool.empty());
     std::mt19937 rng(99);
     int n = rounds(1500);
@@ -121,20 +121,20 @@ AVEN_TEST(fuzz_json_parse) {
 // The files people hand-edit (or that arrive damaged) go through more than the VM: the code ladder,
 // the code editor's intelligence, blocks and scenes must all say "no" politely too.
 
-AVEN_TEST(fuzz_code_ladder) {
+RYNAX_TEST(fuzz_code_ladder) {
     auto pool = seeds({".es"});
     std::mt19937 rng(4242);
     int n = rounds(300);
     const script::TargetLanguage langs[] = {script::TargetLanguage::Unity, script::TargetLanguage::Godot,
                                             script::TargetLanguage::Roblox, script::TargetLanguage::Unreal,
-                                            script::TargetLanguage::AvenC};
+                                            script::TargetLanguage::RynaxC};
     for (int i = 0; i < n; ++i) {
         std::string src = mutate(pool[rng() % pool.size()], rng, pool);
         (void)script::translate(src, langs[rng() % 5], {"Fuzz", false});
     }
 }
 
-AVEN_TEST(fuzz_code_intel) {
+RYNAX_TEST(fuzz_code_intel) {
     auto pool = seeds({".es"});
     std::mt19937 rng(777);
     script::ProjectIndex index;
@@ -167,7 +167,7 @@ AVEN_TEST(fuzz_code_intel) {
     }
 }
 
-AVEN_TEST(fuzz_blocks_compile) {
+RYNAX_TEST(fuzz_blocks_compile) {
     auto pool = seeds({".blocks"});
     CHECK(!pool.empty());
     std::mt19937 rng(31337);
@@ -179,7 +179,7 @@ AVEN_TEST(fuzz_blocks_compile) {
     }
 }
 
-AVEN_TEST(fuzz_scene_load) {
+RYNAX_TEST(fuzz_scene_load) {
     auto pool = seeds({".scene", ".prefab"});
     CHECK(!pool.empty());
     std::mt19937 rng(2024);
@@ -203,13 +203,13 @@ AVEN_TEST(fuzz_scene_load) {
 
 // A game in a .zip someone sent: damaged zips (cut short, bytes changed, sizes that lie) are
 // refused, and nothing is ever written outside the folder it's unpacked into.
-AVEN_TEST(fuzz_zip_read_and_extract) {
+RYNAX_TEST(fuzz_zip_read_and_extract) {
     namespace stdfs = std::filesystem;
-    stdfs::path work = stdfs::temp_directory_path() / ("aven_fuzz_zip_" + std::to_string(std::random_device{}()));
+    stdfs::path work = stdfs::temp_directory_path() / ("rynax_fuzz_zip_" + std::to_string(std::random_device{}()));
     std::error_code ec;
     stdfs::create_directories(work, ec);
     stdfs::path good = work / "game.zip";
-    CHECK(zip::write(good, stdfs::path(AVEN_SOURCE_DIR) / "templates" / "platformer"));
+    CHECK(zip::write(good, stdfs::path(RYNAX_SOURCE_DIR) / "templates" / "platformer"));
     auto original = fs::readBinary(good);
     CHECK(original && !original->empty());
     std::mt19937 rng(8080);

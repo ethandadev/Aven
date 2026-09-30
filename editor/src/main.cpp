@@ -1,17 +1,17 @@
-// Aven Editor: the place where games are made.
+// Rynax Editor: the place where games are made.
 //
-// Usage: aven-editor [project_folder] [--open scripts/player.blocks] [--select Player]
+// Usage: rynax-editor [project_folder] [--open scripts/player.blocks] [--select Player]
 //                    [--panel hub|settings|reference] [--play]
 //                    [--screenshot out.png --frames N] [--size WxH]
-//        aven-editor --new folder [--template id]
-//        aven-editor project_folder --export folder
+//        rynax-editor --new folder [--template id]
+//        rynax-editor project_folder --export folder
 
 #include "check.h"
 #include "editor.h"
 #include "menu.h"
 
-#include "aven/core/fs.h"
-#include "aven/core/log.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/log.h"
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -29,8 +29,8 @@
 #include <string>
 #include <vector>
 
-using namespace aven;
-using namespace aven::editor;
+using namespace rynax;
+using namespace rynax::editor;
 
 namespace {
 
@@ -208,11 +208,11 @@ bool parseArgs(int argc, char** argv, Args& a) {
             std::string v = next();
             std::sscanf(v.c_str(), "%dx%d", &a.width, &a.height);
         } else if (s == "--help" || s == "-h") {
-            std::printf("usage: aven-editor [project_folder] [--open file] [--select name] [--panel hub|settings|reference]\n"
+            std::printf("usage: rynax-editor [project_folder] [--open file] [--select name] [--panel hub|settings|reference]\n"
                         "                   [--play] [--screenshot out.png --frames N] [--size WxH]\n"
-                        "       aven-editor --new folder [--template id]     create a game from a template\n"
-                        "       aven-editor project_folder --export folder   build a playable copy of a game\n"
-                        "       aven-editor project_folder --check [--strict]\n"
+                        "       rynax-editor --new folder [--template id]     create a game from a template\n"
+                        "       rynax-editor project_folder --export folder   build a playable copy of a game\n"
+                        "       rynax-editor project_folder --check [--strict]\n"
                         "                   check scripts, scenes and files without a window (for CI); exit code 1 on errors\n"
                         "                   (--strict: on warnings too)\n");
             return false;
@@ -235,7 +235,7 @@ int main(int argc, char** argv) {
     bool screenshotMode = !args.editor.screenshot.empty();
 
     WindowDesc wd;
-    wd.title = "Aven";
+    wd.title = "Rynax";
     wd.width = args.width ? args.width : (screenshotMode ? 1600 : 1440);
     wd.height = args.height ? args.height : (screenshotMode ? 900 : 900);
     wd.maximized = !screenshotMode && !args.width;
@@ -243,17 +243,17 @@ int main(int argc, char** argv) {
     Window window;
     if (!window.create(wd)) {
         if (!screenshotMode)
-            showErrorDialog("Aven", "Aven couldn't open its window. It needs OpenGL 3.3: updating the graphics "
+            showErrorDialog("Rynax", "Rynax couldn't open its window. It needs OpenGL 3.3: updating the graphics "
                                     "driver usually fixes this.");
         return 1;
     }
     auto device = rhi::createDevice(rhi::Backend::OpenGL, Window::glProcLoader());
     if (!device) {
         if (!screenshotMode)
-            showErrorDialog("Aven", "Aven couldn't start OpenGL 3.3. Updating the graphics driver usually fixes this.");
+            showErrorDialog("Rynax", "Rynax couldn't start OpenGL 3.3. Updating the graphics driver usually fixes this.");
         return 1;
     }
-    Log::info("Aven Editor ", AVEN_VERSION, " on ", device->description());
+    Log::info("Rynax Editor ", RYNAX_VERSION, " on ", device->description());
     window.setDefaultIcon();
     if (!screenshotMode)
         menu::installNative(); // a Mac's menu bar at the top of the screen (elsewhere: nothing)
@@ -264,10 +264,12 @@ int main(int argc, char** argv) {
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigWindowsMoveFromTitleBarOnly = true;
     static std::string iniPath;
+    if (!screenshotMode)
+        bringOverAvenData(); // (before anything reads the settings: the first run after Aven became Rynax)
     if (screenshotMode) {
         io.IniFilename = nullptr; // screenshots always use the default layout
     } else {
-        iniPath = (fs::userDataDir("Aven Editor") / "layout.ini").string();
+        iniPath = (fs::userDataDir("Rynax Editor") / "layout.ini").string();
         io.IniFilename = iniPath.c_str();
     }
 

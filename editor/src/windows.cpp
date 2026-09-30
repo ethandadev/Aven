@@ -2,8 +2,8 @@
 
 #include "editor.h"
 
-#include "aven/core/fs.h"
-#include "aven/runtime/script_system.h"
+#include "rynax/core/fs.h"
+#include "rynax/runtime/script_system.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -13,7 +13,7 @@
 #include <cctype>
 #include <cmath>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -200,7 +200,7 @@ void Editor::runFind() {
     if (findQuery_.empty())
         return;
     std::string needle = findCase_ ? findQuery_ : lower(findQuery_);
-    for (auto& file : projectFiles({".es", ".blocks", ".scene", ".prefab", ".json", ".aven"})) {
+    for (auto& file : projectFiles({".es", ".blocks", ".scene", ".prefab", ".json", ".rynax"})) {
         auto text = fs::readText(projectDir_ / file);
         if (!text)
             continue;
@@ -316,7 +316,7 @@ void Editor::drawCommandPalette() {
     add("Find in project", "window", [this] { showFind_ = true; findFocus_ = true; });
     add("Check my game (Error Doctor)", "command", [this] { runCheckup(); showDoctor_ = focusDoctor_ = true; });
     add("Explain my game", "window", [this] { showExplain_ = focusExplain_ = true; });
-    add("Contributor Quests (help build Aven)", "window", [this] { openQuests(); });
+    add("Contributor Quests (help build Rynax)", "window", [this] { openQuests(); });
     if (unlocked(Feature::SoundMaker))
         add("Sound Maker (make sound effects)", "window", [this] { openSoundMaker(); });
     if (unlocked(Feature::PixelEditor))
@@ -643,4 +643,4 @@ bool Editor::closeWindow(ImGuiID id, bool check) {
     return false;
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

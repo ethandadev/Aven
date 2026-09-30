@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Makes the macOS downloads from a release folder (package.sh's, with players/ added):
 #
-#   Aven-<version>-macOS.dmg        the installer: open it and drag Aven into Applications
-#   aven-<version>-macos-arm64.zip  Aven.app zipped; what the editor's updater downloads
+#   Rynax-<version>-macOS.dmg        the installer: open it and drag Rynax into Applications
+#   rynax-<version>-macos-arm64.zip  Rynax.app zipped; what the editor's updater downloads
 #
 #   tools/release/make_mac_app.sh <package-folder> <version> <out-dir>
-#   tools/release/make_mac_app.sh --app <Aven.app> <version> <out-dir>
+#   tools/release/make_mac_app.sh --app <Rynax.app> <version> <out-dir>
 #
-# --app signs, notarizes and packs an Aven.app that's already made (a release's, published before
+# --app signs, notarizes and packs a Rynax.app that's already made (a release's, published before
 # a Developer ID was set up) without changing what's inside it. See notarize-mac.yml.
 #
-# Aven.app holds the editor and player in Contents/MacOS and everything else (templates, data,
+# Rynax.app holds the editor and player in Contents/MacOS and everything else (templates, data,
 # players for other systems...) in Contents/Resources.
 #
 # Signing, all optional (without it the app is ad-hoc signed and opens with right-click > Open):
@@ -19,7 +19,7 @@
 #   APPLE_API_KEY_PATH (the .p8 file), APPLE_API_KEY_ID, APPLE_API_ISSUER
 # or with an Apple ID:
 #   APPLE_ID, APPLE_APP_PASSWORD (an app-specific password from appleid.apple.com), APPLE_TEAM_ID
-# MACOS_BUNDLE_ID changes the app's identifier (default io.github.ethandadev.aven).
+# MACOS_BUNDLE_ID changes the app's identifier (default io.github.ethandadev.rynax).
 set -euo pipefail
 existing=""
 if [ "${1:-}" = "--app" ]; then
@@ -30,7 +30,7 @@ pkg="$1"
 version="$2"
 out="$3"
 root="$(cd "$(dirname "$0")/../.." && pwd)"
-bundle_id="${MACOS_BUNDLE_ID:-io.github.ethandadev.aven}"
+bundle_id="${MACOS_BUNDLE_ID:-io.github.ethandadev.rynax}"
 identity="${MACOS_SIGN_IDENTITY:-}"
 short="${version%%-*}" # CFBundleShortVersionString takes numbers only: 0.4.0-beta.1 -> 0.4.0
 
@@ -38,28 +38,28 @@ mkdir -p "$out"
 out="$(cd "$out" && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT # (also when a step fails)
-app="$work/Aven.app"
+app="$work/Rynax.app"
 if [ -n "$existing" ]; then
-    test -x "$existing/Contents/MacOS/aven-editor" || { echo "$existing isn't an Aven.app." >&2; exit 1; }
+    test -x "$existing/Contents/MacOS/rynax-editor" || { echo "$existing isn't a Rynax.app." >&2; exit 1; }
     ditto "$existing" "$app"
 else
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
-cp "$pkg/aven-editor" "$pkg/aven-player" "$app/Contents/MacOS/"
+cp "$pkg/rynax-editor" "$pkg/rynax-player" "$app/Contents/MacOS/"
 for d in data templates quests sdk web players; do
     if [ -d "$pkg/$d" ]; then cp -R "$pkg/$d" "$app/Contents/Resources/"; fi
 done
 cp "$pkg/README.md" "$pkg/LICENSE" "$pkg/THIRD_PARTY_NOTICES.md" "$app/Contents/Resources/"
-cp "$root/resources/icon/aven.icns" "$app/Contents/Resources/AppIcon.icns"
+cp "$root/resources/icon/rynax.icns" "$app/Contents/Resources/AppIcon.icns"
 printf 'APPL????' > "$app/Contents/PkgInfo"
 cat > "$app/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>Aven</string>
-  <key>CFBundleDisplayName</key><string>Aven</string>
+  <key>CFBundleName</key><string>Rynax</string>
+  <key>CFBundleDisplayName</key><string>Rynax</string>
   <key>CFBundleIdentifier</key><string>$bundle_id</string>
-  <key>CFBundleExecutable</key><string>aven-editor</string>
+  <key>CFBundleExecutable</key><string>rynax-editor</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$short</string>
@@ -69,7 +69,7 @@ cat > "$app/Contents/Info.plist" <<EOF
   <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSSupportsAutomaticGraphicsSwitching</key><true/>
-  <key>NSHumanReadableCopyright</key><string>Aven is MIT licensed.</string>
+  <key>NSHumanReadableCopyright</key><string>Rynax is MIT licensed.</string>
 </dict>
 </plist>
 EOF
@@ -89,9 +89,9 @@ cat > "$entitlements" <<'EOF'
 EOF
 
 # Every Mach-O program inside, then the app (which seals everything else).
-programs=("$app/Contents/MacOS/aven-player")
-if [ -f "$app/Contents/Resources/players/macos-arm64/aven-player" ]; then
-    programs+=("$app/Contents/Resources/players/macos-arm64/aven-player")
+programs=("$app/Contents/MacOS/rynax-player")
+if [ -f "$app/Contents/Resources/players/macos-arm64/rynax-player" ]; then
+    programs+=("$app/Contents/Resources/players/macos-arm64/rynax-player")
 fi
 if [ -n "$identity" ]; then
     echo "Signing with: $identity"
@@ -136,24 +136,24 @@ if [ -n "$can_notarize" ]; then
     xcrun stapler staple "$app"
 fi
 
-# For the updater: Aven.app in a zip (zip keeps the programs runnable).
-rm -f "$out/aven-$version-macos-arm64.zip"
-(cd "$work" && zip -qry -X "$out/aven-$version-macos-arm64.zip" Aven.app)
+# For the updater: Rynax.app in a zip (zip keeps the programs runnable).
+rm -f "$out/rynax-$version-macos-arm64.zip"
+(cd "$work" && zip -qry -X "$out/rynax-$version-macos-arm64.zip" Rynax.app)
 
-# The installer: a disk image with Aven.app and a shortcut to Applications to drag it onto.
+# The installer: a disk image with Rynax.app and a shortcut to Applications to drag it onto.
 dmg_root="$work/dmg"
 mkdir -p "$dmg_root"
-ditto "$app" "$dmg_root/Aven.app"
+ditto "$app" "$dmg_root/Rynax.app"
 ln -s /Applications "$dmg_root/Applications"
-# The mounted disk shows Aven's icon (SetFile comes with Xcode's command line tools).
-cp "$root/resources/icon/aven.icns" "$dmg_root/.VolumeIcon.icns"
+# The mounted disk shows Rynax's icon (SetFile comes with Xcode's command line tools).
+cp "$root/resources/icon/rynax.icns" "$dmg_root/.VolumeIcon.icns"
 if command -v SetFile > /dev/null; then
     SetFile -c icnC "$dmg_root/.VolumeIcon.icns" || true
     SetFile -a C "$dmg_root" || true
 fi
-dmg="$out/Aven-$version-macOS.dmg"
+dmg="$out/Rynax-$version-macOS.dmg"
 rm -f "$dmg"
-hdiutil create -volname "Aven" -srcfolder "$dmg_root" -ov -format UDZO "$dmg"
+hdiutil create -volname "Rynax" -srcfolder "$dmg_root" -ov -format UDZO "$dmg"
 if [ -n "$identity" ]; then
     codesign --force --timestamp --sign "$identity" "$dmg"
 fi
@@ -162,4 +162,4 @@ if [ -n "$can_notarize" ]; then
     notarize "$dmg"
     xcrun stapler staple "$dmg"
 fi
-echo "Made $dmg and $out/aven-$version-macos-arm64.zip"
+echo "Made $dmg and $out/rynax-$version-macos-arm64.zip"

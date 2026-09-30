@@ -1,4 +1,4 @@
-"""Helpers for generating Aven starter templates: tiny PNG/WAV writers and a scene builder.
+"""Helpers for generating Rynax starter templates: tiny PNG/WAV writers and a scene builder.
 
 Only the Python standard library is used, so anyone can regenerate the templates.
 """
@@ -209,7 +209,7 @@ class Scene:
                 e["components"] = comps
 
     def data(self):
-        return {"aven": "scene", "version": 1, "name": self.name, "entities": self.entities}
+        return {"rynax": "scene", "version": 1, "name": self.name, "entities": self.entities}
 
     def prefab(self):
         """The whole builder as a prefab (the first entity is the root, placed at the origin)."""
@@ -250,8 +250,8 @@ class Template:
         self.write_text(rel, json.dumps(data, indent=2) + "\n")
 
     def project(self, start_scene="scenes/main.scene", pixel_perfect=False):
-        self.write_json("project.aven", {
-            "aven": "project",
+        self.write_json("project.rynax", {
+            "rynax": "project",
             "name": self.name,
             "version": "1.0",
             "start_scene": start_scene,
@@ -278,7 +278,7 @@ class Template:
     def blocks(self, rel, variables, scripts):
         """variables: {name: value}; scripts: list of block lists (each starts with a hat)."""
         doc = {
-            "aven": "blocks",
+            "rynax": "blocks",
             "version": 1,
             "variables": [{"name": k, "value": v} for k, v in variables.items()],
             "scripts": [],

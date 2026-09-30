@@ -1,6 +1,6 @@
 // Desktop apps: the game as a Windows program, a macOS app and a Linux program, from any computer.
 //
-// Each needs Aven's player built for that system. The editor's own player covers the system it runs
+// Each needs Rynax's player built for that system. The editor's own player covers the system it runs
 // on; the others come from players/<system>/ beside the editor (release downloads include all three).
 // The game's icon goes into each (inside the .exe, an .icns in the .app, a PNG for Linux), with its
 // name, version, author and description. Signing runs the system's tools when they're installed:
@@ -10,10 +10,10 @@
 
 #include "editor.h"
 
-#include "aven/core/fs.h"
-#include "aven/core/icons.h"
-#include "aven/core/log.h"
-#include "aven/core/zip.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/icons.h"
+#include "rynax/core/log.h"
+#include "rynax/core/zip.h"
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -28,15 +28,15 @@
 #include <thread>
 
 #if defined(_WIN32)
-#define AVEN_POPEN _popen
-#define AVEN_PCLOSE _pclose
+#define RYNAX_POPEN _popen
+#define RYNAX_PCLOSE _pclose
 #else
 #include <sys/wait.h>
-#define AVEN_POPEN popen
-#define AVEN_PCLOSE pclose
+#define RYNAX_POPEN popen
+#define RYNAX_PCLOSE pclose
 #endif
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -46,9 +46,9 @@ struct Target {
     const char* program; // the player's file name
 };
 const Target kTargets[] = {
-    {"windows-x64", "Windows", "aven-player.exe"},
-    {"macos-arm64", "macOS (Apple silicon)", "aven-player"},
-    {"linux-x64", "Linux", "aven-player"},
+    {"windows-x64", "Windows", "rynax-player.exe"},
+    {"macos-arm64", "macOS (Apple silicon)", "rynax-player"},
+    {"linux-x64", "Linux", "rynax-player"},
 };
 
 const char* hostTarget() {
@@ -171,7 +171,7 @@ struct Editor::DesktopJob {
 #else
         cmd += " 2>&1";
 #endif
-        FILE* pipe = AVEN_POPEN(cmd.c_str(), "r");
+        FILE* pipe = RYNAX_POPEN(cmd.c_str(), "r");
         if (!pipe) {
             say("Couldn't start " + args[0]);
             return -1;
@@ -186,7 +186,7 @@ struct Editor::DesktopJob {
             if (!quiet && !line.empty())
                 say("  " + line);
         }
-        int status = AVEN_PCLOSE(pipe);
+        int status = RYNAX_PCLOSE(pipe);
 #if !defined(_WIN32)
         if (WIFEXITED(status))
             status = WEXITSTATUS(status);
@@ -236,7 +236,7 @@ std::string readme(const ProjectSettings& s, const std::string& how) {
         text += "\n" + s.description + "\n";
     if (!s.publish.author.empty())
         text += "\nBy " + s.publish.author + (s.publish.website.empty() ? "" : "  " + s.publish.website) + "\n";
-    return text + "\n" + how + "\n\nMade with Aven.\n";
+    return text + "\n" + how + "\n\nMade with Rynax.\n";
 }
 
 bool copyTree(const stdfs::path& from, const stdfs::path& to) {
@@ -250,15 +250,15 @@ bool copyTree(const stdfs::path& from, const stdfs::path& to) {
 bool prepare(Editor::DesktopJob& job, const stdfs::path& dir) {
     std::error_code ec;
     if (stdfs::exists(dir, ec)) {
-        if (!stdfs::exists(dir / ".aven-export", ec)) {
+        if (!stdfs::exists(dir / ".rynax-export", ec) && !stdfs::exists(dir / ".aven-export", ec)) { // (or made by Aven)
             job.say("There's already a folder called '" + dir.filename().string() +
-                    "' that isn't an Aven export; pick another output folder so nothing gets overwritten.");
+                    "' that isn't a Rynax export; pick another output folder so nothing gets overwritten.");
             return false;
         }
         stdfs::remove_all(dir, ec);
     }
     stdfs::create_directories(dir, ec);
-    fs::writeText(dir / ".aven-export", "Made by Aven's Build & Share; replaced by the next export.\n");
+    fs::writeText(dir / ".rynax-export", "Made by Rynax's Build & Share; replaced by the next export.\n");
     return !ec;
 }
 
@@ -283,7 +283,7 @@ bool exportWindows(Editor::DesktopJob& job, const DesktopPlan& p, const stdfs::p
     for (auto& e : stdfs::directory_iterator(player, ec))
         if (fs::extension(e.path()) == ".dll")
             stdfs::copy_file(e.path(), dir / e.path().filename(), stdfs::copy_options::overwrite_existing, ec);
-    auto exe = fs::readBinary(player / "aven-player.exe");
+    auto exe = fs::readBinary(player / "rynax-player.exe");
     if (!exe) {
         job.say("Couldn't read the Windows player.");
         return false;
@@ -311,14 +311,14 @@ bool exportWindows(Editor::DesktopJob& job, const DesktopPlan& p, const stdfs::p
             // signtool only takes a .pfx password on its command line, so PowerShell signs instead,
             // reading the password (and the paths) from environment variables set for this run alone.
             ScopedEnv env;
-            env.set("AVEN_SIGN_PFX", pub.windowsCertificate);
-            env.set("AVEN_SIGN_PASSWORD", p.windowsPassword);
-            env.set("AVEN_SIGN_FILE", exePath.string());
-            env.set("AVEN_SIGN_TIMESTAMP", pub.timestampUrl);
+            env.set("RYNAX_SIGN_PFX", pub.windowsCertificate);
+            env.set("RYNAX_SIGN_PASSWORD", p.windowsPassword);
+            env.set("RYNAX_SIGN_FILE", exePath.string());
+            env.set("RYNAX_SIGN_TIMESTAMP", pub.timestampUrl);
             code = job.run({"powershell", "-NoProfile", "-NonInteractive", "-Command",
-                            "$c = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($env:AVEN_SIGN_PFX, "
-                            "$env:AVEN_SIGN_PASSWORD); $r = Set-AuthenticodeSignature -FilePath $env:AVEN_SIGN_FILE -Certificate $c "
-                            "-HashAlgorithm SHA256 -TimestampServer $env:AVEN_SIGN_TIMESTAMP; if ($r.Status -ne 'Valid') "
+                            "$c = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($env:RYNAX_SIGN_PFX, "
+                            "$env:RYNAX_SIGN_PASSWORD); $r = Set-AuthenticodeSignature -FilePath $env:RYNAX_SIGN_FILE -Certificate $c "
+                            "-HashAlgorithm SHA256 -TimestampServer $env:RYNAX_SIGN_TIMESTAMP; if ($r.Status -ne 'Valid') "
                             "{ Write-Output $r.StatusMessage; exit 1 }"});
         } else
 #endif
@@ -340,7 +340,7 @@ bool exportWindows(Editor::DesktopJob& job, const DesktopPlan& p, const stdfs::p
             stdfs::path passFile;
             if (!p.windowsPassword.empty()) {
                 // In this user's own folder (the shared temp folder could hold someone else's link by that name).
-                passFile = fs::userDataDir("Aven Editor") / "signing-password.tmp";
+                passFile = fs::userDataDir("Rynax Editor") / "signing-password.tmp";
                 stdfs::create_directories(passFile.parent_path(), ec);
                 stdfs::remove(passFile, ec);
                 { std::ofstream(passFile, std::ios::binary); } // empty, then owner-only, then the password
@@ -365,7 +365,7 @@ bool exportWindows(Editor::DesktopJob& job, const DesktopPlan& p, const stdfs::p
             job.say("Signing failed (see above); the game still works, unsigned.");
     }
     stdfs::path zipPath = p.out / (p.name + " for Windows.zip");
-    if (!zip::write(zipPath, dir.parent_path(), [&](const std::string& f) { return f.rfind(dir.filename().string() + "/", 0) == 0 && f.find("/.aven-export") == std::string::npos; })) {
+    if (!zip::write(zipPath, dir.parent_path(), [&](const std::string& f) { return f.rfind(dir.filename().string() + "/", 0) == 0 && f.find("/.rynax-export") == std::string::npos; })) {
         job.say("Couldn't write " + zipPath.string());
         return false;
     }
@@ -384,7 +384,7 @@ bool exportMac(Editor::DesktopJob& job, const DesktopPlan& p, const stdfs::path&
     stdfs::create_directories(contents / "Resources", ec);
     copyTree(p.staged, contents / "Resources" / "game");
     stdfs::path binary = contents / "MacOS" / p.name;
-    stdfs::copy_file(player / "aven-player", binary, stdfs::copy_options::overwrite_existing, ec);
+    stdfs::copy_file(player / "rynax-player", binary, stdfs::copy_options::overwrite_existing, ec);
     if (ec) {
         job.say("Couldn't copy the macOS player: " + ec.message());
         return false;
@@ -395,7 +395,7 @@ bool exportMac(Editor::DesktopJob& job, const DesktopPlan& p, const stdfs::path&
     fs::writeBinary(contents / "Resources" / "AppIcon.icns", icns.data(), icns.size());
     const PublishSettings& pub = p.settings.publish;
     std::string bundleId = !pub.bundleId.empty() ? pub.bundleId
-                                                 : "com." + slug(pub.author.empty() ? "aven" : pub.author, true) + "." +
+                                                 : "com." + slug(pub.author.empty() ? "rynax" : pub.author, true) + "." +
                                                        slug(p.settings.name, true);
     std::string plist = R"(<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -477,7 +477,7 @@ bool exportMac(Editor::DesktopJob& job, const DesktopPlan& p, const stdfs::path&
         std::string top = dir.filename().string() + "/";
         std::string exec = top + app.filename().string() + "/Contents/MacOS/" + p.name;
         zipped = zip::write(zipPath, dir.parent_path(),
-                            [&](const std::string& f) { return f.rfind(top, 0) == 0 && f.find("/.aven-export") == std::string::npos; },
+                            [&](const std::string& f) { return f.rfind(top, 0) == 0 && f.find("/.rynax-export") == std::string::npos; },
                             [&](const std::string& f) { return f == exec; });
     }
     if (!zipped) {
@@ -496,7 +496,7 @@ bool exportLinux(Editor::DesktopJob& job, const DesktopPlan& p, const stdfs::pat
     copyTree(p.staged, dir / "game");
     std::string file = slug(p.settings.name, true);
     std::error_code ec;
-    stdfs::copy_file(player / "aven-player", dir / file, stdfs::copy_options::overwrite_existing, ec);
+    stdfs::copy_file(player / "rynax-player", dir / file, stdfs::copy_options::overwrite_existing, ec);
     if (ec) {
         job.say("Couldn't copy the Linux player: " + ec.message());
         return false;
@@ -520,7 +520,7 @@ bool exportLinux(Editor::DesktopJob& job, const DesktopPlan& p, const stdfs::pat
     stdfs::path zipPath = p.out / (p.name + " for Linux.zip");
     std::string top = dir.filename().string() + "/";
     if (!zip::write(zipPath, dir.parent_path(),
-                    [&](const std::string& f) { return f.rfind(top, 0) == 0 && f.find("/.aven-export") == std::string::npos; },
+                    [&](const std::string& f) { return f.rfind(top, 0) == 0 && f.find("/.rynax-export") == std::string::npos; },
                     [&](const std::string& f) { return f == top + file; })) {
         job.say("Couldn't write " + zipPath.string());
         return false;
@@ -576,12 +576,12 @@ bool Editor::startDesktopExport(const std::vector<std::string>& targets, bool wa
         plan->name = "Game";
     plan->out = exportFolder_.empty() ? projectDir_ / "exports" : fs::fromUtf8(exportFolder_);
     if (plan->out.is_relative())
-        plan->out = projectDir_ / plan->out; // ("exports" means the project's, not wherever Aven started)
+        plan->out = projectDir_ / plan->out; // ("exports" means the project's, not wherever Rynax started)
     plan->windowsPassword = signPassword_;
     for (auto& t : targets) {
         stdfs::path folder = playerFolder(t);
         if (folder.empty())
-            job->say("Skipping " + t + ": its player isn't in this copy of Aven (players/" + t + ").");
+            job->say("Skipping " + t + ": its player isn't in this copy of Rynax (players/" + t + ").");
         else
             plan->targets.push_back({t, folder});
     }
@@ -629,7 +629,7 @@ bool Editor::startDesktopExport(const std::vector<std::string>& targets, bool wa
 }
 
 void Editor::drawDesktopExport() {
-    ImGui::TextWrapped("Makes your game into apps people can download and play without Aven: a Windows program, a "
+    ImGui::TextWrapped("Makes your game into apps people can download and play without Rynax: a Windows program, a "
                        "macOS app and a Linux program, each zipped and ready to upload (itch.io, your website, a USB stick).");
     ImGui::Spacing();
     for (auto& t : kTargets) {
@@ -642,7 +642,7 @@ void Editor::drawDesktopExport() {
         ImGui::EndDisabled();
         if (!available) {
             ImGui::SameLine();
-            ImGui::TextDisabled("(needs players/%s: included in Aven's release downloads)", t.id);
+            ImGui::TextDisabled("(needs players/%s: included in Rynax's release downloads)", t.id);
         }
     }
     ImGui::InputText("Output folder", &exportFolder_);
@@ -699,9 +699,9 @@ void Editor::drawDesktopExport() {
     }
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor
 
-namespace aven::editor {
+namespace rynax::editor {
 
 // Build & Share > Game details: how the game presents itself, used by every kind of export.
 void Editor::drawGameDetails() {
@@ -740,7 +740,7 @@ void Editor::drawGameDetails() {
     }
 
     ImGui::SeparatorText("When the game starts");
-    changed |= ImGui::Checkbox("\"Made with Aven\" for a moment", &pub.splash);
+    changed |= ImGui::Checkbox("\"Made with Rynax\" for a moment", &pub.splash);
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("About a second, and any key, click or tap skips it. Thanks for the credit!");
     changed |= ImGui::Checkbox("A title screen with Play and Quit", &pub.titleScreen);
@@ -782,4 +782,4 @@ void Editor::drawGameDetails() {
     }
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

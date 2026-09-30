@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace aven::test {
+namespace rynax::test {
 
 struct TestCase {
     const char* name;
@@ -22,17 +22,17 @@ struct Registrar {
     Registrar(const char* name, void (*fn)()) { registry().push_back({name, fn}); }
 };
 
-} // namespace aven::test
+} // namespace rynax::test
 
-#define AVEN_TEST(name)                                                                                           \
+#define RYNAX_TEST(name)                                                                                           \
     static void name();                                                                                           \
-    static ::aven::test::Registrar name##_registrar(#name, name);                                                 \
+    static ::rynax::test::Registrar name##_registrar(#name, name);                                                 \
     static void name()
 
 #define CHECK(expr)                                                                                               \
     do {                                                                                                          \
         if (!(expr))                                                                                              \
-            ::aven::test::reportFailure(__FILE__, __LINE__, "CHECK(" #expr ") failed");                           \
+            ::rynax::test::reportFailure(__FILE__, __LINE__, "CHECK(" #expr ") failed");                           \
     } while (0)
 
 #define CHECK_EQ(a, b)                                                                                            \
@@ -42,7 +42,7 @@ struct Registrar {
         if (!(va_ == vb_)) {                                                                                      \
             std::ostringstream ss_;                                                                               \
             ss_ << "CHECK_EQ(" #a ", " #b ") failed: " << va_ << " != " << vb_;                                   \
-            ::aven::test::reportFailure(__FILE__, __LINE__, ss_.str());                                           \
+            ::rynax::test::reportFailure(__FILE__, __LINE__, ss_.str());                                           \
         }                                                                                                         \
     } while (0)
 
@@ -52,7 +52,7 @@ struct Registrar {
         if (std::abs(va_ - vb_) > (eps)) {                                                                        \
             std::ostringstream ss_;                                                                               \
             ss_ << "CHECK_NEAR(" #a ", " #b ") failed: " << va_ << " vs " << vb_;                                 \
-            ::aven::test::reportFailure(__FILE__, __LINE__, ss_.str());                                           \
+            ::rynax::test::reportFailure(__FILE__, __LINE__, ss_.str());                                           \
         }                                                                                                         \
     } while (0)
 

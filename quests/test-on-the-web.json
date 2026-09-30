@@ -4,7 +4,7 @@
   "level": "Starter",
   "time": "20 minutes",
   "touches": "Nothing: you try games and report what you find",
-  "summary": "Aven games can run in web browsers. Try the templates on the browsers and phones you have and tell us what works.",
+  "summary": "Rynax games can run in web browsers. Try the templates on the browsers and phones you have and tell us what works.",
   "why": "We can't own every phone and browser. Your testing tells us what to fix.",
   "learn": ["How web games are built", "Testing like a game studio"],
   "steps": [

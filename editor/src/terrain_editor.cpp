@@ -3,16 +3,16 @@
 
 #include "editor.h"
 
-#include "aven/core/fs.h"
-#include "aven/render/scene_renderer.h"
-#include "aven/scene/terrain.h"
+#include "rynax/core/fs.h"
+#include "rynax/render/scene_renderer.h"
+#include "rynax/scene/terrain.h"
 
 #include <imgui.h>
 
 #include <algorithm>
 #include <cmath>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -244,4 +244,4 @@ void Editor::sculptTerrainInViewport(const CameraView& cam, float dt) {
     }
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

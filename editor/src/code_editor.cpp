@@ -12,7 +12,7 @@
 #include <cstring>
 #include <unordered_set>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 int keyboardClaimFrame = -10;
@@ -58,7 +58,7 @@ const std::vector<CodePalette>& CodePalette::presets() {
     // background, text, keyword, string, number, comment, function, builtin, self,
     // line number, current line number, current line, selection, cursor, gutter line
     static const std::vector<CodePalette> list = {
-        {"Aven Dark", IM_COL32(30, 33, 39, 255), IM_COL32(220, 223, 228, 255), IM_COL32(198, 120, 221, 255),
+        {"Rynax Dark", IM_COL32(30, 33, 39, 255), IM_COL32(220, 223, 228, 255), IM_COL32(198, 120, 221, 255),
          IM_COL32(152, 195, 121, 255), IM_COL32(209, 154, 102, 255), IM_COL32(110, 118, 129, 255),
          IM_COL32(97, 175, 239, 255), IM_COL32(229, 192, 123, 255), IM_COL32(224, 108, 117, 255),
          IM_COL32(95, 102, 115, 255), IM_COL32(200, 205, 215, 255), IM_COL32(255, 255, 255, 10),
@@ -747,7 +747,7 @@ void CodeEditor::handleTyping(bool& changed) {
             if (word || last == '.' || last == '"' || last == '\'' || last == '>')
                 openSuggestions(false);
             else if (last == ' ' && before.size() >= 4 && before.compare(before.size() - 4, 4, "def ") == 0)
-                openSuggestions(true); // the events Aven calls
+                openSuggestions(true); // the events Rynax calls
             else
                 completionOpen_ = false;
             updateSignature();
@@ -1841,4 +1841,4 @@ void CodeEditor::drawStatusBar() {
     }
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

@@ -4,13 +4,13 @@
 
 #include "test_framework.h"
 
-#include "aven/assets/assets.h"
-#include "aven/core/fs.h"
-#include "aven/core/json.h"
-#include "aven/platform/input.h"
-#include "aven/runtime/game.h"
-#include "aven/runtime/network.h"
-#include "aven/runtime/script_system.h"
+#include "rynax/assets/assets.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/json.h"
+#include "rynax/platform/input.h"
+#include "rynax/runtime/game.h"
+#include "rynax/runtime/network.h"
+#include "rynax/runtime/script_system.h"
 
 #include <chrono>
 #include <cstring>
@@ -37,11 +37,11 @@ static void closeRaw(raw_socket s) { close(s); }
 static void nonBlocking(raw_socket s) { fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) | O_NONBLOCK); }
 #endif
 
-using namespace aven;
+using namespace rynax;
 
 namespace {
 
-// A connection that speaks Aven's framing (4-byte little-endian length, then JSON) and nothing else.
+// A connection that speaks Rynax's framing (4-byte little-endian length, then JSON) and nothing else.
 struct RawPlayer {
     raw_socket s;
     std::string in;
@@ -104,9 +104,9 @@ bool pumpFor(Step&& step, Done&& done, double seconds) {
 
 } // namespace
 
-AVEN_TEST(multiplayer_host_only_lets_players_change_their_own_things) {
+RYNAX_TEST(multiplayer_host_only_lets_players_change_their_own_things) {
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_net_rules_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_net_rules_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "prefabs", ec);
@@ -119,7 +119,7 @@ AVEN_TEST(multiplayer_host_only_lets_players_change_their_own_things) {
     host.settings().name = "Rules Test";
     auto scene = std::make_unique<Scene>();
     Entity box = scene->create("Box");
-    scene->setUUID(box, aven::UUID{0x1234}); // aven:: (Windows has a UUID of its own)
+    scene->setUUID(box, rynax::UUID{0x1234}); // rynax:: (Windows has a UUID of its own)
     scene->registry().emplace<NetworkSync>(box);
     host.start(std::move(scene), "test.scene");
     std::string error;
@@ -209,7 +209,7 @@ AVEN_TEST(multiplayer_host_only_lets_players_change_their_own_things) {
 }
 
 // A player who stops reading isn't queued for forever: once 8 MB waits for them, they're let go.
-AVEN_TEST(multiplayer_host_lets_go_of_a_player_who_stops_reading) {
+RYNAX_TEST(multiplayer_host_lets_go_of_a_player_who_stops_reading) {
     Assets assets;
     Input input;
     Game host(assets, input);

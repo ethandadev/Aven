@@ -1,16 +1,16 @@
 #include "test_framework.h"
 
-#include "aven/assets/assets.h"
-#include "aven/core/fs.h"
-#include "aven/platform/input.h"
-#include "aven/runtime/game.h"
-#include "aven/runtime/replay.h"
-#include "aven/runtime/script_system.h"
-#include "aven/scene/reflection.h"
+#include "rynax/assets/assets.h"
+#include "rynax/core/fs.h"
+#include "rynax/platform/input.h"
+#include "rynax/runtime/game.h"
+#include "rynax/runtime/replay.h"
+#include "rynax/runtime/script_system.h"
+#include "rynax/scene/reflection.h"
 
 #include <filesystem>
 
-using namespace aven;
+using namespace rynax;
 
 namespace {
 
@@ -48,9 +48,9 @@ std::vector<Vec3> positions(Game& game) {
 
 } // namespace
 
-AVEN_TEST(replay_plays_back_exactly) {
+RYNAX_TEST(replay_plays_back_exactly) {
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_replay_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_replay_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "scripts", ec);

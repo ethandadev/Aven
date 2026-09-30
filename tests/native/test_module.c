@@ -1,6 +1,6 @@
 /* A native module used by tests/test_native.cpp: exercises the C API from real C code. */
 
-#include "aven.h"
+#include "rynax.h"
 
 #include <string.h>
 
@@ -11,43 +11,43 @@ typedef struct {
     float total;
 } Mover;
 
-static void mover_start(AvenEntity self, void* data) {
+static void mover_start(RynaxEntity self, void* data) {
     (void)self;
     (void)data;
-    aven_game_set("started", aven_game_get("started", 0) + 1);
+    rynax_game_set("started", rynax_game_get("started", 0) + 1);
 }
 
-static void mover_update(AvenEntity self, void* data, float dt) {
+static void mover_update(RynaxEntity self, void* data, float dt) {
     Mover* m = (Mover*)data;
-    aven_set(self, "x", aven_get(self, "x") + m->speed * dt);
+    rynax_set(self, "x", rynax_get(self, "x") + m->speed * dt);
     m->total += dt;
 }
 
-static void mover_collide(AvenEntity self, void* data, AvenEntity other) {
+static void mover_collide(RynaxEntity self, void* data, RynaxEntity other) {
     (void)self;
     (void)data;
-    if (aven_exists(other))
-        aven_game_set("hits", aven_game_get("hits", 0) + 1);
+    if (rynax_exists(other))
+        rynax_game_set("hits", rynax_game_get("hits", 0) + 1);
 }
 
-static void mover_message(AvenEntity self, void* data, const char* message, double value) {
+static void mover_message(RynaxEntity self, void* data, const char* message, double value) {
     (void)self;
     Mover* m = (Mover*)data;
     if (strcmp(message, "boost") == 0)
         m->speed += (float)value;
 }
 
-static void finder_start(AvenEntity self, void* data) {
+static void finder_start(RynaxEntity self, void* data) {
     (void)data;
-    AvenEntity target = aven_find("Target");
+    RynaxEntity target = rynax_find("Target");
     if (target)
-        aven_set(target, "y", 5);
-    aven_game_set("target_is_goal", strcmp(aven_tag(target), "goal") == 0);
-    AvenEntity found[4];
-    aven_game_set("goals", aven_find_all("goal", found, 4));
-    aven_set_text(self, "name", "Finder (done)");
-    aven_set(self, "nonsense_property", 1); /* reports an error, but carries on */
-    aven_send(0, "hello", 7);             /* everyone, EasyScript included */
+        rynax_set(target, "y", 5);
+    rynax_game_set("target_is_goal", strcmp(rynax_tag(target), "goal") == 0);
+    RynaxEntity found[4];
+    rynax_game_set("goals", rynax_find_all("goal", found, 4));
+    rynax_set_text(self, "name", "Finder (done)");
+    rynax_set(self, "nonsense_property", 1); /* reports an error, but carries on */
+    rynax_send(0, "hello", 7);             /* everyone, EasyScript included */
 }
 
 /* Destroys its own object in the middle of an update, then keeps using its data: that data must
@@ -57,58 +57,58 @@ typedef struct {
     float after;
 } Fuse;
 
-static void fuse_update(AvenEntity self, void* data, float dt) {
+static void fuse_update(RynaxEntity self, void* data, float dt) {
     Fuse* f = (Fuse*)data;
     (void)dt;
     if (++f->ticks == 2) {
-        aven_destroy(self);
+        rynax_destroy(self);
         f->after = 1;
-        aven_game_set("fuse_done", f->after + (float)f->ticks);
+        rynax_game_set("fuse_done", f->after + (float)f->ticks);
     }
 }
 
-static void fuse_destroyed(AvenEntity self, void* data) {
+static void fuse_destroyed(RynaxEntity self, void* data) {
     (void)self;
     ((Fuse*)data)->after = 2;
-    aven_game_set("fuse_destroyed", 1);
+    rynax_game_set("fuse_destroyed", 1);
 }
 
 /* API version 2: parents and children, and calls with text arguments. */
-static void family_start(AvenEntity self, void* data) {
+static void family_start(RynaxEntity self, void* data) {
     (void)data;
-    aven_game_set("family_parent_ok", aven_parent(self) == aven_find("Home"));
-    aven_game_set("family_top_has_no_parent", aven_parent(aven_find("Home")) == 0);
-    AvenEntity kids[1];
-    aven_game_set("family_children", aven_children(self, kids, 1)); /* all of them, though only one fits */
-    AvenEntity grandchild = aven_find_child(self, "Grandchild");
+    rynax_game_set("family_parent_ok", rynax_parent(self) == rynax_find("Home"));
+    rynax_game_set("family_top_has_no_parent", rynax_parent(rynax_find("Home")) == 0);
+    RynaxEntity kids[1];
+    rynax_game_set("family_children", rynax_children(self, kids, 1)); /* all of them, though only one fits */
+    RynaxEntity grandchild = rynax_find_child(self, "Grandchild");
     if (grandchild)
-        aven_set(grandchild, "x", 7);
-    aven_game_set("family_missing_child", aven_find_child(self, "Nobody") == 0);
-    AvenArg name = aven_text_arg("C");
-    aven_game_set("family_greeting_ok", strcmp(aven_call_text(grandchild, "greet", &name, 1), "hi C") == 0);
-    AvenArg args[2] = {aven_number_arg(2), aven_number_arg(3)};
-    aven_game_set("family_sum", aven_call_with(grandchild, "add", args, 2));
+        rynax_set(grandchild, "x", 7);
+    rynax_game_set("family_missing_child", rynax_find_child(self, "Nobody") == 0);
+    RynaxArg name = rynax_text_arg("C");
+    rynax_game_set("family_greeting_ok", strcmp(rynax_call_text(grandchild, "greet", &name, 1), "hi C") == 0);
+    RynaxArg args[2] = {rynax_number_arg(2), rynax_number_arg(3)};
+    rynax_game_set("family_sum", rynax_call_with(grandchild, "add", args, 2));
 }
 
-static void setup(AvenModule* module) {
-    AvenBehavior* mover = aven_behavior(module, "Mover", sizeof(Mover));
-    aven_number(mover, "speed", offsetof(Mover, speed), 2, "Units per second");
-    aven_integer(mover, "bounces", offsetof(Mover, bounces), 3, NULL);
-    aven_flag(mover, "loud", offsetof(Mover, loud), 1, NULL);
+static void setup(RynaxModule* module) {
+    RynaxBehavior* mover = rynax_behavior(module, "Mover", sizeof(Mover));
+    rynax_number(mover, "speed", offsetof(Mover, speed), 2, "Units per second");
+    rynax_integer(mover, "bounces", offsetof(Mover, bounces), 3, NULL);
+    rynax_flag(mover, "loud", offsetof(Mover, loud), 1, NULL);
     mover->on_start = mover_start;
     mover->on_update = mover_update;
     mover->on_collide = mover_collide;
     mover->on_message = mover_message;
 
-    AvenBehavior* finder = aven_behavior(module, "Finder", 0);
+    RynaxBehavior* finder = rynax_behavior(module, "Finder", 0);
     finder->on_start = finder_start;
 
-    AvenBehavior* fuse = aven_behavior(module, "Fuse", sizeof(Fuse));
+    RynaxBehavior* fuse = rynax_behavior(module, "Fuse", sizeof(Fuse));
     fuse->on_update = fuse_update;
     fuse->on_destroy = fuse_destroyed;
 
-    AvenBehavior* family = aven_behavior(module, "Family", 0);
+    RynaxBehavior* family = rynax_behavior(module, "Family", 0);
     family->on_start = family_start;
 }
 
-AVEN_MODULE(setup)
+RYNAX_MODULE(setup)

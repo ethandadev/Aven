@@ -1,16 +1,16 @@
-// Aven Player: runs a finished game. Exported games ship this executable next to
+// Rynax Player: runs a finished game. Exported games ship this executable next to
 // their project folder, so double-clicking it starts the game.
 //
-// Usage: aven-player [project_folder] [--scene path] [--screenshot out.png --frames N]
+// Usage: rynax-player [project_folder] [--scene path] [--screenshot out.png --frames N]
 //                    [--size WxH] [--hidden] [--debug-draw]
 
-#include "aven/assets/assets.h"
-#include "aven/core/fs.h"
-#include "aven/core/log.h"
-#include "aven/platform/window.h"
-#include "aven/render/rhi.h"
-#include "aven/render/scene_renderer.h"
-#include "aven/runtime/game.h"
+#include "rynax/assets/assets.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/log.h"
+#include "rynax/platform/window.h"
+#include "rynax/render/rhi.h"
+#include "rynax/render/scene_renderer.h"
+#include "rynax/runtime/game.h"
 
 #include <algorithm>
 #include <chrono>
@@ -27,7 +27,7 @@
 #include <emscripten/html5.h>
 #endif
 
-using namespace aven;
+using namespace rynax;
 namespace stdfs = std::filesystem;
 
 namespace {
@@ -138,7 +138,7 @@ bool parseArgs(int argc, char** argv, Options& o) {
             if (std::sscanf(next().c_str(), "%d:%f,%f:%d", &frame, &x, &y, &frames) >= 3)
                 o.touches.push_back({frame, {x, y}, std::max(1, frames)});
         } else if (a == "--help" || a == "-h") {
-            std::printf("usage: aven-player [project_folder] [--scene path] [--screenshot out.png --frames N]\n"
+            std::printf("usage: rynax-player [project_folder] [--scene path] [--screenshot out.png --frames N]\n"
                         "                   [--size WxH] [--hidden] [--press FRAME:KEY[:FRAMES]] [--touch FRAME:X,Y[:FRAMES]]\n"
                         "                   [--debug-draw] [--intro]\n");
             return false;
@@ -177,7 +177,7 @@ struct Player {
         wd.visible = !opt.hidden;
         if (!window.create(wd))
             return false;
-        // The game's icon (Build & Share writes app-icon.png), or Aven's.
+        // The game's icon (Build & Share writes app-icon.png), or Rynax's.
         for (const std::string& icon : {std::string("app-icon.png"), settings.publish.icon})
             if (!icon.empty() && fs::exists(projectDir / icon)) {
                 window.setIconFromFile(projectDir / icon);
@@ -186,7 +186,7 @@ struct Player {
         device = rhi::createDevice(rhi::Backend::OpenGL, Window::glProcLoader());
         if (!device)
             return false;
-        Log::info("Aven ", AVEN_VERSION, " running on ", device->description());
+        Log::info("Rynax ", RYNAX_VERSION, " running on ", device->description());
         assets = std::make_unique<Assets>(device.get());
         assets->setRoot(projectDir);
         if (!renderer.init(device.get(), assets.get()))
@@ -200,7 +200,7 @@ struct Player {
         if (!game->loadScene(opt.scene.empty() ? settings.startScene : opt.scene))
             return false;
         capture = !opt.screenshot.empty();
-        // "Made with Aven" and the title screen. Automated screenshots go straight to the game.
+        // "Made with Rynax" and the title screen. Automated screenshots go straight to the game.
         if (!capture || opt.intro) {
 #ifdef __EMSCRIPTEN__
             game->startIntro(false); // a web page can't close its own tab: no Quit button
@@ -312,11 +312,11 @@ int main(int argc, char** argv) {
     };
     player->projectDir = findProject(player->opt.project);
     if (player->projectDir.empty() || !ProjectSettings::isProject(player->projectDir)) {
-        Log::error("No game found. Put the game folder (with project.aven) next to the player, or pass its path.");
-        return fail("Aven");
+        Log::error("No game found. Put the game folder (with project.rynax) next to the player, or pass its path.");
+        return fail("Rynax");
     }
     if (!player->start())
-        return fail(player->settings.name.empty() ? "Aven" : player->settings.name);
+        return fail(player->settings.name.empty() ? "Rynax" : player->settings.name);
     Log::removeSink(sink);
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop_arg(

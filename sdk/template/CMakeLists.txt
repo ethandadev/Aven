@@ -1,8 +1,8 @@
 # Builds this game's native code. Every .c or .cpp file in src/ becomes its own library in bin/
-# (so each can have its own AVEN_MODULE line), and Aven loads them all, reloading after each build.
+# (so each can have its own RYNAX_MODULE line), and Rynax loads them all, reloading after each build.
 # Code shared by several files can go in src/common/: it's built into every library.
 #
-# The Build button in Aven's Tools > Native Code runs this. By hand, from the project folder:
+# The Build button in Rynax's Tools > Native Code runs this. By hand, from the project folder:
 #   cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release
 #   cmake --build native/build --config Release
 

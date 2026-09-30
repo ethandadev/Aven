@@ -3,7 +3,7 @@
   "title": "Make a starter template",
   "level": "Easy",
   "time": "1-3 hours",
-  "touches": "A small game made in Aven",
+  "touches": "A small game made in Rynax",
   "summary": "Templates are the little games people start from in the New Game screen. Make one that shows off an idea: a racing game, a puzzle, a maze...",
   "why": "A good template is how many beginners take their first steps.",
   "learn": ["Designing a small game", "Making a game easy to change"],
@@ -13,7 +13,7 @@
     {"text": "Optional: write a Learn tutorial for it (see the 'Write a Learn tutorial' quest)."},
     {"text": "Press 'Package as a template' at the bottom of this quest. It copies your game into templates/ with a picture.",
      "check": {"type": "files", "path": "templates/*/template.json", "min": 9}},
-    {"text": "Restart Aven: your template appears in New Game. Try making a game from it."},
+    {"text": "Restart Rynax: your template appears in New Game. Try making a game from it."},
     {"text": "Send it as a pull request."}
   ],
   "tool": "package-template",

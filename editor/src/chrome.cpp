@@ -4,7 +4,7 @@
 #include "editor.h"
 #include "menu.h"
 
-#include "aven/core/fs.h"
+#include "rynax/core/fs.h"
 #include "block_editor.h"
 
 #include <imgui.h>
@@ -14,7 +14,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -164,11 +164,11 @@ void Editor::drawMenuBar() {
                 openExternal(projectDir_.parent_path().string());
         }
         menu::tooltip("The whole game (scenes, scripts, pictures, sounds) in one file, to send to someone\n"
-                              "or keep. Open it in Aven's Open a game list, or drop it on Aven.");
+                              "or keep. Open it in Rynax's Open a game list, or drop it on Rynax.");
         if (unlocked(Feature::ProjectSettings) && menu::item("Project Settings..."))
             showSettings_ = true;
         if (!menu::native() && menu::item("Preferences...", key("preferences")))
-            showPrefs_ = true; // on a Mac: Aven > Settings
+            showPrefs_ = true; // on a Mac: Rynax > Settings
         menu::separator();
         if (menu::item("Project Hub (new or open project)")) {
             saveAllScripts();
@@ -177,7 +177,7 @@ void Editor::drawMenuBar() {
         if (menu::item("Close Tab or Window", key("close_tab")))
             closeFocusedWindow(true);
         if (!menu::native() && menu::item("Quit", key("quit")))
-            requestQuit(); // on a Mac: Aven > Quit Aven
+            requestQuit(); // on a Mac: Rynax > Quit Rynax
         menu::end();
     }
     if (menu::begin("Edit")) {
@@ -219,7 +219,7 @@ void Editor::drawMenuBar() {
         }
         if (unlocked(Feature::CommandPalette) && menu::item("Command Palette...", key("command_palette")))
             showPalette_ = true;
-        if (!menu::native()) { // on a Mac: Aven > Settings
+        if (!menu::native()) { // on a Mac: Rynax > Settings
             menu::separator();
             if (menu::item("Preferences...", key("preferences")))
                 showPrefs_ = true;
@@ -381,7 +381,7 @@ void Editor::drawMenuBar() {
         menu::separator();
         if (menu::item("Contributor Quests..."))
             openQuests();
-        menu::tooltip("Small, guided ways to help build Aven itself");
+        menu::tooltip("Small, guided ways to help build Rynax itself");
         menu::item("Scripting Reference", nullptr, &showReference_);
         if (menu::item("Welcome Tour..."))
             openOnboarding();
@@ -390,11 +390,11 @@ void Editor::drawMenuBar() {
             showPrefs_ = true;
             prefsSection_ = "Shortcuts";
         }
-        if (!menu::native()) { // on a Mac these are in the Aven menu
+        if (!menu::native()) { // on a Mac these are in the Rynax menu
             menu::separator();
             if (menu::item("Check for Updates..."))
                 checkForUpdates(true);
-            if (menu::item("About Aven"))
+            if (menu::item("About Rynax"))
                 showAbout_ = true;
         }
         menu::end();
@@ -403,7 +403,7 @@ void Editor::drawMenuBar() {
         menu::endBar();
         return;
     }
-    // Project name on the right, after the "Update to ..." button when there's a new Aven.
+    // Project name on the right, after the "Update to ..." button when there's a new Rynax.
     std::string label = settings_.name + (dirty_ ? "  (unsaved)" : "");
     float right = ImGui::GetWindowWidth() - ImGui::CalcTextSize(label.c_str()).x - 20;
     if (updateAvailable()) {
@@ -415,7 +415,7 @@ void Editor::drawMenuBar() {
     ImGui::EndMenuBar();
 }
 
-// The About window, and the Aven menu's commands on a Mac. Every frame, also on the start screen.
+// The About window, and the Rynax menu's commands on a Mac. Every frame, also on the start screen.
 void Editor::drawAppDialogs() {
     if (menu::native()) {
         if (!hasProject() || showHub_) { // the start screen has no menus of its own
@@ -432,18 +432,18 @@ void Editor::drawAppDialogs() {
         }
     }
     if (showAbout_) {
-        ImGui::OpenPopup("About Aven");
+        ImGui::OpenPopup("About Rynax");
         showAbout_ = false;
     }
-    if (ImGui::BeginPopupModal("About Aven", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (ImGui::BeginPopupModal("About Rynax", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::PushFont(fonts.big);
-        ImGui::Text("Aven %s", AVEN_VERSION);
+        ImGui::Text("Rynax %s", RYNAX_VERSION);
         ImGui::PopFont();
         ImGui::Text("A beginner-friendly 2D and 3D game engine.");
         ImGui::TextDisabled("Blocks -> EasyScript -> C/C++ -> any engine you like");
         ImGui::Spacing();
         ImGui::TextDisabled("Renderer: %s", device_.description().c_str());
-        ImGui::TextDisabled("Preferences: %s", fs::toUtf8(fs::userDataDir("Aven Editor") / "preferences.json").c_str());
+        ImGui::TextDisabled("Preferences: %s", fs::toUtf8(fs::userDataDir("Rynax Editor") / "preferences.json").c_str());
         if (ImGui::Button("Close", {ui::px(120), 0}))
             ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
@@ -986,7 +986,7 @@ void Editor::drawPreferences() {
         label("Gizmo uses local axes");
         changed |= ImGui::Checkbox("##local", &prefs.gizmoLocal);
     } else if (prefsSection_ == "Behavior") {
-        ui::sectionHeader("Starting Aven");
+        ui::sectionHeader("Starting Rynax");
         label("Say hello on the start screen", "A greeting with your name and picture above the templates.");
         changed |= ImGui::Checkbox("##greeting", &prefs.showGreeting);
         label("Open my last game", "Start right in the game you had open last time, instead of the start screen.");
@@ -1025,7 +1025,7 @@ void Editor::drawPreferences() {
         ImGui::SetNextItemWidth(-1);
         changed |= ImGui::InputTextWithHint("##exteditor", "code -g {file}:{line}", &prefs.externalEditor);
         label("Open scripts there", "Double-clicking a script, or an error in the Console, opens it in that editor. "
-                                    "Blocks still open in Aven.");
+                                    "Blocks still open in Rynax.");
         changed |= ImGui::Checkbox("##useext", &prefs.useExternalEditor);
         ImGui::SameLine();
         ImGui::BeginDisabled(prefs.externalEditor.empty() || !hasProject());
@@ -1036,7 +1036,7 @@ void Editor::drawPreferences() {
         }
         ImGui::EndDisabled();
         ui::sectionHeader("Updates");
-        label("Check for updates", "When Aven starts, it asks GitHub whether there's a new version, and shows an\n"
+        label("Check for updates", "When Rynax starts, it asks GitHub whether there's a new version, and shows an\n"
                                    "\"Update to ...\" button if there is. Nothing is downloaded until you say so.");
         changed |= ImGui::Checkbox("##checkupdates", &prefs.checkUpdates);
         ImGui::SameLine();
@@ -1046,8 +1046,8 @@ void Editor::drawPreferences() {
         changed |= ImGui::Checkbox("##betaupdates", &prefs.betaUpdates);
         if (std::string previous = previousVersion(); !previous.empty()) {
             label("Go back", "The version the last update replaced is kept until the next update. Going back\n"
-                             "restarts Aven with it (your projects aren't changed).");
-            if (ImGui::SmallButton(("Go back to Aven " + previous + "##rollback").c_str())) {
+                             "restarts Rynax with it (your projects aren't changed).");
+            if (ImGui::SmallButton(("Go back to Rynax " + previous + "##rollback").c_str())) {
                 rollbackPending_ = true;
                 saveAndRestart();
             }
@@ -1074,10 +1074,10 @@ void Editor::drawPreferences() {
             ImGui::TextDisabled("%s", levelBlurb(lvl));
             ImGui::PopID();
         }
-        label("Level up automatically", "When you've practiced enough, Aven offers to show more features.");
+        label("Level up automatically", "When you've practiced enough, Rynax offers to show more features.");
         changed |= ImGui::Checkbox("##autolevel", &prefs.autoLevelUp);
         ui::sectionHeader("Helpers");
-        label("Beginner helpers", "The Ask Aven box in the Inspector, Doctor buttons in the Console and tips in empty panels. "
+        label("Beginner helpers", "The Ask Rynax box in the Inspector, Doctor buttons in the Console and tips in empty panels. "
                                   "Turn them off for a quieter editor.");
         changed |= ImGui::Checkbox("##helpers", &prefs.beginnerHelpers);
         ui::sectionHeader("Tips");
@@ -1157,7 +1157,7 @@ void Editor::drawLevels() {
         ImGui::PushFont(fonts.big);
         ImGui::Text("You're ready for %s!", levelName(levelUpTo_));
         ImGui::PopFont();
-        ImGui::TextWrapped("You've been busy. Want to see more of Aven? These will appear:");
+        ImGui::TextWrapped("You've been busy. Want to see more of Rynax? These will appear:");
         ImGui::Spacing();
         for (int lvl = prefs.level + 1; lvl <= levelUpTo_; ++lvl)
             for (auto* f : featuresUnlockedAt(lvl)) {
@@ -1195,7 +1195,7 @@ void Editor::drawLevels() {
         ImGui::End();
         return;
     }
-    ImGui::TextWrapped("Aven hides advanced tools until you need them, so the screen isn't overwhelming on day one. "
+    ImGui::TextWrapped("Rynax hides advanced tools until you need them, so the screen isn't overwhelming on day one. "
                        "Pick any level at any time: nothing in your project changes, only what the editor shows.");
     ImGui::Spacing();
     float w = (ImGui::GetContentRegionAvail().x - 3 * 8) / 4;
@@ -1239,4 +1239,4 @@ void Editor::drawLevels() {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

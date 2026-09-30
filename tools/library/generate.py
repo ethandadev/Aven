@@ -1,7 +1,7 @@
-"""Builds Aven's asset library (editor/data/library): sprites, animations, backgrounds, 3D textures
+"""Builds Rynax's asset library (editor/data/library): sprites, animations, backgrounds, 3D textures
 and 3D models, all made here from code, so everything is original and free to use (CC0).
 
-    python3 tools/library/generate.py [--thumbnails build/bin/aven-player]
+    python3 tools/library/generate.py [--thumbnails build/bin/rynax-player]
 
 --thumbnails renders a picture of every 3D model with the player (otherwise the old pictures are
 kept). The editor's Asset Library window lists what library.json describes.
@@ -77,14 +77,14 @@ def render_thumbnail(player, glb_path, out_png):
         os.makedirs(os.path.join(proj, "scenes"))
         os.makedirs(os.path.join(proj, "models"))
         shutil.copy(glb_path, os.path.join(proj, "models", "m.glb"))
-        with open(os.path.join(proj, "project.aven"), "w") as f:
-            json.dump({"aven": "project", "name": "thumb", "start_scene": "scenes/main.scene",
+        with open(os.path.join(proj, "project.rynax"), "w") as f:
+            json.dump({"rynax": "project", "name": "thumb", "start_scene": "scenes/main.scene",
                        "window": {"width": 256, "height": 256}}, f)
 
         def e(i, name, comps):
             return {"id": f"{i:016x}", "name": name, "components": comps}
 
-        scene = {"aven": "scene", "version": 1, "name": "Thumb", "entities": [
+        scene = {"rynax": "scene", "version": 1, "name": "Thumb", "entities": [
             e(1, "Camera", {"Transform": {"position": cam, "rotation": [-22, 35, 0]},
                             "Camera": {"projection": "Perspective", "field_of_view": 44},
                             "PostProcessing": {"tonemapper": "ACES", "ssao": True, "fxaa": True}}),
@@ -161,11 +161,11 @@ def main():
         shutil.rmtree(keep)
 
     with open(os.path.join(OUT, "library.json"), "w", newline="\n") as f:
-        json.dump({"about": "Aven's asset library. Made by tools/library/generate.py; free to use (CC0).",
+        json.dump({"about": "Rynax's asset library. Made by tools/library/generate.py; free to use (CC0).",
                    "items": items}, f, indent=1)
         f.write("\n")
     with open(os.path.join(OUT, "LICENSE.txt"), "w", newline="\n") as f:
-        f.write("Everything in this folder was made from code by tools/library/generate.py for Aven.\n"
+        f.write("Everything in this folder was made from code by tools/library/generate.py for Rynax.\n"
                 "It is dedicated to the public domain (CC0 1.0): use it in any game, commercial or not,\n"
                 "with no need to give credit. https://creativecommons.org/publicdomain/zero/1.0/\n")
     print(f"{len(items)} items in {OUT}")

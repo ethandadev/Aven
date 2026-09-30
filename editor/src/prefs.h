@@ -1,7 +1,7 @@
 #pragma once
 
-#include "aven/core/json.h"
-#include "aven/math/math.h"
+#include "rynax/core/json.h"
+#include "rynax/math/math.h"
 #include "keymap.h"
 
 #include <imgui.h>
@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 struct Fonts;
 
@@ -32,7 +32,7 @@ struct Prefs {
     float uiScale = 1.0f;
     int fontSize = 16;
     int codeFontSize = 15;
-    std::string codeTheme = "Aven Dark";
+    std::string codeTheme = "Rynax Dark";
     bool rounded = true;
     bool compact = false;
     bool colorblindSafe = false; // axis colors that don't rely on telling red from green
@@ -79,15 +79,15 @@ struct Prefs {
     bool useExternalEditor = false;
 
     // Updates (updater.cpp)
-    bool checkUpdates = true;    // look for a new Aven when the editor starts
+    bool checkUpdates = true;    // look for a new Rynax when the editor starts
     bool betaUpdates = false;    // offer beta versions too
     std::string skippedUpdate;   // "Skip this version"
-    std::string lastVersion;     // the Aven that last ran, to say "Updated to ..." once
+    std::string lastVersion;     // the Rynax that last ran, to say "Updated to ..." once
 
     // Learning
     int level = 1; // 1 Starter, 2 Explorer, 3 Creator, 4 Pro
     bool autoLevelUp = true;
-    bool beginnerHelpers = true; // Ask Aven box, Doctor buttons, tips in empty panels
+    bool beginnerHelpers = true; // Ask Rynax box, Doctor buttons, tips in empty panels
     std::map<std::string, int> counters; // milestones: plays, objects added, scripts edited...
     std::set<std::string> seenTips;
     std::map<std::string, int> questSteps; // contributor quests progress
@@ -98,7 +98,7 @@ struct Prefs {
     std::string avatar = "cat";   // a critter (avatars.h), or "picture" for profilePicture
     std::string profilePicture;   // their own picture, copied into the user data folder
     std::string pronouns;         // "he/him", "she/her", "they/them", their own words, or "" (not said)
-    std::string foundVia;         // how they found Aven (asked in the welcome tour)
+    std::string foundVia;         // how they found Rynax (asked in the welcome tour)
     int codingLevel = -1;         // 0 never coded, 1 a little, 2 some, 3 lots (-1: didn't say)
     std::vector<std::string> enginesUsed; // "Unity", "Godot", "Unreal"
     std::string ladderEngine;     // the Code Ladder opens on this engine's language ("" = Unity's C#)
@@ -106,18 +106,23 @@ struct Prefs {
 
     // Shortcuts (keymap.h): action id -> keys, "id/2" -> its second keys (missing = the default, 0 = none).
     std::map<std::string, ImGuiKeyChord> keys;
-    std::string keymap = "Aven"; // the keymap they started from: Aven, Unity, Godot or Unreal
+    std::string keymap = "Rynax"; // the keymap they started from: Rynax, Unity, Godot or Unreal
 
     ImGuiKeyChord chord(const std::string& action) const { return boundChord(this, action, 0); }
     Color accentColor() const;
     const ThemePreset& themePreset() const;
 
-    bool load(); // false when there's no preferences file yet (the first time Aven runs)
+    bool load(); // false when there's no preferences file yet (the first time Rynax runs)
     void save() const;
     static inline bool saving = true; // off for automated runs (--screenshot), which mustn't change the user's
     Json toJson() const;
     void fromJson(const Json& j);
 };
+
+// Rynax was called Aven before 0.6: the first time Rynax runs, it takes a copy of Aven's editor data
+// (preferences, recent games, layout, profile picture...). Aven's folder stays, for going back.
+// Returns true when it copied something.
+bool bringOverAvenData();
 
 // Applies the theme, spacing and roundness to ImGui's style.
 void applyStyle(const Prefs& prefs, float dpiScale);
@@ -130,4 +135,4 @@ void buildFonts(const Prefs& prefs, float dpiScale, Fonts& fonts, float density 
 // Blends two colors in 0-255 units, for small UI touches.
 ImU32 mixColor(ImU32 a, ImU32 b, float t);
 
-} // namespace aven::editor
+} // namespace rynax::editor

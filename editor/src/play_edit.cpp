@@ -1,16 +1,16 @@
 // Play-and-edit: pause the game, click anything, change it live, and keep the changes you like.
 //
-// Most engines throw away everything changed while playing. Aven remembers exactly which settings
+// Most engines throw away everything changed while playing. Rynax remembers exactly which settings
 // you touched (not everything physics moved) and offers to copy them back into the scene.
 
 #include "editor.h"
 
-#include "aven/runtime/script_system.h"
-#include "aven/script/vm.h"
+#include "rynax/runtime/script_system.h"
+#include "rynax/script/vm.h"
 
 #include <imgui.h>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 void Editor::noteLiveChange(Entity e, const std::string& key) {
     if (!replayEditNoted_ && recorder_.recording()) {
@@ -171,4 +171,4 @@ void Editor::drawKeepChangesDialog() {
     }
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

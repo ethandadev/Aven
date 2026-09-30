@@ -1,15 +1,15 @@
 #include "test_framework.h"
 
-#include "aven/assets/assets.h"
-#include "aven/core/fs.h"
-#include "aven/platform/input.h"
-#include "aven/runtime/game.h"
-#include "aven/runtime/script_system.h"
-#include "aven/runtime/systems.h"
+#include "rynax/assets/assets.h"
+#include "rynax/core/fs.h"
+#include "rynax/platform/input.h"
+#include "rynax/runtime/game.h"
+#include "rynax/runtime/script_system.h"
+#include "rynax/runtime/systems.h"
 
 #include <filesystem>
 
-using namespace aven;
+using namespace rynax;
 using script::VM;
 
 namespace {
@@ -26,9 +26,9 @@ std::string valueOf(const std::vector<std::pair<std::string, std::string>>& list
 // Breakpoints pause the game at a line; the paused code shows its calls, local values and
 // script variables; Step Into, Out and Over move a line at a time; Continue runs on to the next
 // breakpoint.
-AVEN_TEST(debugger_breakpoints_and_stepping) {
+RYNAX_TEST(debugger_breakpoints_and_stepping) {
     namespace stdfs = std::filesystem;
-    stdfs::path dir = stdfs::temp_directory_path() / "aven_debugger_test";
+    stdfs::path dir = stdfs::temp_directory_path() / "rynax_debugger_test";
     std::error_code ec;
     stdfs::remove_all(dir, ec);
     stdfs::create_directories(dir / "scripts", ec);

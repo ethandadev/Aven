@@ -1,14 +1,14 @@
 #include "script_facts.h"
 
-#include "aven/blocks/blocks.h"
-#include "aven/core/json.h"
-#include "aven/script/ast.h"
-#include "aven/script/errors.h"
+#include "rynax/blocks/blocks.h"
+#include "rynax/core/json.h"
+#include "rynax/script/ast.h"
+#include "rynax/script/errors.h"
 
 #include <cmath>
 #include <cstdio>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 using namespace script;
 
@@ -443,4 +443,4 @@ ScriptFacts analyzeScript(const std::string& source, const std::string& blocksJs
     return facts;
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

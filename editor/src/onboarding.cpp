@@ -1,9 +1,9 @@
-// The welcome tour: the first time Aven runs (or Help > Welcome Tour), six playful steps with Pip,
-// Aven's little diamond, that set up the profile, how much help Learn mode gives, keys like another
+// The welcome tour: the first time Rynax runs (or Help > Welcome Tour), six playful steps with Pip,
+// Rynax's little diamond, that set up the profile, how much help Learn mode gives, keys like another
 // engine's, and the look. Every answer stays on this computer.
 //
 //   1 You: name, picture (a critter or their own), pronouns
-//   2 How did you find Aven?
+//   2 How did you find Rynax?
 //   3 How much have you coded? (sets the Learn mode level)
 //   4 Used Unity, Godot or Unreal? (skipped for people new to code: sets keys and the Code Ladder)
 //   5 Make it yours: theme, size, sounds, calm mode...
@@ -13,8 +13,8 @@
 #include "editor.h"
 #include "learn_mode.h"
 
-#include "aven/audio/sfx.h"
-#include "aven/core/fs.h"
+#include "rynax/audio/sfx.h"
+#include "rynax/core/fs.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -26,7 +26,7 @@
 #include <cmath>
 #include <ctime>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -99,7 +99,7 @@ void wavyText(ImDrawList* dl, ImFont* font, float size, ImVec2 pos, ImU32 col, c
     }
 }
 
-// Pip: Aven's logo diamond with a face. It bobs, blinks, looks at the mouse and hops when happy.
+// Pip: Rynax's logo diamond with a face. It bobs, blinks, looks at the mouse and hops when happy.
 void drawPip(ImDrawList* dl, ImVec2 c, float s, float t, bool calm, ImU32 body, ImVec2 mouse, float hop, bool excited) {
     float bob = calm ? 0.0f : std::sin(t * 2.2f) * s * 0.05f;
     float jump = calm || hop >= 1.0f ? 0.0f : std::sin(hop * kPi) * s * 0.4f;
@@ -211,7 +211,7 @@ bool Editor::setProfilePicture(const stdfs::path& file) {
         notify("Pick a .png or .jpg picture.", true);
         return false;
     }
-    stdfs::path dir = fs::userDataDir("Aven Editor");
+    stdfs::path dir = fs::userDataDir("Rynax Editor");
     auto stamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     stdfs::path copy = dir / ("avatar-" + std::to_string(stamp) + ext); // (a new name each time: textures are cached by name)
     std::error_code ec;
@@ -299,7 +299,7 @@ void Editor::finishOnboarding(bool skipped) {
     if (!skipped)
         uiSound("powerup");
     if (!skipped)
-        notify(prefs.profileName.empty() ? "Welcome to Aven! Pick a template to start." : "Welcome to Aven, " + prefs.profileName + "! Pick a template to start.");
+        notify(prefs.profileName.empty() ? "Welcome to Rynax! Pick a template to start." : "Welcome to Rynax, " + prefs.profileName + "! Pick a template to start.");
 }
 
 void Editor::drawOnboarding(float dt) {
@@ -405,11 +405,11 @@ void Editor::drawOnboarding(float dt) {
     if (says.empty() || onboardSayTime_ > 7.0f) {
         std::string name = prefs.profileName.empty() ? "friend" : prefs.profileName;
         switch (onboardStep_) {
-        case StepYou: says = "Hi! I'm Pip, Aven's little diamond. Let's get to know each other!"; break;
+        case StepYou: says = "Hi! I'm Pip, Rynax's little diamond. Let's get to know each other!"; break;
         case StepFound: says = "Nice to meet you, " + name + "! I'm curious..."; break;
         case StepCoding: says = "No wrong answers here. I just want to know how much to help."; break;
         case StepEngines: says = "Coming from another engine? I can speak its language."; break;
-        case StepLook: says = "Almost done! Make Aven feel like home."; break;
+        case StepLook: says = "Almost done! Make Rynax feel like home."; break;
         default: says = "Yay! You're all set, " + name + "!"; break;
         }
     }
@@ -473,7 +473,7 @@ void Editor::drawOnboarding(float dt) {
     bool next = false; // (Enter in the name box also goes on)
     switch (onboardStep_) {
     case StepYou: {
-        title("Let's get to know each other", "Just a few things so Aven feels like yours. It all stays on this computer.");
+        title("Let's get to know each other", "Just a few things so Rynax feels like yours. It all stays on this computer.");
         label("What should we call you?");
         if (onboardFocusName_) {
             ImGui::SetKeyboardFocusHere();
@@ -582,7 +582,7 @@ void Editor::drawOnboarding(float dt) {
         break;
     }
     case StepFound: {
-        title("How did you find Aven?", "Just curious! This stays on your computer: Aven doesn't send it anywhere.");
+        title("How did you find Rynax?", "Just curious! This stays on your computer: Rynax doesn't send it anywhere.");
         float gap = em * 0.6f;
         float w = (rightW - gap * 2) / 3, h = em * 6.2f;
         for (int i = 0; i < IM_ARRAYSIZE(kFound); ++i) {
@@ -642,13 +642,13 @@ void Editor::drawOnboarding(float dt) {
             ImGui::Dummy({0, em * 0.3f});
             std::string words = prefs.foundVia == "Other" ? "" : prefs.foundVia;
             ImGui::SetNextItemWidth(std::min(rightW, em * 22));
-            if (ImGui::InputTextWithHint("##other", "Where did you hear about Aven? (optional)", &words))
+            if (ImGui::InputTextWithHint("##other", "Where did you hear about Rynax? (optional)", &words))
                 prefs.foundVia = words.empty() ? "Other" : words;
         }
         break;
     }
     case StepCoding: {
-        title("How much have you coded before?", "This picks how much Aven shows at first. More unlocks as you go.");
+        title("How much have you coded before?", "This picks how much Rynax shows at first. More unlocks as you go.");
         float h = em * 3.1f;
         for (int i = 0; i < 4; ++i) {
             const Choice& ch = kCoding[i];
@@ -678,7 +678,7 @@ void Editor::drawOnboarding(float dt) {
         break;
     }
     case StepEngines: {
-        title("Ever used another game engine?", "Pick any you know. Aven can use their keys and show your code in their language.");
+        title("Ever used another game engine?", "Pick any you know. Rynax can use their keys and show your code in their language.");
         float gap = em * 0.6f;
         float w = (rightW - gap * 3) / 4, h = em * 5.0f;
         const ImU32 colors[] = {IM_COL32(60, 64, 72, 255), IM_COL32(71, 140, 191, 255), IM_COL32(30, 30, 36, 255)};
@@ -705,11 +705,11 @@ void Editor::drawOnboarding(float dt) {
                 })) {
                 if (none) {
                     prefs.enginesUsed.clear();
-                    onboardKeymap_ = "Aven";
-                    pipSay("Aven is your first engine? Then you'll learn the good habits first!");
+                    onboardKeymap_ = "Rynax";
+                    pipSay("Rynax is your first engine? Then you'll learn the good habits first!");
                 } else if (selected) {
                     std::erase(prefs.enginesUsed, std::string(name));
-                    onboardKeymap_ = prefs.enginesUsed.empty() ? "Aven" : prefs.enginesUsed.front();
+                    onboardKeymap_ = prefs.enginesUsed.empty() ? "Rynax" : prefs.enginesUsed.front();
                 } else {
                     prefs.enginesUsed.push_back(name);
                     if (prefs.enginesUsed.size() == 1)
@@ -743,7 +743,7 @@ void Editor::drawOnboarding(float dt) {
         }
         ImGui::Dummy({0, em * 0.3f});
         if (ImGui::SmallButton("Read: moving between engines"))
-            openExternal("https://github.com/ethandadev/Aven/blob/main/docs/migrating.md");
+            openExternal("https://github.com/ethandadev/Rynax/blob/main/docs/migrating.md");
         break;
     }
     case StepLook: {
@@ -836,7 +836,7 @@ void Editor::drawOnboarding(float dt) {
         centered("Here's how to start:", false);
         centered("1. Pick a template: each one is a tiny game that already works.", true);
         centered("2. Press Play (" + chordName(boundChord(&prefs, "play")) + ") and try it. Then change anything!", true);
-        centered("3. Stuck? Ask Aven (" + chordName(boundChord(&prefs, "ask")) + ") or press " +
+        centered("3. Stuck? Ask Rynax (" + chordName(boundChord(&prefs, "ask")) + ") or press " +
                      chordName(boundChord(&prefs, "explain")) + " on anything.",
                  true);
         break;
@@ -918,7 +918,7 @@ void Editor::drawOnboarding(float dt) {
     ImGui::SetNextWindowSize({em * 36, em * 26}, ImGuiCond_Appearing);
     ImGui::SetNextWindowPos(vp->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
     if (ImGui::BeginPopupModal("Choose a picture", nullptr)) {
-        ImGui::TextDisabled("A .png or .jpg. (You can also drop a picture onto Aven's window.)");
+        ImGui::TextDisabled("A .png or .jpg. (You can also drop a picture onto Rynax's window.)");
         stdfs::path picked;
         if (drawFileBrowser({".png", ".jpg", ".jpeg", ".bmp", ".tga"}, &picked)) {
             if (setProfilePicture(picked))
@@ -932,4 +932,4 @@ void Editor::drawOnboarding(float dt) {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

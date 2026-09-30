@@ -1,6 +1,6 @@
 # Things to test by hand
 
-Automated tests cover a lot (`aven_tests`, `tests/editor/run.py`, the sanitizer and fuzz runs in CI),
+Automated tests cover a lot (`rynax_tests`, `tests/editor/run.py`, the sanitizer and fuzz runs in CI),
 but not how things feel, how they look on your screen, or real hardware (Windows display scaling,
 gamepads, phones, a Mac). This is the list for a manual pass: tick what works, and report what
 doesn't with the steps to see it.
@@ -21,13 +21,13 @@ Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should 
       on the window). It opens with everything there.
 - [ ] Close with unsaved changes: you're asked to save; Cancel really cancels.
 - [ ] Autosave (Preferences > Behavior) saves after the set minutes.
-- [ ] Crash recovery: make a change, wait 30 seconds, then end Aven from the task manager (Activity
+- [ ] Crash recovery: make a change, wait 30 seconds, then end Rynax from the task manager (Activity
       Monitor on a Mac). Opening the project again offers the change back; Recover brings it back
-      unsaved, Throw away doesn't. Closing Aven normally leaves nothing to recover.
+      unsaved, Throw away doesn't. Closing Rynax normally leaves nothing to recover.
 
 ## Shortcuts
 - [ ] Preferences > Shortcuts: change a key (and a second key), right-click to remove / restore,
-      search, a clash shows its warning, Esc cancels. Each keymap (Aven, Unity, Godot, Unreal).
+      search, a clash shows its warning, Esc cancels. Each keymap (Rynax, Unity, Godot, Unreal).
 - [ ] The usual keys, with Cmd on a Mac: Ctrl+W closes a script tab and tool windows, Ctrl+N,
       Ctrl+O (quick open), Ctrl+Shift+S (Save Scene As), Ctrl+= / Ctrl+- / Ctrl+0 resize the editor;
       Ctrl+C/V/Z/Y in the code editor, the Pixel Editor and text boxes.
@@ -48,7 +48,7 @@ Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should 
 - [ ] With several objects selected: change position/scale (only the changed axis changes), tag,
       layer, a component setting, a script variable (e.g. Speed); all selected objects change.
 - [ ] **+ Add Component** with several selected adds to all; the command palette's Add component too.
-- [ ] **Ask Aven**: type "bigger and red", press Ask, then Do it (and Ctrl+Z undoes it). Press Ask
+- [ ] **Ask Rynax**: type "bigger and red", press Ask, then Do it (and Ctrl+Z undoes it). Press Ask
       with an empty box: a list of ideas appears.
 - [ ] Right-click a setting: reset, copy/paste, revert to prefab. The lock keeps one object shown.
 - [ ] Prefab copies: Open, Apply, Revert (with several copies selected too).
@@ -77,7 +77,7 @@ Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should 
 - [ ] Debugger: click a line number in on_update for a breakpoint, Play: it stops there with the
       values shown; F10 steps a line, F11 goes into your own function, Shift+F11 comes back out, F5
       continues. Adding a line above a breakpoint moves it down with its line. Stop while stopped.
-- [ ] Online multiplayer: run `aven-relay` (on a server, or on this computer for a first try), put
+- [ ] Online multiplayer: run `rynax-relay` (on a server, or on this computer for a first try), put
       its address in Project Settings > Game > Online relay, host with `host_online()` in one copy
       of a game and join from another computer (on a different network if you can, like a phone
       hotspot) with the room code. Moving, `send()` and leaving work as on a local network.
@@ -95,7 +95,7 @@ Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should 
 - [ ] Native code: build a module; opening someone else's project asks before running its native code.
 
 ## Build & Share
-- [ ] **Game details**: name, version, description, made by, icon picture, "Made with Aven", title screen.
+- [ ] **Game details**: name, version, description, made by, icon picture, "Made with Rynax", title screen.
 - [ ] **Desktop apps**: export Windows/macOS/Linux (release downloads can make all three). Unzip each
       on its system: it runs, shows the icon (in Explorer / the Dock / the window), the splash, the
       title screen (Play, Quit, Enter, arrow keys, mouse, gamepad), and the game.
@@ -105,22 +105,22 @@ Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should 
 - [ ] **Share**: the game card, the Wi-Fi link on your phone, the itch.io zip.
 
 ## Installing
-- [ ] Windows: `Aven-<version>-Setup.exe` installs without asking for an administrator; Aven is in
+- [ ] Windows: `Rynax-<version>-Setup.exe` installs without asking for an administrator; Rynax is in
       the Start menu with its icon; it runs; Settings > Apps uninstalls it (your games stay).
-- [ ] macOS: open the .dmg, drag Aven into Applications, open it: the Dock and the menu bar say
-      Aven (not Terminal), with its icon. If the release was signed and notarized, no warning.
-- [ ] macOS: the menus are in the menu bar at the top of the screen: Aven (About, Settings...,
+- [ ] macOS: open the .dmg, drag Rynax into Applications, open it: the Dock and the menu bar say
+      Rynax (not Terminal), with its icon. If the release was signed and notarized, no warning.
+- [ ] macOS: the menus are in the menu bar at the top of the screen: Rynax (About, Settings...,
       Check for Updates..., Hide, Quit), File, Edit, Create, Window, Tools, Help. Items grey out
       and tick as they should; Cmd+S, Cmd+Z, Cmd+C in a text box vs in the scene; Cmd+Q asks about
       unsaved changes.
 - [ ] macOS on a Retina screen: the editor is the normal size, and the text is sharp. Drag the
       window to an external monitor (and Windows: between 100% and 150% screens): it rescales.
 - [ ] macOS Window menu: Minimize (Cmd+M), Zoom, Enter Full Screen (Ctrl+Cmd+F).
-- [ ] Linux: `flatpak install Aven-<version>-linux.flatpak`, then run it from the app menu.
+- [ ] Linux: `flatpak install Rynax-<version>-linux.flatpak`, then run it from the app menu.
 
 ## Opening someone else's project
 - [ ] Open a project zip made on another computer (File > Export Project as .zip there): it opens,
-      and nothing runs by itself. With compiled native code in it, Aven asks before loading it.
+      and nothing runs by itself. With compiled native code in it, Rynax asks before loading it.
 - [ ] With a changed native/CMakeLists.txt in it, the Native Code window's Build asks first ("Build
       this project's C/C++ code?"), and Don't build runs nothing.
 
@@ -131,15 +131,15 @@ Scale, 150%), and with Preferences > Look > Text size turned up. Nothing should 
 - [ ] With a release download of the previous version: the **Update to ...** button shows in the menu
       bar and on the start screen; the Update window shows the notes; **Download and install**
       shows progress (and Cancel stops it); **Restart now** opens the new version with the same game.
-- [ ] **Later**, then close Aven: the next start is the new version. Your projects, and a file of your
-      own in Aven's folder, are untouched.
-- [ ] Windows: works with Aven in Downloads, and says what to do when it's in Program Files.
+- [ ] **Later**, then close Rynax: the next start is the new version. Your projects, and a file of your
+      own in Rynax's folder, are untouched.
+- [ ] Windows: works with Rynax in Downloads, and says what to do when it's in Program Files.
 - [ ] **Skip this version**; Preferences > Behavior > Updates (off, betas, "Don't skip it").
 - [ ] Offline: Help > Check for Updates says it couldn't reach GitHub; nothing else breaks.
 
 ## Multiplayer
 - [ ] Two computers on the same Wi-Fi: host, find the game, join, see each other move, leave.
-- [ ] Online: run `aven-relay`, set it in Project Settings > Game > Online relay, host with
+- [ ] Online: run `rynax-relay`, set it in Project Settings > Game > Online relay, host with
       `host_online()`, join from another network with the room code.
 
 ## When things go wrong

@@ -1,3 +1,3 @@
 // The exported game's icon. The picture is a placeholder with room to spare: Build & Share writes
-// each game's own icon over it (aven/core/icons.h), so the .exe shows it in Explorer and the taskbar.
+// each game's own icon over it (rynax/core/icons.h), so the .exe shows it in Explorer and the taskbar.
 1 ICON "app.ico"

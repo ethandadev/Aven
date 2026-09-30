@@ -6,15 +6,15 @@
 #include "editor.h"
 #include "menu.h"
 
-#include "aven/core/fs.h"
-#include "aven/core/log.h"
-#include "aven/runtime/game.h"
-#include "aven/runtime/script_system.h"
-#include "aven/script/vm.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/log.h"
+#include "rynax/runtime/game.h"
+#include "rynax/runtime/script_system.h"
+#include "rynax/script/vm.h"
 
 #include <imgui.h>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -200,4 +200,4 @@ void Editor::drawEditorToolsMenu() {
     }
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

@@ -1,7 +1,7 @@
 name: Notarize Mac downloads
 
 # For a release published before a Developer ID was set up (docs/releasing.md): signs and notarizes
-# its Aven.app and puts the new .dmg and zip in place of the old ones. The app inside is the one that
+# its Rynax.app and puts the new .dmg and zip in place of the old ones. The app inside is the one that
 # was released (it isn't built again), and nothing else in the release changes: not the other
 # downloads, not the notes. Actions > Notarize Mac downloads > Run workflow, with the tag (v0.4.0).
 on:
@@ -48,15 +48,15 @@ jobs:
         run: |
           v="${TAG#v}"
           echo "VERSION=$v" >> "$GITHUB_ENV"
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "aven-$v-macos-arm64.zip" --dir in
-          ditto -x -k "in/aven-$v-macos-arm64.zip" in
-          test -x in/Aven.app/Contents/MacOS/aven-editor
-          built="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' in/Aven.app/Contents/Info.plist)"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "rynax-$v-macos-arm64.zip" --dir in
+          ditto -x -k "in/rynax-$v-macos-arm64.zip" in
+          test -x in/Rynax.app/Contents/MacOS/rynax-editor
+          built="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' in/Rynax.app/Contents/Info.plist)"
           if [ "$built" != "$v" ]; then
-            echo "::error::The zip in $TAG holds Aven $built, not $v."
+            echo "::error::The zip in $TAG holds Rynax $built, not $v."
             exit 1
           fi
-          codesign -dv in/Aven.app 2>&1 | grep -E "^(Authority|Signature)" || true
+          codesign -dv in/Rynax.app 2>&1 | grep -E "^(Authority|Signature)" || true
       - name: Load the signing certificate
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
@@ -86,17 +86,17 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: tools/release/make_mac_app.sh --app in/Aven.app "$VERSION" out
+        run: tools/release/make_mac_app.sh --app in/Rynax.app "$VERSION" out
       - name: Check Gatekeeper accepts it
         run: |
-          hdiutil attach "out/Aven-$VERSION-macOS.dmg" -mountpoint /tmp/aven-dmg -nobrowse
-          app=/tmp/aven-dmg/Aven.app
+          hdiutil attach "out/Rynax-$VERSION-macOS.dmg" -mountpoint /tmp/rynax-dmg -nobrowse
+          app=/tmp/rynax-dmg/Rynax.app
           codesign --verify --deep --strict "$app"
           spctl --assess --type execute --verbose "$app" # fails unless signed and notarized
           xcrun stapler validate "$app"
-          "$app/Contents/MacOS/aven-editor" --help > /dev/null
-          hdiutil detach /tmp/aven-dmg
-          xcrun stapler validate "out/Aven-$VERSION-macOS.dmg"
+          "$app/Contents/MacOS/rynax-editor" --help > /dev/null
+          hdiutil detach /tmp/rynax-dmg
+          xcrun stapler validate "out/Rynax-$VERSION-macOS.dmg"
           ls -la out
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -126,7 +126,7 @@ jobs:
           UPDATE_PUBLIC_KEY: ${{ vars.UPDATE_PUBLIC_KEY }}
         run: |
           mkdir -p sigs
-          zip="dist/aven-${TAG#v}-macos-arm64.zip"
+          zip="dist/rynax-${TAG#v}-macos-arm64.zip"
           if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -qxF "$(basename "$zip").sig"; then
             echo "$TAG has no update signature for the Mac zip, so there's none to redo."
             exit 0

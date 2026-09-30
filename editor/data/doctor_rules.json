@@ -49,12 +49,12 @@
     {
       "match": "Couldn't play the sound",
       "title": "A sound that won't play",
-      "explanation": "The sound file is missing or in a format Aven can't read. Aven plays .wav, .mp3, .ogg and .flac files from your project folder."
+      "explanation": "The sound file is missing or in a format Rynax can't read. Rynax plays .wav, .mp3, .ogg and .flac files from your project folder."
     },
     {
       "match": "Couldn't load the model",
       "title": "A 3D model that won't load",
-      "explanation": "Aven loads .gltf and .glb models. Check that the file is in your project, and try exporting it again from your 3D program as glTF 2.0."
+      "explanation": "Rynax loads .gltf and .glb models. Check that the file is in your project, and try exporting it again from your 3D program as glTF 2.0."
     },
     {
       "match": "This line ends too early",
@@ -64,22 +64,22 @@
     {
       "match": "There's no native behavior called",
       "title": "A native behavior that isn't built",
-      "explanation": "An object's NativeScript names a C/C++ behavior that isn't loaded. Open Tools > Native Code and press Build. If it still doesn't appear, check the name you gave aven_behavior() in native/src matches the Inspector exactly (capital letters count)."
+      "explanation": "An object's NativeScript names a C/C++ behavior that isn't loaded. Open Tools > Native Code and press Build. If it still doesn't appear, check the name you gave rynax_behavior() in native/src matches the Inspector exactly (capital letters count)."
     },
     {
-      "match": "it has no AVEN_MODULE",
-      "title": "A native library without AVEN_MODULE",
-      "explanation": "Aven found a library in native/bin but couldn't see what's inside. Each file in native/src becomes its own library, so each one needs AVEN_MODULE(setup) at the end, where setup is the function that calls aven_behavior()."
+      "match": "it has no RYNAX_MODULE",
+      "title": "A native library without RYNAX_MODULE",
+      "explanation": "Rynax found a library in native/bin but couldn't see what's inside. Each file in native/src becomes its own library, so each one needs RYNAX_MODULE(setup) at the end, where setup is the function that calls rynax_behavior()."
     },
     {
       "match": "doesn't fit in its data",
       "title": "A property outside its behavior's data",
-      "explanation": "aven_number()/aven_integer()/aven_flag() place a property inside your behavior's struct. Pass sizeof(YourStruct) to aven_behavior() and offsetof(YourStruct, field) for each property, so Aven knows where it goes."
+      "explanation": "rynax_number()/rynax_integer()/rynax_flag() place a property inside your behavior's struct. Pass sizeof(YourStruct) to rynax_behavior() and offsetof(YourStruct, field) for each property, so Rynax knows where it goes."
     },
     {
       "match": "CMake isn't installed",
       "title": "No CMake to build native code",
-      "explanation": "Building C/C++ needs CMake and a compiler. Windows: install Visual Studio Community with 'Desktop development with C++' and CMake. macOS: run xcode-select --install and brew install cmake. Linux: install gcc (or clang) and cmake. Then restart Aven so it can find them."
+      "explanation": "Building C/C++ needs CMake and a compiler. Windows: install Visual Studio Community with 'Desktop development with C++' and CMake. macOS: run xcode-select --install and brew install cmake. Linux: install gcc (or clang) and cmake. Then restart Rynax so it can find them."
     }
   ]
 }

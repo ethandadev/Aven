@@ -1,4 +1,4 @@
-// Ask Aven: describe a change in plain words ("make this enemy faster and patrol left/right")
+// Ask Rynax: describe a change in plain words ("make this enemy faster and patrol left/right")
 // and see exactly which settings will change before applying them.
 //
 // This is a rule-based interpreter that runs offline. Every change it makes is an ordinary
@@ -6,10 +6,10 @@
 
 #include "editor.h"
 
-#include "aven/blocks/blocks.h"
-#include "aven/core/fs.h"
-#include "aven/runtime/script_system.h"
-#include "aven/script/vm.h"
+#include "rynax/blocks/blocks.h"
+#include "rynax/core/fs.h"
+#include "rynax/runtime/script_system.h"
+#include "rynax/script/vm.h"
 #include "particle_presets.h"
 
 #include <imgui.h>
@@ -21,7 +21,7 @@
 #include <cstring>
 #include <optional>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -333,7 +333,7 @@ std::vector<std::string> Editor::scriptVariables(Entity e) {
 
 // ---------------------------------------------------------------- the interpreter
 
-void Editor::askAven(const std::string& request) {
+void Editor::askRynax(const std::string& request) {
     assistant_ = {};
     assistant_.request = request;
     std::vector<Entity> targets = selectedEntities();
@@ -973,7 +973,7 @@ void Editor::drawAssistant() {
     // Set apart from the Tag and Layer fields above: a heading, and an outline in the accent color.
     ImGui::Spacing();
     ImVec4 accent = ImGui::GetStyleColorVec4(ImGuiCol_CheckMark);
-    ImGui::TextColored(accent, "Ask Aven");
+    ImGui::TextColored(accent, "Ask Rynax");
     ImGui::SameLine();
     ImGui::TextDisabled("%s", ui::ellipsize("change this object by describing it", ImGui::GetContentRegionAvail().x).c_str());
     ImGui::PushStyleColor(ImGuiCol_Border, accent);
@@ -988,7 +988,7 @@ void Editor::drawAssistant() {
     ImGui::PopStyleColor();
     if (pressed || enter) {
         if (!trim(assistantText_).empty()) {
-            askAven(assistantText_);
+            askRynax(assistantText_);
             assistantFocus_ = true;
         } else {
             ImGui::OpenPopup("ask_examples"); // nothing typed yet: show what it can do
@@ -1001,7 +1001,7 @@ void Editor::drawAssistant() {
                               "make it a collectible coin worth 5", "dangerous", "bouncy", "let me control it"}) {
             if (ImGui::Selectable(e)) {
                 assistantText_ = e;
-                askAven(assistantText_);
+                askRynax(assistantText_);
             }
         }
         ImGui::EndPopup();
@@ -1035,7 +1035,7 @@ void Editor::drawAssistant() {
             bool anyOn = std::any_of(assistant_.proposals.begin(), assistant_.proposals.end(), [](auto& p) { return p.enabled; });
             ImGui::BeginDisabled(!anyOn || playing_);
             if (ImGui::Button("Do it")) {
-                recordUndo("Ask Aven: " + assistant_.request);
+                recordUndo("Ask Rynax: " + assistant_.request);
                 for (auto& p : assistant_.proposals)
                     if (p.enabled)
                         p.apply(*this);
@@ -1055,4 +1055,4 @@ void Editor::drawAssistant() {
     ImGui::PopID();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

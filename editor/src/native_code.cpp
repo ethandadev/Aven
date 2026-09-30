@@ -4,25 +4,26 @@
 
 #include "editor.h"
 
-#include "aven/core/fs.h"
-#include "aven/core/update.h"
-#include "aven/runtime/native.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/update.h"
+#include "rynax/runtime/native.h"
 
 #include <imgui.h>
 
 #include <algorithm>
+#include <cstring>
 #include <cstdio>
 #include <cstdlib>
 
 #if defined(_WIN32)
-#define AVEN_POPEN _popen
-#define AVEN_PCLOSE _pclose
+#define RYNAX_POPEN _popen
+#define RYNAX_PCLOSE _pclose
 #else
-#define AVEN_POPEN popen
-#define AVEN_PCLOSE pclose
+#define RYNAX_POPEN popen
+#define RYNAX_PCLOSE pclose
 #endif
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -67,7 +68,7 @@ void copyIfMissing(const stdfs::path& from, const stdfs::path& to) {
         stdfs::copy_file(from, to, ec);
 }
 
-stdfs::path trustFile() { return fs::userDataDir("Aven Editor") / "trusted_native.json"; }
+stdfs::path trustFile() { return fs::userDataDir("Rynax Editor") / "trusted_native.json"; }
 
 std::map<std::string, int64_t> nativeLibraries(const stdfs::path& projectDir) {
     std::map<std::string, int64_t> out;
@@ -102,8 +103,8 @@ std::string buildFingerprint(const stdfs::path& projectDir) {
     return "build:" + update::sha256(all.data(), all.size());
 }
 
-// The native/ project exactly as Aven makes it: nothing to ask about.
-bool isAvensBuild(const stdfs::path& projectDir) {
+// The native/ project exactly as Rynax makes it: nothing to ask about.
+bool isRynaxsBuild(const stdfs::path& projectDir) {
     std::error_code ec;
     stdfs::path native = projectDir / "native";
     for (auto it = stdfs::recursive_directory_iterator(native, ec); !ec && it != stdfs::recursive_directory_iterator(); it.increment(ec)) {
@@ -114,8 +115,15 @@ bool isAvensBuild(const stdfs::path& projectDir) {
         else if (it->is_regular_file(look) && fs::extension(name) == ".cmake")
             return false;
     }
-    auto mine = fs::readText(native / "CMakeLists.txt"), avens = fs::readText(sdkDir() / "template" / "CMakeLists.txt");
-    return mine && avens && *mine == *avens;
+    auto mine = fs::readText(native / "CMakeLists.txt"), official = fs::readText(sdkDir() / "template" / "CMakeLists.txt");
+    if (!mine || !official)
+        return false;
+    // A project made when Rynax was called Aven has the same file with "Aven" in its comments.
+    std::string renamed = *mine;
+    for (auto [from, to] : {std::pair<const char*, const char*>{"AVEN", "RYNAX"}, {"Aven", "Rynax"}})
+        for (size_t at = 0; (at = renamed.find(from, at)) != std::string::npos; at += std::strlen(to))
+            renamed.replace(at, std::strlen(from), to);
+    return *mine == *official || renamed == *official;
 }
 
 } // namespace
@@ -150,7 +158,7 @@ void Editor::saveNativeTrust() {
     Json list = Json::array();
     for (auto& h : trustedNative_)
         list.push(h);
-    j["about"] = "Compiled libraries Aven may load (built in the editor or allowed by you), and native/ build scripts "
+    j["about"] = "Compiled libraries Rynax may load (built in the editor or allowed by you), and native/ build scripts "
                  "you allowed to run: SHA-256 fingerprints.";
     j["allowed"] = list;
     fs::writeText(trustFile(), j.dump(1));
@@ -160,7 +168,7 @@ void Editor::drawNativeTrustPrompt() {
     NativeModules& modules = NativeModules::get();
     if (playing_ || nativeBuild_ || projectDir_.empty())
         return;
-    // Before building a native/ project that isn't Aven's own template (see buildNativeModule).
+    // Before building a native/ project that isn't Rynax's own template (see buildNativeModule).
     if (confirmNativeBuild_) {
         ImGui::OpenPopup("Build this project's C/C++ code?");
         confirmNativeBuild_ = false;
@@ -169,7 +177,7 @@ void Editor::drawNativeTrustPrompt() {
     if (ImGui::BeginPopupModal("Build this project's C/C++ code?", nullptr, ImGuiWindowFlags_NoResize)) {
         ImGui::PushTextWrapPos(0);
         ImGui::TextUnformatted("Building runs this project's native/CMakeLists.txt, and CMake scripts can run any command on "
-                               "your computer, not just the compiler. This one isn't the one Aven makes, or it changed since "
+                               "your computer, not just the compiler. This one isn't the one Rynax makes, or it changed since "
                                "you last built it.");
         ImGui::Spacing();
         ImGui::TextColored({1, 0.8f, 0.35f, 1}, "If this project came from someone else, build it only if you trust them "
@@ -211,7 +219,7 @@ void Editor::drawNativeTrustPrompt() {
         }
     ImGui::Spacing();
     ImGui::TextUnformatted("Compiled code can do anything a program on your computer can, like reading or deleting your "
-                           "files. Aven loads it by itself only when it was built here.");
+                           "files. Rynax loads it by itself only when it was built here.");
     ImGui::Spacing();
     ImGui::TextColored({1, 0.8f, 0.35f, 1}, "If this project came from someone else (a zip, a download, a friend), keep it off "
                                              "unless you trust them.");
@@ -258,14 +266,14 @@ void Editor::openNativeCode() { showNativeCode_ = focusNativeCode_ = true; }
 void Editor::createNativeModule() {
     stdfs::path sdk = sdkDir(), native = projectDir_ / "native";
     std::error_code ec;
-    if (!stdfs::exists(sdk / "include" / "aven.h", ec)) {
-        notify("Aven's C header (sdk/include/aven.h) is missing from this installation.", true);
+    if (!stdfs::exists(sdk / "include" / "rynax.h", ec)) {
+        notify("Rynax's C header (sdk/include/rynax.h) is missing from this installation.", true);
         return;
     }
     for (const char* dir : {"src", "include", "bin"})
         stdfs::create_directories(native / dir, ec);
-    // The header always matches this version of Aven.
-    stdfs::copy_file(sdk / "include" / "aven.h", native / "include" / "aven.h", stdfs::copy_options::overwrite_existing, ec);
+    // The header always matches this version of Rynax.
+    stdfs::copy_file(sdk / "include" / "rynax.h", native / "include" / "rynax.h", stdfs::copy_options::overwrite_existing, ec);
     copyIfMissing(sdk / "template" / "CMakeLists.txt", native / "CMakeLists.txt");
     copyIfMissing(sdk / "template" / "README.md", native / "README.md");
     bool hasSources = false;
@@ -288,15 +296,15 @@ void Editor::buildNativeModule() {
         createNativeModule();
     if (!fs::exists(projectDir_ / "native" / "CMakeLists.txt"))
         return;
-    // CMake scripts can run anything: ask first unless they're Aven's own, or these exact ones were allowed.
-    if (!isAvensBuild(projectDir_) && !trustedNative_.count(buildFingerprint(projectDir_))) {
+    // CMake scripts can run anything: ask first unless they're Rynax's own, or these exact ones were allowed.
+    if (!isRynaxsBuild(projectDir_) && !trustedNative_.count(buildFingerprint(projectDir_))) {
         confirmNativeBuild_ = true;
         showNativeCode_ = true;
         return;
     }
     saveAllScripts();
     std::error_code ec;
-    stdfs::copy_file(sdkDir() / "include" / "aven.h", projectDir_ / "native" / "include" / "aven.h",
+    stdfs::copy_file(sdkDir() / "include" / "rynax.h", projectDir_ / "native" / "include" / "rynax.h",
                      stdfs::copy_options::overwrite_existing, ec);
     if (nativeThread_.joinable())
         nativeThread_.join();
@@ -313,7 +321,7 @@ void Editor::buildNativeModule() {
         };
         auto run = [&](const std::string& command) {
             say("> " + command);
-            FILE* pipe = AVEN_POPEN((command + " 2>&1").c_str(), "r");
+            FILE* pipe = RYNAX_POPEN((command + " 2>&1").c_str(), "r");
             if (!pipe) {
                 say("Couldn't start: " + command);
                 return false;
@@ -325,7 +333,7 @@ void Editor::buildNativeModule() {
                     line.pop_back();
                 say(line);
             }
-            return AVEN_PCLOSE(pipe) == 0;
+            return RYNAX_PCLOSE(pipe) == 0;
         };
         bool ok = run("cmake -S \"" + src + "\" -B \"" + out + "\" -DCMAKE_BUILD_TYPE=Release") &&
                   run("cmake --build \"" + out + "\" --config Release");
@@ -414,12 +422,12 @@ void Editor::drawNativeCode() {
     NativeModules& modules = NativeModules::get();
     if (!hasModule) {
         ImGui::PushTextWrapPos(0);
-        ImGui::TextUnformatted("Write parts of your game in C or C++, the languages most engines (and Aven itself) are "
+        ImGui::TextUnformatted("Write parts of your game in C or C++, the languages most engines (and Rynax itself) are "
                                "written in. Native code runs at full speed, and it uses the same names as EasyScript:");
         ImGui::PopTextWrapPos();
         ImGui::PushFont(fonts.code);
         ImGui::TextDisabled("  self.angle += speed * dt");
-        ImGui::TextDisabled("  aven_set(self, \"angle\", aven_get(self, \"angle\") + s->speed * dt);");
+        ImGui::TextDisabled("  rynax_set(self, \"angle\", rynax_get(self, \"angle\") + s->speed * dt);");
         ImGui::PopFont();
         ImGui::Spacing();
         if (ImGui::Button("Create a native module", {-1, ui::px(36)}))
@@ -452,8 +460,8 @@ void Editor::drawNativeCode() {
             ImGui::TextColored({1, 0.45f, 0.45f, 1}, "Failed: %d error%s", nativeErrors_, nativeErrors_ == 1 ? "" : "s");
     }
     ImGui::SameLine();
-    if (ImGui::SmallButton("Open aven.h"))
-        openScript("native/include/aven.h");
+    if (ImGui::SmallButton("Open rynax.h"))
+        openScript("native/include/rynax.h");
     ImGui::SameLine();
     if (ImGui::SmallButton("Open folder"))
         openExternal((projectDir_ / "native").string());
@@ -476,12 +484,12 @@ void Editor::drawNativeCode() {
         std::string path = uniqueName("native/src", "behavior", ".c");
         std::string name = stdfs::path(path).stem().string();
         fs::writeText(projectDir_ / path,
-                      "/* Each file in native/src is its own module. */\n\n#include \"aven.h\"\n\n"
-                      "static void update(AvenEntity self, void* data, float dt) {\n    (void)data;\n"
-                      "    /* Runs every frame. Try: aven_set(self, \"angle\", aven_get(self, \"angle\") + 90 * dt); */\n"
+                      "/* Each file in native/src is its own module. */\n\n#include \"rynax.h\"\n\n"
+                      "static void update(RynaxEntity self, void* data, float dt) {\n    (void)data;\n"
+                      "    /* Runs every frame. Try: rynax_set(self, \"angle\", rynax_get(self, \"angle\") + 90 * dt); */\n"
                       "    (void)self;\n    (void)dt;\n}\n\n"
-                      "static void setup(AvenModule* module) {\n    AvenBehavior* b = aven_behavior(module, \"" + name + "\", 0);\n"
-                      "    b->on_update = update;\n}\n\nAVEN_MODULE(setup)\n");
+                      "static void setup(RynaxModule* module) {\n    RynaxBehavior* b = rynax_behavior(module, \"" + name + "\", 0);\n"
+                      "    b->on_update = update;\n}\n\nRYNAX_MODULE(setup)\n");
         openScript(path);
     }
 
@@ -515,7 +523,7 @@ void Editor::drawNativeCode() {
                 props += (props.empty() ? "" : ", ") + p.name;
             ImGui::TextDisabled("%s", props.empty() ? "-" : props.c_str());
             ImGui::TableNextColumn();
-            const AvenBehavior& cb = b->callbacks;
+            const RynaxBehavior& cb = b->callbacks;
             std::string events;
             auto add = [&](const void* fn, const char* name) {
                 if (fn)
@@ -610,11 +618,11 @@ void Editor::drawNativeScriptInspector(Entity e) {
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         bool changed = false;
-        if (p.type == AVEN_PROPERTY_NUMBER) {
+        if (p.type == RYNAX_PROPERTY_NUMBER) {
             float f = static_cast<float>(value);
             changed = ImGui::DragFloat("##v", &f, 0.05f);
             value = f;
-        } else if (p.type == AVEN_PROPERTY_INTEGER) {
+        } else if (p.type == RYNAX_PROPERTY_INTEGER) {
             int i = static_cast<int>(value);
             changed = ImGui::DragInt("##v", &i, 0.2f);
             value = i;
@@ -628,7 +636,7 @@ void Editor::drawNativeScriptInspector(Entity e) {
                 noteLiveChange(e, "NativeScript/" + p.name);
             else
                 edited("Change " + p.name);
-            if (p.type == AVEN_PROPERTY_FLAG)
+            if (p.type == RYNAX_PROPERTY_FLAG)
                 ns.overrides[p.name] = value != 0;
             else
                 ns.overrides[p.name] = value;
@@ -648,4 +656,4 @@ void Editor::drawNativeScriptInspector(Entity e) {
         ImGui::TextDisabled("Changes apply the next time the game starts.");
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

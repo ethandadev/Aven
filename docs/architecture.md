@@ -1,20 +1,20 @@
 # Architecture
 
-Aven is C++20 with four programs on one engine library:
+Rynax is C++20 with four programs on one engine library:
 
 ```
-engine/     aven_engine (static library): everything a game needs at runtime
-player/     aven-player: runs a game (desktop, and WebAssembly for the web)
-editor/     aven-editor: the editor, built with Dear ImGui on the same engine
-relay/      aven-relay: the server for online multiplayer (no screen; runs on any Linux server)
-sdk/        aven.h (the C API for native modules), the native module template, examples
-templates/  starter games, each a normal Aven project
-tests/      aven_tests: unit and integration tests
+engine/     rynax_engine (static library): everything a game needs at runtime
+player/     rynax-player: runs a game (desktop, and WebAssembly for the web)
+editor/     rynax-editor: the editor, built with Dear ImGui on the same engine
+relay/      rynax-relay: the server for online multiplayer (no screen; runs on any Linux server)
+sdk/        rynax.h (the C API for native modules), the native module template, examples
+templates/  starter games, each a normal Rynax project
+tests/      rynax_tests: unit and integration tests
 tools/      scripts that make templates, art and docs, and build the web player
 quests/     Contributor Quests (small guided contributions, shown in the editor)
 ```
 
-## Engine modules (`engine/src/aven/`)
+## Engine modules (`engine/src/rynax/`)
 
 | Folder | What's there |
 |---|---|
@@ -60,7 +60,7 @@ quests/     Contributor Quests (small guided contributions, shown in the editor)
 
 Components are plain structs in `scene/components.h`. `components.cpp` registers each one's
 fields with a label, range and tooltip. Everything else is driven by that registration: saving
-and loading, the Inspector, undo, `self.get_component(...)` in scripts, Ask Aven, Explain and
+and loading, the Inspector, undo, `self.get_component(...)` in scripts, Ask Rynax, Explain and
 the Error Doctor. A component that needs custom data (a Tilemap's tiles, a Script's overrides)
 adds `saveExtra`/`loadExtra` functions and lists their keys in `extraKeys`.
 
@@ -76,7 +76,7 @@ in `runtime/script_system.cpp`:
 Blocks compile to EasyScript text, so they run on the same VM.
 
 Native modules (`runtime/native.cpp`) are shared libraries loaded from a project's
-`native/bin`. The C API table (`sdk/include/aven.h`) forwards to the same built-ins EasyScript
+`native/bin`. The C API table (`sdk/include/rynax.h`) forwards to the same built-ins EasyScript
 uses, so the languages behave the same.
 
 ### Determinism and Bug Replay
@@ -105,22 +105,22 @@ One `Editor` class, split into files by area:
 | `hub.cpp` | the project hub and templates |
 | `code_editor.cpp`, `block_editor.cpp` | the code and block editors |
 | `learn_mode.cpp` | editor levels and the lessons panel |
-| `assistant.cpp`, `explain.cpp`, `doctor.cpp` | Ask Aven, Explain, and the Error Doctor |
+| `assistant.cpp`, `explain.cpp`, `doctor.cpp` | Ask Rynax, Explain, and the Error Doctor |
 | `recipes.cpp`, `code_ladder.cpp`, `play_edit.cpp`, `bug_replay.cpp`, `quests.cpp` | the other beginner features |
 | `pixel_editor.cpp`, `sprite_sheet.cpp`, `tile_painter.cpp`, `sound_maker.cpp`, `particle_tools.cpp`, `capture.cpp` | creator tools |
 | `share.cpp` | web export, installable phone web app, game cards, project zips |
-| `updater.cpp` | checking GitHub for a new Aven, downloading it (with curl), the Update window; installing when Aven quits |
+| `updater.cpp` | checking GitHub for a new Rynax, downloading it (with curl), the Update window; installing when Rynax quits |
 | `native_code.cpp` | the native (C/C++) module window and build |
 
 Things contributors can change without C++ live in `editor/data/`: the Error Doctor's
-explanations, and the words Ask Aven understands.
+explanations, and the words Ask Rynax understands.
 
 ### Testing the editor
 
 The editor can run itself for tests and screenshots:
 
 ```
-aven-editor path/to/game --screenshot out.png --frames 30 --panel doctor,recipes --select Player
+rynax-editor path/to/game --screenshot out.png --frames 30 --panel doctor,recipes --select Player
 ```
 
 `--panel` accepts the commands handled in `Editor::openPanels` (`editor.cpp`). A command written
@@ -145,7 +145,7 @@ dragging them, arrow keys, Add Component and script variables on several objects
 assets, and a short random-input run), which CI runs on Linux:
 
 ```
-python3 tests/editor/run.py build/bin/aven-editor [name-filter]
+python3 tests/editor/run.py build/bin/rynax-editor [name-filter]
 ```
 
 ## Platform support

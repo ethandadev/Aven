@@ -1,17 +1,17 @@
 #include "test_framework.h"
 
-#include "aven/core/fs.h"
-#include "aven/core/json.h"
-#include "aven/core/ed25519.h"
-#include "aven/core/update.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/json.h"
+#include "rynax/core/ed25519.h"
+#include "rynax/core/update.h"
 
 #include <filesystem>
 #include <string>
 #include <vector>
 
-using namespace aven;
+using namespace rynax;
 
-AVEN_TEST(update_versions) {
+RYNAX_TEST(update_versions) {
     CHECK(update::isNewer("0.3.1", "0.3.0"));
     CHECK(update::isNewer("v0.10.0", "0.9.9"));
     CHECK(update::isNewer("1.0.0", "0.99.99"));
@@ -32,18 +32,18 @@ AVEN_TEST(update_versions) {
     CHECK(update::parseVersion("0.3.0+build.5").valid);
 }
 
-AVEN_TEST(update_picks_the_newest_release_for_this_system) {
+RYNAX_TEST(update_picks_the_newest_release_for_this_system) {
     const char* text = R"([
       {"tag_name": "v0.5.0-beta.1", "prerelease": true, "draft": false, "body": "beta", "html_url": "https://x/b",
-       "assets": [{"name": "aven-0.5.0-beta.1-linux-x64.zip", "size": 10, "browser_download_url": "https://x/b.zip"}]},
+       "assets": [{"name": "rynax-0.5.0-beta.1-linux-x64.zip", "size": 10, "browser_download_url": "https://x/b.zip"}]},
       {"tag_name": "v0.6.0", "prerelease": false, "draft": true, "assets": []},
       {"tag_name": "v0.4.0", "prerelease": false, "draft": false, "body": "## New\n- things", "html_url": "https://x/4",
        "assets": [
-         {"name": "aven-0.4.0-windows-x64.zip", "size": 5, "browser_download_url": "https://x/w.zip"},
-         {"name": "aven-0.4.0-linux-x64.zip", "size": 20409471, "digest": "sha256:C7E70C88",
+         {"name": "rynax-0.4.0-windows-x64.zip", "size": 5, "browser_download_url": "https://x/w.zip"},
+         {"name": "rynax-0.4.0-linux-x64.zip", "size": 20409471, "digest": "sha256:C7E70C88",
           "browser_download_url": "https://x/l.zip"},
-         {"name": "aven-0.4.0-linux-x64.zip.sig", "browser_download_url": "https://x/l.zip.sig"},
-         {"name": "aven-0.3.9-linux-x64.zip", "size": 1, "browser_download_url": "https://x/old.zip"}]},
+         {"name": "rynax-0.4.0-linux-x64.zip.sig", "browser_download_url": "https://x/l.zip.sig"},
+         {"name": "rynax-0.3.9-linux-x64.zip", "size": 1, "browser_download_url": "https://x/old.zip"}]},
       {"tag_name": "v0.3.1", "prerelease": false, "draft": false, "assets": []},
       {"tag_name": "v0.3.0", "prerelease": false, "draft": false, "assets": []}
     ])";
@@ -52,7 +52,7 @@ AVEN_TEST(update_picks_the_newest_release_for_this_system) {
     CHECK(update::newestRelease(releases, "0.3.0", "linux-x64", false, r));
     CHECK_EQ(r.version, std::string("0.4.0"));
     CHECK_EQ(r.download, std::string("https://x/l.zip"));
-    CHECK_EQ(r.fileName, std::string("aven-0.4.0-linux-x64.zip"));
+    CHECK_EQ(r.fileName, std::string("rynax-0.4.0-linux-x64.zip"));
     CHECK_EQ(r.size, uint64_t(20409471));
     CHECK_EQ(r.sha256, std::string("c7e70c88"));
     CHECK_EQ(r.page, std::string("https://x/4"));
@@ -72,57 +72,57 @@ AVEN_TEST(update_picks_the_newest_release_for_this_system) {
     CHECK(!update::newestRelease(Json::parse(R"({"message": "API rate limit exceeded"})"), "0.3.0", "linux-x64", false, r));
 }
 
-AVEN_TEST(update_sha256) {
+RYNAX_TEST(update_sha256) {
     CHECK_EQ(update::sha256("", 0), std::string("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
     CHECK_EQ(update::sha256("abc", 3), std::string("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"));
     std::string two = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"; // spans two blocks
     CHECK_EQ(update::sha256(two.data(), two.size()),
              std::string("248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"));
     std::string million(1000000, 'a');
-    auto path = std::filesystem::temp_directory_path() / "aven_sha_test.bin";
+    auto path = std::filesystem::temp_directory_path() / "rynax_sha_test.bin";
     fs::writeBinary(path, million.data(), million.size());
     CHECK_EQ(update::sha256File(path), std::string("cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0"));
     std::filesystem::remove(path);
     CHECK(update::sha256File(path).empty());
 }
 
-AVEN_TEST(update_swaps_files_in_and_back_out) {
+RYNAX_TEST(update_swaps_files_in_and_back_out) {
     namespace stdfs = std::filesystem;
     std::error_code ec;
-    stdfs::path root = stdfs::temp_directory_path() / "aven_update_test";
+    stdfs::path root = stdfs::temp_directory_path() / "rynax_update_test";
     stdfs::remove_all(root, ec);
-    stdfs::path install = root / "Aven", fresh = root / "new", backup = root / "old";
-    fs::writeText(install / "aven-editor", "old editor");
-    fs::writeText(install / "templates/platformer/project.aven", "old");
-    fs::writeText(install / "templates/gone/project.aven", "removed in the new version");
-    fs::writeText(install / "My Game/project.aven", "the user's own game");
-    fs::writeText(fresh / "aven-editor", "new editor");
-    fs::writeText(fresh / "templates/platformer/project.aven", "new");
-    fs::writeText(fresh / "players/linux-x64/aven-player", "new player");
+    stdfs::path install = root / "Rynax", fresh = root / "new", backup = root / "old";
+    fs::writeText(install / "rynax-editor", "old editor");
+    fs::writeText(install / "templates/platformer/project.rynax", "old");
+    fs::writeText(install / "templates/gone/project.rynax", "removed in the new version");
+    fs::writeText(install / "My Game/project.rynax", "the user's own game");
+    fs::writeText(fresh / "rynax-editor", "new editor");
+    fs::writeText(fresh / "templates/platformer/project.rynax", "new");
+    fs::writeText(fresh / "players/linux-x64/rynax-player", "new player");
     std::string error;
     CHECK(update::swapIn(install, fresh, backup, error));
-    CHECK_EQ(fs::readText(install / "aven-editor").value_or(""), std::string("new editor"));
-    CHECK_EQ(fs::readText(install / "templates/platformer/project.aven").value_or(""), std::string("new"));
+    CHECK_EQ(fs::readText(install / "rynax-editor").value_or(""), std::string("new editor"));
+    CHECK_EQ(fs::readText(install / "templates/platformer/project.rynax").value_or(""), std::string("new"));
     CHECK(!stdfs::exists(install / "templates/gone")); // folders are replaced whole
-    CHECK(stdfs::exists(install / "players/linux-x64/aven-player"));
-    CHECK_EQ(fs::readText(install / "My Game/project.aven").value_or(""), std::string("the user's own game"));
-    CHECK_EQ(fs::readText(backup / "aven-editor").value_or(""), std::string("old editor"));
-    CHECK(stdfs::exists(backup / "templates/gone/project.aven"));
+    CHECK(stdfs::exists(install / "players/linux-x64/rynax-player"));
+    CHECK_EQ(fs::readText(install / "My Game/project.rynax").value_or(""), std::string("the user's own game"));
+    CHECK_EQ(fs::readText(backup / "rynax-editor").value_or(""), std::string("old editor"));
+    CHECK(stdfs::exists(backup / "templates/gone/project.rynax"));
 
     // Something that can't be moved: everything goes back as it was.
     stdfs::remove_all(root, ec);
-    fs::writeText(install / "aven-editor", "old editor");
+    fs::writeText(install / "rynax-editor", "old editor");
     fs::writeText(install / "b.txt", "old b");
-    fs::writeText(fresh / "aven-editor", "new editor");
+    fs::writeText(fresh / "rynax-editor", "new editor");
     fs::writeText(fresh / "b.txt", "new b");
     fs::writeText(fresh / "c.txt", "new c");
     fs::writeText(backup / "b.txt/in-the-way", "a folder where b.txt's backup should go");
     CHECK(!update::swapIn(install, fresh, backup, error));
     CHECK(error.find("b.txt") != std::string::npos);
-    CHECK_EQ(fs::readText(install / "aven-editor").value_or(""), std::string("old editor"));
+    CHECK_EQ(fs::readText(install / "rynax-editor").value_or(""), std::string("old editor"));
     CHECK_EQ(fs::readText(install / "b.txt").value_or(""), std::string("old b"));
     CHECK(!stdfs::exists(install / "c.txt"));
-    CHECK_EQ(fs::readText(fresh / "aven-editor").value_or(""), std::string("new editor"));
+    CHECK_EQ(fs::readText(fresh / "rynax-editor").value_or(""), std::string("new editor"));
     stdfs::remove_all(root, ec);
 }
 
@@ -145,7 +145,7 @@ std::string hexOf(const uint8_t* p, size_t n) {
 }
 } // namespace
 
-AVEN_TEST(ed25519_sha512) {
+RYNAX_TEST(ed25519_sha512) {
     uint8_t out[64];
     ed25519::sha512(reinterpret_cast<const uint8_t*>("abc"), 3, out);
     CHECK_EQ(hexOf(out, 64), std::string("ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f"));
@@ -156,7 +156,7 @@ AVEN_TEST(ed25519_sha512) {
     CHECK_EQ(hexOf(out, 64), std::string("ef978e23dc520404ae16fd17bde9ee5945610d671551d6863a5ffbc99433fc726726e51f989b886191be9325b8f8b03b1a63fe3e5eff23d126c2f41f07d2bf87"));
 }
 
-AVEN_TEST(ed25519_verifies_openssl_signatures) {
+RYNAX_TEST(ed25519_verifies_openssl_signatures) {
     // Keys, messages and signatures made by OpenSSL (openssl pkeyutl -sign -rawin).
     const char* vectors[][3] = {
         {"a20055602784c14a2af7057eedfa7ac10d5e87aa5fbe0b5f93b1cacd610b2e15",
@@ -211,10 +211,11 @@ AVEN_TEST(ed25519_verifies_openssl_signatures) {
     CHECK(!ed25519::verify(ffs.data(), msg.data(), msg.size(), ffs.data()));
 }
 
-AVEN_TEST(update_signature_ties_file_name_and_digest) {
+RYNAX_TEST(update_signature_ties_file_name_and_digest) {
     // Made by tools/release/update_key.py with a test key.
     const std::string key = "03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8";
     const std::string sig = "3c571dafbceaed4915ab245573ff95b1b5c0c9590eb68be3b73e2d743d18699a0962fdd7ced94ee2c4dccbdb280746abc2380ec6c0efe5639ef80d8888fed107\n";
+    // (Signed with the file names releases had when Rynax was called Aven; the scheme is the same.)
     const std::string name = "aven-1.2.3-linux-x64.zip", sha(64, 'a');
     std::string digest;
     for (int i = 0; i < 32; ++i)

@@ -3,14 +3,14 @@
 
 #include "editor.h"
 
-#include "aven/core/fs.h"
+#include "rynax/core/fs.h"
 
 #include <imgui.h>
 
 #include <algorithm>
 #include <cmath>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 namespace {
 
@@ -449,4 +449,4 @@ void Editor::paintTilesInViewport(const CameraView& cam, ImVec2 pos) {
     }
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

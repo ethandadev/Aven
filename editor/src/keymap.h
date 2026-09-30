@@ -13,7 +13,7 @@
 #include <string_view>
 #include <vector>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 struct Prefs;
 
@@ -38,7 +38,7 @@ struct KeyAction {
 const std::vector<KeyAction>& keyActions();
 const KeyAction* findKeyAction(std::string_view id);
 
-// A keymap: a starting set of shortcuts. Aven's own is the defaults above.
+// A keymap: a starting set of shortcuts. Rynax's own is the defaults above.
 struct Keymap {
     struct Change {
         const char* id;
@@ -76,4 +76,4 @@ std::string keysName(const Prefs* prefs, std::string_view id);
 // Shortcuts in help text as this computer's keyboard names them: "Ctrl+Z" is "Cmd+Z" on a Mac.
 std::string keyText(std::string text);
 
-} // namespace aven::editor
+} // namespace rynax::editor

@@ -1,12 +1,12 @@
 #include "editor.h"
 
-#include "aven/blocks/blocks.h"
-#include "aven/core/fs.h"
-#include "aven/core/log.h"
-#include "aven/runtime/script_system.h"
-#include "aven/runtime/systems.h"
-#include "aven/scene/reflection.h"
-#include "aven/script/vm.h"
+#include "rynax/blocks/blocks.h"
+#include "rynax/core/fs.h"
+#include "rynax/core/log.h"
+#include "rynax/runtime/script_system.h"
+#include "rynax/runtime/systems.h"
+#include "rynax/scene/reflection.h"
+#include "rynax/script/vm.h"
 #include "block_editor.h"
 #include "code_editor.h"
 
@@ -20,7 +20,7 @@
 #include <cstring>
 #include <set>
 
-namespace aven::editor {
+namespace rynax::editor {
 
 // ---------------------------------------------------------------- helpers
 
@@ -1062,8 +1062,8 @@ void Editor::drawScriptTabs() {
                         buildNativeModule();
                     ImGui::EndDisabled();
                     ImGui::SameLine();
-                    if (ImGui::SmallButton("aven.h"))
-                        openScript("native/include/aven.h");
+                    if (ImGui::SmallButton("rynax.h"))
+                        openScript("native/include/rynax.h");
                 } else {
                 ImGui::TextDisabled("EasyScript");
                 ImGui::SameLine();
@@ -1074,7 +1074,7 @@ void Editor::drawScriptTabs() {
                     if (ImGui::SmallButton("Code Ladder"))
                         openCodeLadderForScript(tab.path);
                     if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("See this script in C (Aven native code), C# (Unity), GDScript (Godot), Luau (Roblox) and C++ (Unreal)");
+                        ImGui::SetTooltip("See this script in C (Rynax native code), C# (Unity), GDScript (Godot), Luau (Roblox) and C++ (Unreal)");
                 }
                 }
                 // Jump to a function or variable.
@@ -1176,7 +1176,7 @@ void Editor::drawSettings() {
             ui::sectionHeader("Online multiplayer");
             changed |= ImGui::InputTextWithHint("Online relay", "relay.example.com:4243", &settings_.relay);
             ui::helpMarker("The relay server that host_online() and join_online() go through, so friends on different "
-                           "networks (over the internet) can play together. It's a small program, aven-relay, that "
+                           "networks (over the internet) can play together. It's a small program, rynax-relay, that "
                            "runs on any server; the online multiplayer guide explains how. Games on the same Wi-Fi "
                            "don't need one (host_game and join_game).");
             ui::sectionHeader("Window");
@@ -1658,7 +1658,7 @@ void Editor::drawReference() {
         return;
     }
     ImGui::TextWrapped("Everything your scripts can use. The same names work in blocks (they turn into this code), "
-                       "and the C API uses aven_ + the same name.");
+                       "and the C API uses rynax_ + the same name.");
     ImGui::SetNextItemWidth(-1);
     ImGui::InputTextWithHint("##filter", "Search, e.g. key, sound, spawn...", referenceFilter_, sizeof referenceFilter_);
     ImGui::BeginChild("##list");
@@ -1704,4 +1704,4 @@ void Editor::drawReference() {
     ImGui::End();
 }
 
-} // namespace aven::editor
+} // namespace rynax::editor

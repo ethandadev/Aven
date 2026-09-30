@@ -1,12 +1,12 @@
-# Releasing Aven, and signing it
+# Releasing Rynax, and signing it
 
 Pushing a tag like `v0.4.0` runs `.github/workflows/release.yml`, which makes:
 
 | System | Installer | Also (what the built-in updater downloads) |
 |---|---|---|
-| Windows | `Aven-<version>-Setup.exe`: installs for you (no administrator), Start menu shortcut, uninstaller | `aven-<version>-windows-x64.zip` |
-| macOS | `Aven-<version>-macOS.dmg`: drag Aven into Applications | `aven-<version>-macos-arm64.zip` (Aven.app) |
-| Linux | `Aven-<version>-linux.flatpak` | `aven-<version>-linux-x64.zip` |
+| Windows | `Rynax-<version>-Setup.exe`: installs for you (no administrator), Start menu shortcut, uninstaller | `rynax-<version>-windows-x64.zip` |
+| macOS | `Rynax-<version>-macOS.dmg`: drag Rynax into Applications | `rynax-<version>-macos-arm64.zip` (Rynax.app) |
+| Linux | `Rynax-<version>-linux.flatpak` | `rynax-<version>-linux-x64.zip` |
 
 The steps for a release are in [CONTRIBUTING.md](../CONTRIBUTING.md#making-a-release). Everything
 works without signing; signed apps just open without warnings. Signing is set up once, as
@@ -15,7 +15,7 @@ secret**. Nothing secret goes in the code.
 
 ## Update signing (do this first)
 
-The editor installs an update only if it's signed with Aven's **update key**: an Ed25519 key pair
+The editor installs an update only if it's signed with Rynax's **update key**: an Ed25519 key pair
 that belongs to you, not to GitHub. So even someone who managed to publish a release on this
 repository (a leaked token, a compromised action) couldn't get it onto anyone's computer. The
 public half is built into the editor; the private half signs each release. Until both are set,
@@ -30,7 +30,7 @@ the release page instead).
    `UPDATE_SIGNING_KEY`. Also keep a copy somewhere safe and offline (a password manager). If it's
    lost, make a new pair: editors from then on use the new key, and older ones need one manual
    download.
-4. The next release is signed: the "Sign the updates" job adds `aven-<version>-<system>.zip.sig`
+4. The next release is signed: the "Sign the updates" job adds `rynax-<version>-<system>.zip.sig`
    next to each zip, and checks the signatures against the public key before publishing.
 
 Only a small job with this repository's own script and GitHub's artifact actions sees the private
@@ -40,7 +40,7 @@ updates as pull requests), the workflows can only read the repository, and only 
 
 ## macOS: Developer ID and notarization
 
-With a paid Apple Developer account, Aven.app is signed with your **Developer ID** and
+With a paid Apple Developer account, Rynax.app is signed with your **Developer ID** and
 **notarized** (checked by Apple), so it opens with a double-click on any Mac. Without it, the app
 is ad-hoc signed, and people have to right-click > Open it the first time.
 
@@ -107,14 +107,14 @@ trusts; there's no free one from Microsoft like Apple's with a developer account
 - **SignPath Foundation** signs open-source projects for free, through their own GitHub
   integration (not wired into this workflow yet).
 
-With either secret set, the workflow signs `aven-editor.exe`, `aven-player.exe` (both copies) and
-the installer. Games exported from Aven are separate: Build & Share signs them with *your*
+With either secret set, the workflow signs `rynax-editor.exe`, `rynax-player.exe` (both copies) and
+the installer. Games exported from Rynax are separate: Build & Share signs them with *your*
 certificate if you set one in the Desktop apps tab.
 
 ## Linux: Flatpak
 
-Nothing to set up. The workflow builds `Aven-<version>-linux.flatpak` from the Linux download;
-people install it with `flatpak install Aven-<version>-linux.flatpak` (or by opening it in their
+Nothing to set up. The workflow builds `Rynax-<version>-linux.flatpak` from the Linux download;
+people install it with `flatpak install Rynax-<version>-linux.flatpak` (or by opening it in their
 software center). A Flatpak can't replace its own files, so for it the Update window links to the
 new download instead of installing it. Publishing on Flathub would make updates automatic; the
 manifest (`tools/release/flatpak/`) is the starting point for that.
