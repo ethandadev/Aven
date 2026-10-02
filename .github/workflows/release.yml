@@ -73,7 +73,7 @@ jobs:
             libgl-dev libwayland-dev libxkbcommon-dev wayland-protocols xvfb libgl1-mesa-dri
 
       - name: Cache downloaded libraries
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/_deps
           # (the repository's name too: CMake keeps absolute paths in there, and they change with it)
@@ -240,7 +240,7 @@ jobs:
           echo "VERSION=$(echo "$pkg" | sed -E 's/^rynax-(.*)-windows-x64$/\1/')" >> "$GITHUB_ENV"
       - name: Sign the programs (Azure Trusted Signing)
         if: env.HAS_AZURE == 'true'
-        uses: azure/trusted-signing-action@0d74250c661747df006298d0fb49944c10f16e03 # v0.5.1
+        uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -282,7 +282,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
       - name: Sign the installer (Azure Trusted Signing)
         if: env.HAS_AZURE == 'true'
-        uses: azure/trusted-signing-action@0d74250c661747df006298d0fb49944c10f16e03 # v0.5.1
+        uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
