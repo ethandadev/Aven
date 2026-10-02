@@ -33,6 +33,44 @@
 using namespace rynax;
 using namespace rynax::editor;
 
+#ifdef IMGUI_ENABLE_TEST_ENGINE
+// (A local check, built with -DIMGUI_ENABLE_TEST_ENGINE: every widget ID added twice in one frame.)
+#include <cstdarg>
+#include <unordered_map>
+namespace {
+std::unordered_map<ImGuiID, int> idSeen;
+int idFrame = -1;
+ImGuiID idPending = 0;
+std::string idWhere;
+}
+void ImGuiTestEngineHook_ItemAdd(ImGuiContext* ctx, ImGuiID id, const ImRect& bb, const ImGuiLastItemData* item) {
+    ImGuiContext& g = *ctx;
+    if (g.FrameCount != idFrame) {
+        idSeen.clear();
+        idFrame = g.FrameCount;
+    }
+    if (!id || (item && (item->ItemFlags & ImGuiItemFlags_AllowDuplicateId)))
+        return;
+    for (ImGuiWindow* w : g.Windows) // (EndChild() adds the child's ID: a multiline text box adds its own twice)
+        if (w->ChildId == id && w->ParentWindow == g.CurrentWindow)
+            return;
+    if (++idSeen[id] == 2) {
+        idPending = id;
+        idWhere = std::string(g.CurrentWindow ? g.CurrentWindow->Name : "?") + " at " + std::to_string(int(bb.Min.x)) + "," +
+                  std::to_string(int(bb.Min.y));
+        std::fprintf(stderr, "IDCONFLICT %08x in %s\n", id, idWhere.c_str());
+    }
+}
+void ImGuiTestEngineHook_ItemInfo(ImGuiContext*, ImGuiID id, const char* label, ImGuiItemStatusFlags) {
+    if (id == idPending && label) {
+        std::fprintf(stderr, "IDCONFLICT %08x label '%s' in %s\n", id, label, idWhere.c_str());
+        idPending = 0;
+    }
+}
+void ImGuiTestEngineHook_Log(ImGuiContext*, const char*, ...) {}
+const char* ImGuiTestEngine_FindItemDebugLabel(ImGuiContext*, ImGuiID) { return nullptr; }
+#endif
+
 namespace {
 
 // --input: mouse and keyboard played back on given frames, for testing the editor headless.
@@ -115,6 +153,7 @@ void reportIdConflict() {
                    static_cast<int>(g.IO.MousePos.x), ", ", static_cast<int>(g.IO.MousePos.y), ")");
     }
 }
+
 
 struct InputPlayer {
     std::vector<InputStep> steps;
@@ -273,6 +312,9 @@ int main(int argc, char** argv) {
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+#ifdef IMGUI_ENABLE_TEST_ENGINE
+    GImGui->TestEngineHookItems = true;
+#endif
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigWindowsMoveFromTitleBarOnly = true;

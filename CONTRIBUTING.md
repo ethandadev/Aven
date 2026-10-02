@@ -39,6 +39,10 @@ screen:
 xvfb-run -a ./build/bin/rynax-editor templates/platformer --screenshot out.png --frames 30 --panel doctor
 ```
 
+ImGui only notices two widgets sharing an ID when the mouse is over one. To list every one in a
+window at once, build with `-DCMAKE_CXX_FLAGS=-DIMGUI_ENABLE_TEST_ENGINE` (in its own build folder)
+and run the editor with that window open: each is printed as `IDCONFLICT` with its label.
+
 To check the web player, build it with `tools/web/build_web_player.sh` (it needs Emscripten).
 
 If you change what scripts can call, regenerate the API reference with
