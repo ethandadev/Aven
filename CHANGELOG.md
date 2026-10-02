@@ -6,6 +6,8 @@ renames it to the version (see [CONTRIBUTING.md](CONTRIBUTING.md#making-a-releas
 
 ## Next
 
+## 0.6.0
+
 **Aven is now Rynax.** Same engine, new name (another company is well known as Aven). Nothing
 you've made is lost, and there's nothing to redo:
 
@@ -25,6 +27,12 @@ you've made is lost, and there's nothing to redo:
   (`io.github.ethandadev.Rynax`): install it, then remove the Aven one.
 - **On GitHub** Aven is now [ethandadev/Rynax](https://github.com/ethandadev/Rynax); the old
   address sends you there.
+
+0.5.0 wasn't released on its own, so this release brings it too: a playful welcome tour the first
+time the editor opens, every shortcut changeable (starting from keys like Unity's, Godot's or
+Unreal's), Low, Medium, High and Ultra graphics for games, an editor that's much lighter on your
+computer, and clear messages instead of crashes in many odd corners. The whole list is under 0.5.0
+in [CHANGELOG.md](https://github.com/ethandadev/Rynax/blob/main/CHANGELOG.md#050).
 
 ## 0.5.0
 

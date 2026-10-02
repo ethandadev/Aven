@@ -35,7 +35,8 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: build/_deps
-          key: deps-${{ matrix.os }}-${{ hashFiles('cmake/RynaxDependencies.cmake') }}
+          # (the repository's name too: CMake keeps absolute paths in there, and they change with it)
+          key: deps-${{ github.event.repository.name }}-${{ matrix.os }}-${{ hashFiles('cmake/RynaxDependencies.cmake') }}
 
       - name: Configure
         shell: bash
@@ -107,7 +108,8 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: build/_deps
-          key: deps-sanitizers-${{ hashFiles('cmake/RynaxDependencies.cmake') }}
+          # (the repository's name too: CMake keeps absolute paths in there, and they change with it)
+          key: deps-${{ github.event.repository.name }}-sanitizers-${{ hashFiles('cmake/RynaxDependencies.cmake') }}
       - name: Configure
         run: |
           flags="-fsanitize=address,undefined -fno-sanitize=vptr -fno-sanitize-recover=undefined -fno-omit-frame-pointer"
