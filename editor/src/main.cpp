@@ -14,6 +14,7 @@
 #include "rynax/core/log.h"
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <ImGuizmo.h>
@@ -101,6 +102,18 @@ int glfwKeyNamed(const std::string& n) {
     if (n.size() == 1 && std::isalnum(static_cast<unsigned char>(n[0])))
         return std::toupper(static_cast<unsigned char>(n[0])); // (GLFW's letters and digits are their ASCII codes)
     return -1;
+}
+
+// Two widgets with the same ID under the mouse (ImGui counts them while it's over one): in tests that's
+// an error, with the window and the mouse position, to find it by.
+void reportIdConflict() {
+    ImGuiContext& g = *GImGui;
+    static ImGuiID reported = 0;
+    if (g.HoveredIdPreviousFrameItemCount > 1 && g.HoveredIdPreviousFrame != reported) {
+        reported = g.HoveredIdPreviousFrame;
+        Log::error("Two widgets share an ImGui ID in '", g.HoveredWindow ? g.HoveredWindow->Name : "?", "' at (",
+                   static_cast<int>(g.IO.MousePos.x), ", ", static_cast<int>(g.IO.MousePos.y), ")");
+    }
 }
 
 struct InputPlayer {
@@ -263,6 +276,9 @@ int main(int argc, char** argv) {
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigWindowsMoveFromTitleBarOnly = true;
+    // Two widgets sharing an ID is our bug, not the user's: release builds don't show ImGui's red
+    // "programmer error" box; test runs log it as an error instead (see the frame loop).
+    io.ConfigDebugHighlightIdConflicts = RYNAX_TEST_HOOKS && !screenshotMode;
     static std::string iniPath;
     if (!screenshotMode)
         bringOverAvenData(); // (before anything reads the settings: the first run after Aven became Rynax)
@@ -347,6 +363,8 @@ int main(int argc, char** argv) {
                 ImGui::NewFrame();
                 ImGuizmo::BeginFrame();
                 editor.frame(dt);
+                if (screenshotMode)
+                    reportIdConflict();
                 ImGui::Render();
 
                 Vec2 fb = window.framebufferSize();
