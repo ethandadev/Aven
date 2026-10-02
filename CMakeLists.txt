@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(Rynax
-    VERSION 0.5.0
+    VERSION 0.6.0
     DESCRIPTION "A beginner-friendly 2D/3D game engine"
     LANGUAGES C CXX)
 
