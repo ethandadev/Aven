@@ -508,7 +508,7 @@ jobs:
           | macOS (Apple silicon) | [Rynax-$v-macOS.dmg](https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Rynax-$v-macOS.dmg): drag Rynax into Applications | \`rynax-$v-macos-arm64.zip\` |
           | Linux | [Rynax-$v-linux.flatpak](https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Rynax-$v-linux.flatpak): \`flatpak install Rynax-$v-linux.flatpak\` | \`rynax-$v-linux-x64.zip\` |
 
-          Versions after 0.3.0 update themselves (Help > Check for Updates), including Aven 0.4 and 0.5: Aven was Rynax's old name.
+          Rynax updates itself from 0.6.0 on (Help > Check for Updates). Coming from Aven (Rynax's old name)? Download it here once.
           EOF
           cat body.md
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3

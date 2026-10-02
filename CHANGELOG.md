@@ -11,9 +11,10 @@ renames it to the version (see [CONTRIBUTING.md](CONTRIBUTING.md#making-a-releas
 **Aven is now Rynax.** Same engine, new name (another company is well known as Aven). Nothing
 you've made is lost, and there's nothing to redo:
 
-- **Updating**: Aven 0.4 and 0.5 update to Rynax by themselves (Help > Check for Updates), in the
-  same folder. Your preferences, recent games, layout, keys and profile picture come along, and
-  Preferences > Updates > "Go back to Aven" still works.
+- **Updating from Aven 0.4**: download Rynax below, once (Aven 0.4 was built without the key that
+  proves an update is real, so it can't install one itself). The Windows Setup upgrades your Aven
+  install in place. Your preferences, recent games, layout, keys and profile picture come along.
+  From 0.6.0 on, Rynax updates itself (Help > Check for Updates).
 - **Your games**: opening one renames its `project.aven` to `project.rynax` (Aven 0.5 and older
   can't open it after that; rename it back to go back). Exported games keep finding their
   players' saves where Aven put them, and games made with Aven and Rynax find each other on the
