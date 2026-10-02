@@ -32,7 +32,7 @@ jobs:
             libgl-dev libwayland-dev libxkbcommon-dev wayland-protocols xvfb libgl1-mesa-dri
 
       - name: Cache downloaded libraries
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/_deps
           # (the repository's name too: CMake keeps absolute paths in there, and they change with it)
@@ -105,7 +105,7 @@ jobs:
           sudo apt-get install -y ninja-build libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
             libgl-dev libwayland-dev libxkbcommon-dev wayland-protocols
       - name: Cache downloaded libraries
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/_deps
           # (the repository's name too: CMake keeps absolute paths in there, and they change with it)
